@@ -61,7 +61,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="w-full space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-accent/60 ml-1">Alamat Email</关键
+            <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-accent/60 ml-1">Alamat Email</Label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40" />
               <Input 
