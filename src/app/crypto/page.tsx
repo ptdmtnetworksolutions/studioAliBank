@@ -13,7 +13,8 @@ import {
   ArrowDownRight,
   ChevronRight,
   Cpu,
-  Settings
+  Settings,
+  AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,7 +26,7 @@ import { BrowserProvider, formatEther, parseEther, Contract } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-// ABI yang sudah disesuaikan dengan kode AliBankPayment.sol milik Anda
+// ABI yang sudah disesuaikan dengan kode AliBankPayment.sol
 const CONTRACT_ABI = [
   "function deposit() public payable",
   "function withdraw(uint256 _amount) public",
@@ -312,12 +313,23 @@ export default function CryptoPage() {
                     <strong>PANDUAN CEPAT:</strong>
                   </p>
                   <ol className="text-[8px] text-muted-foreground list-decimal ml-4 space-y-1">
-                    <li>Copy kode <code>AliBankPayment.sol</code> dari proyek ini.</li>
-                    <li>Paste ke Remix IDE & Deploy ke Sepolia.</li>
+                    <li>Aktifkan <strong>"Show test networks"</strong> di MetaMask Settings > Advanced.</li>
+                    <li>Pilih jaringan <strong>Sepolia</strong> di MetaMask.</li>
+                    <li>Deploy <code>AliBankPayment.sol</code> dari proyek ini di Remix.</li>
                     <li>Salin alamat kontrak hasil deploy.</li>
                     <li>Tempelkan di kotak Konfigurasi di atas.</li>
                   </ol>
                 </div>
+              </div>
+            </div>
+            
+            <div className="bg-amber-50 border border-amber-200 p-6 rounded-[2rem] flex gap-4 dark:bg-amber-900/20 dark:border-amber-900/40">
+              <AlertCircle className="w-6 h-6 text-amber-600 shrink-0" />
+              <div>
+                <h4 className="text-xs font-bold text-amber-800 uppercase tracking-tight dark:text-amber-400">Penting!</h4>
+                <p className="text-[9px] text-amber-700 leading-relaxed dark:text-amber-500">
+                  Pastikan Anda memiliki saldo Sepolia ETH untuk membayar gas fee. Jika belum punya, Anda bisa mencarinya di "Sepolia Faucet" di Google.
+                </p>
               </div>
             </div>
           </div>
