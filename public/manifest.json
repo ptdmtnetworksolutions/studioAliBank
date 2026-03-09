@@ -1,35 +1,24 @@
 
 {
-  "name": "AliBank Premium Banking",
+  "name": "AliBank Premium",
   "short_name": "AliBank",
-  "description": "Pendamping perbankan cerdas dan elegan Anda.",
+  "description": "Perbankan Premium dan Ekosistem Kripto Terpadu",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#090600",
+  "background_color": "#0F0A00",
   "theme_color": "#B8860B",
   "orientation": "portrait",
-  "scope": "/",
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "https://picsum.photos/seed/alibank-logo/192/192",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon.svg",
+      "src": "https://picsum.photos/seed/alibank-logo/512/512",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
-  ],
-  "categories": ["finance", "productivity"],
-  "screenshots": [
-    {
-      "src": "https://picsum.photos/seed/alibank-ss1/1170/2532",
-      "sizes": "1170x2532",
-      "type": "image/png",
-      "label": "AliBank Dashboard"
+      "type": "image/png"
     }
   ]
 }

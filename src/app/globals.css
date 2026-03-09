@@ -37,12 +37,6 @@
     --ring: 43 89% 38%;
 
     --radius: 1.5rem;
-
-    --chart-1: 43 89% 38%;
-    --chart-2: 36 100% 15%;
-    --chart-3: 43 50% 50%;
-    --chart-4: 60 56% 91%;
-    --chart-5: 36 60% 30%;
   }
 
   .dark {
@@ -76,8 +70,9 @@
     -webkit-tap-highlight-color: transparent;
   }
   body {
-    @apply bg-background text-foreground font-body antialiased selection:bg-primary/30 selection:text-accent;
+    @apply bg-background text-foreground font-body antialiased;
     overscroll-behavior-y: none;
+    -webkit-touch-callout: none;
   }
 }
 
@@ -118,14 +113,10 @@ h1, h2, h3, h4 {
   @apply tracking-tight leading-tight text-accent dark:text-primary;
 }
 
-.dark header {
-  @apply bg-black/60 border-white/5;
-}
-
-/* PWA Optimizations */
-@media all and (display-mode: standalone) {
+/* PWA Optimization: Safe Area Insets for Notch Display */
+@supports (padding: env(safe-area-inset-top)) {
   body {
-    padding-bottom: env(safe-area-inset-bottom);
     padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }

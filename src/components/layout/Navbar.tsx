@@ -32,18 +32,17 @@ export function Navbar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
-  // Hide Navbar on the main dashboard page since it has its own app-like header
   if (pathname === "/") return null;
 
   return (
-    <nav className="sticky top-0 z-50 w-full mb-6">
+    <nav className="sticky top-0 z-50 w-full mb-6 pt-[env(safe-area-inset-top)]">
       <div className="container mx-auto px-4">
         <div className="liquid-glass rounded-2xl mt-4 px-6 h-16 flex items-center justify-between border border-primary/20">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg gold-gradient flex items-center justify-center">
-              <Sparkles className="text-white w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl gold-gradient flex items-center justify-center shadow-lg">
+              <Sparkles className="text-white w-6 h-6" />
             </div>
-            <span className="font-headline font-bold text-xl tracking-tight text-accent">AliBank</span>
+            <span className="font-bold text-xl tracking-tighter italic text-accent dark:text-primary uppercase">AliBank</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -72,7 +71,7 @@ export function Navbar() {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="md:hidden text-accent"
+            className="md:hidden text-accent dark:text-primary"
             onClick={() => setIsOpen(!isOpen)}
           >
             {isOpen ? <X /> : <Menu />}

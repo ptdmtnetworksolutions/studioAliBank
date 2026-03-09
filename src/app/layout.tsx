@@ -8,8 +8,8 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
-  title: 'AliBank - Perbankan Premium',
-  description: 'Pendamping perbankan cerdas dan elegan Anda.',
+  title: 'AliBank - Bintang Kejora Perbankan',
+  description: 'Pendamping perbankan cerdas, elegan, dan terintegrasi kripto.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -41,12 +41,10 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icon.svg" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body className="font-body antialiased bg-background text-foreground transition-colors duration-300 overflow-x-hidden">
+      <body className="font-body antialiased bg-background text-foreground transition-colors duration-300 overflow-x-hidden selection:bg-primary/30">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -68,9 +66,9 @@ export default function RootLayout({
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                  console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                  console.log('AliBank SW registered with scope: ', registration.scope);
                 }, function(err) {
-                  console.log('ServiceWorker registration failed: ', err);
+                  console.log('AliBank SW registration failed: ', err);
                 });
               });
             }
