@@ -20,7 +20,8 @@ import {
   Sparkles,
   Info,
   Link2,
-  Unlink
+  Unlink,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,6 +76,7 @@ export default function CryptoPage() {
   const [loading, setLoading] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
   const [vaultBalance, setVaultBalance] = useState("0");
+  const [isInitializing, setIsInitializing] = useState(true);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -83,13 +85,58 @@ export default function CryptoPage() {
 
   const { data: userData } = useDoc(userDocRef);
 
-  // Auto-connect if walletAddress is stored in profile
+  // Persistence Engine: Restore connection from Firestore & Sync with MetaMask
   useEffect(() => {
-    if (userData?.walletAddress && !address) {
-      setAddress(userData.walletAddress);
-      checkVaultBalance(userData.walletAddress);
-    }
-  }, [userData, address]);
+    const syncWallet = async () => {
+      // 1. Pull from Firestore (Our Source of Truth)
+      if (userData?.walletAddress) {
+        setAddress(userData.walletAddress);
+        await checkVaultBalance(userData.walletAddress);
+      }
+      setIsInitializing(false);
+
+      // 2. Setup MetaMask Listeners
+      if (typeof window.ethereum !== 'undefined') {
+        const handleAccountsChanged = (accounts: string[]) => {
+          if (accounts.length > 0) {
+            const newAddr = accounts[0];
+            setAddress(newAddr);
+            if (userDocRef) {
+              updateDoc(userDocRef, { walletAddress: newAddr });
+            }
+            checkVaultBalance(newAddr);
+          }
+        };
+
+        window.ethereum.on('accountsChanged', handleAccountsChanged);
+        
+        // Initial check if MetaMask is already unlocked
+        try {
+          const provider = new BrowserProvider(window.ethereum);
+          const accounts = await provider.send("eth_accounts", []);
+          if (accounts.length > 0 && !userData?.walletAddress) {
+             // If MetaMask is open but Firestore is empty, auto-sync
+             const currentAddr = accounts[0];
+             setAddress(currentAddr);
+             if (userDocRef) {
+               updateDoc(userDocRef, { walletAddress: currentAddr });
+             }
+             checkVaultBalance(currentAddr);
+          }
+        } catch (e) {
+          console.error("Provider check failed", e);
+        }
+
+        return () => {
+          if (window.ethereum?.removeListener) {
+            window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+          }
+        };
+      }
+    };
+
+    if (userData) syncWallet();
+  }, [userData?.walletAddress, userDocRef]);
 
   const checkVaultBalance = async (walletAddr: string) => {
     if (typeof window.ethereum !== 'undefined') {
@@ -112,12 +159,12 @@ export default function CryptoPage() {
     }
 
     try {
+      setLoading(true);
       const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
       const newAddress = accounts[0];
       setAddress(newAddress);
       
-      // Persist the connection to Firestore
       if (userDocRef) {
         await updateDoc(userDocRef, {
           walletAddress: newAddress
@@ -128,6 +175,8 @@ export default function CryptoPage() {
       toast({ title: "Dompet Terhubung", description: "Alamat dompet Anda telah tertaut secara permanen dengan akun AliBank." });
     } catch (err) {
       toast({ variant: "destructive", title: "Web3 Error", description: "Gagal menghubungkan dompet." });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -139,7 +188,7 @@ export default function CryptoPage() {
       });
       setAddress(null);
       setVaultBalance("0");
-      toast({ title: "Dompet Diputuskan", description: "Hubungan dompet telah dihapus dari profil Anda." });
+      toast({ title: "Dompet Diputuskan", description: "Hubungan dompet telah dihapus dari profil Anda secara permanen." });
     } catch (err) {
       toast({ variant: "destructive", title: "Gagal", description: "Gagal memutuskan hubungan dompet." });
     }
@@ -193,19 +242,19 @@ export default function CryptoPage() {
   };
 
   return (
-    <div className="min-h-screen pb-20 bg-background">
+    <div className="min-h-screen pb-32 bg-background">
       <Navbar />
       
       <main className="container mx-auto px-4 max-w-7xl">
-        <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6 pt-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 rounded-2xl gold-gradient flex items-center justify-center shadow-xl">
-                <Coins className="text-white w-6 h-6" />
+                <Sparkles className="text-white w-7 h-7" />
               </div>
-              <h1 className="text-4xl font-black text-accent italic uppercase tracking-tighter dark:text-primary">Crypto Exchange</h1>
+              <h1 className="text-4xl font-black text-accent italic uppercase tracking-tighter dark:text-primary">Crypto Bridge</h1>
             </div>
-            <p className="text-muted-foreground text-sm font-medium">Platform bursa kripto elit AliBank dengan koneksi dompet persisten.</p>
+            <p className="text-muted-foreground text-sm font-medium">Bursa aset digital AliBank dengan koneksi Web3 persisten antar-perangkat.</p>
           </div>
           
           <div className="flex items-center gap-4">
@@ -215,7 +264,7 @@ export default function CryptoPage() {
             </div>
             {address ? (
               <div className="flex items-center gap-2">
-                <Badge className="bg-green-600 text-white font-bold h-10 px-4 rounded-full flex items-center gap-2">
+                <Badge className="bg-green-600 text-white font-bold h-10 px-4 rounded-full flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
                   <Link2 className="w-4 h-4" /> {address.slice(0, 6)}...{address.slice(-4)}
                 </Badge>
                 <Button onClick={disconnectWallet} variant="ghost" size="icon" className="text-destructive hover:bg-destructive/5 rounded-full">
@@ -223,8 +272,14 @@ export default function CryptoPage() {
                 </Button>
               </div>
             ) : (
-              <Button onClick={connectWallet} variant="outline" className="rounded-full border-primary/20 text-primary font-bold h-10 px-6">
-                <Wallet className="w-4 h-4 mr-2" /> Hubungkan Wallet
+              <Button 
+                onClick={connectWallet} 
+                disabled={isInitializing}
+                variant="outline" 
+                className="rounded-full border-primary/20 text-primary font-bold h-10 px-6 gold-gradient text-white border-none shadow-lg hover:scale-105 transition-transform"
+              >
+                {isInitializing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wallet className="w-4 h-4 mr-2" />}
+                Aktifkan Web3 Bridge
               </Button>
             )}
           </div>
@@ -234,7 +289,7 @@ export default function CryptoPage() {
           
           {/* Main Trading Area */}
           <div className="lg:col-span-8 space-y-6">
-            <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden">
+            <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl">
               <CardHeader className="flex flex-row items-center justify-between border-b border-primary/5 pb-6">
                 <div className="flex items-center gap-4">
                   <div className={cn("p-3 rounded-2xl bg-primary/10", selectedAsset.color)}>
@@ -340,37 +395,32 @@ export default function CryptoPage() {
 
           {/* Sidebar Area */}
           <div className="lg:col-span-4 space-y-6">
-            <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white shadow-2xl">
-              <div className="flex items-center gap-3 mb-8">
-                <Sparkles className="text-primary w-6 h-6" />
-                <h3 className="text-xl font-black italic uppercase tracking-tighter">AI Market Insight</h3>
+            <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white shadow-2xl overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-4">
+                <div className="w-20 h-20 bg-primary/10 rounded-full blur-2xl animate-pulse" />
               </div>
-              <div className="space-y-6">
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                  <p className="text-[10px] font-black text-primary uppercase mb-2 tracking-widest">Sinyal Saat Ini</p>
-                  <div className="flex items-center justify-between">
-                    <Badge className="bg-green-600 text-white font-bold px-4 py-1">STRONG BUY</Badge>
-                    <p className="text-xs font-medium">Conf: 92%</p>
-                  </div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-8">
+                  <Sparkles className="text-primary w-6 h-6" />
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter">AI Analysis</h3>
                 </div>
-                <p className="text-[11px] text-white/70 leading-relaxed italic">
-                  "Tren pasar menunjukkan akumulasi kuat pada aset {selectedAsset.id}. Koneksi dompet persisten Anda memastikan eksekusi perdagangan yang lebih cepat."
-                </p>
-                <div className="pt-4 border-t border-white/10 space-y-3">
-                  <div className="flex justify-between text-[10px] font-bold uppercase">
-                    <span className="text-white/50">Resistance</span>
-                    <span>Rp {(selectedAsset.price * 1.05).toLocaleString('id-ID')}</span>
+                <div className="space-y-6">
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                    <p className="text-[10px] font-black text-primary uppercase mb-2 tracking-widest">Sinyal Saat Ini</p>
+                    <div className="flex items-center justify-between">
+                      <Badge className="bg-green-600 text-white font-bold px-4 py-1">STRONG BUY</Badge>
+                      <p className="text-xs font-medium">Confidence: 92%</p>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-[10px] font-bold uppercase">
-                    <span className="text-white/50">Support</span>
-                    <span>Rp {(selectedAsset.price * 0.95).toLocaleString('id-ID')}</span>
-                  </div>
+                  <p className="text-[11px] text-white/70 leading-relaxed italic">
+                    "Tren pasar menunjukkan akumulasi kuat pada aset {selectedAsset.id}. Koneksi dompet persisten Anda memastikan eksekusi perdagangan yang lebih cepat dan aman."
+                  </p>
                 </div>
               </div>
             </Card>
 
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8">
-              <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-6">Aset Populer</h4>
+              <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-6">Aset Terpantau</h4>
               <div className="space-y-4">
                 {ASSETS.map((asset) => (
                   <button 
@@ -406,14 +456,14 @@ export default function CryptoPage() {
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-4">
                   <History className="w-4 h-4 text-primary" />
-                  <h4 className="text-[10px] font-black uppercase tracking-widest">Riwayat Vault</h4>
+                  <h4 className="text-[10px] font-black uppercase tracking-widest">Saldo Vault Anda</h4>
                 </div>
-                <div className="p-4 rounded-xl bg-primary/5 flex justify-between items-center mb-4">
-                  <span className="text-xs font-bold text-accent">Saldo Kustodian</span>
+                <div className="p-4 rounded-xl bg-primary/5 flex justify-between items-center mb-4 border border-primary/10">
+                  <span className="text-xs font-bold text-accent">On-Chain Vault</span>
                   <span className="text-lg font-black text-primary">{parseFloat(vaultBalance).toFixed(4)} ETH</span>
                 </div>
                 <Button variant="ghost" className="w-full text-[10px] font-black uppercase tracking-widest h-10 hover:bg-primary/5">
-                  Buka Explorer <ArrowRightLeft className="w-3 h-3 ml-2" />
+                  Buka Etherscan Explorer <ArrowRightLeft className="w-3 h-3 ml-2" />
                 </Button>
               </div>
             </Card>

@@ -18,7 +18,7 @@ const navItems = [
   { name: "History", href: "/transactions", icon: Clock },
   { name: "SCAN", href: "/topup", icon: QrCode, isCenter: true },
   { name: "Bridge", href: "/crypto", icon: Bitcoin },
-  { name: "AI Intelligence", href: "/ai-assistant", icon: Sparkles },
+  { name: "AI", href: "/ai-assistant", icon: Sparkles },
 ];
 
 export function BottomNav() {
@@ -61,7 +61,7 @@ export function BottomNav() {
               href={item.href} 
               className={cn(
                 "flex items-center justify-center transition-all duration-300 h-full",
-                isActive ? "opacity-100 scale-125" : "opacity-50 hover:opacity-100"
+                isActive ? "opacity-100 scale-125" : "opacity-40 hover:opacity-100"
               )}
             >
               <Icon className={cn("w-7 h-7", isActive ? "text-primary" : "text-white")} />
