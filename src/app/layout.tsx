@@ -1,8 +1,10 @@
+
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
+import { BottomNav } from '@/components/layout/BottomNav';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
@@ -46,7 +48,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <FirebaseClientProvider>
-            {children}
+            <div className="min-h-screen relative">
+              {children}
+              <BottomNav />
+            </div>
             <Toaster />
           </FirebaseClientProvider>
         </ThemeProvider>

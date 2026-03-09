@@ -15,12 +15,10 @@ import {
   ArrowDownToLine,
   Grid2X2,
   PiggyBank,
-  Clock,
   LogOut,
   QrCode,
   EyeOff,
   Bitcoin,
-  Home,
   ShieldCheck,
   Zap
 } from "lucide-react";
@@ -101,7 +99,7 @@ export default function Dashboard() {
   const accountNumber = userData?.accountNumber || "---";
 
   return (
-    <div className="min-h-screen pb-24 bg-background">
+    <div className="min-h-screen pb-32 bg-background">
       <header className="px-4 pt-6 pb-4 bg-white/80 backdrop-blur-xl sticky top-0 z-40 border-b border-primary/5 dark:bg-black/80">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <div className="flex items-center gap-3">
@@ -225,37 +223,6 @@ export default function Dashboard() {
           </div>
         </section>
       </main>
-
-      <footer className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8 pt-2 max-w-2xl mx-auto pointer-events-none">
-        <div className="liquid-glass-dark bg-accent/95 rounded-[3rem] grid grid-cols-5 items-center h-22 shadow-2xl px-3 border-white/10 pointer-events-auto dark:bg-black/95">
-          <Link href="/" className="flex flex-col items-center gap-1.5 group">
-            <Home className="w-6 h-6 text-primary" />
-            <span className="text-[9px] font-black text-white/90 uppercase tracking-widest">Main</span>
-          </Link>
-          <Link href="/transactions" className="flex flex-col items-center gap-1.5 opacity-50 hover:opacity-100 transition-opacity">
-            <Clock className="w-6 h-6 text-white" />
-            <span className="text-[9px] font-black text-white uppercase tracking-widest">History</span>
-          </Link>
-          <div className="flex flex-col items-center justify-center relative h-full">
-            <div className="absolute -top-12 left-1/2 -translate-x-1/2">
-              <Link href="/topup">
-                <button className="gold-gradient w-20 h-20 rounded-[2.2rem] flex items-center justify-center shadow-2xl border-4 border-accent dark:border-black hover:scale-105 active:scale-95 transition-all">
-                  <QrCode className="w-10 h-10 text-white" />
-                </button>
-              </Link>
-            </div>
-            <span className="mt-12 text-[9px] font-black text-white/40 tracking-widest uppercase">SCAN</span>
-          </div>
-          <Link href="/crypto" className="flex flex-col items-center gap-1.5 opacity-50 hover:opacity-100 transition-opacity">
-            <Bitcoin className="w-6 h-6 text-white" />
-            <span className="text-[9px] font-black text-white uppercase tracking-widest">Bridge</span>
-          </Link>
-          <Link href="/ai-assistant" className="flex flex-col items-center gap-1.5 opacity-50 hover:opacity-100 transition-opacity">
-            <Sparkles className="w-6 h-6 text-white" />
-            <span className="text-[9px] font-black text-white uppercase tracking-widest">AI Intelligence</span>
-          </Link>
-        </div>
-      </footer>
     </div>
   );
 }
