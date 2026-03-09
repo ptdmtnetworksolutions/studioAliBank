@@ -2,35 +2,43 @@
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
-import { MOCK_TRANSACTIONS } from "@/app/lib/mock-data";
-import { Search, Filter, ArrowUpRight, ArrowDownLeft, Download } from "lucide-react";
+import { Search, Filter, ArrowUpRight, ArrowDownLeft, Download, Loader2, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
+import { useUser, useFirestore, useCollection } from "@/firebase";
+import { collection, query, orderBy } from "firebase/firestore";
 
 export default function TransactionsPage() {
+  const { user } = useUser();
+  const db = useFirestore();
   const [searchTerm, setSearchTerm] = useState("");
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const transactionsQuery = useMemo(() => {
+    if (!db || !user) return null;
+    return query(
+      collection(db, "users", user.uid, "transactions"),
+      orderBy("date", "desc")
+    );
+  }, [db, user]);
 
-  const filtered = MOCK_TRANSACTIONS.filter(t => 
+  const { data: transactions, loading } = useCollection(transactionsQuery);
+
+  const filtered = transactions?.filter(t => 
     t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) || [];
 
   return (
-    <div className="min-h-screen pb-12">
+    <div className="min-h-screen pb-12 bg-background">
       <Navbar />
       
       <main className="container mx-auto px-4 max-w-4xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-accent">Riwayat Transaksi</h1>
-            <p className="text-muted-foreground">Pantau dan kelola aktivitas finansial Anda</p>
+            <p className="text-muted-foreground">Pantau aktivitas finansial asli Anda dari database</p>
           </div>
           <Button variant="outline" className="liquid-glass border-primary/20 text-primary self-start">
             <Download className="w-4 h-4 mr-2" /> Ekspor Laporan
@@ -53,16 +61,21 @@ export default function TransactionsPage() {
         </div>
 
         <div className="space-y-4">
-          {filtered.length > 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 className="w-8 h-8 text-primary animate-spin mb-2" />
+              <p className="text-sm text-muted-foreground">Mengambil data transaksi...</p>
+            </div>
+          ) : filtered.length > 0 ? (
             filtered.map((tx, idx) => (
               <div 
                 key={idx} 
-                className="liquid-glass p-5 rounded-2xl flex items-center justify-between card-hover-effect animate-in fade-in"
+                className="liquid-glass p-5 rounded-2xl flex items-center justify-between card-hover-effect animate-in fade-in slide-in-from-bottom-2"
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
                 <div className="flex items-center gap-4">
                   <div className={cn(
-                    "w-12 h-12 rounded-2xl flex items-center justify-center",
+                    "w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm",
                     tx.type === "income" ? "bg-green-100 text-green-600" : "bg-accent/10 text-accent"
                   )}>
                     {tx.type === "income" ? <ArrowDownLeft className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
@@ -70,8 +83,11 @@ export default function TransactionsPage() {
                   <div>
                     <p className="font-bold text-base text-accent">{tx.description}</p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">{tx.category}</span>
-                      <span className="text-xs text-muted-foreground">{tx.date}</span>
+                      <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-wider">{tx.category}</span>
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {new Date(tx.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -80,15 +96,19 @@ export default function TransactionsPage() {
                     "font-bold text-lg",
                     tx.type === "income" ? "text-green-600" : "text-accent"
                   )}>
-                    {tx.type === "income" ? "+" : "-"}Rp {mounted ? tx.amount.toLocaleString('id-ID') : "..."}
+                    {tx.type === "income" ? "+" : "-"}Rp {tx.amount.toLocaleString('id-ID')}
                   </p>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Berhasil</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-black">Berhasil</p>
                 </div>
               </div>
             ))
           ) : (
-            <div className="text-center py-20 liquid-glass rounded-3xl">
-              <p className="text-muted-foreground">Tidak ada transaksi yang ditemukan.</p>
+            <div className="text-center py-20 liquid-glass rounded-3xl border-dashed border-2 border-primary/10">
+              <div className="w-16 h-16 bg-muted/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Search className="w-8 h-8 text-muted-foreground/50" />
+              </div>
+              <p className="text-muted-foreground font-medium">Belum ada transaksi ditemukan.</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Coba lakukan transfer pertama Anda!</p>
             </div>
           )}
         </div>
