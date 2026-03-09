@@ -310,14 +310,15 @@ export default function CryptoPage() {
                 <Info className="w-5 h-5 text-primary shrink-0" />
                 <div className="space-y-2">
                   <p className="text-[9px] font-bold leading-relaxed text-muted-foreground uppercase tracking-wider">
-                    <strong>PANDUAN CEPAT:</strong>
+                    <strong>PANDUAN CEPAT (SOLUSI ERROR SALDO):</strong>
                   </p>
                   <ol className="text-[8px] text-muted-foreground list-decimal ml-4 space-y-1">
-                    <li>Aktifkan <strong>"Show test networks"</strong> di MetaMask Settings {'>>'} Advanced.</li>
-                    <li>Pilih jaringan <strong>Sepolia</strong> di MetaMask.</li>
-                    <li>Deploy <code>AliBankPayment.sol</code> dari proyek ini di Remix.</li>
-                    <li>Salin alamat kontrak hasil deploy.</li>
-                    <li>Tempelkan di kotak Konfigurasi di atas.</li>
+                    <li>Jika situs <strong>Alchemy</strong> minta saldo Mainnet, gunakan <strong>Sepolia PoW Faucet</strong> atau <strong>Infura Sepolia Faucet</strong>.</li>
+                    <li>Cari di Google: <code>"Sepolia faucet no mainnet balance"</code>.</li>
+                    <li>Atau gunakan <strong>Google Cloud Web3 Faucet</strong> yang biasanya lebih mudah.</li>
+                    <li>Setelah dapat ETH gratis, buka <strong>Remix IDE</strong>.</li>
+                    <li>Pilih <strong>"Injected Provider - MetaMask"</strong> (pastikan MetaMask sudah login).</li>
+                    <li>Klik <strong>Deploy</strong>, lalu salin alamat kontraknya ke kotak di atas.</li>
                   </ol>
                 </div>
               </div>
@@ -328,7 +329,7 @@ export default function CryptoPage() {
               <div>
                 <h4 className="text-xs font-bold text-amber-800 uppercase tracking-tight dark:text-amber-400">Penting!</h4>
                 <p className="text-[9px] text-amber-700 leading-relaxed dark:text-amber-500">
-                  Pastikan Anda memiliki saldo Sepolia ETH untuk membayar gas fee. Jika saldo 0 (insufficient funds), cari <strong>"Sepolia Faucet"</strong> di Google untuk mendapatkan ETH gratis.
+                  Situs <strong>Alchemy Faucet</strong> sekarang minta saldo Mainnet. Silakan cari faucet alternatif seperti <strong>LearnWeb3 Faucet</strong> atau <strong>RockX Faucet</strong> untuk Sepolia ETH gratis tanpa syarat saldo.
                 </p>
               </div>
             </div>
