@@ -57,6 +57,7 @@ export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -68,13 +69,28 @@ export default function Dashboard() {
   useEffect(() => {
     setMounted(true);
     
-    // Handle PWA Install Prompt
+    // Check if app is already in standalone mode
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
+      setIsAppInstalled(true);
+    }
+
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
+      console.log('Install prompt is ready');
+    };
+
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+      setIsAppInstalled(true);
+      toast({
+        title: "Aplikasi Terpasang",
+        description: "AliBank kini tersedia di layar utama Anda.",
+      });
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     if (!userLoading && !user) {
       router.push('/login');
@@ -82,21 +98,38 @@ export default function Dashboard() {
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, [user, userLoading, router]);
+  }, [user, userLoading, router, toast]);
 
-  const handleInstallClick = async () => {
+  const handleInstallClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     if (!deferredPrompt) {
-      toast({
-        title: "Cara Instalasi",
-        description: "Untuk iOS: Tap ikon 'Share' lalu pilih 'Add to Home Screen'. Untuk Android: Klik Menu browser lalu 'Instal Aplikasi'.",
-      });
+      // Check for iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      if (isIOS) {
+        toast({
+          title: "Cara Instalasi iPhone",
+          description: "Tap ikon 'Share' (kotak panah atas) lalu pilih 'Add to Home Screen'.",
+        });
+      } else {
+        toast({
+          title: "Instalasi Cepat",
+          description: "Klik menu browser (titik tiga) lalu pilih 'Instal Aplikasi'.",
+        });
+      }
       return;
     }
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
+
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`User response to install prompt: ${outcome}`);
       setDeferredPrompt(null);
+    } catch (err) {
+      console.error('Error triggering install prompt:', err);
     }
   };
 
@@ -227,23 +260,25 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Himbauan Install Aplikasi */}
-        <section 
-          onClick={handleInstallClick}
-          className="liquid-glass rounded-[2rem] p-6 border-primary/20 flex items-center gap-4 group cursor-pointer overflow-hidden relative active:scale-[0.98] transition-transform"
-        >
-          <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 shadow-inner">
-            <Smartphone className="w-6 h-6 text-primary" />
-          </div>
-          <div className="flex-1">
-            <h4 className="text-sm font-bold text-accent">Pasang Aplikasi AliBank</h4>
-            <p className="text-[10px] text-muted-foreground leading-tight">Akses perbankan premium langsung dari layar utama Anda.</p>
-          </div>
-          <Button size="sm" className="rounded-xl h-9 px-4 text-[10px] font-black uppercase tracking-widest gold-gradient text-white border-none shadow-lg group-hover:scale-105 transition-transform">
-            Pasang
-          </Button>
-        </section>
+        {/* Himbauan Install Aplikasi - Only show if not installed */}
+        {!isAppInstalled && (
+          <section 
+            onClick={handleInstallClick}
+            className="liquid-glass rounded-[2rem] p-6 border-primary/20 flex items-center gap-4 group cursor-pointer overflow-hidden relative active:scale-[0.98] transition-transform"
+          >
+            <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 shadow-inner">
+              <Smartphone className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-sm font-bold text-accent">Pasang Aplikasi AliBank</h4>
+              <p className="text-[10px] text-muted-foreground leading-tight">Akses perbankan premium langsung dari layar utama Anda.</p>
+            </div>
+            <Button size="sm" className="rounded-xl h-9 px-4 text-[10px] font-black uppercase tracking-widest gold-gradient text-white border-none shadow-lg group-hover:scale-105 transition-transform">
+              Pasang
+            </Button>
+          </section>
+        )}
 
         {/* Service Grid */}
         <section className="liquid-glass rounded-[2.5rem] p-6 grid grid-cols-4 gap-y-8 gap-x-2 border-primary/10">
