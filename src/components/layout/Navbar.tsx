@@ -30,6 +30,9 @@ export function Navbar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
+  // Hide Navbar on the main dashboard page since it has its own app-like header
+  if (pathname === "/") return null;
+
   return (
     <nav className="sticky top-0 z-50 w-full mb-6">
       <div className="container mx-auto px-4">
