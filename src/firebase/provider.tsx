@@ -26,12 +26,10 @@ export const FirebaseProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ app, db, auth, children }) => {
   const { toast } = useToast();
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (app && db && auth) {
-      setIsInitialized(true);
-    }
+    setMounted(true);
 
     const handlePermissionError = (error: any) => {
       toast({
@@ -42,23 +40,19 @@ export const FirebaseProvider: React.FC<{
       
       if (process.env.NODE_ENV === 'development') {
         console.error("Firestore Permission Error Context:", error.context);
-        // Jangan melempar error di sini untuk mencegah loop UI crash
       }
     };
 
     errorEmitter.on('permission-error', handlePermissionError);
-  }, [app, db, auth, toast]);
+    
+    return () => {
+      // Clean up listeners if necessary
+    };
+  }, [toast]);
 
   return (
     <FirebaseContext.Provider value={{ app, db, auth }}>
-      {isInitialized ? children : (
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl gold-gradient animate-pulse shadow-lg" />
-            <p className="text-accent font-medium animate-pulse">Menghubungkan ke AliBank...</p>
-          </div>
-        </div>
-      )}
+      {children}
     </FirebaseContext.Provider>
   );
 };
