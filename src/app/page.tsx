@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useDoc, useFirestore } from "@/firebase";
@@ -69,7 +68,6 @@ export default function Dashboard() {
   useEffect(() => {
     setMounted(true);
     
-    // Check if app is already in standalone mode
     if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
       setIsAppInstalled(true);
     }
@@ -77,7 +75,7 @@ export default function Dashboard() {
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      console.log('Install prompt is ready');
+      console.log('AliBank PWA: Install prompt is ready');
     };
 
     const handleAppInstalled = () => {
@@ -106,30 +104,28 @@ export default function Dashboard() {
     e.preventDefault();
     e.stopPropagation();
 
-    if (!deferredPrompt) {
-      // Check for iOS
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`AliBank PWA outcome: ${outcome}`);
+        setDeferredPrompt(null);
+      } catch (err) {
+        console.error('Error triggering install prompt:', err);
+      }
+    } else {
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
       if (isIOS) {
         toast({
-          title: "Cara Instalasi iPhone",
+          title: "Instruksi iOS",
           description: "Tap ikon 'Share' (kotak panah atas) lalu pilih 'Add to Home Screen'.",
         });
       } else {
         toast({
-          title: "Instalasi Cepat",
-          description: "Klik menu browser (titik tiga) lalu pilih 'Instal Aplikasi'. Jika tombol tidak muncul, tunggu beberapa saat.",
+          title: "Sistem Menyiapkan...",
+          description: "Browser sedang memvalidasi aplikasi. Jika tombol tidak muncul, muat ulang halaman atau klik menu browser (titik tiga) > Instal Aplikasi.",
         });
       }
-      return;
-    }
-
-    try {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log(`User response to install prompt: ${outcome}`);
-      setDeferredPrompt(null);
-    } catch (err) {
-      console.error('Error triggering install prompt:', err);
     }
   };
 
@@ -167,7 +163,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen pb-24 bg-background">
-      <header className="px-4 pt-6 pb-4 bg-white/70 backdrop-blur-xl sticky top-0 z-40 border-b border-primary/5">
+      <header className="px-4 pt-6 pb-4 bg-white/70 backdrop-blur-xl sticky top-0 z-40 border-b border-primary/5 dark:bg-black/70">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <div className="flex items-center gap-3">
             <div className="relative w-12 h-12 rounded-2xl border-2 border-primary/20 overflow-hidden shadow-sm gold-gradient">
@@ -185,11 +181,11 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-2xl bg-white/80 border border-primary/5 shadow-sm hover:bg-destructive/5 hover:text-destructive group">
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-2xl bg-white/80 border border-primary/5 shadow-sm hover:bg-destructive/5 hover:text-destructive group dark:bg-white/5">
               <LogOut className="w-5 h-5 text-accent group-hover:text-destructive" />
             </Button>
             <div className="relative">
-              <Button variant="ghost" size="icon" className="rounded-2xl bg-white/80 border border-primary/5 shadow-sm">
+              <Button variant="ghost" size="icon" className="rounded-2xl bg-white/80 border border-primary/5 shadow-sm dark:bg-white/5">
                 <Bell className="w-5 h-5 text-accent" />
               </Button>
               <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
@@ -201,7 +197,6 @@ export default function Dashboard() {
       </header>
       
       <main className="max-w-2xl mx-auto px-4 pt-4 space-y-6">
-        {/* Account Info Bar */}
         <div className="flex items-center justify-between px-2">
            <div className="flex items-center gap-2">
              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-black px-3 py-1 rounded-full text-[10px] uppercase tracking-tighter">
@@ -217,7 +212,6 @@ export default function Dashboard() {
            </button>
         </div>
 
-        {/* Main Card */}
         <section className="gold-gradient rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden group border border-white/10">
           <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-700" />
           
@@ -260,7 +254,6 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Himbauan Install Aplikasi - Only show if not installed */}
         {!isAppInstalled && (
           <section 
             onClick={handleInstallClick}
@@ -280,7 +273,6 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* Service Grid */}
         <section className="liquid-glass rounded-[2.5rem] p-6 grid grid-cols-4 gap-y-8 gap-x-2 border-primary/10">
           {mainServices.map((service, idx) => {
             const Icon = service.icon;
@@ -305,7 +297,6 @@ export default function Dashboard() {
           })}
         </section>
 
-        {/* Promo Banner */}
         <section className="relative aspect-[2.8/1] rounded-[2rem] overflow-hidden shadow-xl border border-primary/10 group">
           <Image 
             src="https://picsum.photos/seed/promo-gold/800/300" 
@@ -324,9 +315,8 @@ export default function Dashboard() {
         </section>
       </main>
 
-      {/* Bottom Nav */}
       <footer className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 pt-2 max-w-2xl mx-auto pointer-events-none">
-        <div className="liquid-glass-dark bg-accent/95 rounded-[2.8rem] grid grid-cols-5 items-center h-20 shadow-2xl px-2 border-white/10 pointer-events-auto">
+        <div className="liquid-glass-dark bg-accent/95 rounded-[2.8rem] grid grid-cols-5 items-center h-20 shadow-2xl px-2 border-white/10 pointer-events-auto dark:bg-black/95">
           <Link href="/" className="flex flex-col items-center gap-1 group">
             <Home className="w-6 h-6 text-primary" />
             <span className="text-[8px] font-black text-white/90 uppercase tracking-widest">Beranda</span>
