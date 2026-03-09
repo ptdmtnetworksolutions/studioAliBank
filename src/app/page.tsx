@@ -235,21 +235,26 @@ export default function Dashboard() {
 
       {/* Fixed Bottom Navigation */}
       <footer className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 pt-2 max-w-2xl mx-auto">
-        <div className="liquid-glass-dark bg-accent/90 border-white/10 rounded-[2.5rem] flex items-center justify-around h-20 shadow-2xl px-2">
+        <div className="liquid-glass-dark bg-accent/90 border-white/10 rounded-[2.5rem] grid grid-cols-5 items-center h-20 shadow-2xl px-2">
           <Link href="/" className="flex flex-col items-center gap-1 group">
             <Home className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
             <span className="text-[10px] font-bold text-white/90">Beranda</span>
           </Link>
           <Link href="/transfer" className="flex flex-col items-center gap-1 group">
             <Send className="w-6 h-6 text-white/50 group-hover:scale-110 transition-transform" />
-            <span className="text-[10px] font-bold text-white/40">Bayar/Transfer</span>
+            <span className="text-[10px] font-bold text-white/40">Transfer</span>
           </Link>
-          <div className="relative -mt-12">
-            <button className="gold-gradient w-16 h-16 rounded-3xl flex items-center justify-center shadow-[0_12px_24px_-8px_rgba(184,134,11,0.5)] border-4 border-accent">
-              <QrCode className="w-8 h-8 text-white" />
-            </button>
-            <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] font-bold text-white/40">QRIS</span>
+          
+          {/* QRIS Button - Absolutely centered in the grid */}
+          <div className="flex flex-col items-center justify-center relative h-full">
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2">
+              <button className="gold-gradient w-16 h-16 rounded-3xl flex items-center justify-center shadow-[0_12px_24px_-8px_rgba(184,134,11,0.5)] border-4 border-accent hover:scale-105 transition-transform active:scale-95">
+                <QrCode className="w-8 h-8 text-white" />
+              </button>
+            </div>
+            <span className="mt-8 text-[10px] font-bold text-white/40">QRIS</span>
           </div>
+
           <Link href="/deposits" className="flex flex-col items-center gap-1 group">
             <PiggyBank className="w-6 h-6 text-white/50 group-hover:scale-110 transition-transform" />
             <span className="text-[10px] font-bold text-white/40">Deposito</span>
