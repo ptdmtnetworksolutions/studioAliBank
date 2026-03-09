@@ -39,7 +39,7 @@ export default function CryptoPage() {
   const [address, setAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState<string>("0");
   const [vaultBalance, setVaultBalance] = useState<string>("0");
-  const [contractAddress, setContractAddress] = setContractAddress("");
+  const [contractAddress, setContractAddress] = useState("");
   const [amount, setAmount] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
@@ -48,11 +48,6 @@ export default function CryptoPage() {
     const saved = localStorage.getItem("alibank_contract_address");
     if (saved) setContractAddress(saved);
   }, []);
-
-  const saveContractAddress = (val: string) => {
-    setContractAddress(val);
-    localStorage.setItem("alibank_contract_address", val);
-  };
 
   const connectWallet = async () => {
     if (typeof window.ethereum === 'undefined') {
@@ -322,11 +317,9 @@ export default function CryptoPage() {
                     <strong>PANDUAN SOLUSI ERROR SALDO:</strong>
                   </p>
                   <ol className="text-[8px] text-muted-foreground list-decimal ml-4 space-y-1">
-                    <li>Di Chainlink Faucet, cari kartu <strong>"Ethereum Sepolia"</strong>.</li>
-                    <li>Hubungkan dompet Anda melalui tombol <strong>"Connect"</strong>.</li>
-                    <li>Selesaikan Captcha dan klik <strong>"Send Request"</strong>.</li>
-                    <li>Jika masih gagal, cari <strong>"Google Cloud Web3 Faucet"</strong> di Google.</li>
-                    <li>Setelah dapat ETH gratis, kembali ke <strong>Remix IDE</strong>.</li>
+                    <li>Di MetaMask, pastikan Anda sudah beralih ke jaringan <strong>Sepolia Test Network</strong>.</li>
+                    <li>Jika saldo belum muncul, tunggu 1-2 menit hingga transaksi di blokchain selesai.</li>
+                    <li>Setelah saldo muncul (0.05 ETH), kembali ke <strong>Remix IDE</strong>.</li>
                     <li>Pastikan Environment adalah <strong>"Injected Provider - MetaMask"</strong>.</li>
                     <li>Klik <strong>Deploy</strong>, lalu salin alamat kontraknya ke aplikasi ini.</li>
                   </ol>
