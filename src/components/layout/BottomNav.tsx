@@ -7,8 +7,7 @@ import {
   Home, 
   Clock, 
   QrCode, 
-  Bitcoin, 
-  Sparkles 
+  Bitcoin
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -19,7 +18,7 @@ const navItems = [
   { name: "History", href: "/transactions", icon: Clock },
   { name: "SCAN", href: "/topup", icon: QrCode, isCenter: true },
   { name: "Bridge", href: "/crypto", icon: Bitcoin },
-  { name: "AI", href: "/ai-assistant", icon: LogoIcon }, // Menggunakan LogoIcon kustom
+  { name: "AI", href: "/ai-assistant", icon: LogoIcon },
 ];
 
 export function BottomNav() {

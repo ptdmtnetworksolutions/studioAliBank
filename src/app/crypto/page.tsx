@@ -12,7 +12,8 @@ import {
   History,
   Link2,
   Unlink,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +43,7 @@ const CONTRACT_ABI = [
 ];
 
 const DEFAULT_CONTRACT = "0x8BAF47E3B6A974A827A7E8F7A1D206B1F992C79C";
+const SEPOLIA_CHAIN_ID = "0xaa36a7"; // 11155111
 
 const ASSETS = [
   { id: "ETH", name: "Ethereum", icon: Cpu, color: "text-blue-500", price: 48500000, change: "+2.4%" },
@@ -68,6 +70,7 @@ export default function CryptoPage() {
   const [address, setAddress] = useState<string | null>(null);
   const [vaultBalance, setVaultBalance] = useState("0");
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isWrongNetwork, setIsWrongNetwork] = useState(false);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -75,6 +78,37 @@ export default function CryptoPage() {
   }, [db, user]);
 
   const { data: userData } = useDoc(userDocRef);
+
+  const checkVaultBalance = async (walletAddr: string) => {
+    if (typeof window.ethereum === 'undefined') return;
+    
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+      
+      // Pastikan di jaringan Sepolia (Chain ID: 11155111)
+      if (network.chainId !== 11155111n) {
+        setIsWrongNetwork(true);
+        setVaultBalance("0");
+        return;
+      }
+
+      setIsWrongNetwork(false);
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
+      
+      // Panggil balances() dan tangani kegagalan decoding jika kontrak tidak ditemukan
+      const balance = await contract.balances(walletAddr).catch(() => null);
+      
+      if (balance !== null) {
+        setVaultBalance(formatEther(balance));
+      } else {
+        setVaultBalance("0");
+      }
+    } catch (err) {
+      console.error("Failed to read vault balance:", err);
+      setVaultBalance("0");
+    }
+  };
 
   useEffect(() => {
     const syncWallet = async () => {
@@ -93,10 +127,18 @@ export default function CryptoPage() {
               updateDoc(userDocRef, { walletAddress: newAddr });
             }
             checkVaultBalance(newAddr);
+          } else {
+            setAddress(null);
+            setVaultBalance("0");
           }
         };
 
+        const handleChainChanged = () => {
+          window.location.reload();
+        };
+
         window.ethereum.on('accountsChanged', handleAccountsChanged);
+        window.ethereum.on('chainChanged', handleChainChanged);
         
         try {
           const provider = new BrowserProvider(window.ethereum);
@@ -116,6 +158,7 @@ export default function CryptoPage() {
         return () => {
           if (window.ethereum?.removeListener) {
             window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+            window.ethereum.removeListener('chainChanged', handleChainChanged);
           }
         };
       }
@@ -123,19 +166,6 @@ export default function CryptoPage() {
 
     if (userData) syncWallet();
   }, [userData?.walletAddress, userDocRef]);
-
-  const checkVaultBalance = async (walletAddr: string) => {
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        const provider = new BrowserProvider(window.ethereum);
-        const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
-        const vault = await contract.balances(walletAddr);
-        setVaultBalance(formatEther(vault));
-      } catch (err) {
-        console.error("Failed to read vault balance:", err);
-      }
-    }
-  };
 
   const connectWallet = async () => {
     if (typeof window.ethereum === 'undefined') {
@@ -147,6 +177,22 @@ export default function CryptoPage() {
     try {
       setLoading(true);
       const provider = new BrowserProvider(window.ethereum);
+      
+      // Minta pindah ke Sepolia jika salah jaringan
+      const network = await provider.getNetwork();
+      if (network.chainId !== 11155111n) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: SEPOLIA_CHAIN_ID }],
+          });
+        } catch (switchError: any) {
+          if (switchError.code === 4902) {
+             toast({ variant: "destructive", title: "Jaringan Tidak Ditemukan", description: "Silakan tambahkan jaringan Sepolia di MetaMask Anda." });
+          }
+        }
+      }
+
       const accounts = await provider.send("eth_requestAccounts", []);
       const newAddress = accounts[0];
       setAddress(newAddress);
@@ -250,8 +296,12 @@ export default function CryptoPage() {
             </div>
             {address ? (
               <div className="flex items-center gap-2">
-                <Badge className="bg-green-600 text-white font-bold h-10 px-4 rounded-full flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
-                  <Link2 className="w-4 h-4" /> {address.slice(0, 6)}...{address.slice(-4)}
+                <Badge className={cn(
+                  "font-bold h-10 px-4 rounded-full flex items-center gap-2 animate-in fade-in slide-in-from-right-2",
+                  isWrongNetwork ? "bg-destructive text-white" : "bg-green-600 text-white"
+                )}>
+                  {isWrongNetwork ? <AlertTriangle className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
+                  {isWrongNetwork ? "Jaringan Salah" : `${address.slice(0, 6)}...${address.slice(-4)}`}
                 </Badge>
                 <Button onClick={disconnectWallet} variant="ghost" size="icon" className="text-destructive hover:bg-destructive/5 rounded-full">
                   <Unlink className="w-4 h-4" />
@@ -270,6 +320,15 @@ export default function CryptoPage() {
             )}
           </div>
         </header>
+
+        {isWrongNetwork && (
+          <div className="mb-8 p-4 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center gap-4 text-destructive animate-bounce">
+            <AlertTriangle className="w-6 h-6 shrink-0" />
+            <div className="text-sm font-bold">
+              AliBank mendeteksi Anda berada di jaringan yang salah. Silakan pindahkan MetaMask Anda ke <span className="underline">Sepolia Test Network</span> untuk melihat saldo vault Anda.
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8 space-y-6">
