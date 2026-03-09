@@ -41,9 +41,9 @@ export default function CryptoPage() {
   const [balance, setBalance] = useState<string>("0");
   const [vaultBalance, setVaultBalance] = useState<string>("0");
   const [contractAddress, setContractAddress] = useState("");
-  const [amount, setAmount] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
+  const [isContractValid, setIsContractValid] = useState<boolean | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("alibank_contract_address");
@@ -61,6 +61,7 @@ export default function CryptoPage() {
     }
 
     setLoading(true);
+    setIsContractValid(null);
     try {
       const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
@@ -72,11 +73,25 @@ export default function CryptoPage() {
       
       if (contractAddress && contractAddress.length === 42) {
         try {
-          const contract = new Contract(contractAddress, CONTRACT_ABI, provider);
-          const vault = await contract.balances(userAddress);
-          setVaultBalance(formatEther(vault));
+          // Validasi apakah alamat tersebut berisi kode kontrak
+          const code = await provider.getCode(contractAddress);
+          if (code === "0x" || code === "0x0") {
+            setIsContractValid(false);
+            setVaultBalance("0");
+            toast({
+              variant: "destructive",
+              title: "Kontrak Tidak Ditemukan",
+              description: "Alamat ini bukan Smart Contract di jaringan Sepolia. Pastikan Anda menyalin alamat kontrak, bukan hash transaksi.",
+            });
+          } else {
+            setIsContractValid(true);
+            const contract = new Contract(contractAddress, CONTRACT_ABI, provider);
+            const vault = await contract.balances(userAddress);
+            setVaultBalance(formatEther(vault));
+          }
         } catch (e) {
           console.error("Gagal membaca saldo vault:", e);
+          setIsContractValid(false);
         }
       }
 
@@ -96,13 +111,13 @@ export default function CryptoPage() {
     }
   };
 
-  const handleSmartContractAction = async (action: 'deposit' | 'withdraw') => {
-    if (!address || !amount) return;
+  const handleSmartContractAction = async (action: 'deposit' | 'withdraw', amountVal: string) => {
+    if (!address || !amountVal) return;
     if (!contractAddress || contractAddress.length !== 42) {
       toast({
         variant: "destructive",
         title: "Alamat Kontrak Tidak Valid",
-        description: "Silakan masukkan alamat Smart Contract hasil deploy Anda di kolom pengaturan.",
+        description: "Silakan masukkan alamat Smart Contract hasil deploy Anda.",
       });
       return;
     }
@@ -115,9 +130,9 @@ export default function CryptoPage() {
       
       let tx;
       if (action === 'deposit') {
-        tx = await contract.deposit({ value: parseEther(amount) });
+        tx = await contract.deposit({ value: parseEther(amountVal) });
       } else {
-        tx = await contract.withdraw(parseEther(amount));
+        tx = await contract.withdraw(parseEther(amountVal));
       }
 
       toast({
@@ -129,7 +144,7 @@ export default function CryptoPage() {
       
       toast({
         title: "Berhasil",
-        description: `Berhasil melakukan ${action === 'deposit' ? 'setoran' : 'penarikan'} ${amount} ETH ke Vault.`,
+        description: `Berhasil melakukan ${action === 'deposit' ? 'setoran' : 'penarikan'} ${amountVal} ETH.`,
       });
       
       connectWallet();
@@ -138,13 +153,14 @@ export default function CryptoPage() {
       toast({
         variant: "destructive",
         title: "Transaksi Gagal",
-        description: err.reason || "Pastikan saldo ETH mencukupi dan kontrak sudah benar.",
+        description: err.reason || "Pastikan saldo mencukupi dan kontrak sudah benar.",
       });
     } finally {
       setTxLoading(false);
-      setAmount("");
     }
   };
+
+  const [inputAmount, setInputAmount] = useState("");
 
   return (
     <div className="min-h-screen pb-20 bg-background">
@@ -170,9 +186,14 @@ export default function CryptoPage() {
                   <Settings className="w-5 h-5 text-primary" />
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-accent dark:text-primary">Konfigurasi Kontrak Pintar</h4>
                 </div>
-                {contractAddress.length === 42 && (
+                {isContractValid === true && (
                   <Badge className="bg-green-100 text-green-700 border-green-200 flex gap-1 items-center">
                     <CheckCircle2 className="w-3 h-3" /> Terverifikasi
+                  </Badge>
+                )}
+                {isContractValid === false && (
+                  <Badge variant="destructive" className="flex gap-1 items-center">
+                    <AlertCircle className="w-3 h-3" /> Alamat Salah
                   </Badge>
                 )}
               </div>
@@ -185,13 +206,14 @@ export default function CryptoPage() {
                     onChange={(e) => {
                       setContractAddress(e.target.value);
                       localStorage.setItem("alibank_contract_address", e.target.value);
+                      setIsContractValid(null);
                     }}
                     className="h-12 rounded-xl border-primary/20 bg-white/50 dark:bg-black/50 font-mono text-xs pr-10"
                   />
-                  {contractAddress.length === 42 && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-600" />}
+                  {isContractValid === true && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-600" />}
                 </div>
-                <p className="text-[8px] text-muted-foreground mt-1 ml-1 uppercase font-bold tracking-widest">
-                  Gunakan alamat dari daftar "Deployed Contracts" di Remix yang paling bawah.
+                <p className="text-[8px] text-muted-foreground mt-1 ml-1 uppercase font-bold tracking-widest leading-relaxed">
+                  PENTING: Pastikan Anda menyalin alamat kontrak dari panel <strong>"Deployed Contracts"</strong> (paling bawah), bukan hash transaksi dari log konsol.
                 </p>
               </div>
             </Card>
@@ -233,23 +255,23 @@ export default function CryptoPage() {
                         <Input 
                           type="number" 
                           placeholder="0.00"
-                          value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
+                          value={inputAmount}
+                          onChange={(e) => setInputAmount(e.target.value)}
                           className="h-16 pl-16 rounded-2xl liquid-glass border-none text-xl font-bold"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <Button 
-                          onClick={() => handleSmartContractAction('deposit')}
-                          disabled={txLoading || !amount || contractAddress.length !== 42}
+                          onClick={() => handleSmartContractAction('deposit', inputAmount)}
+                          disabled={txLoading || !inputAmount || isContractValid !== true}
                           className="h-14 gold-gradient text-white font-black italic rounded-2xl flex gap-2 active:scale-95 transition-all"
                         >
                           {txLoading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ArrowDownRight className="w-5 h-5" />}
                           DEPOSIT
                         </Button>
                         <Button 
-                          onClick={() => handleSmartContractAction('withdraw')}
-                          disabled={txLoading || !amount || contractAddress.length !== 42}
+                          onClick={() => handleSmartContractAction('withdraw', inputAmount)}
+                          disabled={txLoading || !inputAmount || isContractValid !== true}
                           variant="outline"
                           className="h-14 border-primary/20 text-primary font-black italic rounded-2xl flex gap-2 active:scale-95 transition-all"
                         >
@@ -293,10 +315,10 @@ export default function CryptoPage() {
                 </p>
                 <div className="space-y-4">
                   {[
-                    "Pilih kontrak yang paling bawah di daftar Remix.",
-                    "Klik ikon kotak (Copy) di samping alamat kontrak.",
-                    "Tempel alamat tersebut di kolom Konfigurasi di atas.",
-                    "Tekan tombol DEPOSIT untuk setoran pertama Anda!"
+                    "Pastikan MetaMask di jaringan Sepolia.",
+                    "Salin alamat kontrak dari tombol 'Copy' di Remix.",
+                    "Tempel alamat di kolom Konfigurasi di atas.",
+                    "Klik 'AKTIFKAN BRIDGE' untuk memverifikasi kontrak."
                   ].map((item, i) => (
                     <div key={i} className="flex items-start gap-3">
                       <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0 text-[10px] font-bold text-white">{i+1}</div>
@@ -312,11 +334,14 @@ export default function CryptoPage() {
                 <Info className="w-5 h-5 text-primary shrink-0" />
                 <div className="space-y-2">
                   <p className="text-[9px] font-bold leading-relaxed text-muted-foreground uppercase tracking-wider">
-                    <strong>PENTING:</strong>
+                    <strong>PANDUAN SOLUSI ERROR SALDO:</strong>
                   </p>
-                  <p className="text-[8px] text-muted-foreground leading-relaxed uppercase">
-                    Pastikan dompet MetaMask Anda berada di jaringan <strong>Sepolia Test Network</strong> agar saldo Vault terbaca dengan benar.
-                  </p>
+                  <ol className="text-[8px] text-muted-foreground list-decimal ml-4 space-y-1 uppercase font-bold leading-relaxed">
+                    <li>Aktifkan <strong>"Show test networks"</strong> di MetaMask Settings &gt; Advanced.</li>
+                    <li>Pilih jaringan <strong>Sepolia</strong> di MetaMask.</li>
+                    <li>Gunakan <code>faucets.chain.link</code> untuk mendapatkan Sepolia ETH gratis.</li>
+                    <li>Jika error "BAD_DATA", pastikan alamat yang ditempel bukan Hash Transaksi.</li>
+                  </ol>
                 </div>
               </div>
             </div>
