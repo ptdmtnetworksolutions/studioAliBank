@@ -45,8 +45,12 @@ const CONTRACT_ABI = [
   "function balances(address) public view returns (uint256)"
 ];
 
-// Alamat Smart Contract AliBank di Ethereum Mainnet
-const DEFAULT_CONTRACT = "0x8BAF47E3B6A974A827A7E8F7A1D206B1F992C79C";
+/**
+ * LANGKAH BERIKUTNYA: 
+ * Ganti alamat di bawah ini dengan alamat Smart Contract asli Anda 
+ * yang telah di-deploy ke Ethereum Mainnet.
+ */
+const DEFAULT_CONTRACT = "0x8BAF47E3B6A974A827A7E8F7A1D206B1F992C79C"; 
 const MAINNET_CHAIN_ID = "0x1"; // Ethereum Mainnet (ID 1)
 
 const ASSETS = [
