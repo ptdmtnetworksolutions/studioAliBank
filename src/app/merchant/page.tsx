@@ -6,20 +6,18 @@ import {
   Store, 
   CreditCard, 
   ArrowUpRight, 
-  Users, 
   Code, 
   Copy, 
   Zap, 
-  CheckCircle2, 
-  Clock, 
-  XCircle,
-  BarChart3,
-  RefreshCw,
-  Search,
-  ChevronRight,
-  Plus,
-  Link as LinkIcon,
-  ExternalLink
+  RefreshCw, 
+  Search, 
+  Plus, 
+  Link as LinkIcon, 
+  ExternalLink,
+  Globe,
+  Settings,
+  Terminal,
+  CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,12 +33,12 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo, useEffect } from "react";
 import { MOCK_MERCHANT } from "@/app/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 import { useUser, useFirestore, useCollection, useDoc } from "@/firebase";
-import { collection, addDoc, serverTimestamp, query, orderBy, limit, doc, setDoc, increment } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, doc, setDoc } from "firebase/firestore";
 import Link from "next/link";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -53,40 +51,82 @@ export default function MerchantDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isSettling, setIsSettling] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
+  const [isUpdatingWebhook, setIsUpdatingWebhook] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Form State for New Invoice
   const [newInvoice, setNewInvoice] = useState({
     customerName: "",
     amountIdr: "",
     cryptoCurrency: "USDT"
   });
 
-  // Fetch Real Merchant Profile from Firestore
+  const [webhookUrl, setWebhookUrl] = useState("");
+
   const merchantDocRef = useMemo(() => {
     if (!db) return null;
     return doc(db, "merchants", MOCK_MERCHANT.merchantId);
   }, [db]);
   const { data: merchantData } = useDoc(merchantDocRef);
 
-  // Fetch Real Invoices from Firestore
+  useEffect(() => {
+    if (merchantData?.webhookUrl) {
+      setWebhookUrl(merchantData.webhookUrl);
+    }
+  }, [merchantData]);
+
   const invoicesQuery = useMemo(() => {
-    if (!db || !user) return null;
+    if (!db) return null;
     return query(
       collection(db, "merchants", MOCK_MERCHANT.merchantId, "invoices"),
       orderBy("createdAt", "desc"),
       limit(10)
     );
-  }, [db, user]);
+  }, [db]);
 
   const { data: firestoreInvoices, loading: invoicesLoading } = useCollection(invoicesQuery);
 
-  const copyApiKey = () => {
-    navigator.clipboard.writeText(MOCK_MERCHANT.apiKey);
-    toast({ title: "Copied!", description: "API Key copied to clipboard." });
+  const rotateApiKey = () => {
+    if (!db || !merchantDocRef) return;
+    const newKey = `ab_live_${Math.random().toString(36).substring(7)}${Math.random().toString(36).substring(7)}`;
+    
+    setDoc(merchantDocRef, { apiKey: newKey }, { merge: true })
+      .then(() => {
+        toast({ title: "API Key Rotated", description: "Your new API key is active. Update your integration immediately." });
+      })
+      .catch((e) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: merchantDocRef.path,
+          operation: 'update',
+          requestResourceData: { apiKey: newKey }
+        }));
+      });
+  };
+
+  const updateWebhook = () => {
+    if (!db || !merchantDocRef) return;
+    setIsUpdatingWebhook(true);
+    
+    setDoc(merchantDocRef, { webhookUrl }, { merge: true })
+      .then(() => {
+        setIsUpdatingWebhook(false);
+        toast({ title: "Webhook Updated", description: "AliBank will now send notifications to this endpoint." });
+      })
+      .catch((e) => {
+        setIsUpdatingWebhook(false);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: merchantDocRef.path,
+          operation: 'update',
+          requestResourceData: { webhookUrl }
+        }));
+      });
+  };
+
+  const copyText = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied!", description: "Text copied to clipboard." });
   };
 
   const handleSettlement = () => {
@@ -97,34 +137,20 @@ export default function MerchantDashboard() {
 
     setIsSettling(true);
     const amount = merchantData.pendingSettlement || 0;
+    const payload = { pendingSettlement: 0 };
 
-    // Simulate clearing the settlement balance
-    const merchantRef = doc(db!, "merchants", MOCK_MERCHANT.merchantId);
-    const payload = {
-      pendingSettlement: 0
-    };
-
-    setDoc(merchantRef, payload, { merge: true })
+    setDoc(merchantDocRef!, payload, { merge: true })
       .then(() => {
         setIsSettling(false);
-        toast({ 
-          title: "Settlement Success", 
-          description: `Rp ${amount.toLocaleString('id-ID')} has been transferred to your linked bank account.` 
-        });
+        toast({ title: "Settlement Success", description: `Rp ${amount.toLocaleString('id-ID')} has been transferred.` });
       })
       .catch(async () => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: merchantRef.path,
-          operation: 'update',
-          requestResourceData: payload
-        }));
         setIsSettling(false);
       });
   };
 
   const handleCreateInvoice = () => {
     if (!db || !newInvoice.customerName || !newInvoice.amountIdr) return;
-
     setIsCreatingInvoice(true);
     const invoiceId = `INV-${Math.floor(1000 + Math.random() * 9000)}`;
     const invoicesColRef = collection(db, "merchants", MOCK_MERCHANT.merchantId, "invoices");
@@ -141,37 +167,41 @@ export default function MerchantDashboard() {
     };
 
     addDoc(invoicesColRef, invoicePayload)
+      .then(() => {
+        setIsCreatingInvoice(false);
+        toast({ title: "Invoice Created", description: `Invoice ${invoiceId} has been generated.` });
+        setNewInvoice({ customerName: "", amountIdr: "", cryptoCurrency: "USDT" });
+      })
       .catch(async () => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: invoicesColRef.path,
-          operation: 'create',
-          requestResourceData: invoicePayload
-        }));
+        setIsCreatingInvoice(false);
       });
-
-    toast({ 
-      title: "Invoice Created", 
-      description: `Invoice ${invoiceId} has been generated successfully.` 
-    });
-    setNewInvoice({ customerName: "", amountIdr: "", cryptoCurrency: "USDT" });
-    setIsCreatingInvoice(false);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "paid": return <Badge className="bg-green-600 text-white font-bold text-[10px] uppercase">Paid</Badge>;
-      case "unpaid": return <Badge variant="outline" className="text-orange-600 border-orange-200 font-bold text-[10px] uppercase">Pending</Badge>;
-      case "expired": return <Badge variant="secondary" className="text-muted-foreground font-bold text-[10px] uppercase">Expired</Badge>;
-      default: return null;
-    }
-  };
-
-  // Helper values for display
-  const totalRev = merchantData?.totalRevenue || MOCK_MERCHANT.totalRevenue;
+  const totalRev = merchantData?.totalRevenue || 0;
   const pendingSett = merchantData?.pendingSettlement ?? 0;
+  const currentApiKey = merchantData?.apiKey || MOCK_MERCHANT.apiKey;
+
+  const sdkExample = `
+// AliBank SDK Integration
+import { AliBankGateway } from "@alibank/sdk";
+
+const gateway = new AliBankGateway({
+  apiKey: "${currentApiKey}"
+});
+
+const pay = async () => {
+  const invoice = await gateway.createInvoice({
+    amount: 150000,
+    customer: "Jane Doe"
+  });
+  window.location.href = invoice.paymentUrl;
+};
+  `.trim();
+
+  if (!mounted) return null;
 
   return (
-    <div className="min-h-screen pb-20 bg-background">
+    <div className="min-h-screen pb-32 bg-background">
       <Navbar />
       
       <main className="container mx-auto px-4 max-w-7xl">
@@ -182,14 +212,10 @@ export default function MerchantDashboard() {
             </div>
             <div>
               <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter dark:text-primary">Merchant Console</h1>
-              <p className="text-muted-foreground text-sm font-medium">{MOCK_MERCHANT.businessName} • Production Mode</p>
+              <p className="text-muted-foreground text-sm font-medium">{MOCK_MERCHANT.businessName} • API Gateway Active</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-             <Button variant="outline" className="rounded-xl border-primary/20 text-primary font-bold h-12 px-6">
-               <BarChart3 className="w-4 h-4 mr-2" /> Reports
-             </Button>
-             
              <Dialog>
                <DialogTrigger asChild>
                  <Button className="rounded-xl gold-gradient text-white font-black italic uppercase h-12 px-6 shadow-lg">
@@ -197,144 +223,89 @@ export default function MerchantDashboard() {
                  </Button>
                </DialogTrigger>
                <DialogContent className="rounded-[2.5rem] liquid-glass-dark text-white border-primary/20">
-                 <DialogHeader>
-                   <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter text-white">Create Payment Invoice</DialogTitle>
-                 </DialogHeader>
+                 <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-white">Create Payment Invoice</DialogTitle></DialogHeader>
                  <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/60">Customer Name</Label>
-                      <Input 
-                        placeholder="e.g. John Doe" 
-                        value={newInvoice.customerName}
-                        onChange={(e) => setNewInvoice({...newInvoice, customerName: e.target.value})}
-                        className="bg-white/5 border-white/10 text-white rounded-xl h-12"
-                      />
+                      <Label className="text-[10px] font-black uppercase text-white/60">Customer Name</Label>
+                      <Input placeholder="e.g. John Doe" value={newInvoice.customerName} onChange={(e) => setNewInvoice({...newInvoice, customerName: e.target.value})} className="bg-white/5 border-white/10 text-white rounded-xl h-12" />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/60">Amount (IDR)</Label>
-                      <Input 
-                        type="number"
-                        placeholder="Amount in Rupiah" 
-                        value={newInvoice.amountIdr}
-                        onChange={(e) => setNewInvoice({...newInvoice, amountIdr: e.target.value})}
-                        className="bg-white/5 border-white/10 text-white rounded-xl h-12"
-                      />
+                      <Label className="text-[10px] font-black uppercase text-white/60">Amount (IDR)</Label>
+                      <Input type="number" placeholder="Amount" value={newInvoice.amountIdr} onChange={(e) => setNewInvoice({...newInvoice, amountIdr: e.target.value})} className="bg-white/5 border-white/10 text-white rounded-xl h-12" />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/60">Preferred Crypto</Label>
-                      <Select 
-                        value={newInvoice.cryptoCurrency} 
-                        onValueChange={(val) => setNewInvoice({...newInvoice, cryptoCurrency: val})}
-                      >
-                        <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl h-12">
-                          <SelectValue placeholder="Select Currency" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-accent text-white rounded-xl">
-                          <SelectItem value="USDT">USDT (Stablecoin)</SelectItem>
-                          <SelectItem value="ETH">Ethereum (ETH)</SelectItem>
-                          <SelectItem value="BTC">Bitcoin (BTC)</SelectItem>
-                        </SelectContent>
+                      <Label className="text-[10px] font-black uppercase text-white/60">Currency</Label>
+                      <Select value={newInvoice.cryptoCurrency} onValueChange={(val) => setNewInvoice({...newInvoice, cryptoCurrency: val})}>
+                        <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl h-12"><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent className="bg-accent text-white rounded-xl"><SelectItem value="USDT">USDT</SelectItem><SelectItem value="ETH">ETH</SelectItem></SelectContent>
                       </Select>
                     </div>
                  </div>
-                 <DialogFooter>
-                    <Button 
-                      onClick={handleCreateInvoice} 
-                      disabled={isCreatingInvoice}
-                      className="w-full h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl"
-                    >
-                      {isCreatingInvoice ? <RefreshCw className="animate-spin" /> : "Generate Invoice Link"}
-                    </Button>
-                 </DialogFooter>
+                 <DialogFooter><Button onClick={handleCreateInvoice} disabled={isCreatingInvoice} className="w-full h-14 gold-gradient text-white font-black uppercase rounded-2xl shadow-xl">{isCreatingInvoice ? <RefreshCw className="animate-spin" /> : "Generate Link"}</Button></DialogFooter>
                </DialogContent>
              </Dialog>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Main Dashboard Stats */}
-          <div className="lg:col-span-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="liquid-glass border-none rounded-[2rem] p-6 space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-black text-accent">
-                  Rp {mounted ? totalRev.toLocaleString('id-ID') : "..."}
-                </p>
-                <div className="flex items-center gap-1 text-green-600 text-[10px] font-bold">
-                  <ArrowUpRight className="w-3 h-3" /> +12.5% this month
+        <Tabs defaultValue="overview" className="space-y-8">
+          <TabsList className="bg-primary/5 p-1 rounded-2xl border border-primary/10">
+            <TabsTrigger value="overview" className="rounded-xl font-bold uppercase text-[10px] px-6">Overview</TabsTrigger>
+            <TabsTrigger value="developer" className="rounded-xl font-bold uppercase text-[10px] px-6">Developer API</TabsTrigger>
+            <TabsTrigger value="settings" className="rounded-xl font-bold uppercase text-[10px] px-6">Settings</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-8 animate-in fade-in zoom-in duration-300">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-2">
+                <p className="text-[10px] font-black uppercase text-muted-foreground">Total Revenue</p>
+                <p className="text-3xl font-black text-accent">Rp {totalRev.toLocaleString('id-ID')}</p>
+                <div className="flex items-center gap-1 text-green-600 text-[10px] font-bold"><ArrowUpRight className="w-3 h-3" /> Growth Active</div>
+              </Card>
+              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-2">
+                <p className="text-[10px] font-black uppercase text-muted-foreground">Pending Settlement</p>
+                <p className="text-3xl font-black text-primary">Rp {pendingSett.toLocaleString('id-ID')}</p>
+                <Button onClick={handleSettlement} disabled={isSettling || pendingSett <= 0} size="sm" className="mt-2 gold-gradient text-white rounded-xl h-10 w-full uppercase font-black text-[10px]">Withdraw Now</Button>
+              </Card>
+              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-2">
+                <p className="text-[10px] font-black uppercase text-muted-foreground">Gateway Status</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge className="bg-green-600 text-white uppercase font-black text-[8px]">Mainnet Online</Badge>
+                  <Globe className="w-4 h-4 text-primary animate-pulse" />
                 </div>
-              </Card>
-              <Card className="liquid-glass border-none rounded-[2rem] p-6 space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Settlement Balance</p>
-                <p className="text-2xl font-black text-primary">
-                  Rp {mounted ? pendingSett.toLocaleString('id-ID') : "..."}
-                </p>
-                <p className="text-[9px] text-muted-foreground italic font-medium">Ready for withdrawal</p>
-              </Card>
-              <Card className="liquid-glass border-none rounded-[2rem] p-6 space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Active Invoices</p>
-                <p className="text-2xl font-black text-accent">{firestoreInvoices?.length || 0}</p>
-                <p className="text-[9px] text-muted-foreground italic font-medium">Real-time DB count</p>
+                <p className="text-[9px] text-muted-foreground italic mt-2">All crypto nodes synchronized.</p>
               </Card>
             </div>
 
             <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between border-b border-primary/5 pb-6">
-                <CardTitle className="text-xl font-black italic uppercase flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-primary" /> Live Invoices
-                </CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between border-b border-primary/5 p-8">
+                <CardTitle className="text-xl font-black italic uppercase flex items-center gap-2"><Zap className="w-5 h-5 text-primary" /> Live Transactions</CardTitle>
                 <div className="relative w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search invoices..." 
-                    className="pl-10 h-10 rounded-xl bg-primary/5 border-none text-xs"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
+                  <Input placeholder="Search..." className="pl-10 h-10 rounded-xl bg-primary/5 border-none text-xs" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      <tr className="bg-primary/5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        <th className="px-6 py-4">Invoice ID</th>
-                        <th className="px-6 py-4">Customer</th>
-                        <th className="px-6 py-4">Amount (IDR)</th>
-                        <th className="px-6 py-4">Link</th>
-                        <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4"></th>
-                      </tr>
+                      <tr className="bg-primary/5 text-[10px] font-black uppercase text-muted-foreground"><th className="px-8 py-4">ID</th><th className="px-8 py-4">Customer</th><th className="px-8 py-4">Amount</th><th className="px-8 py-4">Link</th><th className="px-8 py-4">Status</th><th className="px-8 py-4"></th></tr>
                     </thead>
                     <tbody className="divide-y divide-primary/5">
-                      {invoicesLoading ? (
-                        <tr><td colSpan={6} className="px-6 py-10 text-center text-xs text-muted-foreground italic">Syncing with blockchain gateway...</td></tr>
-                      ) : (firestoreInvoices || []).map((inv: any) => (
-                        <tr key={inv.invoiceId} className="hover:bg-primary/5 transition-colors group cursor-pointer">
-                          <td className="px-6 py-4 text-xs font-bold text-accent">{inv.invoiceId}</td>
-                          <td className="px-6 py-4 text-xs font-medium text-muted-foreground">{inv.customerName}</td>
-                          <td className="px-6 py-4 text-xs font-black">Rp {mounted ? inv.amountIdr.toLocaleString('id-ID') : "..."}</td>
-                          <td className="px-6 py-4">
-                             <Button 
-                               variant="ghost" 
-                               size="sm" 
-                               className="text-primary hover:bg-white text-[10px] font-bold"
-                               onClick={() => {
-                                 const url = `${window.location.origin}/checkout/${inv.invoiceId}`;
-                                 navigator.clipboard.writeText(url);
-                                 toast({ title: "Link Copied", description: "Payment link copied to clipboard." });
-                               }}
-                             >
-                               <LinkIcon className="w-3 h-3 mr-1" /> Copy Link
+                      {firestoreInvoices?.map((inv: any) => (
+                        <tr key={inv.invoiceId} className="hover:bg-primary/5 transition-colors cursor-pointer group">
+                          <td className="px-8 py-4 text-xs font-bold text-accent">{inv.invoiceId}</td>
+                          <td className="px-8 py-4 text-xs font-medium text-muted-foreground">{inv.customerName}</td>
+                          <td className="px-8 py-4 text-xs font-black">Rp {inv.amountIdr.toLocaleString('id-ID')}</td>
+                          <td className="px-8 py-4">
+                             <Button variant="ghost" size="sm" className="text-primary text-[10px] font-bold" onClick={() => copyText(`${window.location.origin}/checkout/${inv.invoiceId}`)}>
+                               <LinkIcon className="w-3 h-3 mr-1" /> Copy
                              </Button>
                           </td>
-                          <td className="px-6 py-4">{getStatusBadge(inv.status)}</td>
-                          <td className="px-6 py-4 text-right">
-                             <Link href={`/checkout/${inv.invoiceId}`}>
-                               <Button variant="ghost" size="icon" className="rounded-lg hover:bg-white">
-                                 <ExternalLink className="w-4 h-4 text-primary" />
-                               </Button>
-                             </Link>
+                          <td className="px-8 py-4">
+                            <Badge className={inv.status === 'paid' ? 'bg-green-600' : 'bg-orange-500'}>{inv.status}</Badge>
+                          </td>
+                          <td className="px-8 py-4 text-right">
+                             <Link href={`/checkout/${inv.invoiceId}`}><Button variant="ghost" size="icon" className="rounded-lg"><ExternalLink className="w-4 h-4 text-primary" /></Button></Link>
                           </td>
                         </tr>
                       ))}
@@ -343,79 +314,82 @@ export default function MerchantDashboard() {
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </TabsContent>
 
-          {/* Sidebar Tools */}
-          <div className="lg:col-span-4 space-y-6">
-            <Card className="liquid-glass-dark rounded-[2.5rem] p-8 border-none text-white shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10">
-                <CreditCard className="w-24 h-24" />
-              </div>
-              <div className="relative z-10 space-y-6">
-                <h3 className="text-xl font-black italic uppercase tracking-tighter">Settlement Hub</h3>
-                <div className="p-6 rounded-2xl bg-white/10 border border-white/10 space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Payable Amount</p>
-                  <p className="text-3xl font-black italic">Rp {mounted ? pendingSett.toLocaleString('id-ID') : "..."}</p>
-                </div>
-                <Button 
-                  onClick={handleSettlement}
-                  disabled={isSettling || pendingSett <= 0}
-                  className="w-full h-14 gold-gradient text-white font-black italic uppercase rounded-xl shadow-lg flex items-center justify-center gap-3"
-                >
-                  {isSettling ? <RefreshCw className="animate-spin" /> : <Zap className="w-5 h-5" />}
-                  Instant Settlement
-                </Button>
-                <p className="text-[9px] text-white/50 text-center italic leading-relaxed">
-                  Funds will be credited to your linked bank account within 15 minutes.
-                </p>
-              </div>
-            </Card>
+          <TabsContent value="developer" className="space-y-8 animate-in slide-in-from-right-10 duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-black italic uppercase flex items-center gap-2"><Code className="w-6 h-6 text-primary" /> API Keys</h3>
+                    <Button onClick={rotateApiKey} variant="outline" className="h-9 rounded-xl border-primary/20 text-primary text-[10px] font-black uppercase">Rotate Key</Button>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Live Secret API Key</Label>
+                      <div className="relative">
+                        <Input readOnly value={currentApiKey} className="h-14 pr-12 rounded-xl bg-primary/5 border-none font-mono text-xs text-accent" />
+                        <Button onClick={() => copyText(currentApiKey)} variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 text-primary"><Copy className="w-4 h-4" /></Button>
+                      </div>
+                      <p className="text-[9px] text-muted-foreground italic">Use this key to authorize requests from your server.</p>
+                    </div>
+                  </div>
+                </Card>
 
-            <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6">
-              <div className="flex items-center gap-3">
-                <Code className="w-5 h-5 text-primary" />
-                <h4 className="text-sm font-black uppercase italic tracking-widest">Developer API</h4>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Live Secret Key</label>
-                  <div className="relative">
-                    <Input 
-                      readOnly 
-                      value={MOCK_MERCHANT.apiKey} 
-                      className="h-12 pr-12 rounded-xl bg-primary/5 border-none font-mono text-xs text-accent"
-                    />
-                    <Button 
-                      onClick={copyApiKey}
-                      variant="ghost" 
-                      size="icon" 
-                      className="absolute right-1 top-1/2 -translate-y-1/2 text-primary"
-                    >
-                      <Copy className="w-4 h-4" />
+                <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-6 h-6 text-primary" />
+                    <h3 className="text-xl font-black italic uppercase">Webhook Settings</h3>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Notification URL</Label>
+                      <Input 
+                        placeholder="https://yourdomain.com/api/alibank-webhook" 
+                        value={webhookUrl}
+                        onChange={(e) => setWebhookUrl(e.target.value)}
+                        className="h-14 rounded-xl bg-primary/5 border-none text-xs text-accent" 
+                      />
+                    </div>
+                    <Button onClick={updateWebhook} disabled={isUpdatingWebhook} className="w-full h-14 gold-gradient text-white font-black uppercase rounded-2xl">
+                      {isUpdatingWebhook ? <RefreshCw className="animate-spin" /> : "Save Webhook URL"}
                     </Button>
                   </div>
-                </div>
-                <div className="p-4 rounded-xl bg-accent/5 border border-accent/10">
-                  <p className="text-[10px] font-bold text-accent italic leading-relaxed">
-                    Use this key to integrate AliBank Payment Gateway into your store. 
-                    <span className="text-primary hover:underline cursor-pointer block mt-1">View Documentation →</span>
-                  </p>
+                </Card>
+              </div>
+
+              <div className="space-y-6">
+                <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Terminal className="w-6 h-6 text-primary" />
+                    <h3 className="text-xl font-black italic uppercase">Quick Integration</h3>
+                  </div>
+                  <pre className="bg-black/50 p-6 rounded-2xl overflow-x-auto text-[11px] font-mono text-primary leading-relaxed border border-white/5">
+                    {sdkExample}
+                  </pre>
+                  <Button variant="outline" className="w-full mt-6 border-white/10 text-white hover:bg-white/5 uppercase font-black text-[10px] h-12">Read Full Documentation</Button>
+                </Card>
+
+                <div className="liquid-glass p-8 rounded-[2rem] bg-primary/5 border-primary/20">
+                  <div className="flex items-center gap-3 mb-2">
+                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                    <h4 className="text-sm font-black uppercase">Mainnet Bridge Active</h4>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed italic">Your account is fully verified for production crypto transactions. Transactions on mainnet will be settled in IDR instantly.</p>
                 </div>
               </div>
-            </Card>
+            </div>
+          </TabsContent>
 
-            <Card className="liquid-glass border-none rounded-[2.5rem] p-8 text-center bg-primary/5">
-              <Users className="w-10 h-10 text-primary mx-auto mb-4" />
-              <h4 className="text-sm font-black uppercase mb-1">Affiliate Program</h4>
-              <p className="text-[10px] text-muted-foreground leading-relaxed italic mb-4">
-                Invite other merchants and earn 0.05% of their total transaction volume.
-              </p>
-              <Button variant="outline" className="w-full rounded-xl border-primary/20 text-primary text-xs font-bold">
-                Generate Invite Link
-              </Button>
+          <TabsContent value="settings" className="animate-in fade-in duration-500">
+            <Card className="liquid-glass border-none rounded-[2.5rem] p-12 text-center max-w-2xl mx-auto space-y-6">
+              <Settings className="w-16 h-16 text-primary mx-auto opacity-20" />
+              <h2 className="text-2xl font-black italic uppercase">Business Settings</h2>
+              <p className="text-muted-foreground text-sm leading-relaxed">Modify your business identity, tax information, and settlement bank accounts. Changes here will be reviewed by the AliBank Compliance team.</p>
+              <Button variant="outline" className="rounded-xl px-12 h-12 border-primary/20 text-primary font-bold">Edit Profile</Button>
             </Card>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

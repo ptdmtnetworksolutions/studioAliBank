@@ -38,6 +38,7 @@
         "totalRevenue": { "type": "number" },
         "pendingSettlement": { "type": "number" },
         "apiKey": { "type": "string" },
+        "webhookUrl": { "type": "string", "description": "URL endpoint untuk notifikasi pembayaran sukses." },
         "status": { "type": "string", "enum": ["active", "suspended", "pending_review"] }
       },
       "required": ["merchantId", "businessName", "ownerUid"]
