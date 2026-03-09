@@ -1,13 +1,12 @@
-
 'use client';
 
 import { useState } from 'react';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithPopup, GoogleAuthProvider, AuthError } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Sparkles, AlertCircle, Loader2 } from 'lucide-react';
+import { Sparkles, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
@@ -46,14 +45,18 @@ export default function LoginPage() {
         await setDoc(userDocRef, {
           uid: user.uid,
           name: user.displayName || 'Nasabah AliBank',
+          email: user.email,
+          photoURL: user.photoURL,
           accountNumber: '88' + Math.floor(1000000000 + Math.random() * 9000000000).toString(),
-          totalBalance: 15000000, // Saldo awal simulasi
-          savings: 5000000,       // Tabungan awal simulasi
+          totalBalance: 15000000, // Saldo awal simulasi Rp 15 Juta
+          savings: 5000000,       // Tabungan awal simulasi Rp 5 Juta
+          createdAt: serverTimestamp(),
+          tier: 'Premium'
         });
         
         toast({
           title: "Selamat Datang!",
-          description: "Akun AliBank Anda telah berhasil dibuat dengan saldo awal.",
+          description: "Akun AliBank Anda telah berhasil dibuat dengan saldo awal Rp 15.000.000.",
         });
       }
 
@@ -69,7 +72,7 @@ export default function LoginPage() {
       } else if (authError.code === 'auth/popup-closed-by-user') {
         errorMessage = "Jendela login ditutup sebelum selesai.";
       } else if (authError.code === 'auth/unauthorized-domain') {
-        errorMessage = "Domain ini belum diizinkan. Periksa 'Authorized Domains' di Firebase.";
+        errorMessage = "Domain ini belum diizinkan. Harap tambahkan domain ini ke 'Authorized Domains' di Firebase Console (Authentication > Settings).";
       }
 
       toast({
@@ -89,7 +92,7 @@ export default function LoginPage() {
       <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-accent/10 blur-[100px] rounded-full" />
 
       <div className="relative z-10 flex flex-col items-center">
-        <div className="w-24 h-24 rounded-[2rem] gold-gradient flex items-center justify-center shadow-2xl mb-8 animate-bounce-slow">
+        <div className="w-24 h-24 rounded-[2.5rem] gold-gradient flex items-center justify-center shadow-2xl mb-8 animate-bounce-slow">
           <Sparkles className="text-white w-12 h-12" />
         </div>
         
@@ -128,7 +131,7 @@ export default function LoginPage() {
       </div>
 
       <div className="mt-16 flex items-center gap-2 text-primary/40 bg-primary/5 px-4 py-2 rounded-full border border-primary/5">
-        <AlertCircle className="w-4 h-4" />
+        <ShieldCheck className="w-4 h-4" />
         <span className="text-[10px] font-bold uppercase tracking-widest">End-to-End Encrypted System</span>
       </div>
     </div>
