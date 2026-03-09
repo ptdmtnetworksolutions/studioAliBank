@@ -3,16 +3,74 @@
 
 import { Navbar } from "@/components/layout/Navbar";
 import { MOCK_BENEFICIARIES } from "@/app/lib/mock-data";
-import { Send, Search, UserPlus, ArrowRight, ShieldCheck } from "lucide-center";
+import { Send, ArrowRight, ShieldCheck, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useFirestore, useUser } from "@/firebase";
+import { collection, addDoc, doc, updateDoc, increment, serverTimestamp } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 export default function TransferPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { user } = useUser();
+  const db = useFirestore();
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const handleTransfer = async () => {
+    if (!user || !db || !amount || !selected) {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Mohon lengkapi semua data transfer.",
+      });
+      return;
+    }
+
+    setLoading(true);
+    const numAmount = parseFloat(amount);
+    const beneficiary = MOCK_BENEFICIARIES.find(b => b.id === selected);
+
+    try {
+      // 1. Catat Transaksi
+      await addDoc(collection(db, "users", user.uid, "transactions"), {
+        date: new Date().toISOString(),
+        description: `Transfer ke ${beneficiary?.name} (${note || 'Tanpa catatan'})`,
+        category: "Transfer",
+        amount: numAmount,
+        type: "expense",
+        timestamp: serverTimestamp()
+      });
+
+      // 2. Update Saldo (Simulasi di sisi pengirim)
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        totalBalance: increment(-numAmount)
+      });
+
+      toast({
+        title: "Transfer Berhasil!",
+        description: `Rp ${numAmount.toLocaleString('id-ID')} telah dikirim ke ${beneficiary?.name}.`,
+      });
+      router.push('/');
+    } catch (err) {
+      console.error(err);
+      toast({
+        variant: "destructive",
+        title: "Transfer Gagal",
+        description: "Terjadi kesalahan sistem. Silakan coba lagi.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen pb-12">
@@ -20,7 +78,6 @@ export default function TransferPage() {
       
       <main className="container mx-auto px-4 max-w-5xl">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
           <div className="lg:col-span-7 space-y-6">
             <h1 className="text-3xl font-bold text-accent">Transfer Dana</h1>
             
@@ -28,7 +85,7 @@ export default function TransferPage() {
               <div>
                 <label className="text-sm font-bold text-accent/70 block mb-3">Pilih Penerima</label>
                 <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
-                  <button className="flex-shrink-0 w-24 h-28 rounded-2xl bg-primary/5 border-2 border-dashed border-primary/20 flex flex-col items-center justify-center gap-2 text-primary hover:bg-primary/10 transition-colors">
+                  <button className="flex-shrink-0 w-24 h-28 rounded-2xl bg-primary/5 border-2 border-dashed border-primary/20 flex flex-col items-center justify-center gap-2 text-primary hover:bg-primary/10">
                     <UserPlus className="w-6 h-6" />
                     <span className="text-[10px] font-bold uppercase">Baru</span>
                   </button>
@@ -64,7 +121,7 @@ export default function TransferPage() {
                     placeholder="0"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="h-20 text-3xl font-bold pl-16 rounded-2xl liquid-glass border-none focus-visible:ring-primary/30"
+                    className="h-20 text-3xl font-bold pl-16 rounded-2xl liquid-glass border-none"
                   />
                 </div>
               </div>
@@ -73,17 +130,23 @@ export default function TransferPage() {
                 <label className="text-sm font-bold text-accent/70 block mb-3">Catatan (Opsional)</label>
                 <Input 
                   placeholder="Contoh: Bayar makan malam" 
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
                   className="h-14 rounded-xl liquid-glass border-none"
                 />
               </div>
 
               <div className="p-4 rounded-xl bg-green-50 flex items-center gap-3">
                 <ShieldCheck className="text-green-600 w-5 h-5" />
-                <p className="text-xs text-green-700 font-medium">Transfer Anda diamankan dengan enkripsi end-to-end dan Proteksi Penipuan AliBank.</p>
+                <p className="text-xs text-green-700 font-medium">Transfer Anda diamankan dengan enkripsi end-to-end.</p>
               </div>
 
-              <Button className="w-full h-16 gold-gradient text-white text-lg font-bold rounded-2xl shadow-xl shadow-primary/20 flex items-center justify-center gap-2">
-                Lanjutkan Transfer <ArrowRight className="w-5 h-5" />
+              <Button 
+                onClick={handleTransfer}
+                disabled={loading || !amount || !selected}
+                className="w-full h-16 gold-gradient text-white text-lg font-bold rounded-2xl shadow-xl flex items-center justify-center gap-2"
+              >
+                {loading ? 'Memproses...' : 'Lanjutkan Transfer'} <ArrowRight className="w-5 h-5" />
               </Button>
             </div>
           </div>
@@ -103,21 +166,12 @@ export default function TransferPage() {
                         <p className="text-xs text-muted-foreground">{b.bank} • {b.acc}</p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="text-primary hover:bg-primary/10">
+                    <Button variant="ghost" size="icon" onClick={() => setSelected(b.id)} className="text-primary hover:bg-primary/10">
                       <Send className="w-4 h-4" />
                     </Button>
                   </CardContent>
                 </Card>
               ))}
-            </div>
-            
-            <div className="p-6 rounded-3xl liquid-glass border-primary/10 flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <ArrowRight className="w-8 h-8 text-primary rotate-45" />
-              </div>
-              <h3 className="font-bold text-accent mb-1">Setel Pembayaran Rutin</h3>
-              <p className="text-sm text-muted-foreground mb-4">Otomatiskan transfer bulanan dan tagihan Anda dengan mudah.</p>
-              <Button variant="outline" className="w-full border-primary/20 text-primary rounded-xl">Atur Jadwal</Button>
             </div>
           </div>
         </div>

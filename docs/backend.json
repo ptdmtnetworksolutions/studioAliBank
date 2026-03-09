@@ -1,0 +1,44 @@
+
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Informasi profil dan saldo utama pengguna.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "totalBalance": { "type": "number" },
+        "savings": { "type": "number" }
+      },
+      "required": ["uid", "name", "accountNumber"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Catatan transaksi keuangan pengguna.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["income", "expense"] }
+      },
+      "required": ["date", "description", "amount", "type"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com", "password"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Data profil pengguna tunggal."
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Riwayat transaksi milik pengguna."
+    }
+  }
+}
