@@ -40,6 +40,7 @@ export default function CryptoPage() {
   const [address, setAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState<string>("0");
   const [vaultBalance, setVaultBalance] = useState<string>("0");
+  // Menggunakan alamat kontrak user yang sudah dideploy
   const [contractAddress, setContractAddress] = useState("0x59B9149D05138c6709D3552783aA3b85f992C79c");
   const [loading, setLoading] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
@@ -55,7 +56,7 @@ export default function CryptoPage() {
       toast({
         variant: "destructive",
         title: "Web3 Tidak Ditemukan",
-        description: "Silakan instal MetaMask untuk menggunakan AliBank Crypto Bridge.",
+        description: "Jika di ponsel, silakan buka aplikasi AliBank melalui Browser di dalam aplikasi MetaMask.",
       });
       return;
     }
@@ -73,7 +74,6 @@ export default function CryptoPage() {
       
       if (contractAddress && contractAddress.length === 42) {
         try {
-          // Validasi apakah alamat tersebut berisi kode kontrak untuk menghindari BAD_DATA
           const code = await provider.getCode(contractAddress);
           if (code === "0x" || code === "0x0") {
             setIsContractValid(false);
@@ -81,7 +81,7 @@ export default function CryptoPage() {
             toast({
               variant: "destructive",
               title: "Kontrak Tidak Ditemukan",
-              description: "Alamat ini bukan Smart Contract di jaringan Sepolia. Pastikan Anda menyalin alamat kontrak, bukan hash transaksi.",
+              description: "Pastikan MetaMask Anda berada di jaringan Sepolia.",
             });
           } else {
             setIsContractValid(true);
@@ -334,13 +334,13 @@ export default function CryptoPage() {
                 <Info className="w-5 h-5 text-primary shrink-0" />
                 <div className="space-y-2">
                   <p className="text-[9px] font-bold leading-relaxed text-muted-foreground uppercase tracking-wider">
-                    <strong>PANDUAN SOLUSI ERROR SALDO:</strong>
+                    <strong>PANDUAN PONSEL:</strong>
                   </p>
                   <ol className="text-[8px] text-muted-foreground list-decimal ml-4 space-y-1 uppercase font-bold leading-relaxed">
-                    <li>Aktifkan <strong>"Show test networks"</strong> di MetaMask Settings &gt; Advanced.</li>
+                    <li>Gunakan <strong>Browser</strong> di dalam aplikasi MetaMask Mobile.</li>
+                    <li>Aktifkan <strong>"Show test networks"</strong> di Settings &gt; Advanced.</li>
                     <li>Pilih jaringan <strong>Sepolia</strong> di MetaMask.</li>
-                    <li>Gunakan <code>faucets.chain.link</code> untuk mendapatkan Sepolia ETH gratis.</li>
-                    <li>Jika error "BAD_DATA", pastikan alamat yang ditempel bukan Hash Transaksi.</li>
+                    <li>Gunakan <code>faucets.chain.link</code> untuk mendapatkan saldo uji coba.</li>
                   </ol>
                 </div>
               </div>
