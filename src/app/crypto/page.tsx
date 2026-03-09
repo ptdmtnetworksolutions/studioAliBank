@@ -39,7 +39,7 @@ export default function CryptoPage() {
   const [address, setAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState<string>("0");
   const [vaultBalance, setVaultBalance] = useState<string>("0");
-  const [contractAddress, setContractAddress] = useState<string>("");
+  const [contractAddress, setContractAddress] = setContractAddress("");
   const [amount, setAmount] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
@@ -150,6 +150,12 @@ export default function CryptoPage() {
     }
   };
 
+  const [contractAddr, setContractAddr] = useState("");
+  useEffect(() => {
+    const saved = localStorage.getItem("alibank_contract_address");
+    if (saved) setContractAddr(saved);
+  }, []);
+
   return (
     <div className="min-h-screen pb-20 bg-background">
       <Navbar />
@@ -177,8 +183,11 @@ export default function CryptoPage() {
                 <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Deployed Contract Address (Sepolia Testnet)</Label>
                 <Input 
                   placeholder="0x..."
-                  value={contractAddress}
-                  onChange={(e) => saveContractAddress(e.target.value)}
+                  value={contractAddr}
+                  onChange={(e) => {
+                    setContractAddr(e.target.value);
+                    localStorage.setItem("alibank_contract_address", e.target.value);
+                  }}
                   className="h-12 rounded-xl border-primary/20 bg-white/50 dark:bg-black/50 font-mono text-xs"
                 />
               </div>
