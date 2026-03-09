@@ -98,7 +98,13 @@ export default function Dashboard() {
   const balance = userData?.totalBalance || 0;
   const savings = userData?.savings || 0;
   const accountNumber = userData?.accountNumber || "---";
-  const cryptoBalances = userData?.cryptoBalances || { BTC: 0, ETH: 0, USDT: 0 };
+  
+  // Robust crypto balances with individual defaults to prevent .toFixed() errors
+  const cryptoBalances = {
+    BTC: userData?.cryptoBalances?.BTC ?? 0,
+    ETH: userData?.cryptoBalances?.ETH ?? 0,
+    USDT: userData?.cryptoBalances?.USDT ?? 0,
+  };
 
   return (
     <div className="min-h-screen pb-32 bg-background">
