@@ -19,7 +19,11 @@ import {
   Terminal,
   CheckCircle2,
   HelpCircle,
-  Info
+  Info,
+  Building2,
+  User,
+  ShieldCheck,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +37,17 @@ import {
   DialogTrigger,
   DialogFooter
 } from "@/components/ui/dialog";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { 
   Popover,
   PopoverContent,
@@ -59,10 +74,14 @@ export default function MerchantDashboard() {
   const [isSettling, setIsSettling] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [isUpdatingWebhook, setIsUpdatingWebhook] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // States for Settings
+  const [bankSettings, setBankSettings] = useState({
+    bankName: "BCA",
+    accountNumber: "",
+    accountHolder: ""
+  });
 
   const [newInvoice, setNewInvoice] = useState({
     customerName: "",
@@ -71,6 +90,10 @@ export default function MerchantDashboard() {
   });
 
   const [webhookUrl, setWebhookUrl] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const merchantDocRef = useMemo(() => {
     if (!db) return null;
@@ -81,6 +104,9 @@ export default function MerchantDashboard() {
   useEffect(() => {
     if (merchantData?.webhookUrl) {
       setWebhookUrl(merchantData.webhookUrl);
+    }
+    if (merchantData?.bankDetails) {
+      setBankSettings(merchantData.bankDetails);
     }
   }, [merchantData]);
 
@@ -93,7 +119,7 @@ export default function MerchantDashboard() {
     );
   }, [db]);
 
-  const { data: firestoreInvoices, loading: invoicesLoading } = useCollection(invoicesQuery);
+  const { data: firestoreInvoices } = useCollection(invoicesQuery);
 
   const rotateApiKey = () => {
     if (!db || !merchantDocRef) return;
@@ -123,11 +149,20 @@ export default function MerchantDashboard() {
       })
       .catch((e) => {
         setIsUpdatingWebhook(false);
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: merchantDocRef.path,
-          operation: 'update',
-          requestResourceData: { webhookUrl }
-        }));
+      });
+  };
+
+  const saveBankSettings = () => {
+    if (!db || !merchantDocRef) return;
+    setIsSavingSettings(true);
+    
+    setDoc(merchantDocRef, { bankDetails: bankSettings }, { merge: true })
+      .then(() => {
+        setIsSavingSettings(false);
+        toast({ title: "Settings Saved", description: "Your withdrawal bank account has been updated." });
+      })
+      .catch(() => {
+        setIsSavingSettings(false);
       });
   };
 
@@ -142,6 +177,11 @@ export default function MerchantDashboard() {
       return;
     }
 
+    if (!merchantData.bankDetails?.accountNumber) {
+      toast({ variant: "destructive", title: "Missing Bank Info", description: "Please configure your bank account in Settings before withdrawing." });
+      return;
+    }
+
     setIsSettling(true);
     const amount = merchantData.pendingSettlement || 0;
     const payload = { pendingSettlement: 0 };
@@ -149,9 +189,12 @@ export default function MerchantDashboard() {
     setDoc(merchantDocRef!, payload, { merge: true })
       .then(() => {
         setIsSettling(false);
-        toast({ title: "Settlement Success", description: `Rp ${amount.toLocaleString('id-ID')} has been transferred.` });
+        toast({ 
+          title: "Withdrawal Initiated", 
+          description: `Rp ${amount.toLocaleString('id-ID')} is being sent to your ${merchantData.bankDetails.bankName} account (${merchantData.bankDetails.accountNumber}).` 
+        });
       })
-      .catch(async () => {
+      .catch(() => {
         setIsSettling(false);
       });
   };
@@ -179,7 +222,7 @@ export default function MerchantDashboard() {
         toast({ title: "Invoice Created", description: `Invoice ${invoiceId} has been generated.` });
         setNewInvoice({ customerName: "", amountIdr: "", cryptoCurrency: "USDT" });
       })
-      .catch(async () => {
+      .catch(() => {
         setIsCreatingInvoice(false);
       });
   };
@@ -187,6 +230,8 @@ export default function MerchantDashboard() {
   const totalRev = merchantData?.totalRevenue || 0;
   const pendingSett = merchantData?.pendingSettlement ?? 0;
   const currentApiKey = merchantData?.apiKey || MOCK_MERCHANT.apiKey;
+  const currentBank = merchantData?.bankDetails?.bankName || "Not Set";
+  const currentAcc = merchantData?.bankDetails?.accountNumber || "Not Configured";
 
   const sdkExample = `
 // AliBank SDK Integration
@@ -240,7 +285,7 @@ const pay = async () => {
             </div>
             <div>
               <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter dark:text-primary">Merchant Console</h1>
-              <p className="text-muted-foreground text-sm font-medium">{MOCK_MERCHANT.businessName} • API Gateway Active</p>
+              <p className="text-muted-foreground text-sm font-medium">{MOCK_MERCHANT.businessName} • Gateway Live</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -288,7 +333,7 @@ const pay = async () => {
                 <div className="absolute top-6 right-6">
                   <HelpIcon 
                     title="Total Revenue" 
-                    content="Akumulasi seluruh transaksi yang berhasil diproses melalui AliBank Gateway. Angka ini mencakup pembayaran via Crypto Bridge dan Saldo Internal nasabah." 
+                    content="Akumulasi seluruh transaksi yang berhasil diproses melalui AliBank Gateway." 
                   />
                 </div>
                 <p className="text-[10px] font-black uppercase text-muted-foreground">Total Revenue</p>
@@ -300,19 +345,55 @@ const pay = async () => {
                 <div className="absolute top-6 right-6">
                   <HelpIcon 
                     title="Pending Settlement" 
-                    content="Dana hasil penjualan yang sudah diverifikasi namun belum ditarik ke rekening bank Anda. Proses 'Withdraw' akan mengirimkan dana ini dalam IDR secara instan." 
+                    content="Dana hasil penjualan yang sudah diverifikasi namun belum ditarik ke rekening bank Anda." 
                   />
                 </div>
                 <p className="text-[10px] font-black uppercase text-muted-foreground">Pending Settlement</p>
                 <p className="text-3xl font-black text-primary">Rp {pendingSett.toLocaleString('id-ID')}</p>
-                <Button onClick={handleSettlement} disabled={isSettling || pendingSett <= 0} size="sm" className="mt-2 gold-gradient text-white rounded-xl h-10 w-full uppercase font-black text-[10px]">Withdraw Now</Button>
+                
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      disabled={isSettling || pendingSett <= 0} 
+                      size="sm" 
+                      className="mt-2 gold-gradient text-white rounded-xl h-10 w-full uppercase font-black text-[10px]"
+                    >
+                      {isSettling ? <RefreshCw className="animate-spin w-4 h-4 mr-2" /> : null}
+                      Withdraw Now
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="rounded-[2.5rem] liquid-glass border-primary/20 p-8">
+                    <AlertDialogHeader>
+                      <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                        <AlertTriangle className="w-8 h-8 text-primary" />
+                      </div>
+                      <AlertDialogTitle className="text-2xl font-black italic uppercase tracking-tighter text-accent">Confirm Withdrawal</AlertDialogTitle>
+                      <AlertDialogDescription className="text-sm font-medium leading-relaxed italic text-muted-foreground">
+                        Anda akan menarik saldo sebesar <span className="font-bold text-accent">Rp {pendingSett.toLocaleString('id-ID')}</span> ke rekening:
+                        <div className="mt-4 p-4 rounded-2xl bg-primary/5 border border-primary/10">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Destination Account</p>
+                          <p className="text-sm font-black text-accent">{currentBank} • {currentAcc}</p>
+                        </div>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="mt-6 gap-2">
+                      <AlertDialogCancel className="rounded-xl h-12 border-primary/10 uppercase font-bold text-[10px]">Cancel</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={handleSettlement} 
+                        className="rounded-xl h-12 gold-gradient text-white uppercase font-black text-[10px] border-none"
+                      >
+                        Confirm & Withdraw
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </Card>
 
               <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-2 relative">
                 <div className="absolute top-6 right-6">
                   <HelpIcon 
                     title="Gateway Status" 
-                    content="Indikator konektivitas node blockchain AliBank ke Ethereum Mainnet. 'Online' berarti sistem siap memproses transaksi on-chain secara real-time." 
+                    content="Indikator konektivitas node blockchain AliBank ke Ethereum Mainnet." 
                   />
                 </div>
                 <p className="text-[10px] font-black uppercase text-muted-foreground">Gateway Status</p>
@@ -328,10 +409,6 @@ const pay = async () => {
               <CardHeader className="flex flex-row items-center justify-between border-b border-primary/5 p-8">
                 <div className="flex items-center gap-3">
                   <CardTitle className="text-xl font-black italic uppercase flex items-center gap-2"><Zap className="w-5 h-5 text-primary" /> Live Transactions</CardTitle>
-                  <HelpIcon 
-                    title="Live Transactions" 
-                    content="Daftar invoice aktif dan riwayat pembayaran pelanggan. Anda bisa memantau status 'Paid' untuk pengiriman barang segera." 
-                  />
                 </div>
                 <div className="relative w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -370,15 +447,12 @@ const pay = async () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="developer" className="space-y-8 animate-in slide-in-from-right-10 duration-500">
+          <TabsContent value="developer" className="space-y-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6 relative">
                   <div className="absolute top-8 right-8">
-                    <HelpIcon 
-                      title="API Keys" 
-                      content="Kunci rahasia untuk otentikasi server-ke-server. Jangan bagikan kunci ini. Gunakan fitur 'Rotate' jika kunci Anda bocor." 
-                    />
+                    <HelpIcon title="API Keys" content="Kunci rahasia untuk otentikasi server-ke-server." />
                   </div>
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-black italic uppercase flex items-center gap-2"><Code className="w-6 h-6 text-primary" /> API Keys</h3>
@@ -391,17 +465,13 @@ const pay = async () => {
                         <Input readOnly value={currentApiKey} className="h-14 pr-12 rounded-xl bg-primary/5 border-none font-mono text-xs text-accent" />
                         <Button onClick={() => copyText(currentApiKey)} variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 text-primary"><Copy className="w-4 h-4" /></Button>
                       </div>
-                      <p className="text-[9px] text-muted-foreground italic">Use this key to authorize requests from your server.</p>
                     </div>
                   </div>
                 </Card>
 
                 <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6 relative">
                   <div className="absolute top-8 right-8">
-                    <HelpIcon 
-                      title="Webhook Settings" 
-                      content="URL di server Anda yang akan dipanggil AliBank secara otomatis saat pembayaran sukses. Berguna untuk mengaktifkan order di sistem Anda secara real-time." 
-                    />
+                    <HelpIcon title="Webhook Settings" content="URL di server Anda yang akan dipanggil AliBank secara otomatis." />
                   </div>
                   <div className="flex items-center gap-2">
                     <Globe className="w-6 h-6 text-primary" />
@@ -426,12 +496,6 @@ const pay = async () => {
 
               <div className="space-y-6">
                 <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white relative">
-                  <div className="absolute top-8 right-8 text-white/40">
-                    <HelpIcon 
-                      title="SDK Integration" 
-                      content="Gunakan SDK resmi AliBank untuk mengotomatiskan pembuatan invoice dan verifikasi pembayaran langsung dari aplikasi Anda." 
-                    />
-                  </div>
                   <div className="flex items-center gap-3 mb-6">
                     <Terminal className="w-6 h-6 text-primary" />
                     <h3 className="text-xl font-black italic uppercase">Quick Integration</h3>
@@ -439,30 +503,100 @@ const pay = async () => {
                   <pre className="bg-black/50 p-6 rounded-2xl overflow-x-auto text-[11px] font-mono text-primary leading-relaxed border border-white/5">
                     {sdkExample}
                   </pre>
-                  <Button variant="outline" className="w-full mt-6 border-white/10 text-white hover:bg-white/5 uppercase font-black text-[10px] h-12">Read Full Documentation</Button>
                 </Card>
-
-                <div className="liquid-glass p-8 rounded-[2rem] bg-primary/5 border-primary/20">
-                  <div className="flex items-center gap-3 mb-2">
-                    <CheckCircle2 className="w-5 h-5 text-primary" />
-                    <h4 className="text-sm font-black uppercase">Mainnet Bridge Active</h4>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground leading-relaxed italic">Your account is fully verified for production crypto transactions. Transactions on mainnet will be settled in IDR instantly.</p>
-                </div>
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="settings" className="animate-in fade-in duration-500">
-            <Card className="liquid-glass border-none rounded-[2.5rem] p-12 text-center max-w-2xl mx-auto space-y-6">
-              <Settings className="w-16 h-16 text-primary mx-auto opacity-20" />
-              <h2 className="text-2xl font-black italic uppercase">Business Settings</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">Modify your business identity, tax information, and settlement bank accounts. Changes here will be reviewed by the AliBank Compliance team.</p>
-              <Button variant="outline" className="rounded-xl px-12 h-12 border-primary/20 text-primary font-bold">Edit Profile</Button>
-            </Card>
+            <div className="max-w-2xl mx-auto space-y-6">
+              <Card className="liquid-glass border-none rounded-[2.5rem] p-8">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                    <Building2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black italic uppercase tracking-tighter text-accent">Bank Settlement Account</h3>
+                    <p className="text-xs text-muted-foreground font-medium italic">Configure where your IDR funds should be sent.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Bank</Label>
+                      <Select 
+                        value={bankSettings.bankName} 
+                        onValueChange={(val) => setBankSettings({...bankSettings, bankName: val})}
+                      >
+                        <SelectTrigger className="h-14 rounded-xl bg-primary/5 border-none font-bold text-accent">
+                          <SelectValue placeholder="Select Bank" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-2xl border-primary/10">
+                          <SelectItem value="BCA">BCA (Bank Central Asia)</SelectItem>
+                          <SelectItem value="Mandiri">Bank Mandiri</SelectItem>
+                          <SelectItem value="BNI">BNI (Bank Negara Indonesia)</SelectItem>
+                          <SelectItem value="AliBank">AliBank Internal Account</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Account Number</Label>
+                      <Input 
+                        placeholder="e.g. 882910022" 
+                        value={bankSettings.accountNumber}
+                        onChange={(e) => setBankSettings({...bankSettings, accountNumber: e.target.value})}
+                        className="h-14 rounded-xl bg-primary/5 border-none font-bold text-accent"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Account Holder Name</Label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40" />
+                      <Input 
+                        placeholder="As shown on ID card" 
+                        value={bankSettings.accountHolder}
+                        onChange={(e) => setBankSettings({...bankSettings, accountHolder: e.target.value})}
+                        className="h-14 pl-12 rounded-xl bg-primary/5 border-none font-bold text-accent"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-primary/5">
+                    <div className="flex items-center gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/10 mb-6">
+                      <ShieldCheck className="w-5 h-5 text-primary" />
+                      <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">
+                        Your data is encrypted. Changes to settlement bank accounts require secondary verification for security purposes.
+                      </p>
+                    </div>
+                    <Button 
+                      onClick={saveBankSettings} 
+                      disabled={isSavingSettings}
+                      className="w-full h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl"
+                    >
+                      {isSavingSettings ? <RefreshCw className="animate-spin w-5 h-5" /> : "Update Bank Account"}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white relative overflow-hidden group">
+                <div className="absolute inset-0 gold-gradient opacity-10" />
+                <div className="relative z-10 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-black italic uppercase">AliBank Instant Settlement</h4>
+                    <p className="text-[10px] font-medium text-white/60 italic">Get 0% Withdrawal Fees when using AliBank Internal Account.</p>
+                  </div>
+                  <Badge className="bg-primary text-white font-black animate-pulse">RECOMMENDED</Badge>
+                </div>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </main>
     </div>
   );
 }
+
