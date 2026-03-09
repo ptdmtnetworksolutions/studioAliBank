@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useDoc, useFirestore } from "@/firebase";
@@ -23,7 +24,8 @@ import {
   QrCode,
   Loader2,
   EyeOff,
-  Download
+  Download,
+  CreditCard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,12 +40,12 @@ import { useToast } from "@/hooks/use-toast";
 
 const mainServices = [
   { name: "Transfer", icon: Send, color: "bg-blue-50 text-blue-600", href: "/transfer" },
+  { name: "Top Up", icon: Plus, color: "bg-green-50 text-green-600", href: "/topup", badge: "New" },
   { name: "Tagihan", icon: Smartphone, color: "bg-orange-50 text-orange-600", badge: "Promo" },
   { name: "E-Wallet", icon: Wallet, color: "bg-amber-50 text-amber-700", href: "/wallets" },
-  { name: "Undang", icon: Users, color: "bg-red-50 text-red-600" },
   { name: "Deposito", icon: PiggyBank, color: "bg-green-50 text-green-600", href: "/deposits" },
   { name: "Tarik Tunai", icon: ArrowDownToLine, color: "bg-indigo-50 text-indigo-600", badge: "Gratis" },
-  { name: "Setor Tunai", icon: ArrowUpToLine, color: "bg-teal-50 text-teal-600" },
+  { name: "QRIS", icon: QrCode, color: "bg-teal-50 text-teal-600", href: "/topup" },
   { name: "Semua", icon: Grid2X2, color: "bg-gray-50 text-gray-600" },
 ];
 
@@ -68,14 +70,15 @@ export default function Dashboard() {
   useEffect(() => {
     setMounted(true);
     
-    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
-      setIsAppInstalled(true);
+    if (typeof window !== 'undefined') {
+      if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
+        setIsAppInstalled(true);
+      }
     }
 
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      console.log('AliBank PWA: Install prompt is ready');
     };
 
     const handleAppInstalled = () => {
@@ -102,30 +105,15 @@ export default function Dashboard() {
 
   const handleInstallClick = async (e: React.MouseEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-
     if (deferredPrompt) {
-      try {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        console.log(`AliBank PWA outcome: ${outcome}`);
-        setDeferredPrompt(null);
-      } catch (err) {
-        console.error('Error triggering install prompt:', err);
-      }
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') setDeferredPrompt(null);
     } else {
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-      if (isIOS) {
-        toast({
-          title: "Instruksi iOS",
-          description: "Tap ikon 'Share' (kotak panah atas) lalu pilih 'Add to Home Screen'.",
-        });
-      } else {
-        toast({
-          title: "Sistem Menyiapkan...",
-          description: "Browser sedang memvalidasi aplikasi. Jika tombol tidak muncul, muat ulang halaman atau klik menu browser (titik tiga) > Instal Aplikasi.",
-        });
-      }
+      toast({
+        title: "Instruksi Instalasi",
+        description: "Gunakan menu browser 'Tambahkan ke Layar Utama' untuk memasang AliBank.",
+      });
     }
   };
 
@@ -141,7 +129,7 @@ export default function Dashboard() {
       navigator.clipboard.writeText(userData.accountNumber);
       toast({
         title: "Disalin!",
-        description: "Nomor rekening berhasil disalin ke clipboard.",
+        description: "Nomor rekening berhasil disalin.",
       });
     }
   };
@@ -149,46 +137,46 @@ export default function Dashboard() {
   if (!mounted || userLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
-        <div className="w-16 h-16 rounded-2xl gold-gradient animate-pulse flex items-center justify-center shadow-xl">
+        <div className="w-16 h-16 rounded-2xl gold-gradient animate-pulse flex items-center justify-center">
           <Sparkles className="text-white w-8 h-8" />
         </div>
-        <p className="text-accent font-bold animate-pulse tracking-widest uppercase text-[10px]">Menyiapkan AliBank...</p>
       </div>
     );
   }
 
   const balance = userData?.totalBalance || 0;
   const savings = userData?.savings || 0;
-  const accountNumber = userData?.accountNumber || "Inisialisasi...";
+  const accountNumber = userData?.accountNumber || "---";
 
   return (
-    <div className="min-h-screen pb-24 bg-background">
+    <div className="min-h-screen pb-24 bg-background transition-colors duration-500">
       <header className="px-4 pt-6 pb-4 bg-white/70 backdrop-blur-xl sticky top-0 z-40 border-b border-primary/5 dark:bg-black/70">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <div className="flex items-center gap-3">
-            <div className="relative w-12 h-12 rounded-2xl border-2 border-primary/20 overflow-hidden shadow-sm gold-gradient">
+            <div className="relative w-12 h-12 rounded-2xl border-2 border-primary/20 overflow-hidden shadow-sm gold-gradient flex items-center justify-center">
               <Image 
-                src={user?.photoURL || `https://picsum.photos/seed/${user?.uid || '1'}/150/150`} 
+                src={`https://picsum.photos/seed/${user?.uid || '1'}/150/150`} 
                 alt="Profile" 
                 fill 
                 className="object-cover"
-                data-ai-hint="user portrait"
               />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Selamat Datang,</p>
-              <h2 className="font-bold text-accent leading-tight text-lg">{userData?.name?.split(' ')[0] || user?.displayName?.split(' ')[0] || "Nasabah"}</h2>
+              <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Premium Account</p>
+              <h2 className="font-bold text-accent leading-tight text-lg dark:text-primary">
+                {userData?.name?.split(' ')[0] || "Nasabah"}
+              </h2>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-2xl bg-white/80 border border-primary/5 shadow-sm hover:bg-destructive/5 hover:text-destructive group dark:bg-white/5">
-              <LogOut className="w-5 h-5 text-accent group-hover:text-destructive" />
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-2xl bg-white/80 border border-primary/5 shadow-sm dark:bg-white/5">
+              <LogOut className="w-5 h-5 text-accent dark:text-primary" />
             </Button>
             <div className="relative">
               <Button variant="ghost" size="icon" className="rounded-2xl bg-white/80 border border-primary/5 shadow-sm dark:bg-white/5">
-                <Bell className="w-5 h-5 text-accent" />
+                <Bell className="w-5 h-5 text-accent dark:text-primary" />
               </Button>
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-white text-[8px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-black">
                 1
               </span>
             </div>
@@ -198,16 +186,14 @@ export default function Dashboard() {
       
       <main className="max-w-2xl mx-auto px-4 pt-4 space-y-6">
         <div className="flex items-center justify-between px-2">
-           <div className="flex items-center gap-2">
-             <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-black px-3 py-1 rounded-full text-[10px] uppercase tracking-tighter">
-               AliBank Premium
-             </Badge>
-           </div>
+           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-black px-3 py-1 rounded-full text-[9px] uppercase tracking-tighter">
+             {userData?.tier || "Gold Member"}
+           </Badge>
            <button 
              onClick={copyAccountNumber}
-             className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-black uppercase tracking-widest bg-muted/30 px-3 py-1.5 rounded-full hover:bg-muted/50 transition-colors"
+             className="flex items-center gap-1.5 text-[9px] text-muted-foreground font-black uppercase tracking-widest bg-muted/30 px-3 py-1.5 rounded-full"
            >
-             No. Rek: {accountNumber}
+             Rek: {accountNumber}
              <Copy className="w-3 h-3" />
            </button>
         </div>
@@ -218,8 +204,8 @@ export default function Dashboard() {
           <div className="relative z-10 space-y-8">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">Saldo Utama</span>
-                <button onClick={() => setShowBalance(!showBalance)} className="text-white/60 hover:text-white bg-white/10 p-1.5 rounded-lg transition-colors">
+                <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">Total Saldo Aktif</span>
+                <button onClick={() => setShowBalance(!showBalance)} className="text-white/60 hover:text-white bg-white/10 p-1.5 rounded-lg">
                   {showBalance ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                 </button>
               </div>
@@ -230,26 +216,22 @@ export default function Dashboard() {
               </Link>
             </div>
 
-            <div className="text-5xl font-black tracking-tighter italic drop-shadow-lg">
+            <div className="text-4xl md:text-5xl font-black tracking-tighter italic drop-shadow-lg">
               Rp {showBalance ? balance.toLocaleString('id-ID') : "••••••••"}
             </div>
 
-            <div className="grid grid-cols-2 gap-6 pt-6 border-t border-white/20">
+            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/20">
               <div className="space-y-1">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Tabungan</p>
-                <p className="text-xl font-extrabold">Rp {savings.toLocaleString('id-ID')}</p>
-                <Badge className="bg-white/20 text-white text-[8px] font-black uppercase tracking-widest">Bunga Harian</Badge>
+                <p className="text-lg font-extrabold">Rp {savings.toLocaleString('id-ID')}</p>
               </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Deposito</p>
+              <Link href="/topup" className="space-y-1 bg-white/10 p-3 rounded-2xl hover:bg-white/20 transition-colors">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Tambah Saldo</p>
                 <div className="flex items-center gap-2">
-                  <p className="text-xl font-extrabold">Rp 0</p>
-                  <Link href="/deposits">
-                    <Badge className="bg-accent/80 text-white text-[8px] font-black uppercase tracking-widest hover:bg-accent cursor-pointer border border-white/10">Mulai</Badge>
-                  </Link>
+                  <Plus className="w-5 h-5" />
+                  <p className="text-sm font-bold uppercase tracking-wider">Top Up</p>
                 </div>
-                <p className="text-[10px] text-white/70 font-medium">Bunga s/d 6% p.a.</p>
-              </div>
+              </Link>
             </div>
           </div>
         </section>
@@ -257,18 +239,17 @@ export default function Dashboard() {
         {!isAppInstalled && (
           <section 
             onClick={handleInstallClick}
-            className="liquid-glass rounded-[2rem] p-6 border-primary/20 flex items-center gap-4 group cursor-pointer overflow-hidden relative active:scale-[0.98] transition-transform"
+            className="liquid-glass rounded-[2rem] p-6 border-primary/20 flex items-center gap-4 group cursor-pointer active:scale-[0.98] transition-all"
           >
-            <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 shadow-inner">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
               <Smartphone className="w-6 h-6 text-primary" />
             </div>
             <div className="flex-1">
-              <h4 className="text-sm font-bold text-accent">Pasang Aplikasi AliBank</h4>
-              <p className="text-[10px] text-muted-foreground leading-tight">Akses perbankan premium langsung dari layar utama Anda.</p>
+              <h4 className="text-sm font-bold text-accent dark:text-primary uppercase tracking-tight">AliBank Mobile App</h4>
+              <p className="text-[10px] text-muted-foreground font-medium">Instal sekarang untuk akses perbankan instan dan aman.</p>
             </div>
-            <Button size="sm" className="rounded-xl h-9 px-4 text-[10px] font-black uppercase tracking-widest gold-gradient text-white border-none shadow-lg group-hover:scale-105 transition-transform">
-              {deferredPrompt ? "Pasang" : "Instal"}
+            <Button size="sm" className="rounded-xl h-9 px-4 text-[9px] font-black uppercase tracking-widest gold-gradient text-white border-none shadow-lg">
+              PASANG
             </Button>
           </section>
         )}
@@ -284,12 +265,12 @@ export default function Dashboard() {
                 )}>
                   <Icon className="w-6 h-6" />
                   {service.badge && (
-                    <span className="absolute -top-1 -right-1 bg-destructive text-white text-[7px] font-black px-1.5 py-0.5 rounded-full uppercase border border-white">
+                    <span className="absolute -top-1 -right-1 bg-destructive text-white text-[7px] font-black px-1.5 py-0.5 rounded-full uppercase border border-white dark:border-black">
                       {service.badge}
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-black text-accent leading-tight h-8 flex items-center px-1 uppercase tracking-tighter">
+                <span className="text-[10px] font-black text-accent dark:text-primary leading-tight h-8 flex items-center px-1 uppercase tracking-tighter">
                   {service.name}
                 </span>
               </Link>
@@ -303,13 +284,12 @@ export default function Dashboard() {
             alt="Promotion" 
             fill 
             className="object-cover group-hover:scale-105 transition-transform duration-1000"
-            data-ai-hint="luxury gold"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent flex items-center px-8 text-white">
+          <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-transparent flex items-center px-8 text-white">
             <div className="space-y-1">
-              <Badge className="bg-primary text-white text-[8px] font-black uppercase mb-2 tracking-widest">Eksklusif Nasabah</Badge>
-              <h3 className="text-2xl font-black italic tracking-tighter leading-none uppercase">HADIAH<br/>MILIARAN RUPIAH</h3>
-              <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mt-2">Berakhir dalam 12 Hari</p>
+              <Badge className="bg-primary text-white text-[8px] font-black uppercase mb-2 tracking-widest border-none">Eksklusif</Badge>
+              <h3 className="text-2xl font-black italic tracking-tighter leading-none uppercase">PROGRAM REWARD<br/>AKHIR TAHUN</h3>
+              <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mt-2">Daftar sekarang di menu Deposito</p>
             </div>
           </div>
         </section>
@@ -321,24 +301,26 @@ export default function Dashboard() {
             <Home className="w-6 h-6 text-primary" />
             <span className="text-[8px] font-black text-white/90 uppercase tracking-widest">Beranda</span>
           </Link>
-          <Link href="/transactions" className="flex flex-col items-center gap-1 opacity-50 hover:opacity-100 transition-opacity group">
-            <Clock className="w-6 h-6 text-white group-hover:text-primary" />
+          <Link href="/transactions" className="flex flex-col items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
+            <Clock className="w-6 h-6 text-white" />
             <span className="text-[8px] font-black text-white uppercase tracking-widest">Riwayat</span>
           </Link>
           <div className="flex flex-col items-center justify-center relative h-full">
             <div className="absolute -top-10 left-1/2 -translate-x-1/2">
-              <button className="gold-gradient w-16 h-16 rounded-[1.8rem] flex items-center justify-center shadow-2xl border-4 border-accent hover:scale-105 active:scale-95 transition-all">
-                <QrCode className="w-8 h-8 text-white" />
-              </button>
+              <Link href="/topup">
+                <button className="gold-gradient w-16 h-16 rounded-[1.8rem] flex items-center justify-center shadow-2xl border-4 border-accent dark:border-black hover:scale-105 active:scale-95 transition-all">
+                  <QrCode className="w-8 h-8 text-white" />
+                </button>
+              </Link>
             </div>
-            <span className="mt-10 text-[8px] font-black text-white/50 tracking-widest uppercase">QRIS</span>
+            <span className="mt-10 text-[8px] font-black text-white/50 tracking-widest uppercase">TERIMA</span>
           </div>
-          <Link href="/deposits" className="flex flex-col items-center gap-1 opacity-50 hover:opacity-100 transition-opacity group">
-            <PiggyBank className="w-6 h-6 text-white group-hover:text-primary" />
-            <span className="text-[8px] font-black text-white uppercase tracking-widest">Deposito</span>
+          <Link href="/deposits" className="flex flex-col items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
+            <PiggyBank className="w-6 h-6 text-white" />
+            <span className="text-[8px] font-black text-white uppercase tracking-widest">Tabungan</span>
           </Link>
-          <Link href="/ai-assistant" className="flex flex-col items-center gap-1 opacity-50 hover:opacity-100 transition-opacity group">
-            <Sparkles className="w-6 h-6 text-white group-hover:text-primary" />
+          <Link href="/ai-assistant" className="flex flex-col items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
+            <Sparkles className="w-6 h-6 text-white" />
             <span className="text-[8px] font-black text-white uppercase tracking-widest">AI Bank</span>
           </Link>
         </div>

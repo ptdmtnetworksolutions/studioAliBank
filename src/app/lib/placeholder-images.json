@@ -30,6 +30,12 @@
       "description": "Abstract growth and wealth",
       "imageUrl": "https://picsum.photos/seed/growth/600/400",
       "imageHint": "wealth growth"
+    },
+    {
+      "id": "qris-mock",
+      "description": "Simulated QRIS code for payments",
+      "imageUrl": "https://picsum.photos/seed/qris/300/300",
+      "imageHint": "qris code"
     }
   ]
 }
