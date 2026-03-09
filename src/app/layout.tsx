@@ -5,12 +5,21 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 import { BottomNav } from '@/components/layout/BottomNav';
+import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: 'AliBank - Bintang Kejora Perbankan',
   description: 'Pendamping perbankan cerdas, elegan, dan terintegrasi kripto.',
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' }
+    ],
+    apple: [
+      { url: '/favicon.svg' }
+    ]
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -56,6 +65,7 @@ export default function RootLayout({
               <div className="flex-1 pb-32">
                 {children}
               </div>
+              <InstallPrompt />
               <BottomNav />
             </div>
             <Toaster />
