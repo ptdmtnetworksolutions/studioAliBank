@@ -13,25 +13,25 @@ const depositProducts = [
   { 
     name: "Elite Fixed Deposit", 
     rate: "4.85%", 
-    term: "12-24 Months", 
-    min: "$10,000", 
-    tag: "Most Popular",
+    term: "12-24 Bulan", 
+    min: "Rp 10.000.000", 
+    tag: "Terpopuler",
     color: "bg-primary/10 text-primary"
   },
   { 
     name: "Flexi Saver", 
     rate: "3.20%", 
-    term: "No Lock-in", 
-    min: "$1,000", 
-    tag: "High Liquidity",
+    term: "Tanpa Kunci", 
+    min: "Rp 1.000.000", 
+    tag: "Likuiditas Tinggi",
     color: "bg-green-100 text-green-700"
   },
   { 
     name: "Growth Certificate", 
     rate: "5.10%", 
-    term: "36+ Months", 
-    min: "$25,000", 
-    tag: "Best Yield",
+    term: "36+ Bulan", 
+    min: "Rp 25.000.000", 
+    tag: "Imbal Hasil Terbaik",
     color: "bg-blue-100 text-blue-700"
   }
 ];
@@ -50,34 +50,34 @@ export default function DepositsPage() {
       <main className="container mx-auto px-4 max-w-6xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-accent">Deposit Management</h1>
-            <p className="text-muted-foreground">Grow your wealth with premium deposit products</p>
+            <h1 className="text-3xl font-bold text-accent">Manajemen Deposito</h1>
+            <p className="text-muted-foreground">Kembangkan kekayaan Anda dengan produk deposito premium</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Current Deposits */}
           <div className="lg:col-span-4 space-y-6">
-            <h2 className="text-xl font-bold text-accent">Your Active Deposits</h2>
+            <h2 className="text-xl font-bold text-accent">Deposito Aktif Anda</h2>
             <div className="space-y-4">
               {MOCK_USER.deposits.map((dep) => (
                 <div key={dep.id} className="liquid-glass p-6 rounded-3xl border-primary/10 card-hover-effect">
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <p className="font-bold text-accent">{dep.type}</p>
-                      <p className="text-xs text-muted-foreground">Term: 12 Months</p>
+                      <p className="text-xs text-muted-foreground">Tenor: 12 Bulan</p>
                     </div>
                     <Badge className="bg-primary text-white">{dep.rate}</Badge>
                   </div>
                   <div className="flex justify-between items-end">
                     <div>
                       <p className="text-2xl font-bold text-accent">
-                        ${mounted ? dep.amount.toLocaleString() : dep.amount.toFixed(2)}
+                        Rp {mounted ? dep.amount.toLocaleString('id-ID') : "..."}
                       </p>
-                      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Principal Amount</p>
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Jumlah Pokok</p>
                     </div>
                     <Button size="sm" variant="ghost" className="text-primary p-0 h-auto hover:bg-transparent">
-                      Details <ChevronRight className="w-4 h-4" />
+                      Detail <ChevronRight className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
@@ -87,18 +87,18 @@ export default function DepositsPage() {
             <div className="p-6 rounded-3xl gold-gradient text-white">
               <div className="flex items-center gap-3 mb-4">
                 <TrendingUp className="w-6 h-6" />
-                <h3 className="font-bold">Total Interest Earned</h3>
+                <h3 className="font-bold">Total Bunga Diperoleh</h3>
               </div>
               <p className="text-3xl font-bold">
-                ${mounted ? (1240.42).toLocaleString() : "1,240.42"}
+                Rp {mounted ? (1240420).toLocaleString('id-ID') : "..."}
               </p>
-              <p className="text-xs text-white/70 mt-1">Accumulated since Jan 2024</p>
+              <p className="text-xs text-white/70 mt-1">Akumulasi sejak Jan 2024</p>
             </div>
           </div>
 
           {/* Explore Products */}
           <div className="lg:col-span-8 space-y-6">
-            <h2 className="text-xl font-bold text-accent">Explore New Products</h2>
+            <h2 className="text-xl font-bold text-accent">Jelajahi Produk Baru</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {depositProducts.map((product) => (
                 <Card key={product.name} className="liquid-glass border-none shadow-sm card-hover-effect">
@@ -113,19 +113,19 @@ export default function DepositsPage() {
                     <div className="space-y-3 mb-6">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground flex items-center gap-2">
-                          <Calendar className="w-4 h-4" /> Tenure
+                          <Calendar className="w-4 h-4" /> Tenor
                         </span>
                         <span className="font-bold text-accent">{product.term}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground flex items-center gap-2">
-                          <Zap className="w-4 h-4" /> Min. Deposit
+                          <Zap className="w-4 h-4" /> Setoran Min.
                         </span>
                         <span className="font-bold text-accent">{product.min}</span>
                       </div>
                     </div>
                     <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl">
-                      Initiate Product
+                      Buka Produk
                     </Button>
                   </CardContent>
                 </Card>
@@ -137,13 +137,13 @@ export default function DepositsPage() {
                 <ShieldCheck className="w-8 h-8 text-primary" />
               </div>
               <div className="flex-1">
-                <h4 className="font-bold text-accent mb-1">Financial Protection</h4>
+                <h4 className="font-bold text-accent mb-1">Perlindungan Finansial</h4>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  All your deposits are insured up to $250,000 per account through the National Banking Security Fund. Invest with absolute peace of mind.
+                  Semua deposito Anda dijamin hingga Rp 2 miliar per akun melalui Lembaga Penjamin Simpanan (LPS). Berinvestasi dengan tenang.
                 </p>
               </div>
               <Button variant="outline" className="shrink-0 border-primary/20 text-primary rounded-xl">
-                View Coverage
+                Lihat Cakupan
               </Button>
             </div>
           </div>

@@ -29,11 +29,11 @@ export default function TransactionsPage() {
       <main className="container mx-auto px-4 max-w-4xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-accent">Transaction History</h1>
-            <p className="text-muted-foreground">Monitor and manage your financial activities</p>
+            <h1 className="text-3xl font-bold text-accent">Riwayat Transaksi</h1>
+            <p className="text-muted-foreground">Pantau dan kelola aktivitas finansial Anda</p>
           </div>
           <Button variant="outline" className="liquid-glass border-primary/20 text-primary self-start">
-            <Download className="w-4 h-4 mr-2" /> Export Statement
+            <Download className="w-4 h-4 mr-2" /> Ekspor Laporan
           </Button>
         </div>
 
@@ -41,7 +41,7 @@ export default function TransactionsPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 
-              placeholder="Search description, category..." 
+              placeholder="Cari deskripsi, kategori..." 
               className="pl-10 h-12 rounded-2xl liquid-glass border-none"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -80,15 +80,15 @@ export default function TransactionsPage() {
                     "font-bold text-lg",
                     tx.type === "income" ? "text-green-600" : "text-accent"
                   )}>
-                    {tx.type === "income" ? "+" : "-"}${mounted ? tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : tx.amount.toFixed(2)}
+                    {tx.type === "income" ? "+" : "-"}Rp {mounted ? tx.amount.toLocaleString('id-ID') : "..."}
                   </p>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Completed</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Berhasil</p>
                 </div>
               </div>
             ))
           ) : (
             <div className="text-center py-20 liquid-glass rounded-3xl">
-              <p className="text-muted-foreground">No transactions found matching your search.</p>
+              <p className="text-muted-foreground">Tidak ada transaksi yang ditemukan.</p>
             </div>
           )}
         </div>

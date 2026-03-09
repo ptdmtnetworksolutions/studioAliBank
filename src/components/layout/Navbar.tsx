@@ -18,12 +18,12 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Transactions", href: "/transactions", icon: History },
+  { name: "Beranda", href: "/", icon: LayoutDashboard },
+  { name: "Transaksi", href: "/transactions", icon: History },
   { name: "Transfer", href: "/transfer", icon: Send },
-  { name: "Wallets", href: "/wallets", icon: Wallet },
-  { name: "Deposits", href: "/deposits", icon: PiggyBank },
-  { name: "AI Insights", href: "/ai-assistant", icon: Sparkles },
+  { name: "Dompet", href: "/wallets", icon: Wallet },
+  { name: "Deposito", href: "/deposits", icon: PiggyBank },
+  { name: "Wawasan AI", href: "/ai-assistant", icon: Sparkles },
 ];
 
 export function Navbar() {
