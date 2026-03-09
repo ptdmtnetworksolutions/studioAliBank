@@ -66,13 +66,12 @@ export default function CryptoPage() {
     try {
       const provider = new BrowserProvider(window.ethereum);
       
-      // Check network
       const network = await provider.getNetwork();
-      if (network.chainId !== 11155111n) { // Sepolia chainId
+      if (network.chainId !== 11155111n) { 
         toast({
           variant: "destructive",
           title: "Jaringan Salah",
-          description: "Klik pojok kiri atas MetaMask (sebelah Account 1) dan pilih 'Sepolia'.",
+          description: "Klik pojok kiri atas MetaMask dan pilih 'Sepolia'.",
         });
         setIsContractValid(false);
         setLoading(false);
@@ -95,7 +94,7 @@ export default function CryptoPage() {
             toast({
               variant: "destructive",
               title: "Kontrak Tidak Ditemukan",
-              description: "Kontrak tidak ada di jaringan ini. Pastikan MetaMask di jaringan SEPOLIA.",
+              description: "Pastikan MetaMask Anda berada di jaringan Sepolia.",
             });
           } else {
             setIsContractValid(true);
@@ -167,7 +166,7 @@ export default function CryptoPage() {
       toast({
         variant: "destructive",
         title: "Transaksi Gagal",
-        description: err.reason || "Pastikan saldo mencukupi dan kontrak sudah benar.",
+        description: err.reason || "Pastikan saldo mencukupi dan jaringan sudah benar.",
       });
     } finally {
       setTxLoading(false);
@@ -227,10 +226,12 @@ export default function CryptoPage() {
                   {isContractValid === true && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-600" />}
                 </div>
                 <div className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/10">
-                  <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">Lokasi Tombol Ganti Jaringan:</p>
-                  <p className="text-[9px] text-muted-foreground leading-relaxed">
-                    Klik tombol lonjong berisi ikon-ikon kecil di <strong>POJOK KIRI ATAS</strong> MetaMask (tepat di sebelah kiri tulisan "Account 1"), lalu pilih <strong>Sepolia</strong>.
-                  </p>
+                  <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">Langkah dari Gambar Anda:</p>
+                  <ol className="text-[9px] text-muted-foreground leading-relaxed list-decimal ml-4 space-y-1 font-medium">
+                    <li>Klik **X** (tutup) di pojok kanan atas jendela "Kelola jaringan" yang Anda buka.</li>
+                    <li>Kembali ke layar utama MetaMask, klik lagi tombol pilihan jaringan di pojok kiri atas.</li>
+                    <li>Pilih **Sepolia** dari daftar yang muncul.</li>
+                  </ol>
                 </div>
               </div>
             </Card>
@@ -326,13 +327,13 @@ export default function CryptoPage() {
                 <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
                   <CheckCircle2 className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-black italic uppercase tracking-tighter">Solusi Jaringan</h3>
+                <h3 className="text-xl font-black italic uppercase tracking-tighter">Solusi Cepat</h3>
                 <div className="space-y-4">
                   {[
-                    "Cek pojok kiri atas MetaMask (sebelah kiri tulisan Account 1).",
-                    "Klik tombol ikon tersebut.",
-                    "Pilih 'Sepolia Test Network'.",
-                    "Kembali ke sini dan klik 'AKTIFKAN BRIDGE'."
+                    "Klik X untuk menutup menu Kelola Jaringan.",
+                    "Kembali klik tombol bulat jaringan di MetaMask.",
+                    "Pilih 'Sepolia' yang sudah muncul di situ.",
+                    "Klik lagi 'AKTIFKAN BRIDGE' di halaman ini."
                   ].map((item, i) => (
                     <div key={i} className="flex items-start gap-3">
                       <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0 text-[10px] font-bold text-white">{i+1}</div>
@@ -348,13 +349,13 @@ export default function CryptoPage() {
                 <Info className="w-5 h-5 text-primary shrink-0" />
                 <div className="space-y-2">
                   <p className="text-[9px] font-bold leading-relaxed text-muted-foreground uppercase tracking-wider">
-                    <strong>PANDUAN PONSEL:</strong>
+                    <strong>PANDUAN SOLUSI ERROR SALDO:</strong>
                   </p>
                   <ol className="text-[8px] text-muted-foreground list-decimal ml-4 space-y-1 uppercase font-bold leading-relaxed">
-                    <li>Gunakan <strong>Browser</strong> di dalam aplikasi MetaMask Mobile.</li>
-                    <li>Aktifkan <strong>"Show test networks"</strong> di Settings &gt; Advanced.</li>
-                    <li>Pilih jaringan <strong>Sepolia</strong> di MetaMask.</li>
-                    <li>Gunakan <code>faucets.chain.link</code> untuk mendapatkan saldo uji coba.</li>
+                    <li>Gunakan <strong>faucets.chain.link</strong>.</li>
+                    <li>Pilih kartu <strong>Ethereum Sepolia</strong>.</li>
+                    <li>Selesaikan Captcha & klik <strong>Send Request</strong>.</li>
+                    <li>Atau coba <strong>Sepolia PoW Faucet</strong> jika situs utama sibuk.</li>
                   </ol>
                 </div>
               </div>
