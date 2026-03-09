@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -88,7 +89,7 @@ export default function TopUpPage() {
         description: `Simulasi transfer Rp ${numAmount.toLocaleString('id-ID')} berhasil diterima.`,
       });
       setAmount("");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       toast({
         variant: "destructive",
