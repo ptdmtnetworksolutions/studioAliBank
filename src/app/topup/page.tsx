@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -24,6 +23,7 @@ import { useUser, useDoc, useFirestore } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const bankAccounts = [
   { bank: "BCA", name: "AliBank Virtual Account", number: "80008", suffix: true, color: "bg-blue-600" },
