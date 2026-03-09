@@ -11,6 +11,7 @@ import {
   Sparkles 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
 
 const navItems = [
   { name: "Main", href: "/", icon: Home },
@@ -22,9 +23,16 @@ const navItems = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Sembunyikan navigasi di halaman login dan register
-  if (pathname === "/login" || pathname === "/register") return null;
+  const isAuthPage = pathname === "/login" || pathname === "/register";
+  
+  if (!mounted || isAuthPage) return null;
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8 pt-2 max-w-2xl mx-auto pointer-events-none">
