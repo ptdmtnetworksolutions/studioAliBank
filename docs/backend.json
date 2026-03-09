@@ -8,11 +8,14 @@
       "properties": {
         "uid": { "type": "string" },
         "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
         "accountNumber": { "type": "string" },
         "totalBalance": { "type": "number" },
-        "savings": { "type": "number" }
+        "savings": { "type": "number" },
+        "tier": { "type": "string" }
       },
-      "required": ["uid", "name", "accountNumber"]
+      "required": ["uid", "name", "accountNumber", "email"]
     },
     "Transaction": {
       "title": "Transaction",
@@ -29,7 +32,7 @@
     }
   },
   "auth": {
-    "providers": ["google.com", "password"]
+    "providers": ["password"]
   },
   "firestore": {
     "/users/{userId}": {
