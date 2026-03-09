@@ -203,27 +203,27 @@ export default function Dashboard() {
             <Link href="/crypto" className="text-[10px] font-black text-primary uppercase hover:underline">Market <ChevronRight className="w-3 h-3 inline" /></Link>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <div className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2">
+            <Link href="/crypto" className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2 hover:border-primary/30 transition-all">
               <Bitcoin className="w-6 h-6 text-orange-500" />
               <div>
                 <p className="text-[9px] font-black text-muted-foreground uppercase">BTC</p>
                 <p className="text-xs font-black text-accent dark:text-primary">{cryptoBalances.BTC.toFixed(6)}</p>
               </div>
-            </div>
-            <div className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2">
+            </Link>
+            <Link href="/crypto" className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2 hover:border-primary/30 transition-all">
               <Cpu className="w-6 h-6 text-blue-500" />
               <div>
                 <p className="text-[9px] font-black text-muted-foreground uppercase">ETH</p>
                 <p className="text-xs font-black text-accent dark:text-primary">{cryptoBalances.ETH.toFixed(4)}</p>
               </div>
-            </div>
-            <div className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2">
+            </Link>
+            <Link href="/crypto" className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2 hover:border-primary/30 transition-all">
               <ShieldCheck className="w-6 h-6 text-green-500" />
               <div>
                 <p className="text-[9px] font-black text-muted-foreground uppercase">USDT</p>
                 <p className="text-xs font-black text-accent dark:text-primary">{cryptoBalances.USDT.toLocaleString()}</p>
               </div>
-            </div>
+            </Link>
           </div>
         </section>
 
