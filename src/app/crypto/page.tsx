@@ -39,6 +39,7 @@ const CONTRACT_ABI = [
   "function getContractBalance() public view returns (uint256)"
 ];
 
+// Alamat Kontrak Resmi AliBank
 const DEFAULT_CONTRACT = "0x59B9149D05138c6709D3552783aA3b85f992C79c";
 
 const SUPPORTED_ASSETS = [
@@ -53,18 +54,26 @@ export default function CryptoPage() {
   const [address, setAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState<string>("0");
   const [vaultBalance, setVaultBalance] = useState<string>("0");
-  const [contractAddress, setContractAddress] = useState(DEFAULT_CONTRACT);
+  const [contractAddress] = useState(DEFAULT_CONTRACT);
   const [loading, setLoading] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
   const [isContractValid, setIsContractValid] = useState<boolean | null>(null);
   const [inputAmount, setInputAmount] = useState("");
 
   const connectWallet = async () => {
+    // PWA Smart Redirect Logic
     if (typeof window.ethereum === 'undefined') {
+      // Jika di mobile, redirect langsung ke MetaMask app link
+      if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        const dappUrl = window.location.href.split('://')[1];
+        window.location.href = `https://metamask.app.link/dapp/${dappUrl}`;
+        return;
+      }
+      
       toast({
         variant: "destructive",
-        title: "Browser Web3 Dibutuhkan",
-        description: "Gunakan Browser MetaMask di ponsel atau ekstensi di desktop.",
+        title: "MetaMask Required",
+        description: "Gunakan Browser MetaMask atau install ekstensi MetaMask di desktop.",
       });
       return;
     }
@@ -94,32 +103,27 @@ export default function CryptoPage() {
       setAddress(userAddress);
       setBalance(formatEther(ethBalance));
       
-      if (contractAddress && contractAddress.length === 42) {
-        try {
-          const code = await provider.getCode(contractAddress);
-          if (code === "0x" || code === "0x0") {
-            setIsContractValid(false);
-            setVaultBalance("0");
-          } else {
-            setIsContractValid(true);
-            const contract = new Contract(contractAddress, CONTRACT_ABI, provider);
-            const vault = await contract.balances(userAddress);
-            setVaultBalance(formatEther(vault));
-          }
-        } catch (e) {
+      // Verify Contract Code on the current network
+      try {
+        const code = await provider.getCode(contractAddress);
+        if (code === "0x" || code === "0x0") {
           setIsContractValid(false);
+          setVaultBalance("0");
+        } else {
+          setIsContractValid(true);
+          const contract = new Contract(contractAddress, CONTRACT_ABI, provider);
+          const vault = await contract.balances(userAddress);
+          setVaultBalance(formatEther(vault));
         }
+      } catch (e) {
+        setIsContractValid(false);
       }
 
-      toast({
-        title: "Dompet Terhubung",
-        description: `Berhasil terhubung ke jaringan Sepolia.`,
-      });
     } catch (err: any) {
       toast({
         variant: "destructive",
         title: "Koneksi Gagal",
-        description: "Gagal menghubungkan ke MetaMask.",
+        description: "Gagal menghubungkan ke dompet digital Anda.",
       });
     } finally {
       setLoading(false);
@@ -143,15 +147,15 @@ export default function CryptoPage() {
       }
 
       toast({
-        title: "Transaksi Dikirim",
-        description: "Menunggu konfirmasi blockchain...",
+        title: "Transaksi Terkirim",
+        description: "Menunggu konfirmasi jaringan blockchain...",
       });
 
       await tx.wait();
       
       toast({
         title: "Berhasil",
-        description: `Aksi ${action} sebesar ${inputAmount} ETH sukses.`,
+        description: `Transaksi ${action} sebesar ${inputAmount} ETH telah dikonfirmasi.`,
       });
       
       connectWallet();
@@ -160,7 +164,7 @@ export default function CryptoPage() {
       toast({
         variant: "destructive",
         title: "Transaksi Gagal",
-        description: err.reason || "Pastikan saldo ETH dan Gas cukup.",
+        description: err.reason || "Pastikan saldo ETH dan biaya Gas mencukupi.",
       });
     } finally {
       setTxLoading(false);
@@ -180,27 +184,24 @@ export default function CryptoPage() {
               </div>
               <h1 className="text-4xl font-black text-accent italic uppercase tracking-tighter dark:text-primary">Crypto Bridge</h1>
             </div>
-            <p className="text-muted-foreground text-sm font-medium">Gerbang perbankan digital ke ekosistem aset kripto global.</p>
+            <p className="text-muted-foreground text-sm font-medium">Infrastruktur perbankan elit untuk ekosistem aset terdesentralisasi.</p>
           </div>
           
           <div className="flex gap-2">
             {isContractValid === true && (
               <Badge className="bg-green-100 text-green-700 border-green-200 flex gap-2 items-center px-4 py-2 rounded-full font-bold">
-                <CheckCircle2 className="w-4 h-4" /> Sistem Terverifikasi
+                <CheckCircle2 className="w-4 h-4" /> Sistem Aktif
               </Badge>
             )}
             <Badge variant="outline" className="border-primary/20 text-primary px-4 py-2 rounded-full uppercase text-[10px] font-black tracking-widest">
-              Live: Sepolia Network
+              Live: Sepolia Protocol
             </Badge>
           </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* Main Vault & Multi-Asset Grid */}
           <div className="lg:col-span-8 space-y-8">
-            
-            {/* Supported Assets Market */}
             <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {SUPPORTED_ASSETS.map((asset) => (
                 <Card key={asset.symbol} className="liquid-glass border-none p-5 rounded-[2rem] hover:scale-105 transition-transform cursor-pointer">
@@ -220,7 +221,6 @@ export default function CryptoPage() {
               ))}
             </section>
 
-            {/* ETH Main Vault Interaction */}
             <Card className="liquid-glass-dark border-none rounded-[3rem] p-10 relative overflow-hidden shadow-2xl">
               <div className="absolute -right-20 -top-20 w-80 h-80 bg-primary/10 rounded-full blur-[100px]" />
               
@@ -228,9 +228,9 @@ export default function CryptoPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <Badge className="bg-primary text-white font-black uppercase tracking-widest text-[9px] px-3 py-1 mb-2">
-                      Ethereum Main Vault
+                      Ethereum Custody Vault
                     </Badge>
-                    <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">AliBank Digital Custody</h3>
+                    <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Digital Asset Protection</h3>
                   </div>
                   <Cpu className="w-10 h-10 text-primary animate-pulse" />
                 </div>
@@ -239,13 +239,13 @@ export default function CryptoPage() {
                   <div className="space-y-10">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="bg-white/10 p-8 rounded-[2rem] border border-white/10 backdrop-blur-md">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-white/60 mb-2">Saldo Dompet (Web3)</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-white/60 mb-2">Web3 Wallet Balance</p>
                         <p className="text-4xl font-black italic tracking-tighter text-white">
                           {parseFloat(balance).toFixed(4)} <span className="text-sm opacity-50">ETH</span>
                         </p>
                       </div>
                       <div className="bg-primary/20 p-8 rounded-[2rem] border border-primary/20 backdrop-blur-md">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-primary/80 mb-2">Saldo AliBank Vault</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary/80 mb-2">AliBank Vault Balance</p>
                         <p className="text-4xl font-black italic tracking-tighter text-primary">
                           {parseFloat(vaultBalance).toFixed(4)} <span className="text-sm opacity-50 text-white">ETH</span>
                         </p>
@@ -270,7 +270,7 @@ export default function CryptoPage() {
                           className="h-16 gold-gradient text-white font-black italic uppercase tracking-tighter rounded-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all"
                         >
                           {txLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : <ArrowDownRight className="w-6 h-6 mr-2" />}
-                          Setor ke Vault
+                          Deposit to Vault
                         </Button>
                         <Button 
                           onClick={() => handleAction('withdraw')}
@@ -279,7 +279,7 @@ export default function CryptoPage() {
                           className="h-16 border-white/20 text-white hover:bg-white/5 font-black italic uppercase tracking-tighter rounded-2xl active:scale-95 transition-all"
                         >
                           {txLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : <ArrowUpRight className="w-6 h-6 mr-2" />}
-                          Tarik ke Dompet
+                          Withdraw Funds
                         </Button>
                       </div>
                     </div>
@@ -290,8 +290,8 @@ export default function CryptoPage() {
                       <LinkIcon className="w-12 h-12 text-primary/40" />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-2xl font-black text-white italic uppercase tracking-tight">Koneksi Kripto Tidak Aktif</p>
-                      <p className="text-xs text-white/40 px-20 font-medium">Hubungkan MetaMask Anda di jaringan Sepolia untuk mengakses protokol Vault AliBank.</p>
+                      <p className="text-2xl font-black text-white italic uppercase tracking-tight">Koneksi Protokol Terputus</p>
+                      <p className="text-xs text-white/40 px-20 font-medium leading-relaxed">Hubungkan dompet digital Anda untuk sinkronisasi aset kripto dengan sistem AliBank.</p>
                     </div>
                     <Button 
                       onClick={connectWallet}
@@ -306,11 +306,10 @@ export default function CryptoPage() {
             </Card>
           </div>
 
-          {/* Sidebar Info Assets */}
           <div className="lg:col-span-4 space-y-6">
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 shadow-xl">
               <h4 className="text-[10px] font-black uppercase tracking-widest text-accent dark:text-primary mb-8 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" /> Market Status
+                <TrendingUp className="w-4 h-4" /> Global Market Status
               </h4>
               <div className="space-y-6">
                 {SUPPORTED_ASSETS.map((asset) => (
@@ -334,7 +333,7 @@ export default function CryptoPage() {
                 ))}
               </div>
               <Button variant="outline" className="w-full mt-10 border-primary/20 text-primary font-black uppercase text-[10px] tracking-widest h-12 rounded-xl">
-                Lihat Semua Aset <ChevronRight className="w-4 h-4 ml-2" />
+                Asset Insights <ChevronRight className="w-4 h-4 ml-2" />
               </Button>
             </Card>
 
@@ -344,13 +343,10 @@ export default function CryptoPage() {
                 <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center">
                   <ShieldCheck className="w-8 h-8 text-primary shadow-glow" />
                 </div>
-                <h4 className="text-xl font-black italic uppercase tracking-tighter">Keamanan Protokol</h4>
+                <h4 className="text-xl font-black italic uppercase tracking-tighter">Secured Protocol</h4>
                 <p className="text-[11px] text-white/70 leading-relaxed font-medium uppercase tracking-wider">
-                  Seluruh dana di dalam Vault diamankan oleh Smart Contract yang terdesentralisasi. AliBank tidak memiliki akses ke kunci pribadi Anda.
+                  Dana Anda dikelola oleh Smart Contract yang terdesentralisasi dan telah diaudit secara profesional. AliBank menjamin keamanan kustodian aset digital Anda.
                 </p>
-                <div className="pt-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
-                  <ExternalLink className="w-4 h-4" /> Buka Laporan Audit
-                </div>
               </div>
             </Card>
           </div>
