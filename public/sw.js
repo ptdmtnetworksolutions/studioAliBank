@@ -1,12 +1,10 @@
-self.addEventListener('install', (event) => {
-  self.skipWaiting();
-});
+// Service Worker sederhana untuk mendukung fitur PWA AliBank
+const CACHE_NAME = 'alibank-cache-v1';
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+self.addEventListener('install', (event) => {
+  console.log('AliBank SW installed');
 });
 
 self.addEventListener('fetch', (event) => {
-  // Simple pass-through for development
-  event.respondWith(fetch(event.request));
+  // Biarkan browser menangani network request secara normal
 });
