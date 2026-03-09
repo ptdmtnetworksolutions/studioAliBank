@@ -36,16 +36,21 @@ export default function RegisterPage() {
       const result = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       const user = result.user;
 
-      // Create user profile in Firestore
+      // Create user profile in Firestore with crypto balances
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
         accountNumber: '88' + Math.floor(1000000000 + Math.random() * 9000000000).toString(),
-        totalBalance: 15000000, // Starting balance
+        totalBalance: 15000000, 
         savings: 5000000,
         tier: 'Premium',
+        cryptoBalances: {
+          BTC: 0,
+          ETH: 0.05,
+          USDT: 100
+        },
         createdAt: serverTimestamp()
       });
 
@@ -83,7 +88,7 @@ export default function RegisterPage() {
         
         <h1 className="text-2xl font-black text-accent mb-1 tracking-tighter italic uppercase">Buka Rekening</h1>
         <p className="text-muted-foreground mb-8 text-center text-xs font-medium">
-          Lengkapi data nasabah Anda untuk memulai.
+          Lengkapi data nasabah Anda untuk memulai ekosistem AliBank.
         </p>
 
         <form onSubmit={handleRegister} className="w-full space-y-3">
@@ -152,14 +157,14 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full h-14 gold-gradient text-white font-extrabold rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all mt-6"
           >
-            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "AKTIFKAN REKENING"}
+            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "AKTIFKAN REKENING ELIT"}
           </Button>
         </form>
       </div>
 
       <div className="mt-10 flex items-center gap-2 text-primary/40 bg-primary/5 px-4 py-1.5 rounded-full border border-primary/5">
         <ShieldCheck className="w-4 h-4" />
-        <span className="text-[8px] font-black uppercase tracking-widest text-accent/40">Data dilindungi LPS & OJK</span>
+        <span className="text-[8px] font-black uppercase tracking-widest text-accent/40">Secured with Web3 Multi-Sig</span>
       </div>
     </div>
   );

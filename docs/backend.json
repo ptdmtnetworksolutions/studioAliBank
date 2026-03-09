@@ -3,7 +3,7 @@
   "entities": {
     "UserProfile": {
       "title": "User Profile",
-      "description": "Informasi profil dan saldo utama pengguna.",
+      "description": "Informasi profil, saldo utama, dan saldo aset kripto pengguna.",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
@@ -13,7 +13,15 @@
         "accountNumber": { "type": "string" },
         "totalBalance": { "type": "number" },
         "savings": { "type": "number" },
-        "tier": { "type": "string" }
+        "tier": { "type": "string" },
+        "cryptoBalances": {
+          "type": "object",
+          "properties": {
+            "BTC": { "type": "number" },
+            "ETH": { "type": "number" },
+            "USDT": { "type": "number" }
+          }
+        }
       },
       "required": ["uid", "name", "accountNumber", "email"]
     },
