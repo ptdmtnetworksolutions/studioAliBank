@@ -1,8 +1,9 @@
-
 'use client';
 
+// Konfigurasi ini akan diperbarui secara otomatis oleh Firebase Studio.
+// Jika Anda melihat "AIzaSy...", pastikan Anda telah menghubungkan aplikasi di Firebase Console.
 export const firebaseConfig = {
-  apiKey: "AIzaSy...", // Akan diisi oleh sistem secara otomatis
+  apiKey: "AIzaSy...", 
   authDomain: "darmedia-pos.firebaseapp.com",
   projectId: "darmedia-pos",
   storageBucket: "darmedia-pos.firebasestorage.app",
