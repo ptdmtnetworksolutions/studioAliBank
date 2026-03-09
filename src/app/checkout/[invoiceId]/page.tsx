@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { 
   ShieldCheck, 
   Wallet, 
@@ -13,17 +12,18 @@ import {
   ArrowLeft,
   Zap,
   Lock,
-  Globe
+  Globe,
+  ChevronRight,
+  XCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useFirestore, useUser, useCollection } from "@/firebase";
+import { useFirestore, useUser } from "@/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, increment, addDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { MOCK_MERCHANT } from "@/app/lib/mock-data";
 import { LogoIcon } from "@/components/ui/logo";
-import { cn } from "@/lib/utils";
 
 export default function CheckoutPage() {
   const { invoiceId } = useParams();
