@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { MOCK_MERCHANT } from "@/app/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -47,9 +47,14 @@ export default function MerchantDashboard() {
   const { toast } = useToast();
   const { user } = useUser();
   const db = useFirestore();
+  const [mounted, setMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSettling, setIsSettling] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Form State for New Invoice
   const [newInvoice, setNewInvoice] = useState({
@@ -211,14 +216,14 @@ export default function MerchantDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="liquid-glass border-none rounded-[2rem] p-6 space-y-2">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-black text-accent">Rp {MOCK_MERCHANT.totalRevenue.toLocaleString('id-ID')}</p>
+                <p className="text-2xl font-black text-accent">Rp {mounted ? MOCK_MERCHANT.totalRevenue.toLocaleString('id-ID') : "..."}</p>
                 <div className="flex items-center gap-1 text-green-600 text-[10px] font-bold">
                   <ArrowUpRight className="w-3 h-3" /> +12.5% this month
                 </div>
               </Card>
               <Card className="liquid-glass border-none rounded-[2rem] p-6 space-y-2">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Settlement Balance</p>
-                <p className="text-2xl font-black text-primary">Rp {MOCK_MERCHANT.pendingSettlement.toLocaleString('id-ID')}</p>
+                <p className="text-2xl font-black text-primary">Rp {mounted ? MOCK_MERCHANT.pendingSettlement.toLocaleString('id-ID') : "..."}</p>
                 <p className="text-[9px] text-muted-foreground italic font-medium">Ready for withdrawal</p>
               </Card>
               <Card className="liquid-glass border-none rounded-[2rem] p-6 space-y-2">
@@ -263,7 +268,7 @@ export default function MerchantDashboard() {
                         <tr key={inv.invoiceId} className="hover:bg-primary/5 transition-colors group cursor-pointer">
                           <td className="px-6 py-4 text-xs font-bold text-accent">{inv.invoiceId}</td>
                           <td className="px-6 py-4 text-xs font-medium text-muted-foreground">{inv.customerName}</td>
-                          <td className="px-6 py-4 text-xs font-black">Rp {inv.amountIdr.toLocaleString()}</td>
+                          <td className="px-6 py-4 text-xs font-black">Rp {mounted ? inv.amountIdr.toLocaleString('id-ID') : "..."}</td>
                           <td className="px-6 py-4">
                              <Button 
                                variant="ghost" 
@@ -305,7 +310,7 @@ export default function MerchantDashboard() {
                 <h3 className="text-xl font-black italic uppercase tracking-tighter">Settlement Hub</h3>
                 <div className="p-6 rounded-2xl bg-white/10 border border-white/10 space-y-1">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Payable Amount</p>
-                  <p className="text-3xl font-black italic">Rp {MOCK_MERCHANT.pendingSettlement.toLocaleString()}</p>
+                  <p className="text-3xl font-black italic">Rp {mounted ? MOCK_MERCHANT.pendingSettlement.toLocaleString('id-ID') : "..."}</p>
                 </div>
                 <Button 
                   onClick={handleSettlement}
