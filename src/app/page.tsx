@@ -117,7 +117,7 @@ export default function Dashboard() {
       } else {
         toast({
           title: "Instalasi Cepat",
-          description: "Klik menu browser (titik tiga) lalu pilih 'Instal Aplikasi'.",
+          description: "Klik menu browser (titik tiga) lalu pilih 'Instal Aplikasi'. Jika tombol tidak muncul, tunggu beberapa saat.",
         });
       }
       return;
@@ -275,7 +275,7 @@ export default function Dashboard() {
               <p className="text-[10px] text-muted-foreground leading-tight">Akses perbankan premium langsung dari layar utama Anda.</p>
             </div>
             <Button size="sm" className="rounded-xl h-9 px-4 text-[10px] font-black uppercase tracking-widest gold-gradient text-white border-none shadow-lg group-hover:scale-105 transition-transform">
-              Pasang
+              {deferredPrompt ? "Pasang" : "Instal"}
             </Button>
           </section>
         )}

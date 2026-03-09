@@ -1,7 +1,8 @@
+
 {
-  "name": "AliBank - Perbankan Premium",
+  "name": "AliBank Premium Banking",
   "short_name": "AliBank",
-  "description": "Pendamping perbankan cerdas dan elegan Anda.",
+  "description": "Perbankan digital premium dengan layanan cerdas.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F5F5DC",
@@ -12,11 +13,6 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
-    },
-    {
-      "src": "https://picsum.photos/seed/alibank-icon/512/512",
-      "sizes": "512x512",
-      "type": "image/png"
     }
   ]
 }
