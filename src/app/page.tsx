@@ -51,6 +51,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -64,12 +65,35 @@ export default function Dashboard() {
     if (!userLoading && !user) {
       router.push('/login');
     }
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, [user, userLoading, router]);
 
   const handleLogout = async () => {
     if (auth) {
       await signOut(auth);
       router.push('/login');
+    }
+  };
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    } else {
+      toast({
+        title: "PWA Aktif",
+        description: "Gunakan menu browser 'Tambahkan ke Layar Utama' jika tombol instal tidak muncul.",
+      });
     }
   };
 
@@ -210,19 +234,19 @@ export default function Dashboard() {
         </section>
 
         <section className="relative overflow-hidden liquid-glass rounded-[2rem] p-6 border-primary/20 border-2 group cursor-pointer animate-pulse">
-          <Link href="/crypto" className="flex items-center gap-5">
+          <button onClick={handleInstallClick} className="w-full flex items-center gap-5">
             <div className="w-14 h-14 rounded-2xl gold-gradient flex items-center justify-center shrink-0 shadow-lg">
-              <Bitcoin className="text-white w-7 h-7" />
+              <Sparkles className="text-white w-7 h-7" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 text-left">
               <div className="flex items-center gap-2 mb-1">
-                <h4 className="text-sm font-black text-accent dark:text-primary uppercase tracking-tight">Crypto Bridge Aktif</h4>
-                <Badge className="bg-green-600 text-white text-[7px] font-black py-0 px-2 animate-bounce">Live</Badge>
+                <h4 className="text-sm font-black text-accent dark:text-primary uppercase tracking-tight">Pasang AliBank</h4>
+                <Badge className="bg-green-600 text-white text-[7px] font-black py-0 px-2 animate-bounce">Aplikasi</Badge>
               </div>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Koneksikan Web3 Wallet Anda Sekarang.</p>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Install ke layar utama untuk akses instan.</p>
             </div>
             <ChevronRight className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform" />
-          </Link>
+          </button>
         </section>
       </main>
 
