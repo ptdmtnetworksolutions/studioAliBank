@@ -217,7 +217,7 @@ export default function CryptoPage() {
 
                     <div className="space-y-4">
                       <div className="relative">
-                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-xl font-black text-primary/30">ETH</span>
+                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-primary/30">ETH</span>
                         <Input 
                           type="number" 
                           placeholder="0.00"
@@ -313,7 +313,7 @@ export default function CryptoPage() {
                     <strong>PANDUAN CEPAT:</strong>
                   </p>
                   <ol className="text-[8px] text-muted-foreground list-decimal ml-4 space-y-1">
-                    <li>Aktifkan <strong>"Show test networks"</strong> di MetaMask Settings > Advanced.</li>
+                    <li>Aktifkan <strong>"Show test networks"</strong> di MetaMask Settings {'>'} Advanced.</li>
                     <li>Pilih jaringan <strong>Sepolia</strong> di MetaMask.</li>
                     <li>Deploy <code>AliBankPayment.sol</code> dari proyek ini di Remix.</li>
                     <li>Salin alamat kontrak hasil deploy.</li>
