@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { 
   Plus, 
   ChevronRight, 
-  Smartphone,
   Sparkles,
   Wallet,
   Bell,
@@ -20,7 +19,6 @@ import {
   QrCode,
   EyeOff,
   Bitcoin,
-  Zap,
   Home
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,7 +51,6 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
-  const [isAppInstalled, setIsAppInstalled] = useState(false);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -64,13 +61,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     setMounted(true);
-    
-    if (typeof window !== 'undefined') {
-      if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
-        setIsAppInstalled(true);
-      }
-    }
-
     if (!userLoading && !user) {
       router.push('/login');
     }
@@ -108,7 +98,7 @@ export default function Dashboard() {
   const accountNumber = userData?.accountNumber || "---";
 
   return (
-    <div className="min-h-screen pb-24 bg-background transition-colors duration-500">
+    <div className="min-h-screen pb-24 bg-background">
       <header className="px-4 pt-6 pb-4 bg-white/70 backdrop-blur-xl sticky top-0 z-40 border-b border-primary/5 dark:bg-black/70">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <div className="flex items-center gap-3">
@@ -219,7 +209,6 @@ export default function Dashboard() {
           })}
         </section>
 
-        {/* New Feature Alert: Crypto Bridge */}
         <section className="relative overflow-hidden liquid-glass rounded-[2rem] p-6 border-primary/20 border-2 group cursor-pointer animate-pulse">
           <Link href="/crypto" className="flex items-center gap-5">
             <div className="w-14 h-14 rounded-2xl gold-gradient flex items-center justify-center shrink-0 shadow-lg">
