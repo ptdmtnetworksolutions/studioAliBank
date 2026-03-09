@@ -1,48 +1,54 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.0;
 
 /**
  * @title AliBankPayment
- * @dev Kontrak pintar resmi AliBank untuk mengelola setoran dan penarikan ETH nasabah secara on-chain.
+ * @dev Kontrak pintar untuk mengelola setoran dan penarikan aset nasabah AliBank secara on-chain.
  */
 contract AliBankPayment {
-    // Menyimpan catatan saldo setiap alamat nasabah di dalam Vault AliBank
+    // Menyimpan saldo masing-masing nasabah
     mapping(address => uint256) public balances;
 
-    // Event untuk mencatat aktivitas di blockchain
-    event Deposited(address indexed user, uint256 amount);
-    event Withdrawn(address indexed user, uint256 amount);
+    // Event yang dipicu saat nasabah melakukan deposit
+    event Deposit(address indexed user, uint256 amount);
+    
+    // Event yang dipicu saat nasabah melakukan penarikan
+    event Withdrawal(address indexed user, uint256 amount);
 
     /**
-     * @dev Fungsi untuk menyetor ETH ke dalam Vault. 
-     * Dana akan disimpan di dalam kontrak ini atas nama pengirim.
+     * @dev Fungsi untuk menyetorkan Ether ke dalam vault AliBank.
      */
     function deposit() public payable {
-        require(msg.value > 0, "Jumlah setoran harus lebih dari 0");
+        require(msg.value > 0, "Deposit harus lebih besar dari 0");
         balances[msg.sender] += msg.value;
-        emit Deposited(msg.sender, msg.value);
+        emit Deposit(msg.sender, msg.value);
     }
 
     /**
-     * @dev Fungsi untuk menarik ETH dari Vault kembali ke dompet nasabah.
-     * @param _amount Jumlah dalam Wei (1 ETH = 10^18 Wei).
+     * @dev Fungsi untuk menarik Ether dari vault AliBank.
+     * @param _amount Jumlah Ether (dalam wei) yang ingin ditarik.
      */
     function withdraw(uint256 _amount) public {
-        require(balances[msg.sender] >= _amount, "Saldo Vault AliBank Anda tidak mencukupi");
+        require(balances[msg.sender] >= _amount, "Saldo tidak mencukupi di vault");
         
         balances[msg.sender] -= _amount;
         
-        // Mengirimkan ETH kembali ke dompet nasabah
-        (bool success, ) = payable(msg.sender).call{value: _amount}("");
-        require(success, "Gagal melakukan pengiriman dana ke dompet");
+        // Mengirim dana kembali ke dompet nasabah
+        (bool success, ) = msg.sender.call{value: _amount}("");
+        require(success, "Gagal mengirim dana ke dompet");
         
-        emit Withdrawn(msg.sender, _amount);
+        emit Withdrawal(msg.sender, _amount);
     }
 
     /**
-     * @dev Melihat total likuiditas yang tersimpan di dalam kontrak AliBank.
+     * @dev Fungsi helper untuk melihat total dana yang ada di dalam kontrak pintar.
      */
     function getContractBalance() public view returns (uint256) {
         return address(this).balance;
+    }
+
+    // Fungsi fallback untuk menerima Ether jika dikirim langsung tanpa memanggil deposit()
+    receive() external payable {
+        deposit();
     }
 }

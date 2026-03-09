@@ -25,7 +25,7 @@ import { BrowserProvider, formatEther, parseEther, Contract } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-// ABI Minimal untuk berinteraksi dengan AliBankPayment Smart Contract
+// ABI yang sudah disesuaikan dengan kode AliBankPayment.sol milik Anda
 const CONTRACT_ABI = [
   "function deposit() public payable",
   "function withdraw(uint256 _amount) public",
@@ -43,7 +43,6 @@ export default function CryptoPage() {
   const [loading, setLoading] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
 
-  // Load saved contract address from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem("alibank_contract_address");
     if (saved) setContractAddress(saved);
@@ -74,7 +73,6 @@ export default function CryptoPage() {
       setAddress(userAddress);
       setBalance(formatEther(ethBalance));
       
-      // Update Vault Balance jika alamat kontrak diisi dan valid
       if (contractAddress && contractAddress.length === 42) {
         try {
           const contract = new Contract(contractAddress, CONTRACT_ABI, provider);
@@ -137,7 +135,6 @@ export default function CryptoPage() {
         description: `Berhasil melakukan ${action === 'deposit' ? 'setoran' : 'penarikan'} ${amount} ETH ke Vault.`,
       });
       
-      // Refresh balances
       connectWallet();
     } catch (err: any) {
       console.error(err);
@@ -170,16 +167,15 @@ export default function CryptoPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-7 space-y-6">
             
-            {/* Contract Settings */}
             <Card className="liquid-glass border-none rounded-[2rem] p-6 mb-6">
               <div className="flex items-center gap-3 mb-4">
                 <Settings className="w-5 h-5 text-primary" />
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-accent dark:text-primary">Konfigurasi Kontrak Pintar</h4>
               </div>
               <div className="space-y-2">
-                <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Deployed Contract Address (Ethereum/Testnet)</Label>
+                <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Deployed Contract Address (Sepolia Testnet)</Label>
                 <Input 
-                  placeholder="Contoh: 0x71C... (Dapatkan dari Remix)"
+                  placeholder="0x..."
                   value={contractAddress}
                   onChange={(e) => saveContractAddress(e.target.value)}
                   className="h-12 rounded-xl border-primary/20 bg-white/50 dark:bg-black/50 font-mono text-xs"
@@ -278,7 +274,7 @@ export default function CryptoPage() {
               <div className="space-y-1">
                 <h4 className="text-sm font-bold text-accent dark:text-primary uppercase tracking-tight">Status Keamanan</h4>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  Semua transaksi diproses secara atomik melalui jaringan Ethereum menggunakan prinsip Trustless Banking.
+                  Semua transaksi diproses secara atomik menggunakan prinsip Trustless Banking.
                 </p>
               </div>
             </div>
@@ -305,9 +301,6 @@ export default function CryptoPage() {
                     </div>
                   ))}
                 </div>
-                <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl h-12 text-[10px] font-black uppercase tracking-widest mt-4">
-                  LIHAT DOKUMENTASI <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
               </div>
             </Card>
 
