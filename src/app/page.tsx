@@ -23,7 +23,8 @@ import {
   LogOut,
   QrCode,
   Loader2,
-  EyeOff
+  EyeOff,
+  Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +56,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -65,10 +67,38 @@ export default function Dashboard() {
 
   useEffect(() => {
     setMounted(true);
+    
+    // Handle PWA Install Prompt
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
     if (!userLoading && !user) {
       router.push('/login');
     }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, [user, userLoading, router]);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) {
+      toast({
+        title: "Cara Instalasi",
+        description: "Untuk iOS: Tap ikon 'Share' lalu pilih 'Add to Home Screen'. Untuk Android: Klik Menu browser lalu 'Instal Aplikasi'.",
+      });
+      return;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
 
   const handleLogout = async () => {
     if (auth) {
@@ -109,7 +139,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <div className="relative w-12 h-12 rounded-2xl border-2 border-primary/20 overflow-hidden shadow-sm gold-gradient">
               <Image 
-                src={user?.photoURL || "https://picsum.photos/seed/user/150/150"} 
+                src={user?.photoURL || `https://picsum.photos/seed/${user?.uid || '1'}/150/150`} 
                 alt="Profile" 
                 fill 
                 className="object-cover"
@@ -118,7 +148,7 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Selamat Datang,</p>
-              <h2 className="font-bold text-accent leading-tight text-lg">{user?.displayName?.split(' ')[0] || "Nasabah"}</h2>
+              <h2 className="font-bold text-accent leading-tight text-lg">{userData?.name?.split(' ')[0] || user?.displayName?.split(' ')[0] || "Nasabah"}</h2>
             </div>
           </div>
           <div className="flex gap-2">
@@ -195,6 +225,24 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Himbauan Install Aplikasi */}
+        <section 
+          onClick={handleInstallClick}
+          className="liquid-glass rounded-[2rem] p-6 border-primary/20 flex items-center gap-4 group cursor-pointer overflow-hidden relative active:scale-[0.98] transition-transform"
+        >
+          <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 shadow-inner">
+            <Smartphone className="w-6 h-6 text-primary" />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-sm font-bold text-accent">Pasang Aplikasi AliBank</h4>
+            <p className="text-[10px] text-muted-foreground leading-tight">Akses perbankan premium langsung dari layar utama Anda.</p>
+          </div>
+          <Button size="sm" className="rounded-xl h-9 px-4 text-[10px] font-black uppercase tracking-widest gold-gradient text-white border-none shadow-lg group-hover:scale-105 transition-transform">
+            Pasang
+          </Button>
         </section>
 
         {/* Service Grid */}
