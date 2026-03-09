@@ -13,14 +13,16 @@ import {
   Link2,
   Unlink,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  ArrowUpRight,
+  ArrowDownLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect, useMemo } from "react";
-import { BrowserProvider, formatEther, Contract } from "ethers";
+import { BrowserProvider, formatEther, parseEther, Contract } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useUser, useDoc, useFirestore } from "@/firebase";
@@ -86,7 +88,6 @@ export default function CryptoPage() {
       const provider = new BrowserProvider(window.ethereum);
       const network = await provider.getNetwork();
       
-      // Pastikan di jaringan Sepolia (Chain ID: 11155111)
       if (network.chainId !== 11155111n) {
         setIsWrongNetwork(true);
         setVaultBalance("0");
@@ -95,8 +96,6 @@ export default function CryptoPage() {
 
       setIsWrongNetwork(false);
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
-      
-      // Panggil balances() dan tangani kegagalan decoding jika kontrak tidak ditemukan
       const balance = await contract.balances(walletAddr).catch(() => null);
       
       if (balance !== null) {
@@ -140,21 +139,6 @@ export default function CryptoPage() {
         window.ethereum.on('accountsChanged', handleAccountsChanged);
         window.ethereum.on('chainChanged', handleChainChanged);
         
-        try {
-          const provider = new BrowserProvider(window.ethereum);
-          const accounts = await provider.send("eth_accounts", []);
-          if (accounts.length > 0 && !userData?.walletAddress) {
-             const currentAddr = accounts[0];
-             setAddress(currentAddr);
-             if (userDocRef) {
-               updateDoc(userDocRef, { walletAddress: currentAddr });
-             }
-             checkVaultBalance(currentAddr);
-          }
-        } catch (e) {
-          console.error("Provider check failed", e);
-        }
-
         return () => {
           if (window.ethereum?.removeListener) {
             window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
@@ -177,9 +161,8 @@ export default function CryptoPage() {
     try {
       setLoading(true);
       const provider = new BrowserProvider(window.ethereum);
-      
-      // Minta pindah ke Sepolia jika salah jaringan
       const network = await provider.getNetwork();
+      
       if (network.chainId !== 11155111n) {
         try {
           await window.ethereum.request({
@@ -198,15 +181,40 @@ export default function CryptoPage() {
       setAddress(newAddress);
       
       if (userDocRef) {
-        await updateDoc(userDocRef, {
-          walletAddress: newAddress
-        });
+        await updateDoc(userDocRef, { walletAddress: newAddress });
       }
 
       await checkVaultBalance(newAddress);
-      toast({ title: "Dompet Terhubung", description: "Alamat dompet Anda telah tertaut secara permanen dengan akun AliBank." });
+      toast({ title: "Dompet Terhubung", description: "Dompet Anda telah tertaut secara permanen." });
     } catch (err) {
       toast({ variant: "destructive", title: "Web3 Error", description: "Gagal menghubungkan dompet." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWithdrawFromVault = async () => {
+    if (!address || typeof window.ethereum === 'undefined') return;
+    
+    setLoading(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
+      
+      const balance = await contract.balances(address);
+      if (balance === 0n) {
+        throw new Error("Saldo Vault Anda kosong.");
+      }
+
+      const tx = await contract.withdraw(balance);
+      toast({ title: "Transaksi Dikirim", description: "Menunggu konfirmasi blockchain..." });
+      await tx.wait();
+      
+      await checkVaultBalance(address);
+      toast({ title: "Berhasil", description: "Aset telah ditarik kembali ke MetaMask Anda." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Menarik", description: err.message });
     } finally {
       setLoading(false);
     }
@@ -215,12 +223,10 @@ export default function CryptoPage() {
   const disconnectWallet = async () => {
     if (!userDocRef) return;
     try {
-      await updateDoc(userDocRef, {
-        walletAddress: null
-      });
+      await updateDoc(userDocRef, { walletAddress: null });
       setAddress(null);
       setVaultBalance("0");
-      toast({ title: "Dompet Diputuskan", description: "Hubungan dompet telah dihapus dari profil Anda secara permanen." });
+      toast({ title: "Dompet Diputuskan", description: "Hubungan dompet telah dihapus." });
     } catch (err) {
       toast({ variant: "destructive", title: "Gagal", description: "Gagal memutuskan hubungan dompet." });
     }
@@ -264,10 +270,10 @@ export default function CryptoPage() {
         timestamp: serverTimestamp()
       });
 
-      toast({ title: "Eksekusi Berhasil", description: `Transaksi ${type === 'buy' ? 'pembelian' : 'penjualan'} ${selectedAsset.id} selesai.` });
+      toast({ title: "Berhasil", description: `Transaksi ${selectedAsset.id} selesai.` });
       setTradeAmount("");
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Transaksi Gagal", description: err.message });
+      toast({ variant: "destructive", title: "Gagal", description: err.message });
     } finally {
       setLoading(false);
     }
@@ -286,22 +292,18 @@ export default function CryptoPage() {
               </div>
               <h1 className="text-4xl font-black text-accent italic uppercase tracking-tighter dark:text-primary">Crypto Bridge</h1>
             </div>
-            <p className="text-muted-foreground text-sm font-medium">Bursa aset digital AliBank dengan koneksi Web3 persisten antar-perangkat.</p>
+            <p className="text-muted-foreground text-sm font-medium">Hubungkan dompet Web3 Anda untuk sinkronisasi aset antar-perangkat.</p>
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="text-right hidden md:block">
-              <p className="text-[10px] font-black uppercase text-muted-foreground">Saldo Utama</p>
-              <p className="text-lg font-black text-accent dark:text-primary">Rp {(userData?.totalBalance || 0).toLocaleString('id-ID')}</p>
-            </div>
             {address ? (
               <div className="flex items-center gap-2">
                 <Badge className={cn(
-                  "font-bold h-10 px-4 rounded-full flex items-center gap-2 animate-in fade-in slide-in-from-right-2",
+                  "font-bold h-10 px-4 rounded-full flex items-center gap-2",
                   isWrongNetwork ? "bg-destructive text-white" : "bg-green-600 text-white"
                 )}>
                   {isWrongNetwork ? <AlertTriangle className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
-                  {isWrongNetwork ? "Jaringan Salah" : `${address.slice(0, 6)}...${address.slice(-4)}`}
+                  {isWrongNetwork ? "Pindah ke Sepolia" : `${address.slice(0, 6)}...${address.slice(-4)}`}
                 </Badge>
                 <Button onClick={disconnectWallet} variant="ghost" size="icon" className="text-destructive hover:bg-destructive/5 rounded-full">
                   <Unlink className="w-4 h-4" />
@@ -311,8 +313,7 @@ export default function CryptoPage() {
               <Button 
                 onClick={connectWallet} 
                 disabled={isInitializing}
-                variant="outline" 
-                className="rounded-full border-primary/20 text-primary font-bold h-10 px-6 gold-gradient text-white border-none shadow-lg hover:scale-105 transition-transform"
+                className="rounded-full gold-gradient text-white font-bold h-10 px-6 border-none shadow-lg hover:scale-105 transition-transform"
               >
                 {isInitializing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wallet className="w-4 h-4 mr-2" />}
                 Aktifkan Web3 Bridge
@@ -322,10 +323,10 @@ export default function CryptoPage() {
         </header>
 
         {isWrongNetwork && (
-          <div className="mb-8 p-4 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center gap-4 text-destructive animate-bounce">
+          <div className="mb-8 p-4 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center gap-4 text-destructive">
             <AlertTriangle className="w-6 h-6 shrink-0" />
             <div className="text-sm font-bold">
-              AliBank mendeteksi Anda berada di jaringan yang salah. Silakan pindahkan MetaMask Anda ke <span className="underline">Sepolia Test Network</span> untuk melihat saldo vault Anda.
+              Harap pindahkan jaringan MetaMask Anda ke <span className="underline">Sepolia Test Network</span> untuk melihat saldo Vault.
             </div>
           </div>
         )}
@@ -345,7 +346,7 @@ export default function CryptoPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-black text-accent">Rp {selectedAsset.price.toLocaleString('id-ID')}</p>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Live Price</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Live Market Price</p>
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
@@ -376,7 +377,7 @@ export default function CryptoPage() {
               <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-black uppercase italic tracking-tighter">Beli {selectedAsset.id}</h3>
-                  <Badge variant="outline" className="border-primary/20 text-primary">Instan</Badge>
+                  <Badge variant="outline" className="border-primary/20 text-primary">Saldo: Rp {(userData?.totalBalance || 0).toLocaleString('id-ID')}</Badge>
                 </div>
                 <div className="space-y-4">
                   <div className="relative">
@@ -388,10 +389,6 @@ export default function CryptoPage() {
                       onChange={(e) => setTradeAmount(e.target.value)}
                       className="h-14 rounded-xl border-none liquid-glass-dark text-white font-bold"
                     />
-                  </div>
-                  <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
-                    <span>Estimasi Biaya:</span>
-                    <span className="text-accent">Rp {((parseFloat(tradeAmount) || 0) * selectedAsset.price).toLocaleString('id-ID')}</span>
                   </div>
                   <Button 
                     onClick={() => handleTrade('buy')}
@@ -406,7 +403,7 @@ export default function CryptoPage() {
               <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-black uppercase italic tracking-tighter">Jual {selectedAsset.id}</h3>
-                  <p className="text-[10px] font-bold text-muted-foreground">Saldo: {userData?.cryptoBalances?.[selectedAsset.id] || 0}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Miliki: {userData?.cryptoBalances?.[selectedAsset.id] || 0}</p>
                 </div>
                 <div className="space-y-4">
                   <div className="relative">
@@ -418,10 +415,6 @@ export default function CryptoPage() {
                       onChange={(e) => setTradeAmount(e.target.value)}
                       className="h-14 rounded-xl border-none liquid-glass-dark text-white font-bold"
                     />
-                  </div>
-                  <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
-                    <span>Akan Menerima:</span>
-                    <span className="text-green-600 font-black">Rp {((parseFloat(tradeAmount) || 0) * selectedAsset.price).toLocaleString('id-ID')}</span>
                   </div>
                   <Button 
                     onClick={() => handleTrade('sell')}
@@ -437,34 +430,38 @@ export default function CryptoPage() {
           </div>
 
           <div className="lg:col-span-4 space-y-6">
-            <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white shadow-2xl overflow-hidden relative">
+            <Card className="liquid-glass border-none rounded-[2.5rem] p-8 relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4">
                 <div className="w-20 h-20 bg-primary/10 rounded-full blur-2xl animate-pulse" />
               </div>
               <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-8">
-                  <div className="w-8 h-8 p-1">
-                    <LogoIcon className="text-primary" />
-                  </div>
-                  <h3 className="text-xl font-black italic uppercase tracking-tighter">AI Analysis</h3>
+                <div className="flex items-center gap-2 mb-6">
+                  <LogoIcon className="w-5 h-5 text-primary" />
+                  <h4 className="text-[10px] font-black uppercase tracking-widest">Saldo Vault Smart Contract</h4>
                 </div>
-                <div className="space-y-6">
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                    <p className="text-[10px] font-black text-primary uppercase mb-2 tracking-widest">Sinyal Saat Ini</p>
-                    <div className="flex items-center justify-between">
-                      <Badge className="bg-green-600 text-white font-bold px-4 py-1">STRONG BUY</Badge>
-                      <p className="text-xs font-medium">Confidence: 92%</p>
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-white/70 leading-relaxed italic">
-                    "Tren pasar menunjukkan akumulasi kuat pada aset {selectedAsset.id}. Koneksi dompet persisten Anda memastikan eksekusi perdagangan yang lebih cepat dan aman."
+                <div className="p-6 rounded-2xl bg-primary/5 flex flex-col items-center justify-center space-y-2 mb-6 border border-primary/10">
+                  <span className="text-3xl font-black text-primary">{parseFloat(vaultBalance).toFixed(4)} ETH</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Saldo Saat Ini di Vault</span>
+                </div>
+                
+                <div className="space-y-3">
+                  <Button 
+                    onClick={handleWithdrawFromVault}
+                    disabled={loading || !address || parseFloat(vaultBalance) <= 0}
+                    className="w-full h-14 gold-gradient text-white font-black uppercase italic rounded-xl shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 className="animate-spin w-5 h-5" /> : <ArrowDownLeft className="w-5 h-5" />}
+                    Tarik ke Dompet
+                  </Button>
+                  <p className="text-[9px] text-muted-foreground leading-relaxed text-center italic">
+                    Gunakan fungsi ini untuk memindahkan aset dari Vault AliBank kembali ke alamat MetaMask Anda.
                   </p>
                 </div>
               </div>
             </Card>
 
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8">
-              <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-6">Aset Terpantau</h4>
+              <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-6 italic">Aset Market</h4>
               <div className="space-y-4">
                 {ASSETS.map((asset) => (
                   <button 
@@ -495,20 +492,23 @@ export default function CryptoPage() {
               </div>
             </Card>
 
-            <Card className="liquid-glass border-none rounded-[2.5rem] p-8 relative overflow-hidden group">
-              <div className="absolute inset-0 gold-gradient opacity-5 group-hover:opacity-10 transition-opacity" />
+            <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white shadow-2xl overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-4">
+                <div className="w-20 h-20 bg-primary/20 rounded-full blur-2xl animate-pulse" />
+              </div>
               <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <History className="w-4 h-4 text-primary" />
-                  <h4 className="text-[10px] font-black uppercase tracking-widest">Saldo Vault Anda</h4>
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-8 h-8">
+                    <LogoIcon className="text-primary" />
+                  </div>
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter">AI Prediction</h3>
                 </div>
-                <div className="p-4 rounded-xl bg-primary/5 flex justify-between items-center mb-4 border border-primary/10">
-                  <span className="text-xs font-bold text-accent">On-Chain Vault</span>
-                  <span className="text-lg font-black text-primary">{parseFloat(vaultBalance).toFixed(4)} ETH</span>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 mb-4">
+                  <Badge className="bg-green-600 text-white font-bold mb-2">SIGNAL: ACCUMULATE</Badge>
+                  <p className="text-[11px] text-white/70 leading-relaxed italic">
+                    "Analisis AI mendeteksi volume beli yang meningkat pada {selectedAsset.id}. Direkomendasikan untuk menahan aset Anda di Vault untuk potensi pertumbuhan maksimal."
+                  </p>
                 </div>
-                <Button variant="ghost" className="w-full text-[10px] font-black uppercase tracking-widest h-10 hover:bg-primary/5">
-                  Buka Etherscan Explorer <ArrowRightLeft className="w-3 h-3 ml-2" />
-                </Button>
               </div>
             </Card>
           </div>
