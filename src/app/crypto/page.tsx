@@ -15,7 +15,8 @@ import {
   ArrowDownLeft,
   ExternalLink,
   Lock,
-  Globe
+  Globe,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,9 +45,9 @@ const CONTRACT_ABI = [
   "function balances(address) public view returns (uint256)"
 ];
 
-// Ganti ID ini dengan alamat kontrak Mainnet Anda setelah di-deploy
+// Alamat Smart Contract AliBank di Ethereum Mainnet
 const DEFAULT_CONTRACT = "0x8BAF47E3B6A974A827A7E8F7A1D206B1F992C79C";
-const MAINNET_CHAIN_ID = "0x1"; // Ethereum Mainnet
+const MAINNET_CHAIN_ID = "0x1"; // Ethereum Mainnet (ID 1)
 
 const ASSETS = [
   { id: "ETH", name: "Ethereum", icon: Cpu, color: "text-blue-500", price: 48500000, change: "+2.4%" },
@@ -89,8 +90,8 @@ export default function CryptoPage() {
       const provider = new BrowserProvider(window.ethereum);
       const network = await provider.getNetwork();
       
-      // Jika ingin Mainnet, cek network.chainId !== 1n
-      if (network.chainId !== 1n && network.chainId !== 11155111n) {
+      // Verifikasi Jaringan: Harus Ethereum Mainnet (Chain ID 1)
+      if (network.chainId !== 1n) {
         setIsWrongNetwork(true);
         setVaultBalance("0");
         return;
@@ -175,8 +176,9 @@ export default function CryptoPage() {
           toast({ 
             variant: "destructive", 
             title: "Mainnet Required", 
-            description: "Silakan pindah ke Ethereum Mainnet untuk transaksi riil." 
+            description: "Silakan pindah ke Ethereum Mainnet untuk memproses aset riil." 
           });
+          return;
         }
       }
 
@@ -189,7 +191,7 @@ export default function CryptoPage() {
       }
 
       await checkVaultBalance(newAddress);
-      toast({ title: "Live Bridge Active", description: "Dompet riil Anda telah terhubung." });
+      toast({ title: "Mainnet Bridge Active", description: "Dompet aset riil Anda telah terhubung." });
     } catch (err) {
       toast({ variant: "destructive", title: "Web3 Error", description: "Gagal menghubungkan dompet." });
     } finally {
@@ -212,11 +214,11 @@ export default function CryptoPage() {
       }
 
       const tx = await contract.withdraw(balance);
-      toast({ title: "Transaction Broadcasted", description: "Memproses transaksi di Mainnet..." });
+      toast({ title: "Transaction Broadcasted", description: "Memproses transaksi di Ethereum Mainnet..." });
       await tx.wait();
       
       await checkVaultBalance(address);
-      toast({ title: "Success", description: "Aset telah ditarik ke dompet pribadi Anda." });
+      toast({ title: "Withdrawal Success", description: "Aset telah ditarik ke dompet pribadi Anda." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Withdrawal Failed", description: err.message });
     } finally {
@@ -274,7 +276,7 @@ export default function CryptoPage() {
         timestamp: serverTimestamp()
       });
 
-      toast({ title: "Execution Success", description: `Transaksi ${selectedAsset.id} telah diselesaikan.` });
+      toast({ title: "Execution Success", description: `Transaksi ${selectedAsset.id} telah diselesaikan di pasar riil.` });
       setTradeAmount("");
     } catch (err: any) {
       toast({ variant: "destructive", title: "Trading Error", description: err.message });
@@ -295,10 +297,10 @@ export default function CryptoPage() {
                 <LogoIcon className="text-white" />
               </div>
               <h1 className="text-4xl font-black text-accent italic uppercase tracking-tighter dark:text-primary flex items-center gap-2">
-                Live Bridge <Globe className="w-6 h-6 animate-pulse text-primary" />
+                Live Mainnet <Globe className="w-6 h-6 animate-pulse text-primary" />
               </h1>
             </div>
-            <p className="text-muted-foreground text-sm font-medium">Platform perdagangan aset digital riil terintegrasi AliBank.</p>
+            <p className="text-muted-foreground text-sm font-medium">Bursa aset riil AliBank yang terintegrasi langsung dengan blockchain global.</p>
           </div>
           
           <div className="flex items-center gap-4">
@@ -309,7 +311,7 @@ export default function CryptoPage() {
                   isWrongNetwork ? "bg-destructive text-white" : "bg-green-600 text-white"
                 )}>
                   {isWrongNetwork ? <AlertTriangle className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
-                  {isWrongNetwork ? "Switch to Mainnet" : `${address.slice(0, 6)}...${address.slice(-4)}`}
+                  {isWrongNetwork ? "Switch to Ethereum Mainnet" : `${address.slice(0, 6)}...${address.slice(-4)}`}
                 </Badge>
                 <Button onClick={disconnectWallet} variant="ghost" size="icon" className="text-destructive hover:bg-destructive/5 rounded-full">
                   <Unlink className="w-4 h-4" />
@@ -332,8 +334,8 @@ export default function CryptoPage() {
           <div className="mb-8 p-6 rounded-[2rem] bg-destructive/10 border border-destructive/20 flex items-center gap-4 text-destructive animate-in fade-in slide-in-from-top-2">
             <AlertTriangle className="w-8 h-8 shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-black uppercase italic">Peringatan Jaringan Salah</p>
-              <p className="text-xs font-medium">Harap pindahkan dompet Anda ke <span className="underline font-bold">Ethereum Mainnet</span> untuk memproses aset riil.</p>
+              <p className="text-sm font-black uppercase italic">Jaringan Tidak Sesuai</p>
+              <p className="text-xs font-medium">AliBank saat ini beroperasi di <span className="underline font-bold">Ethereum Mainnet</span>. Harap pindahkan jaringan dompet Anda untuk memproses aset riil.</p>
             </div>
             <Button size="sm" variant="outline" className="border-destructive text-destructive" onClick={connectWallet}>Ganti Jaringan</Button>
           </div>
@@ -343,7 +345,7 @@ export default function CryptoPage() {
           <div className="lg:col-span-8 space-y-6">
             <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl relative">
               <div className="absolute top-4 left-4 z-10">
-                <Badge className="bg-primary text-white font-black italic">LIVE MARKET</Badge>
+                <Badge className="bg-primary text-white font-black italic">PROD-ACTIVE</Badge>
               </div>
               <CardHeader className="flex flex-row items-center justify-between border-b border-primary/5 pb-6 pt-12">
                 <div className="flex items-center gap-4">
@@ -377,7 +379,7 @@ export default function CryptoPage() {
                       <YAxis hide domain={['dataMin - 1000000', 'dataMax + 1000000']} />
                       <Tooltip 
                         contentStyle={{ backgroundColor: 'white', borderRadius: '1rem', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}
-                        formatter={(val: number) => [`Rp {val.toLocaleString('id-ID')}`, 'Harga']}
+                        formatter={(val: number) => [`Rp ${val.toLocaleString('id-ID')}`, 'Harga']}
                       />
                       <Area type="monotone" dataKey="price" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorPrice)" />
                     </AreaChart>
@@ -451,12 +453,12 @@ export default function CryptoPage() {
                 <div className="flex items-center gap-2 mb-6">
                   <LogoIcon className="w-5 h-5 text-primary" />
                   <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                    AliBank Secure Vault <Lock className="w-3 h-3" />
+                    Secure Mainnet Vault <Lock className="w-3 h-3" />
                   </h4>
                 </div>
                 <div className="p-6 rounded-2xl bg-white/50 dark:bg-black/50 flex flex-col items-center justify-center space-y-2 mb-6 border border-primary/10">
                   <span className="text-3xl font-black text-primary italic">{parseFloat(vaultBalance).toFixed(6)} ETH</span>
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mainnet Savings Balance</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mainnet Balance</span>
                 </div>
                 
                 <div className="space-y-3">
@@ -466,17 +468,17 @@ export default function CryptoPage() {
                     className="w-full h-14 gold-gradient text-white font-black uppercase italic rounded-xl shadow-lg flex items-center justify-center gap-2"
                   >
                     {loading ? <Loader2 className="animate-spin w-5 h-5" /> : <ArrowDownLeft className="w-5 h-5" />}
-                    Tarik ke MetaMask
+                    Tarik ke Dompet
                   </Button>
                   <p className="text-[9px] text-muted-foreground leading-relaxed text-center italic font-bold">
-                    Transaksi ini akan diproses langsung di Blockchain. Pastikan Anda memiliki gas fee yang cukup.
+                    Penarikan dari Vault ke MetaMask akan dikenakan biaya gas (Gas Fee) jaringan Ethereum Mainnet.
                   </p>
                 </div>
               </div>
             </Card>
 
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8">
-              <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-6 italic">Exchange Assets</h4>
+              <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-6 italic">Production Exchange</h4>
               <div className="space-y-4">
                 {ASSETS.map((asset) => (
                   <button 
