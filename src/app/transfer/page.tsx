@@ -79,7 +79,7 @@ export default function TransferPage() {
 
               <div className="p-4 rounded-xl bg-green-50 flex items-center gap-3">
                 <ShieldCheck className="text-green-600 w-5 h-5" />
-                <p className="text-xs text-green-700 font-medium">Your transfer is secured with end-to-end encryption and FinWave Fraud Protection.</p>
+                <p className="text-xs text-green-700 font-medium">Your transfer is secured with end-to-end encryption and AliBank Fraud Protection.</p>
               </div>
 
               <Button className="w-full h-16 gold-gradient text-white text-lg font-bold rounded-2xl shadow-xl shadow-primary/20 flex items-center justify-center gap-2">

@@ -93,7 +93,7 @@ export default function AIAssistantPage() {
               <Sparkles className="text-white w-7 h-7" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold text-accent">FinWave Intelligence</h1>
+              <h1 className="text-4xl font-bold text-accent">AliBank Intelligence</h1>
               <p className="text-muted-foreground">Personalized financial advisory powered by advanced spending analysis.</p>
             </div>
           </div>
@@ -215,7 +215,7 @@ export default function AIAssistantPage() {
               <div className="relative z-10">
                 <h4 className="font-bold text-accent mb-2">Premium Support</h4>
                 <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
-                  Need more specific advice? Book a session with a dedicated FinWave Wealth Manager.
+                  Need more specific advice? Book a session with a dedicated AliBank Wealth Manager.
                 </p>
                 <Button variant="outline" className="w-full border-primary/20 text-primary hover:bg-primary/5 h-12 rounded-xl flex justify-between group">
                   Speak to an Expert <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

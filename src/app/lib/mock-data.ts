@@ -28,7 +28,7 @@ export const MOCK_WALLETS = [
 ];
 
 export const MOCK_BENEFICIARIES = [
-  { id: "b-1", name: "Sarah Jenkins", bank: "FinWave", acc: "1234 5678" },
+  { id: "b-1", name: "Sarah Jenkins", bank: "AliBank", acc: "1234 5678" },
   { id: "b-2", name: "David Miller", bank: "Global Bank", acc: "9876 5432" },
-  { id: "b-3", name: "Emma Wilson", bank: "FinWave", acc: "4455 6677" }
+  { id: "b-3", name: "Emma Wilson", bank: "AliBank", acc: "4455 6677" }
 ];

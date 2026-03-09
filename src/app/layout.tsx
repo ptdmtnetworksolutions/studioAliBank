@@ -3,7 +3,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'FinWave - Premium Banking',
+  title: 'AliBank - Premium Banking',
   description: 'Your elegant and intelligent banking companion.',
 };
 

@@ -38,7 +38,7 @@ export function Navbar() {
             <div className="w-8 h-8 rounded-lg gold-gradient flex items-center justify-center">
               <Sparkles className="text-white w-5 h-5" />
             </div>
-            <span className="font-headline font-bold text-xl tracking-tight text-accent">FinWave</span>
+            <span className="font-headline font-bold text-xl tracking-tight text-accent">AliBank</span>
           </Link>
 
           {/* Desktop Nav */}

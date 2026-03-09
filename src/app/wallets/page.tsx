@@ -81,7 +81,7 @@ export default function WalletsPage() {
           <div className="flex-1 space-y-4">
             <h3 className="text-2xl font-bold text-accent">Consolidate your funds</h3>
             <p className="text-accent/70 leading-relaxed">
-              Enable Auto-Sweep to automatically transfer balances from your e-wallets to your main FinWave account when they reach a certain threshold.
+              Enable Auto-Sweep to automatically transfer balances from your e-wallets to your main AliBank account when they reach a certain threshold.
             </p>
             <Button className="bg-primary text-white px-8 rounded-xl h-12 shadow-xl shadow-primary/20">
               Enable Auto-Sweep
@@ -91,7 +91,7 @@ export default function WalletsPage() {
              <div className="absolute top-0 left-0 w-full h-full bg-black/5"></div>
              <Wallet className="w-20 h-20 text-white/20" />
              <div className="absolute bottom-4 left-4">
-                <p className="text-[10px] text-white/60 font-bold uppercase tracking-widest">FinWave Card</p>
+                <p className="text-[10px] text-white/60 font-bold uppercase tracking-widest">AliBank Card</p>
                 <p className="text-white font-bold">**** 8829</p>
              </div>
           </div>
