@@ -58,8 +58,8 @@ export default function CryptoPage() {
     if (typeof window.ethereum === 'undefined') {
       toast({
         variant: "destructive",
-        title: "Web3 Not Found",
-        description: "Please install MetaMask to use AliBank Crypto Bridge.",
+        title: "Web3 Tidak Ditemukan",
+        description: "Silakan instal MetaMask untuk menggunakan AliBank Crypto Bridge.",
       });
       return;
     }
@@ -69,12 +69,12 @@ export default function CryptoPage() {
       const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
       const userAddress = accounts[0];
-      const balance = await provider.getBalance(userAddress);
+      const ethBalance = await provider.getBalance(userAddress);
       
       setAddress(userAddress);
-      setBalance(formatEther(balance));
+      setBalance(formatEther(ethBalance));
       
-      // Update Vault Balance jika alamat kontrak diisi dan valid (minimal panjang address eth)
+      // Update Vault Balance jika alamat kontrak diisi dan valid
       if (contractAddress && contractAddress.length === 42) {
         try {
           const contract = new Contract(contractAddress, CONTRACT_ABI, provider);
@@ -86,15 +86,15 @@ export default function CryptoPage() {
       }
 
       toast({
-        title: "Wallet Linked",
-        description: `Secured connection to ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`,
+        title: "Dompet Terhubung",
+        description: `Berhasil terhubung ke ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`,
       });
     } catch (err: any) {
       console.error(err);
       toast({
         variant: "destructive",
-        title: "Connection Refused",
-        description: "User rejected the request or network error.",
+        title: "Koneksi Ditolak",
+        description: "User menolak permintaan atau terjadi kesalahan jaringan.",
       });
     } finally {
       setLoading(false);
@@ -107,7 +107,7 @@ export default function CryptoPage() {
       toast({
         variant: "destructive",
         title: "Alamat Kontrak Tidak Valid",
-        description: "Silakan masukkan alamat Smart Contract yang valid di kolom pengaturan.",
+        description: "Silakan masukkan alamat Smart Contract hasil deploy Anda di kolom pengaturan.",
       });
       return;
     }
@@ -126,15 +126,15 @@ export default function CryptoPage() {
       }
 
       toast({
-        title: "Transaction Broadcasted",
-        description: "Waiting for blockchain confirmation...",
+        title: "Transaksi Dikirim",
+        description: "Menunggu konfirmasi blockchain...",
       });
 
       await tx.wait();
       
       toast({
-        title: "Success",
-        description: `Successfully ${action}ed ${amount} ETH to AliBank Vault.`,
+        title: "Berhasil",
+        description: `Berhasil melakukan ${action === 'deposit' ? 'setoran' : 'penarikan'} ${amount} ETH ke Vault.`,
       });
       
       // Refresh balances
@@ -143,8 +143,8 @@ export default function CryptoPage() {
       console.error(err);
       toast({
         variant: "destructive",
-        title: "Transaction Failed",
-        description: err.reason || "Pastikan Anda menggunakan jaringan yang tepat (misal Sepolia) dan kontrak sudah ter-deploy.",
+        title: "Transaksi Gagal",
+        description: err.reason || "Pastikan saldo ETH mencukupi dan kontrak sudah benar.",
       });
     } finally {
       setTxLoading(false);
@@ -159,28 +159,27 @@ export default function CryptoPage() {
       <main className="container mx-auto px-4 max-w-5xl">
         <header className="mb-10">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl gold-gradient flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl gold-gradient flex items-center justify-center shadow-lg">
               <Cpu className="text-white w-6 h-6" />
             </div>
             <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter dark:text-primary">Crypto Bridge</h1>
           </div>
-          <p className="text-muted-foreground text-sm font-medium">Layanan perbankan on-chain terintegrasi Smart Contract.</p>
+          <p className="text-muted-foreground text-sm font-medium">Jembatan perbankan digital ke ekosistem Smart Contract.</p>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Main Interaction Area */}
           <div className="lg:col-span-7 space-y-6">
             
             {/* Contract Settings */}
             <Card className="liquid-glass border-none rounded-[2rem] p-6 mb-6">
               <div className="flex items-center gap-3 mb-4">
                 <Settings className="w-5 h-5 text-primary" />
-                <h4 className="text-xs font-black uppercase tracking-widest text-accent dark:text-primary">Konfigurasi Kontrak</h4>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-accent dark:text-primary">Konfigurasi Kontrak Pintar</h4>
               </div>
               <div className="space-y-2">
                 <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Deployed Contract Address (Ethereum/Testnet)</Label>
                 <Input 
-                  placeholder="0x..."
+                  placeholder="Contoh: 0x71C... (Dapatkan dari Remix)"
                   value={contractAddress}
                   onChange={(e) => saveContractAddress(e.target.value)}
                   className="h-12 rounded-xl border-primary/20 bg-white/50 dark:bg-black/50 font-mono text-xs"
@@ -199,20 +198,20 @@ export default function CryptoPage() {
                     </Badge>
                     <h3 className="text-xl font-bold text-accent dark:text-primary mt-2">AliBank Digital Vault</h3>
                   </div>
-                  <Bitcoin className="w-8 h-8 text-primary/40 animate-pulse" />
+                  <Bitcoin className="w-8 h-8 text-primary/40 animate-bounce" />
                 </div>
 
                 {address ? (
                   <div className="space-y-8">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-primary/5 p-5 rounded-2xl border border-primary/10">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Wallet Balance</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Saldo Wallet</p>
                         <p className="text-2xl font-black italic tracking-tighter text-accent dark:text-primary">
                           {parseFloat(balance).toFixed(4)} <span className="text-xs">ETH</span>
                         </p>
                       </div>
                       <div className="bg-accent/5 p-5 rounded-2xl border border-accent/10">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Vault Balance</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Saldo Vault</p>
                         <p className="text-2xl font-black italic tracking-tighter text-accent dark:text-primary">
                           {parseFloat(vaultBalance).toFixed(4)} <span className="text-xs">ETH</span>
                         </p>
@@ -234,7 +233,7 @@ export default function CryptoPage() {
                         <Button 
                           onClick={() => handleSmartContractAction('deposit')}
                           disabled={txLoading || !amount}
-                          className="h-14 gold-gradient text-white font-black italic rounded-2xl flex gap-2"
+                          className="h-14 gold-gradient text-white font-black italic rounded-2xl flex gap-2 active:scale-95 transition-all"
                         >
                           {txLoading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ArrowDownRight className="w-5 h-5" />}
                           DEPOSIT
@@ -243,7 +242,7 @@ export default function CryptoPage() {
                           onClick={() => handleSmartContractAction('withdraw')}
                           disabled={txLoading || !amount}
                           variant="outline"
-                          className="h-14 border-primary/20 text-primary font-black italic rounded-2xl flex gap-2"
+                          className="h-14 border-primary/20 text-primary font-black italic rounded-2xl flex gap-2 active:scale-95 transition-all"
                         >
                           {txLoading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ArrowUpRight className="w-5 h-5" />}
                           WITHDRAW
@@ -258,7 +257,7 @@ export default function CryptoPage() {
                     </div>
                     <div className="space-y-2">
                       <p className="text-sm font-bold text-accent uppercase tracking-tight dark:text-primary">Layanan Kripto Belum Aktif</p>
-                      <p className="text-xs text-muted-foreground px-10">Koneksikan dompet digital Anda untuk mulai berinteraksi dengan Smart Contract AliBank.</p>
+                      <p className="text-xs text-muted-foreground px-10">Koneksikan MetaMask Anda untuk mulai berinteraksi dengan Vault AliBank.</p>
                     </div>
                     <Button 
                       onClick={connectWallet}
@@ -277,15 +276,14 @@ export default function CryptoPage() {
                 <ShieldCheck className="w-6 h-6 text-green-600" />
               </div>
               <div className="space-y-1">
-                <h4 className="text-sm font-bold text-accent dark:text-primary uppercase tracking-tight">Status Smart Contract</h4>
+                <h4 className="text-sm font-bold text-accent dark:text-primary uppercase tracking-tight">Status Keamanan</h4>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  Kontrak AliBankPayment.sol telah tersedia. Salin kode Solidity dari folder <code>contracts/</code> ke Remix IDE untuk melakukan deploy.
+                  Semua transaksi diproses secara atomik melalui jaringan Ethereum menggunakan prinsip Trustless Banking.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Sidebar Smart Info */}
           <div className="lg:col-span-5 space-y-6">
             <Card className="liquid-glass-dark rounded-[2.5rem] p-8 border-none text-white overflow-hidden relative group shadow-2xl">
               <div className="absolute inset-0 gold-gradient opacity-10" />
@@ -298,8 +296,8 @@ export default function CryptoPage() {
                   {[
                     "Transparansi Publik 100%",
                     "Bunga Vault s/d 8.5% p.a.",
-                    "Keamanan Lapis Ganda (2FA)",
-                    "Konversi Instan ke Saldo Bank"
+                    "Keamanan Lapis Ganda (Web3)",
+                    "Akses Tanpa Perantara Bank"
                   ].map((item, i) => (
                     <div key={i} className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-primary" />
@@ -308,7 +306,7 @@ export default function CryptoPage() {
                   ))}
                 </div>
                 <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl h-12 text-[10px] font-black uppercase tracking-widest mt-4">
-                  VIEW DOCUMENTATION <ChevronRight className="w-4 h-4 ml-2" />
+                  LIHAT DOKUMENTASI <ChevronRight className="w-4 h-4 ml-2" />
                 </Button>
               </div>
             </Card>
@@ -318,13 +316,13 @@ export default function CryptoPage() {
                 <Info className="w-5 h-5 text-primary shrink-0" />
                 <div className="space-y-2">
                   <p className="text-[9px] font-bold leading-relaxed text-muted-foreground uppercase tracking-wider">
-                    <strong>PANDUAN DEPLOY:</strong>
+                    <strong>PANDUAN CEPAT:</strong>
                   </p>
                   <ol className="text-[8px] text-muted-foreground list-decimal ml-4 space-y-1">
-                    <li>Buka <a href="https://remix.ethereum.org" target="_blank" className="underline text-primary">Remix IDE</a>.</li>
-                    <li>Buat file baru <code>AliBankPayment.sol</code> dan tempelkan kodenya.</li>
-                    <li>Compile dan Deploy ke jaringan Sepolia.</li>
-                    <li>Salin <strong>Deployed Address</strong> dan tempel di atas.</li>
+                    <li>Copy kode <code>AliBankPayment.sol</code> dari proyek ini.</li>
+                    <li>Paste ke Remix IDE & Deploy ke Sepolia.</li>
+                    <li>Salin alamat kontrak hasil deploy.</li>
+                    <li>Tempelkan di kotak Konfigurasi di atas.</li>
                   </ol>
                 </div>
               </div>
