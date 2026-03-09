@@ -1,15 +1,14 @@
 'use client';
 
 /**
- * Konfigurasi Firebase untuk AliBank.
- * PENTING: Anda harus mengganti nilai di bawah ini dengan konfigurasi asli 
- * yang Anda dapatkan dari Firebase Console (Project Settings > General > Your apps).
+ * Konfigurasi Firebase resmi untuk AliBank (darmedia-pos).
  */
 export const firebaseConfig = {
-  apiKey: "AIzaSy...", // GANTI DENGAN API KEY ASLI ANDA
+  apiKey: "AIzaSyAY9zcpAlfWuZcY93HMdLo1GW03vjeZhWY",
   authDomain: "darmedia-pos.firebaseapp.com",
   projectId: "darmedia-pos",
   storageBucket: "darmedia-pos.firebasestorage.app",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef"
+  messagingSenderId: "852996332274",
+  appId: "1:852996332274:web:d5733e174bd52aac5b0e6b",
+  measurementId: "G-DDFQTSKF6T"
 };
