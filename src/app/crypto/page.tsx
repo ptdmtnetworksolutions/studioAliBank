@@ -310,15 +310,16 @@ export default function CryptoPage() {
                 <Info className="w-5 h-5 text-primary shrink-0" />
                 <div className="space-y-2">
                   <p className="text-[9px] font-bold leading-relaxed text-muted-foreground uppercase tracking-wider">
-                    <strong>PANDUAN CEPAT (SOLUSI ERROR SALDO):</strong>
+                    <strong>PANDUAN SOLUSI ERROR SALDO:</strong>
                   </p>
                   <ol className="text-[8px] text-muted-foreground list-decimal ml-4 space-y-1">
-                    <li>Jika situs <strong>Alchemy</strong> minta saldo Mainnet, gunakan <strong>Sepolia PoW Faucet</strong> atau <strong>Infura Sepolia Faucet</strong>.</li>
-                    <li>Cari di Google: <code>"Sepolia faucet no mainnet balance"</code>.</li>
-                    <li>Atau gunakan <strong>Google Cloud Web3 Faucet</strong> yang biasanya lebih mudah.</li>
-                    <li>Setelah dapat ETH gratis, buka <strong>Remix IDE</strong>.</li>
-                    <li>Pilih <strong>"Injected Provider - MetaMask"</strong> (pastikan MetaMask sudah login).</li>
-                    <li>Klik <strong>Deploy</strong>, lalu salin alamat kontraknya ke kotak di atas.</li>
+                    <li>Di Chainlink Faucet, cari kartu <strong>"Ethereum Sepolia"</strong>.</li>
+                    <li>Hubungkan dompet Anda melalui tombol <strong>"Connect"</strong>.</li>
+                    <li>Selesaikan Captcha dan klik <strong>"Send Request"</strong>.</li>
+                    <li>Jika masih gagal, cari <strong>"Google Cloud Web3 Faucet"</strong> di Google.</li>
+                    <li>Setelah dapat ETH gratis, kembali ke <strong>Remix IDE</strong>.</li>
+                    <li>Pastikan Environment adalah <strong>"Injected Provider - MetaMask"</strong>.</li>
+                    <li>Klik <strong>Deploy</strong>, lalu salin alamat kontraknya ke aplikasi ini.</li>
                   </ol>
                 </div>
               </div>
@@ -329,7 +330,7 @@ export default function CryptoPage() {
               <div>
                 <h4 className="text-xs font-bold text-amber-800 uppercase tracking-tight dark:text-amber-400">Penting!</h4>
                 <p className="text-[9px] text-amber-700 leading-relaxed dark:text-amber-500">
-                  Situs <strong>Alchemy Faucet</strong> sekarang minta saldo Mainnet. Silakan cari faucet alternatif seperti <strong>LearnWeb3 Faucet</strong> atau <strong>RockX Faucet</strong> untuk Sepolia ETH gratis tanpa syarat saldo.
+                  Pastikan dompet MetaMask Anda berada di jaringan <strong>Sepolia Test Network</strong> sebelum menekan tombol "AKTIFKAN BRIDGE".
                 </p>
               </div>
             </div>
