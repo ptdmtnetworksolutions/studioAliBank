@@ -11,7 +11,8 @@ import {
   PiggyBank, 
   Sparkles,
   Menu,
-  X
+  X,
+  Bitcoin
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -23,7 +24,8 @@ const navItems = [
   { name: "Transfer", href: "/transfer", icon: Send },
   { name: "Dompet", href: "/wallets", icon: Wallet },
   { name: "Deposito", href: "/deposits", icon: PiggyBank },
-  { name: "Wawasan AI", href: "/ai-assistant", icon: Sparkles },
+  { name: "Kripto", href: "/crypto", icon: Bitcoin },
+  { name: "AI", href: "/ai-assistant", icon: Sparkles },
 ];
 
 export function Navbar() {

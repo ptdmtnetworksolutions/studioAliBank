@@ -13,19 +13,15 @@ import {
   Copy,
   Eye,
   Send,
-  Users,
   ArrowDownToLine,
-  ArrowUpToLine,
   Grid2X2,
-  Home,
   PiggyBank,
   Clock,
   LogOut,
   QrCode,
-  Loader2,
   EyeOff,
-  Download,
-  CreditCard
+  Bitcoin,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +37,7 @@ import { useToast } from "@/hooks/use-toast";
 const mainServices = [
   { name: "Transfer", icon: Send, color: "bg-blue-50 text-blue-600", href: "/transfer" },
   { name: "Top Up", icon: Plus, color: "bg-green-50 text-green-600", href: "/topup", badge: "New" },
-  { name: "Tagihan", icon: Smartphone, color: "bg-orange-50 text-orange-600", badge: "Promo" },
+  { name: "Aset Kripto", icon: Bitcoin, color: "bg-orange-50 text-orange-600", href: "/crypto", badge: "Hot" },
   { name: "E-Wallet", icon: Wallet, color: "bg-amber-50 text-amber-700", href: "/wallets" },
   { name: "Deposito", icon: PiggyBank, color: "bg-green-50 text-green-600", href: "/deposits" },
   { name: "Tarik Tunai", icon: ArrowDownToLine, color: "bg-indigo-50 text-indigo-600", badge: "Gratis" },
@@ -57,7 +53,6 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isAppInstalled, setIsAppInstalled] = useState(false);
 
   const userDocRef = useMemo(() => {
@@ -65,7 +60,7 @@ export default function Dashboard() {
     return doc(db, "users", user.uid);
   }, [db, user]);
 
-  const { data: userData, loading: dataLoading } = useDoc(userDocRef);
+  const { data: userData } = useDoc(userDocRef);
 
   useEffect(() => {
     setMounted(true);
@@ -76,46 +71,10 @@ export default function Dashboard() {
       }
     }
 
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    const handleAppInstalled = () => {
-      setDeferredPrompt(null);
-      setIsAppInstalled(true);
-      toast({
-        title: "Aplikasi Terpasang",
-        description: "AliBank kini tersedia di layar utama Anda.",
-      });
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
     if (!userLoading && !user) {
       router.push('/login');
     }
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, [user, userLoading, router, toast]);
-
-  const handleInstallClick = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') setDeferredPrompt(null);
-    } else {
-      toast({
-        title: "Instruksi Instalasi",
-        description: "Gunakan menu browser 'Tambahkan ke Layar Utama' untuk memasang AliBank.",
-      });
-    }
-  };
+  }, [user, userLoading, router]);
 
   const handleLogout = async () => {
     if (auth) {
@@ -236,24 +195,6 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {!isAppInstalled && (
-          <section 
-            onClick={handleInstallClick}
-            className="liquid-glass rounded-[2rem] p-6 border-primary/20 flex items-center gap-4 group cursor-pointer active:scale-[0.98] transition-all"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Smartphone className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h4 className="text-sm font-bold text-accent dark:text-primary uppercase tracking-tight">AliBank Mobile App</h4>
-              <p className="text-[10px] text-muted-foreground font-medium">Instal sekarang untuk akses perbankan instan dan aman.</p>
-            </div>
-            <Button size="sm" className="rounded-xl h-9 px-4 text-[9px] font-black uppercase tracking-widest gold-gradient text-white border-none shadow-lg">
-              PASANG
-            </Button>
-          </section>
-        )}
-
         <section className="liquid-glass rounded-[2.5rem] p-6 grid grid-cols-4 gap-y-8 gap-x-2 border-primary/10">
           {mainServices.map((service, idx) => {
             const Icon = service.icon;
@@ -278,20 +219,21 @@ export default function Dashboard() {
           })}
         </section>
 
-        <section className="relative aspect-[2.8/1] rounded-[2rem] overflow-hidden shadow-xl border border-primary/10 group">
-          <Image 
-            src="https://picsum.photos/seed/promo-gold/800/300" 
-            alt="Promotion" 
-            fill 
-            className="object-cover group-hover:scale-105 transition-transform duration-1000"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-transparent flex items-center px-8 text-white">
-            <div className="space-y-1">
-              <Badge className="bg-primary text-white text-[8px] font-black uppercase mb-2 tracking-widest border-none">Eksklusif</Badge>
-              <h3 className="text-2xl font-black italic tracking-tighter leading-none uppercase">PROGRAM REWARD<br/>AKHIR TAHUN</h3>
-              <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mt-2">Daftar sekarang di menu Deposito</p>
+        {/* New Feature Alert: Crypto Bridge */}
+        <section className="relative overflow-hidden liquid-glass rounded-[2rem] p-6 border-primary/20 border-2 group cursor-pointer animate-pulse">
+          <Link href="/crypto" className="flex items-center gap-5">
+            <div className="w-14 h-14 rounded-2xl gold-gradient flex items-center justify-center shrink-0 shadow-lg">
+              <Bitcoin className="text-white w-7 h-7" />
             </div>
-          </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h4 className="text-sm font-black text-accent dark:text-primary uppercase tracking-tight">Crypto Bridge Aktif</h4>
+                <Badge className="bg-green-600 text-white text-[7px] font-black py-0 px-2 animate-bounce">Live</Badge>
+              </div>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Koneksikan Web3 Wallet Anda Sekarang.</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform" />
+          </Link>
         </section>
       </main>
 
@@ -315,9 +257,9 @@ export default function Dashboard() {
             </div>
             <span className="mt-10 text-[8px] font-black text-white/50 tracking-widest uppercase">TERIMA</span>
           </div>
-          <Link href="/deposits" className="flex flex-col items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
-            <PiggyBank className="w-6 h-6 text-white" />
-            <span className="text-[8px] font-black text-white uppercase tracking-widest">Tabungan</span>
+          <Link href="/crypto" className="flex flex-col items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
+            <Bitcoin className="w-6 h-6 text-white" />
+            <span className="text-[8px] font-black text-white uppercase tracking-widest">Kripto</span>
           </Link>
           <Link href="/ai-assistant" className="flex flex-col items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
             <Sparkles className="w-6 h-6 text-white" />
