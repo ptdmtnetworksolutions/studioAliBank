@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -40,8 +39,10 @@ import { MOCK_MERCHANT } from "@/app/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore, useCollection } from "@/firebase";
-import { collection, addDoc, serverTimestamp, query, orderBy, limit, doc, updateDoc, increment } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, doc, setDoc, increment } from "firebase/firestore";
 import Link from "next/link";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function MerchantDashboard() {
   const { toast } = useToast();
@@ -91,33 +92,40 @@ export default function MerchantDashboard() {
     }, 1500);
   };
 
-  const handleCreateInvoice = async () => {
+  const handleCreateInvoice = () => {
     if (!db || !newInvoice.customerName || !newInvoice.amountIdr) return;
 
     setIsCreatingInvoice(true);
-    try {
-      const invoiceId = `INV-${Math.floor(1000 + Math.random() * 9000)}`;
-      await addDoc(collection(db, "merchants", MOCK_MERCHANT.merchantId, "invoices"), {
-        invoiceId,
-        merchantId: MOCK_MERCHANT.merchantId,
-        customerName: newInvoice.customerName,
-        amountIdr: parseFloat(newInvoice.amountIdr),
-        cryptoCurrency: newInvoice.cryptoCurrency,
-        status: "unpaid",
-        createdAt: new Date().toISOString(),
-        timestamp: serverTimestamp()
+    const invoiceId = `INV-${Math.floor(1000 + Math.random() * 9000)}`;
+    const invoicesColRef = collection(db, "merchants", MOCK_MERCHANT.merchantId, "invoices");
+    
+    const invoicePayload = {
+      invoiceId,
+      merchantId: MOCK_MERCHANT.merchantId,
+      customerName: newInvoice.customerName,
+      amountIdr: parseFloat(newInvoice.amountIdr),
+      cryptoCurrency: newInvoice.cryptoCurrency,
+      status: "unpaid",
+      createdAt: new Date().toISOString(),
+      timestamp: serverTimestamp()
+    };
+
+    addDoc(invoicesColRef, invoicePayload)
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: invoicesColRef.path,
+          operation: 'create',
+          requestResourceData: invoicePayload
+        }));
       });
 
-      toast({ 
-        title: "Invoice Created", 
-        description: `Invoice ${invoiceId} has been generated successfully.` 
-      });
-      setNewInvoice({ customerName: "", amountIdr: "", cryptoCurrency: "USDT" });
-    } catch (err) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to create invoice." });
-    } finally {
-      setIsCreatingInvoice(false);
-    }
+    // Reset and close UI optimistically
+    toast({ 
+      title: "Invoice Created", 
+      description: `Invoice ${invoiceId} has been generated successfully.` 
+    });
+    setNewInvoice({ customerName: "", amountIdr: "", cryptoCurrency: "USDT" });
+    setIsCreatingInvoice(false);
   };
 
   const getStatusBadge = (status: string) => {

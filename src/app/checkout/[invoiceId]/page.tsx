@@ -20,10 +20,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useUser } from "@/firebase";
-import { collection, query, where, getDocs, doc, updateDoc, increment, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, setDoc, increment, addDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { MOCK_MERCHANT } from "@/app/lib/mock-data";
 import { LogoIcon } from "@/components/ui/logo";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function CheckoutPage() {
   const { invoiceId } = useParams();
@@ -66,52 +68,82 @@ export default function CheckoutPage() {
     USDT: 0.000063 // IDR to USDT mock rate
   };
 
-  const handlePayInternal = async () => {
+  const handlePayInternal = () => {
     if (!user || !db || !invoice) return;
     
     setIsProcessing(true);
     setPaymentStep('processing');
 
-    try {
-      // 1. Update Invoice Status
-      const invoiceRef = doc(db, "merchants", MOCK_MERCHANT.merchantId, "invoices", invoice.id);
-      await updateDoc(invoiceRef, {
-        status: "paid",
-        paidAt: new Date().toISOString()
+    const invoiceRef = doc(db, "merchants", MOCK_MERCHANT.merchantId, "invoices", invoice.id);
+    const merchantRef = doc(db, "merchants", MOCK_MERCHANT.merchantId);
+    const userRef = doc(db, "users", user.uid);
+    const transactionColRef = collection(db, "users", user.uid, "transactions");
+
+    // 1. Update Invoice Status
+    const invoicePayload = {
+      status: "paid",
+      paidAt: new Date().toISOString()
+    };
+    setDoc(invoiceRef, invoicePayload, { merge: true })
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: invoiceRef.path,
+          operation: 'update',
+          requestResourceData: invoicePayload
+        }));
       });
 
-      // 2. Update Merchant Balance (Settlement)
-      const merchantRef = doc(db, "merchants", MOCK_MERCHANT.merchantId);
-      await updateDoc(merchantRef, {
-        totalRevenue: increment(invoice.amountIdr),
-        pendingSettlement: increment(invoice.amountIdr)
+    // 2. Update Merchant Balance (Settlement)
+    // Gunakan setDoc dengan merge untuk memastikan dokumen dibuat jika belum ada (Fixes: No document to update)
+    const merchantPayload = {
+      ...MOCK_MERCHANT,
+      totalRevenue: increment(invoice.amountIdr),
+      pendingSettlement: increment(invoice.amountIdr)
+    };
+    setDoc(merchantRef, merchantPayload, { merge: true })
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: merchantRef.path,
+          operation: 'write',
+          requestResourceData: merchantPayload
+        }));
       });
 
-      // 3. Update User Balance (The customer)
-      const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, {
-        totalBalance: increment(-invoice.amountIdr)
+    // 3. Update User Balance (The customer)
+    const userPayload = {
+      totalBalance: increment(-invoice.amountIdr)
+    };
+    setDoc(userRef, userPayload, { merge: true })
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'update',
+          requestResourceData: userPayload
+        }));
       });
 
-      // 4. Log Transaction
-      await addDoc(collection(db, "users", user.uid, "transactions"), {
-        date: new Date().toISOString(),
-        description: `Payment for ${invoice.invoiceId} to ${MOCK_MERCHANT.businessName}`,
-        category: "Payment",
-        amount: invoice.amountIdr,
-        type: "expense",
-        timestamp: serverTimestamp()
+    // 4. Log Transaction
+    const logPayload = {
+      date: new Date().toISOString(),
+      description: `Payment for ${invoice.invoiceId} to ${MOCK_MERCHANT.businessName}`,
+      category: "Payment",
+      amount: invoice.amountIdr,
+      type: "expense",
+      timestamp: serverTimestamp()
+    };
+    addDoc(transactionColRef, logPayload)
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: transactionColRef.path,
+          operation: 'create',
+          requestResourceData: logPayload
+        }));
       });
 
-      setPaymentStep('success');
-      toast({ title: "Payment Successful", description: "The merchant has been notified." });
-    } catch (err) {
-      console.error(err);
-      setPaymentStep('selection');
-      toast({ variant: "destructive", title: "Payment Failed", description: "Internal processing error." });
-    } finally {
-      setIsProcessing(false);
-    }
+    // Optimistically update UI
+    setPaymentStep('success');
+    setIsProcessing(false);
+    toast({ title: "Payment Processed", description: "Your transaction is being synchronized." });
   };
 
   if (loading) {
