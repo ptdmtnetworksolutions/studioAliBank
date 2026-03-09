@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useDoc, useFirestore } from "@/firebase";
@@ -19,7 +20,9 @@ import {
   QrCode,
   EyeOff,
   Bitcoin,
-  Home
+  Home,
+  ShieldCheck,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,13 +37,13 @@ import { useToast } from "@/hooks/use-toast";
 
 const mainServices = [
   { name: "Transfer", icon: Send, color: "bg-blue-50 text-blue-600", href: "/transfer" },
-  { name: "Top Up", icon: Plus, color: "bg-green-50 text-green-600", href: "/topup", badge: "New" },
-  { name: "Aset Kripto", icon: Bitcoin, color: "bg-orange-50 text-orange-600", href: "/crypto", badge: "Hot" },
+  { name: "Top Up", icon: Plus, color: "bg-green-50 text-green-600", href: "/topup" },
+  { name: "Crypto Bridge", icon: Bitcoin, color: "bg-orange-50 text-orange-600", href: "/crypto", badge: "Live" },
   { name: "E-Wallet", icon: Wallet, color: "bg-amber-50 text-amber-700", href: "/wallets" },
-  { name: "Deposito", icon: PiggyBank, color: "bg-green-50 text-green-600", href: "/deposits" },
-  { name: "Tarik Tunai", icon: ArrowDownToLine, color: "bg-indigo-50 text-indigo-600", badge: "Gratis" },
-  { name: "QRIS", icon: QrCode, color: "bg-teal-50 text-teal-600", href: "/topup" },
-  { name: "Semua", icon: Grid2X2, color: "bg-gray-50 text-gray-600" },
+  { name: "Elite Deposits", icon: PiggyBank, color: "bg-green-50 text-green-600", href: "/deposits" },
+  { name: "Withdraw", icon: ArrowDownToLine, color: "bg-indigo-50 text-indigo-600" },
+  { name: "Pay QRIS", icon: QrCode, color: "bg-teal-50 text-teal-600", href: "/topup" },
+  { name: "More", icon: Grid2X2, color: "bg-gray-50 text-gray-600" },
 ];
 
 export default function Dashboard() {
@@ -51,7 +54,6 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -65,14 +67,6 @@ export default function Dashboard() {
     if (!userLoading && !user) {
       router.push('/login');
     }
-
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, [user, userLoading, router]);
 
   const handleLogout = async () => {
@@ -82,27 +76,12 @@ export default function Dashboard() {
     }
   };
 
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setDeferredPrompt(null);
-      }
-    } else {
-      toast({
-        title: "PWA Aktif",
-        description: "Gunakan menu browser 'Tambahkan ke Layar Utama' jika tombol instal tidak muncul.",
-      });
-    }
-  };
-
   const copyAccountNumber = () => {
     if (userData?.accountNumber) {
       navigator.clipboard.writeText(userData.accountNumber);
       toast({
-        title: "Disalin!",
-        description: "Nomor rekening berhasil disalin.",
+        title: "Account Copied",
+        description: "Number copied to clipboard successfully.",
       });
     }
   };
@@ -123,7 +102,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen pb-24 bg-background">
-      <header className="px-4 pt-6 pb-4 bg-white/70 backdrop-blur-xl sticky top-0 z-40 border-b border-primary/5 dark:bg-black/70">
+      <header className="px-4 pt-6 pb-4 bg-white/80 backdrop-blur-xl sticky top-0 z-40 border-b border-primary/5 dark:bg-black/80">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <div className="flex items-center gap-3">
             <div className="relative w-12 h-12 rounded-2xl border-2 border-primary/20 overflow-hidden shadow-sm gold-gradient flex items-center justify-center">
@@ -135,18 +114,18 @@ export default function Dashboard() {
               />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Premium Account</p>
+              <p className="text-[10px] font-black text-primary uppercase tracking-widest">Premium Nasabah</p>
               <h2 className="font-bold text-accent leading-tight text-lg dark:text-primary">
-                {userData?.name?.split(' ')[0] || "Nasabah"}
+                {userData?.name?.split(' ')[0] || "Client"}
               </h2>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-2xl bg-white/80 border border-primary/5 shadow-sm dark:bg-white/5">
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-2xl bg-white/50 border border-primary/5 shadow-sm dark:bg-white/5">
               <LogOut className="w-5 h-5 text-accent dark:text-primary" />
             </Button>
             <div className="relative">
-              <Button variant="ghost" size="icon" className="rounded-2xl bg-white/80 border border-primary/5 shadow-sm dark:bg-white/5">
+              <Button variant="ghost" size="icon" className="rounded-2xl bg-white/50 border border-primary/5 shadow-sm dark:bg-white/5">
                 <Bell className="w-5 h-5 text-accent dark:text-primary" />
               </Button>
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-white text-[8px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-black">
@@ -159,68 +138,68 @@ export default function Dashboard() {
       
       <main className="max-w-2xl mx-auto px-4 pt-4 space-y-6">
         <div className="flex items-center justify-between px-2">
-           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-black px-3 py-1 rounded-full text-[9px] uppercase tracking-tighter">
-             {userData?.tier || "Gold Member"}
+           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-black px-4 py-1.5 rounded-full text-[9px] uppercase tracking-tighter">
+             {userData?.tier || "Platinum Member"}
            </Badge>
            <button 
              onClick={copyAccountNumber}
-             className="flex items-center gap-1.5 text-[9px] text-muted-foreground font-black uppercase tracking-widest bg-muted/30 px-3 py-1.5 rounded-full"
+             className="flex items-center gap-1.5 text-[9px] text-muted-foreground font-black uppercase tracking-widest bg-muted/30 px-4 py-2 rounded-full hover:bg-muted/50 transition-colors"
            >
-             Rek: {accountNumber}
+             No. Rekening: {accountNumber}
              <Copy className="w-3 h-3" />
            </button>
         </div>
 
-        <section className="gold-gradient rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden group border border-white/10">
-          <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-700" />
+        <section className="gold-gradient rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden group border border-white/10">
+          <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-700" />
           
           <div className="relative z-10 space-y-8">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">Total Saldo Aktif</span>
-                <button onClick={() => setShowBalance(!showBalance)} className="text-white/60 hover:text-white bg-white/10 p-1.5 rounded-lg">
-                  {showBalance ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">Available Balance</span>
+                <button onClick={() => setShowBalance(!showBalance)} className="text-white/60 hover:text-white bg-white/10 p-2 rounded-xl transition-colors">
+                  {showBalance ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                 </button>
               </div>
               <Link href="/transactions">
-                <Button size="sm" variant="ghost" className="bg-black/20 text-white rounded-xl text-[10px] font-black px-4 hover:bg-black/30 border border-white/10 uppercase tracking-widest">
-                  Riwayat <ChevronRight className="w-4 h-4 ml-1" />
+                <Button size="sm" variant="ghost" className="bg-black/20 text-white rounded-2xl text-[10px] font-black px-5 h-10 hover:bg-black/30 border border-white/10 uppercase tracking-widest">
+                  History <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </Link>
             </div>
 
-            <div className="text-4xl md:text-5xl font-black tracking-tighter italic drop-shadow-lg">
+            <div className="text-5xl font-black tracking-tighter italic drop-shadow-2xl">
               Rp {showBalance ? balance.toLocaleString('id-ID') : "••••••••"}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/20">
+            <div className="grid grid-cols-2 gap-4 pt-8 border-t border-white/20">
               <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Tabungan</p>
-                <p className="text-lg font-extrabold">Rp {savings.toLocaleString('id-ID')}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Total Savings</p>
+                <p className="text-xl font-black">Rp {savings.toLocaleString('id-ID')}</p>
               </div>
-              <Link href="/topup" className="space-y-1 bg-white/10 p-3 rounded-2xl hover:bg-white/20 transition-colors">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Tambah Saldo</p>
-                <div className="flex items-center gap-2">
-                  <Plus className="w-5 h-5" />
-                  <p className="text-sm font-bold uppercase tracking-wider">Top Up</p>
+              <Link href="/topup" className="flex items-center justify-between bg-white/10 p-4 rounded-2xl hover:bg-white/20 transition-all group">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Manage Funds</p>
+                  <p className="text-sm font-black uppercase tracking-wider">Top Up Wallet</p>
                 </div>
+                <Zap className="w-6 h-6 fill-white group-hover:scale-110 transition-transform" />
               </Link>
             </div>
           </div>
         </section>
 
-        <section className="liquid-glass rounded-[2.5rem] p-6 grid grid-cols-4 gap-y-8 gap-x-2 border-primary/10">
+        <section className="liquid-glass rounded-[3rem] p-8 grid grid-cols-4 gap-y-10 gap-x-2 border-primary/10 shadow-sm">
           {mainServices.map((service, idx) => {
             const Icon = service.icon;
             return (
-              <Link key={idx} href={service.href || "#"} className="flex flex-col items-center gap-2 group text-center">
+              <Link key={idx} href={service.href || "#"} className="flex flex-col items-center gap-3 group text-center">
                 <div className={cn(
-                  "w-14 h-14 rounded-2xl flex items-center justify-center transition-all group-hover:scale-110 group-active:scale-95 shadow-sm border border-primary/5 relative",
+                  "w-16 h-16 rounded-[1.8rem] flex items-center justify-center transition-all group-hover:scale-110 group-active:scale-95 shadow-md border border-primary/5 relative",
                   service.color
                 )}>
-                  <Icon className="w-6 h-6" />
+                  <Icon className="w-7 h-7" />
                   {service.badge && (
-                    <span className="absolute -top-1 -right-1 bg-destructive text-white text-[7px] font-black px-1.5 py-0.5 rounded-full uppercase border border-white dark:border-black">
+                    <span className="absolute -top-1 -right-1 bg-green-600 text-white text-[7px] font-black px-2 py-0.5 rounded-full uppercase border-2 border-white dark:border-black animate-pulse">
                       {service.badge}
                     </span>
                   )}
@@ -233,50 +212,47 @@ export default function Dashboard() {
           })}
         </section>
 
-        <section className="relative overflow-hidden liquid-glass rounded-[2rem] p-6 border-primary/20 border-2 group cursor-pointer animate-pulse">
-          <button onClick={handleInstallClick} className="w-full flex items-center gap-5">
-            <div className="w-14 h-14 rounded-2xl gold-gradient flex items-center justify-center shrink-0 shadow-lg">
-              <Sparkles className="text-white w-7 h-7" />
+        <section className="relative overflow-hidden liquid-glass rounded-[2.5rem] p-8 border-primary/20 border-2 group cursor-pointer hover:border-primary/40 transition-all">
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center shrink-0 shadow-xl">
+              <ShieldCheck className="text-white w-8 h-8" />
             </div>
-            <div className="flex-1 text-left">
-              <div className="flex items-center gap-2 mb-1">
-                <h4 className="text-sm font-black text-accent dark:text-primary uppercase tracking-tight">Pasang AliBank</h4>
-                <Badge className="bg-green-600 text-white text-[7px] font-black py-0 px-2 animate-bounce">Aplikasi</Badge>
-              </div>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Install ke layar utama untuk akses instan.</p>
+            <div className="flex-1">
+              <h4 className="text-base font-black text-accent dark:text-primary uppercase tracking-tight mb-1">Security Update</h4>
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-widest leading-relaxed">Your account is secured with end-to-end encryption and biometrics.</p>
             </div>
-            <ChevronRight className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform" />
-          </button>
+            <ChevronRight className="w-6 h-6 text-primary group-hover:translate-x-2 transition-transform" />
+          </div>
         </section>
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 pt-2 max-w-2xl mx-auto pointer-events-none">
-        <div className="liquid-glass-dark bg-accent/95 rounded-[2.8rem] grid grid-cols-5 items-center h-20 shadow-2xl px-2 border-white/10 pointer-events-auto dark:bg-black/95">
-          <Link href="/" className="flex flex-col items-center gap-1 group">
+      <footer className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8 pt-2 max-w-2xl mx-auto pointer-events-none">
+        <div className="liquid-glass-dark bg-accent/95 rounded-[3rem] grid grid-cols-5 items-center h-22 shadow-2xl px-3 border-white/10 pointer-events-auto dark:bg-black/95">
+          <Link href="/" className="flex flex-col items-center gap-1.5 group">
             <Home className="w-6 h-6 text-primary" />
-            <span className="text-[8px] font-black text-white/90 uppercase tracking-widest">Beranda</span>
+            <span className="text-[9px] font-black text-white/90 uppercase tracking-widest">Main</span>
           </Link>
-          <Link href="/transactions" className="flex flex-col items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
+          <Link href="/transactions" className="flex flex-col items-center gap-1.5 opacity-50 hover:opacity-100 transition-opacity">
             <Clock className="w-6 h-6 text-white" />
-            <span className="text-[8px] font-black text-white uppercase tracking-widest">Riwayat</span>
+            <span className="text-[9px] font-black text-white uppercase tracking-widest">History</span>
           </Link>
           <div className="flex flex-col items-center justify-center relative h-full">
-            <div className="absolute -top-10 left-1/2 -translate-x-1/2">
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2">
               <Link href="/topup">
-                <button className="gold-gradient w-16 h-16 rounded-[1.8rem] flex items-center justify-center shadow-2xl border-4 border-accent dark:border-black hover:scale-105 active:scale-95 transition-all">
-                  <QrCode className="w-8 h-8 text-white" />
+                <button className="gold-gradient w-20 h-20 rounded-[2.2rem] flex items-center justify-center shadow-2xl border-4 border-accent dark:border-black hover:scale-105 active:scale-95 transition-all">
+                  <QrCode className="w-10 h-10 text-white" />
                 </button>
               </Link>
             </div>
-            <span className="mt-10 text-[8px] font-black text-white/50 tracking-widest uppercase">TERIMA</span>
+            <span className="mt-12 text-[9px] font-black text-white/40 tracking-widest uppercase">SCAN</span>
           </div>
-          <Link href="/crypto" className="flex flex-col items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
+          <Link href="/crypto" className="flex flex-col items-center gap-1.5 opacity-50 hover:opacity-100 transition-opacity">
             <Bitcoin className="w-6 h-6 text-white" />
-            <span className="text-[8px] font-black text-white uppercase tracking-widest">Kripto</span>
+            <span className="text-[9px] font-black text-white uppercase tracking-widest">Bridge</span>
           </Link>
-          <Link href="/ai-assistant" className="flex flex-col items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
+          <Link href="/ai-assistant" className="flex flex-col items-center gap-1.5 opacity-50 hover:opacity-100 transition-opacity">
             <Sparkles className="w-6 h-6 text-white" />
-            <span className="text-[8px] font-black text-white uppercase tracking-widest">AI Bank</span>
+            <span className="text-[9px] font-black text-white uppercase tracking-widest">AI Intelligence</span>
           </Link>
         </div>
       </footer>

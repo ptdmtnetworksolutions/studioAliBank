@@ -12,7 +12,9 @@ import {
   Zap, 
   ShieldCheck,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Clock,
+  ArrowRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +41,7 @@ export default function TopUpPage() {
   const { toast } = useToast();
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -50,17 +53,17 @@ export default function TopUpPage() {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({
-      title: "Berhasil!",
-      description: "Nomor rekening berhasil disalin.",
+      title: "Copied!",
+      description: "Account number copied to clipboard.",
     });
   };
 
-  const handleSimulateReceive = async () => {
+  const handleProcessDeposit = async () => {
     if (!user || !db || !amount) {
       toast({
         variant: "destructive",
-        title: "Gagal",
-        description: "Masukkan jumlah saldo yang ingin disimulasikan masuk.",
+        title: "Error",
+        description: "Please enter a valid amount.",
       });
       return;
     }
@@ -69,32 +72,31 @@ export default function TopUpPage() {
     const numAmount = parseFloat(amount);
 
     try {
-      // 1. Simulasikan dana masuk dari bank luar
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
-        description: `Top Up / Terima Dana via Virtual Account`,
+        description: `Deposit via Digital Banking Gateway`,
         category: "Top Up",
         amount: numAmount,
         type: "income",
         timestamp: serverTimestamp()
       });
 
-      // 2. Update saldo akun utama
       await updateDoc(userDocRef!, {
         totalBalance: increment(numAmount)
       });
 
       toast({
-        title: "Saldo Berhasil Masuk!",
-        description: `Simulasi transfer Rp ${numAmount.toLocaleString('id-ID')} berhasil diterima.`,
+        title: "Deposit Successful!",
+        description: `Rp ${numAmount.toLocaleString('id-ID')} has been credited to your account.`,
       });
       setAmount("");
+      setShowConfirmation(false);
     } catch (err: any) {
       console.error(err);
       toast({
         variant: "destructive",
-        title: "Gagal",
-        description: "Gagal mensimulasikan transfer masuk.",
+        title: "System Error",
+        description: "Transaction processing failed. Please try again.",
       });
     } finally {
       setIsProcessing(false);
@@ -106,23 +108,25 @@ export default function TopUpPage() {
       <Navbar />
       
       <main className="container mx-auto px-4 max-w-4xl">
-        <header className="mb-8">
-          <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter dark:text-primary">Terima Dana</h1>
-          <p className="text-muted-foreground text-sm font-medium">Metode mudah untuk memindahkan dana ke rekening AliBank Anda.</p>
+        <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter dark:text-primary">Deposit Gateway</h1>
+            <p className="text-muted-foreground text-sm font-medium">Seamless methods to fund your premium AliBank account.</p>
+          </div>
+          <Badge className="bg-primary/10 text-primary border-primary/20 px-4 py-2 rounded-full font-bold uppercase tracking-widest text-[10px]">
+            Production Ready
+          </Badge>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8 space-y-6">
             <Tabs defaultValue="va" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 h-14 bg-primary/5 rounded-2xl p-1.5 border border-primary/10">
+              <TabsList className="grid w-full grid-cols-2 h-14 bg-primary/5 rounded-2xl p-1.5 border border-primary/10">
                 <TabsTrigger value="va" className="rounded-xl font-bold uppercase text-[10px] tracking-widest data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
-                  Virtual Account
+                  Bank Transfer
                 </TabsTrigger>
-                <TabsTrigger value="qris" className="rounded-xl font-bold uppercase text-[10px] tracking-widest data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
-                  QRIS Universal
-                </TabsTrigger>
-                <TabsTrigger value="sim" className="rounded-xl font-bold uppercase text-[10px] tracking-widest data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
-                  Simulasi
+                <TabsTrigger value="instant" className="rounded-xl font-bold uppercase text-[10px] tracking-widest data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
+                  Instant Credit
                 </TabsTrigger>
               </TabsList>
 
@@ -130,15 +134,15 @@ export default function TopUpPage() {
                 <div className="liquid-glass p-6 rounded-[2rem] border-primary/20 bg-primary/5 mb-6">
                   <div className="flex items-center gap-3 mb-2">
                     <ShieldCheck className="w-5 h-5 text-primary" />
-                    <h3 className="font-bold text-accent dark:text-primary">Instruksi Transfer</h3>
+                    <h3 className="font-bold text-accent dark:text-primary">Transfer Instructions</h3>
                   </div>
                   <p className="text-[10px] text-muted-foreground leading-relaxed uppercase tracking-widest font-bold">
-                    Gunakan nomor VA berikut di aplikasi bank pilihan Anda (m-banking/ATM).
+                    Use these dedicated Virtual Account numbers in your preferred banking app.
                   </p>
                 </div>
 
                 {bankAccounts.map((item) => (
-                  <div key={item.bank} className="liquid-glass p-6 rounded-[2rem] flex items-center justify-between group hover:border-primary/40 transition-all">
+                  <div key={item.bank} className="liquid-glass p-6 rounded-[2rem] flex items-center justify-between group hover:border-primary/40 transition-all cursor-pointer shadow-sm">
                     <div className="flex items-center gap-4">
                       <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-xs shadow-lg", item.color)}>
                         {item.bank}
@@ -162,51 +166,11 @@ export default function TopUpPage() {
                 ))}
               </TabsContent>
 
-              <TabsContent value="qris" className="mt-6">
-                <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden flex flex-col items-center p-10 space-y-8 bg-white dark:bg-black/40">
-                  <div className="text-center space-y-2">
-                    <h3 className="text-2xl font-black italic uppercase tracking-tighter text-accent dark:text-primary">QRIS AliBank</h3>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pindai dengan aplikasi bank atau e-wallet apa saja</p>
-                  </div>
-                  
-                  <div className="relative w-64 h-64 bg-white p-4 rounded-3xl border-4 border-primary/20 shadow-2xl">
-                    <Image 
-                      src="https://picsum.photos/seed/qris/300/300" 
-                      alt="QRIS Mockup" 
-                      width={300}
-                      height={300}
-                      className="rounded-xl grayscale opacity-50"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center flex-col bg-black/5 rounded-2xl backdrop-blur-[1px]">
-                      <QrCode className="w-16 h-16 text-primary animate-pulse" />
-                      <p className="text-[8px] font-black text-accent mt-2 uppercase tracking-widest">Sedang Dihasilkan...</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-4 gap-4 w-full opacity-40 grayscale">
-                    <Image src="https://picsum.photos/seed/bca/50/50" alt="BCA" width={50} height={50} className="rounded-lg" />
-                    <Image src="https://picsum.photos/seed/gopay/50/50" alt="GoPay" width={50} height={50} className="rounded-lg" />
-                    <Image src="https://picsum.photos/seed/shopee/50/50" alt="Shopee" width={50} height={50} className="rounded-lg" />
-                    <Image src="https://picsum.photos/seed/dana/50/50" alt="Dana" width={50} height={50} className="rounded-lg" />
-                  </div>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="sim" className="mt-6">
-                <div className="liquid-glass p-8 rounded-[2.5rem] border-primary/20 space-y-6">
-                  <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl flex gap-4 dark:bg-amber-900/20 dark:border-amber-900/40">
-                    <AlertCircle className="w-6 h-6 text-amber-600 shrink-0" />
-                    <div className="space-y-1">
-                      <h4 className="font-bold text-amber-800 text-sm uppercase tracking-tight dark:text-amber-400">Mode Simulasi</h4>
-                      <p className="text-[10px] text-amber-700 leading-relaxed dark:text-amber-500">
-                        Ini adalah fitur simulasi untuk mencoba bagaimana aplikasi menerima dana dari bank lain secara otomatis (mensimulasikan webhook Payment Gateway).
-                      </p>
-                    </div>
-                  </div>
-
+              <TabsContent value="instant" className="mt-6">
+                <div className="liquid-glass p-8 rounded-[2.5rem] border-primary/20 space-y-8">
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Jumlah simulasi saldo masuk</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Deposit Amount</label>
                       <div className="relative">
                         <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-primary/30">Rp</span>
                         <Input 
@@ -219,14 +183,46 @@ export default function TopUpPage() {
                       </div>
                     </div>
 
-                    <Button 
-                      onClick={handleSimulateReceive}
-                      disabled={isProcessing || !amount}
-                      className="w-full h-16 gold-gradient text-white text-lg font-black italic uppercase tracking-tighter rounded-3xl shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all"
-                    >
-                      {isProcessing ? <Zap className="w-6 h-6 animate-spin" /> : <Zap className="w-6 h-6 fill-white" />}
-                      SIMULASIKAN TERIMA DANA
-                    </Button>
+                    {!showConfirmation ? (
+                      <Button 
+                        onClick={() => setShowConfirmation(true)}
+                        disabled={!amount || parseFloat(amount) <= 0}
+                        className="w-full h-16 gold-gradient text-white text-lg font-black italic uppercase tracking-tighter rounded-3xl shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all"
+                      >
+                        REVIEW DEPOSIT REQUEST <ArrowRight className="w-5 h-5" />
+                      </Button>
+                    ) : (
+                      <div className="space-y-4 p-6 rounded-3xl bg-primary/5 border border-primary/10 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="flex justify-between items-center py-2 border-b border-primary/5">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">Service Provider</span>
+                          <span className="text-sm font-black text-accent">AliBank Internal Gateway</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-primary/5">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">Processing Fee</span>
+                          <span className="text-sm font-black text-green-600">Free (Premium)</span>
+                        </div>
+                        <div className="flex justify-between items-center py-4">
+                          <span className="text-sm font-black text-accent uppercase">Total Credit</span>
+                          <span className="text-xl font-black text-primary">Rp {parseFloat(amount).toLocaleString('id-ID')}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => setShowConfirmation(false)}
+                            className="h-14 rounded-2xl font-bold uppercase text-[10px] tracking-widest"
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            onClick={handleProcessDeposit}
+                            disabled={isProcessing}
+                            className="h-14 gold-gradient text-white font-black italic uppercase tracking-tighter rounded-2xl shadow-lg"
+                          >
+                            {isProcessing ? <Zap className="w-5 h-5 animate-spin" /> : "CONFIRM DEPOSIT"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </TabsContent>
@@ -234,19 +230,19 @@ export default function TopUpPage() {
           </div>
 
           <div className="lg:col-span-4 space-y-6">
-            <Card className="liquid-glass-dark rounded-[2.5rem] p-8 border-none text-white overflow-hidden relative group">
-              <div className="absolute inset-0 gold-gradient opacity-10 group-hover:opacity-20 transition-opacity" />
+            <Card className="liquid-glass-dark rounded-[2.5rem] p-8 border-none text-white overflow-hidden relative group shadow-xl">
+              <div className="absolute inset-0 gold-gradient opacity-10" />
               <div className="relative z-10 space-y-6">
                 <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
                   <Zap className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-black italic uppercase tracking-tighter">Mengapa Top Up di AliBank?</h3>
+                <h3 className="text-xl font-black italic uppercase tracking-tighter">Premium Benefits</h3>
                 <div className="space-y-4">
                   {[
-                    "Bunga tabungan harian s/d 6%",
-                    "Gratis biaya admin bulanan",
-                    "Akses ke produk Deposito Elite",
-                    "Analisis pengeluaran berbasis AI"
+                    "Up to 6% p.a. Interest Rate",
+                    "Zero Monthly Admin Fees",
+                    "Exclusive Wealth Insights",
+                    "AI-Powered Budget Planning"
                   ].map((text, i) => (
                     <div key={i} className="flex items-center gap-3">
                       <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
@@ -257,19 +253,20 @@ export default function TopUpPage() {
               </div>
             </Card>
 
-            <div className="liquid-glass p-8 rounded-[2rem] border-primary/10">
+            <div className="liquid-glass p-8 rounded-[2rem] border-primary/10 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
                 <CreditCard className="w-5 h-5 text-primary" />
-                <h4 className="font-bold text-accent dark:text-primary text-sm uppercase tracking-tight">Limit Harian</h4>
+                <h4 className="font-bold text-accent dark:text-primary text-sm uppercase tracking-tight">Daily Limit</h4>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  <span>Tersisa</span>
-                  <span>Maks. Rp 25.000.000</span>
+                  <span>Available</span>
+                  <span>Rp 25.000.000 Max</span>
                 </div>
                 <div className="w-full h-2 bg-primary/5 rounded-full overflow-hidden">
                   <div className="w-[85%] h-full gold-gradient" />
                 </div>
+                <p className="text-[9px] text-muted-foreground italic text-center">Standard Daily Deposit Limit for Gold Members.</p>
               </div>
             </div>
           </div>
