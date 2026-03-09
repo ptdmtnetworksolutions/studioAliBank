@@ -40,7 +40,7 @@ export default function CryptoPage() {
   const [address, setAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState<string>("0");
   const [vaultBalance, setVaultBalance] = useState<string>("0");
-  const [contractAddress, setContractAddress] = useState("");
+  const [contractAddress, setContractAddress] = useState("0x59B9149D05138c6709D3552783aA3b85f992C79c");
   const [loading, setLoading] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
   const [isContractValid, setIsContractValid] = useState<boolean | null>(null);
@@ -73,7 +73,7 @@ export default function CryptoPage() {
       
       if (contractAddress && contractAddress.length === 42) {
         try {
-          // Validasi apakah alamat tersebut berisi kode kontrak
+          // Validasi apakah alamat tersebut berisi kode kontrak untuk menghindari BAD_DATA
           const code = await provider.getCode(contractAddress);
           if (code === "0x" || code === "0x0") {
             setIsContractValid(false);
