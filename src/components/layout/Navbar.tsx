@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   Bitcoin,
-  Sparkles
+  Sparkles,
+  Store
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ const navItems = [
   { name: "Dompet", href: "/wallets", icon: Wallet },
   { name: "Deposito", href: "/deposits", icon: PiggyBank },
   { name: "Kripto", href: "/crypto", icon: Bitcoin },
+  { name: "Merchant", href: "/merchant", icon: Store },
   { name: "AI", href: "/ai-assistant", icon: Sparkles },
 ];
 

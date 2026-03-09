@@ -26,6 +26,39 @@
       },
       "required": ["uid", "name", "accountNumber", "email"]
     },
+    "MerchantProfile": {
+      "title": "Merchant Profile",
+      "description": "Profil bisnis untuk pengguna yang bertindak sebagai penjual/merchant.",
+      "type": "object",
+      "properties": {
+        "merchantId": { "type": "string" },
+        "businessName": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "category": { "type": "string" },
+        "totalRevenue": { "type": "number" },
+        "pendingSettlement": { "type": "number" },
+        "apiKey": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "suspended", "pending_review"] }
+      },
+      "required": ["merchantId", "businessName", "ownerUid"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Tagihan pembayaran untuk transaksi B2B.",
+      "type": "object",
+      "properties": {
+        "invoiceId": { "type": "string" },
+        "merchantId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "amountIdr": { "type": "number" },
+        "amountCrypto": { "type": "number" },
+        "cryptoCurrency": { "type": "string", "enum": ["ETH", "USDT", "BTC"] },
+        "status": { "type": "string", "enum": ["unpaid", "paid", "expired", "refunded"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "paidAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["invoiceId", "merchantId", "amountIdr", "status"]
+    },
     "Transaction": {
       "title": "Transaction",
       "description": "Catatan transaksi keuangan pengguna.",
@@ -51,6 +84,14 @@
     "/users/{userId}/transactions/{transactionId}": {
       "schema": "Transaction",
       "description": "Riwayat transaksi milik pengguna."
+    },
+    "/merchants/{merchantId}": {
+      "schema": "MerchantProfile",
+      "description": "Data bisnis merchant."
+    },
+    "/merchants/{merchantId}/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Data tagihan pembayaran merchant."
     }
   }
 }
