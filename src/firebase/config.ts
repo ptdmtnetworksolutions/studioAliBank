@@ -1,9 +1,12 @@
 'use client';
 
-// Konfigurasi ini akan diperbarui secara otomatis oleh Firebase Studio.
-// Jika Anda melihat "AIzaSy...", pastikan Anda telah menghubungkan aplikasi di Firebase Console.
+/**
+ * Konfigurasi Firebase untuk AliBank.
+ * Pastikan Anda mengganti nilai di bawah ini dengan konfigurasi asli dari Firebase Console
+ * (Project Settings > General > Your apps > Web apps).
+ */
 export const firebaseConfig = {
-  apiKey: "AIzaSy...", 
+  apiKey: "AIzaSy...", // Ganti dengan API Key asli dari Firebase Console
   authDomain: "darmedia-pos.firebaseapp.com",
   projectId: "darmedia-pos",
   storageBucket: "darmedia-pos.firebasestorage.app",

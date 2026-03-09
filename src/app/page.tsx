@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -38,7 +37,7 @@ import { useAuth } from "@/firebase";
 const mainServices = [
   { name: "Transfer", icon: Send, color: "bg-blue-50 text-blue-600", href: "/transfer" },
   { name: "Top Up & Tagihan", icon: Smartphone, color: "bg-orange-50 text-orange-600", badge: "Promo" },
-  { name: "Top Up E-Wallet", icon: Wallet, color: "bg-brown-50 text-amber-700", href: "/wallets" },
+  { name: "Top Up E-Wallet", icon: Wallet, color: "bg-amber-50 text-amber-700", href: "/wallets" },
   { name: "Undang Teman", icon: Users, color: "bg-red-50 text-red-600" },
   { name: "Deposito", icon: PiggyBank, color: "bg-green-50 text-green-600", href: "/deposits" },
   { name: "Tarik Tunai", icon: ArrowDownToLine, color: "bg-indigo-50 text-indigo-600", badge: "Gratis" },
@@ -68,7 +67,7 @@ export default function Dashboard() {
     }
   }, [user, userLoading, router]);
 
-  if (!mounted || userLoading || dataLoading) {
+  if (!mounted || userLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Sparkles className="w-10 h-10 text-primary animate-pulse" />
@@ -95,6 +94,7 @@ export default function Dashboard() {
                 alt="Profile" 
                 fill 
                 className="object-cover"
+                data-ai-hint="user portrait"
               />
             </div>
             <div>
@@ -189,6 +189,7 @@ export default function Dashboard() {
             alt="Promotion" 
             fill 
             className="object-cover"
+            data-ai-hint="banking promo"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent flex items-center px-8 text-white">
             <div>
@@ -205,9 +206,9 @@ export default function Dashboard() {
             <Home className="w-6 h-6 text-primary" />
             <span className="text-[10px] font-bold text-white/90">Beranda</span>
           </Link>
-          <Link href="/transfer" className="flex flex-col items-center gap-1 opacity-50">
-            <Send className="w-6 h-6 text-white" />
-            <span className="text-[10px] font-bold text-white">Transfer</span>
+          <Link href="/transactions" className="flex flex-col items-center gap-1 opacity-50">
+            <Clock className="w-6 h-6 text-white" />
+            <span className="text-[10px] font-bold text-white">Riwayat</span>
           </Link>
           <div className="flex flex-col items-center justify-center relative h-full">
             <div className="absolute -top-8 left-1/2 -translate-x-1/2">
