@@ -113,7 +113,7 @@ export default function LoginPage() {
             <Info className="h-4 w-4 text-blue-600" />
             <AlertTitle className="text-xs font-bold uppercase tracking-wider">Info Penting Domain</AlertTitle>
             <AlertDescription className="text-[10px] leading-relaxed">
-              Pastikan domain <strong>{currentDomain}</strong> sudah ditambahkan di Firebase Console > Authentication > Settings > Authorized domains.
+              Pastikan domain <strong>{currentDomain}</strong> sudah ditambahkan di Firebase Console &gt; Authentication &gt; Settings &gt; Authorized domains.
             </AlertDescription>
           </Alert>
         )}
