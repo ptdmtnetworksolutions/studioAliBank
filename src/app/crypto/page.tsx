@@ -17,7 +17,10 @@ import {
   Settings,
   AlertCircle,
   CheckCircle2,
-  ExternalLink
+  ExternalLink,
+  Coins,
+  TrendingUp,
+  ArrowRightLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,7 +39,14 @@ const CONTRACT_ABI = [
   "function getContractBalance() public view returns (uint256)"
 ];
 
-const DEFAULT_CONTRACT = "0x8BAFCa0a5a5F288DCcaaf6d951d3D3D59E0d1dd";
+const DEFAULT_CONTRACT = "0x59B9149D05138c6709D3552783aA3b85f992C79c";
+
+const SUPPORTED_ASSETS = [
+  { name: "Bitcoin", symbol: "BTC", icon: Bitcoin, color: "text-orange-500", price: "$68,432.10", change: "+2.4%" },
+  { name: "Ethereum", symbol: "ETH", icon: Cpu, color: "text-blue-500", price: "$3,245.80", change: "+1.8%", active: true },
+  { name: "Tether", symbol: "USDT", icon: ShieldCheck, color: "text-green-500", price: "$1.00", change: "0.0%" },
+  { name: "Binance Coin", symbol: "BNB", icon: Coins, color: "text-yellow-500", price: "$590.20", change: "-0.5%" },
+];
 
 export default function CryptoPage() {
   const { toast } = useToast();
@@ -49,17 +59,12 @@ export default function CryptoPage() {
   const [isContractValid, setIsContractValid] = useState<boolean | null>(null);
   const [inputAmount, setInputAmount] = useState("");
 
-  useEffect(() => {
-    const saved = localStorage.getItem("alibank_contract_address");
-    if (saved) setContractAddress(saved);
-  }, []);
-
   const connectWallet = async () => {
     if (typeof window.ethereum === 'undefined') {
       toast({
         variant: "destructive",
-        title: "Web3 Support Needed",
-        description: "Please use MetaMask browser or extension.",
+        title: "Browser Web3 Dibutuhkan",
+        description: "Gunakan Browser MetaMask di ponsel atau ekstensi di desktop.",
       });
       return;
     }
@@ -68,13 +73,14 @@ export default function CryptoPage() {
     setIsContractValid(null);
     try {
       const provider = new BrowserProvider(window.ethereum);
-      
       const network = await provider.getNetwork();
+      
+      // Verification for Sepolia
       if (network.chainId !== 11155111n) { 
         toast({
           variant: "destructive",
-          title: "Wrong Network",
-          description: "Please switch your MetaMask to Sepolia Network.",
+          title: "Jaringan Salah",
+          description: "Mohon pindah ke Sepolia Test Network di MetaMask Anda.",
         });
         setIsContractValid(false);
         setLoading(false);
@@ -101,29 +107,27 @@ export default function CryptoPage() {
             setVaultBalance(formatEther(vault));
           }
         } catch (e) {
-          console.error("Vault read error:", e);
           setIsContractValid(false);
         }
       }
 
       toast({
-        title: "Wallet Connected",
-        description: `Connected to ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`,
+        title: "Dompet Terhubung",
+        description: `Berhasil terhubung ke jaringan Sepolia.`,
       });
     } catch (err: any) {
-      console.error(err);
       toast({
         variant: "destructive",
-        title: "Connection Failed",
-        description: "Failed to connect to your wallet.",
+        title: "Koneksi Gagal",
+        description: "Gagal menghubungkan ke MetaMask.",
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSmartContractAction = async (action: 'deposit' | 'withdraw', amountVal: string) => {
-    if (!address || !amountVal) return;
+  const handleAction = async (action: 'deposit' | 'withdraw') => {
+    if (!address || !inputAmount) return;
     
     setTxLoading(true);
     try {
@@ -133,30 +137,30 @@ export default function CryptoPage() {
       
       let tx;
       if (action === 'deposit') {
-        tx = await contract.deposit({ value: parseEther(amountVal) });
+        tx = await contract.deposit({ value: parseEther(inputAmount) });
       } else {
-        tx = await contract.withdraw(parseEther(amountVal));
+        tx = await contract.withdraw(parseEther(inputAmount));
       }
 
       toast({
-        title: "Transaction Sent",
-        description: "Waiting for blockchain confirmation...",
+        title: "Transaksi Dikirim",
+        description: "Menunggu konfirmasi blockchain...",
       });
 
       await tx.wait();
       
       toast({
-        title: "Success",
-        description: `Successfully ${action === 'deposit' ? 'deposited' : 'withdrawn'} ${amountVal} ETH.`,
+        title: "Berhasil",
+        description: `Aksi ${action} sebesar ${inputAmount} ETH sukses.`,
       });
       
       connectWallet();
+      setInputAmount("");
     } catch (err: any) {
-      console.error(err);
       toast({
         variant: "destructive",
-        title: "Transaction Failed",
-        description: err.reason || "Ensure you have enough balance and gas.",
+        title: "Transaksi Gagal",
+        description: err.reason || "Pastikan saldo ETH dan Gas cukup.",
       });
     } finally {
       setTxLoading(false);
@@ -167,110 +171,134 @@ export default function CryptoPage() {
     <div className="min-h-screen pb-20 bg-background">
       <Navbar />
       
-      <main className="container mx-auto px-4 max-w-5xl">
+      <main className="container mx-auto px-4 max-w-6xl">
         <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl gold-gradient flex items-center justify-center shadow-lg">
-                <Cpu className="text-white w-6 h-6" />
+              <div className="w-12 h-12 rounded-2xl gold-gradient flex items-center justify-center shadow-xl">
+                <ArrowRightLeft className="text-white w-6 h-6" />
               </div>
-              <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter dark:text-primary">Crypto Bridge</h1>
+              <h1 className="text-4xl font-black text-accent italic uppercase tracking-tighter dark:text-primary">Crypto Bridge</h1>
             </div>
-            <p className="text-muted-foreground text-sm font-medium">Digital banking gateway to the smart contract ecosystem.</p>
+            <p className="text-muted-foreground text-sm font-medium">Gerbang perbankan digital ke ekosistem aset kripto global.</p>
           </div>
           
           <div className="flex gap-2">
             {isContractValid === true && (
-              <Badge className="bg-green-100 text-green-700 border-green-200 flex gap-2 items-center px-4 py-2 rounded-full">
-                <CheckCircle2 className="w-4 h-4" /> Smart Contract Verified
+              <Badge className="bg-green-100 text-green-700 border-green-200 flex gap-2 items-center px-4 py-2 rounded-full font-bold">
+                <CheckCircle2 className="w-4 h-4" /> Sistem Terverifikasi
               </Badge>
             )}
-            <Badge variant="outline" className="border-primary/20 text-primary px-4 py-2 rounded-full uppercase text-[10px] font-bold tracking-widest">
-              Network: Sepolia
+            <Badge variant="outline" className="border-primary/20 text-primary px-4 py-2 rounded-full uppercase text-[10px] font-black tracking-widest">
+              Live: Sepolia Network
             </Badge>
           </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-8 space-y-6">
-            <Card className="liquid-glass border-none rounded-[2.5rem] p-8 relative overflow-hidden group shadow-2xl">
-              <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
+          
+          {/* Main Vault & Multi-Asset Grid */}
+          <div className="lg:col-span-8 space-y-8">
+            
+            {/* Supported Assets Market */}
+            <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {SUPPORTED_ASSETS.map((asset) => (
+                <Card key={asset.symbol} className="liquid-glass border-none p-5 rounded-[2rem] hover:scale-105 transition-transform cursor-pointer">
+                  <div className="flex flex-col items-center text-center gap-3">
+                    <div className={cn("p-3 rounded-2xl bg-white/50 dark:bg-black/50 shadow-inner", asset.color)}>
+                      <asset.icon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-muted-foreground">{asset.name}</p>
+                      <p className="text-sm font-bold text-accent dark:text-primary">{asset.price}</p>
+                      <p className={cn("text-[9px] font-bold", asset.change.startsWith('+') ? "text-green-600" : "text-red-600")}>
+                        {asset.change}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </section>
+
+            {/* ETH Main Vault Interaction */}
+            <Card className="liquid-glass-dark border-none rounded-[3rem] p-10 relative overflow-hidden shadow-2xl">
+              <div className="absolute -right-20 -top-20 w-80 h-80 bg-primary/10 rounded-full blur-[100px]" />
               
-              <div className="relative z-10 space-y-8">
+              <div className="relative z-10 space-y-10">
                 <div className="flex justify-between items-start">
                   <div>
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 uppercase text-[9px] font-black tracking-widest px-3 py-1">
-                      On-Chain Banking
+                    <Badge className="bg-primary text-white font-black uppercase tracking-widest text-[9px] px-3 py-1 mb-2">
+                      Ethereum Main Vault
                     </Badge>
-                    <h3 className="text-xl font-bold text-accent dark:text-primary mt-2">AliBank Digital Vault</h3>
+                    <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">AliBank Digital Custody</h3>
                   </div>
-                  <Bitcoin className="w-8 h-8 text-primary/40" />
+                  <Cpu className="w-10 h-10 text-primary animate-pulse" />
                 </div>
 
                 {address ? (
-                  <div className="space-y-8">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-primary/5 p-6 rounded-2xl border border-primary/10">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Wallet Balance</p>
-                        <p className="text-3xl font-black italic tracking-tighter text-accent dark:text-primary">
-                          {parseFloat(balance).toFixed(4)} <span className="text-xs">ETH</span>
+                  <div className="space-y-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="bg-white/10 p-8 rounded-[2rem] border border-white/10 backdrop-blur-md">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-white/60 mb-2">Saldo Dompet (Web3)</p>
+                        <p className="text-4xl font-black italic tracking-tighter text-white">
+                          {parseFloat(balance).toFixed(4)} <span className="text-sm opacity-50">ETH</span>
                         </p>
                       </div>
-                      <div className="bg-accent/5 p-6 rounded-2xl border border-accent/10">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Vault Balance</p>
-                        <p className="text-3xl font-black italic tracking-tighter text-accent dark:text-primary">
-                          {parseFloat(vaultBalance).toFixed(4)} <span className="text-xs">ETH</span>
+                      <div className="bg-primary/20 p-8 rounded-[2rem] border border-primary/20 backdrop-blur-md">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary/80 mb-2">Saldo AliBank Vault</p>
+                        <p className="text-4xl font-black italic tracking-tighter text-primary">
+                          {parseFloat(vaultBalance).toFixed(4)} <span className="text-sm opacity-50 text-white">ETH</span>
                         </p>
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       <div className="relative">
-                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-primary/30">ETH</span>
+                        <span className="absolute left-8 top-1/2 -translate-y-1/2 text-3xl font-black text-white/20">ETH</span>
                         <Input 
                           type="number" 
                           placeholder="0.00"
                           value={inputAmount}
                           onChange={(e) => setInputAmount(e.target.value)}
-                          className="h-16 pl-16 rounded-2xl liquid-glass border-none text-xl font-bold"
+                          className="h-20 pl-24 rounded-[2rem] bg-white/5 border-none text-2xl font-black text-white focus:ring-2 focus:ring-primary/50"
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-4">
                         <Button 
-                          onClick={() => handleSmartContractAction('deposit', inputAmount)}
+                          onClick={() => handleAction('deposit')}
                           disabled={txLoading || !inputAmount || isContractValid !== true}
-                          className="h-14 gold-gradient text-white font-black italic rounded-2xl flex gap-2 active:scale-95 transition-all shadow-xl shadow-primary/20"
+                          className="h-16 gold-gradient text-white font-black italic uppercase tracking-tighter rounded-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all"
                         >
-                          {txLoading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ArrowDownRight className="w-5 h-5" />}
-                          DEPOSIT TO VAULT
+                          {txLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : <ArrowDownRight className="w-6 h-6 mr-2" />}
+                          Setor ke Vault
                         </Button>
                         <Button 
-                          onClick={() => handleSmartContractAction('withdraw', inputAmount)}
+                          onClick={() => handleAction('withdraw')}
                           disabled={txLoading || !inputAmount || isContractValid !== true}
                           variant="outline"
-                          className="h-14 border-primary/20 text-primary font-black italic rounded-2xl flex gap-2 active:scale-95 transition-all"
+                          className="h-16 border-white/20 text-white hover:bg-white/5 font-black italic uppercase tracking-tighter rounded-2xl active:scale-95 transition-all"
                         >
-                          {txLoading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ArrowUpRight className="w-5 h-5" />}
-                          WITHDRAW FROM VAULT
+                          {txLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : <ArrowUpRight className="w-6 h-6 mr-2" />}
+                          Tarik ke Dompet
                         </Button>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="py-20 text-center space-y-6 border-2 border-dashed border-primary/10 rounded-[2rem]">
-                    <div className="w-20 h-20 rounded-full bg-primary/5 flex items-center justify-center mx-auto">
-                      <LinkIcon className="w-10 h-10 text-primary/30" />
+                  <div className="py-24 text-center space-y-8 border-2 border-dashed border-white/10 rounded-[3rem]">
+                    <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mx-auto border border-white/10 shadow-inner">
+                      <LinkIcon className="w-12 h-12 text-primary/40" />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-lg font-bold text-accent uppercase tracking-tight dark:text-primary">Web3 Bridge Inactive</p>
-                      <p className="text-xs text-muted-foreground px-10">Connect your MetaMask wallet to interact with the AliBank Digital Vault.</p>
+                      <p className="text-2xl font-black text-white italic uppercase tracking-tight">Koneksi Kripto Tidak Aktif</p>
+                      <p className="text-xs text-white/40 px-20 font-medium">Hubungkan MetaMask Anda di jaringan Sepolia untuk mengakses protokol Vault AliBank.</p>
                     </div>
                     <Button 
                       onClick={connectWallet}
                       disabled={loading}
-                      className="gold-gradient text-white font-black italic uppercase tracking-tighter px-12 h-16 rounded-2xl shadow-2xl active:scale-95 transition-all"
+                      className="gold-gradient text-white font-black italic uppercase tracking-tighter px-16 h-18 rounded-3xl shadow-2xl hover:scale-110 active:scale-95 transition-all"
                     >
-                      {loading ? <RefreshCw className="w-6 h-6 animate-spin" /> : "ACTIVATE CRYPTO BRIDGE"}
+                      {loading ? <RefreshCw className="w-6 h-6 animate-spin" /> : "AKTIFKAN WEB3 BRIDGE"}
                     </Button>
                   </div>
                 )}
@@ -278,50 +306,55 @@ export default function CryptoPage() {
             </Card>
           </div>
 
+          {/* Sidebar Info Assets */}
           <div className="lg:col-span-4 space-y-6">
-            <Card className="liquid-glass border-none rounded-[2rem] p-6">
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-accent dark:text-primary mb-6 flex items-center gap-2">
-                <Settings className="w-4 h-4" /> Contract Configuration
+            <Card className="liquid-glass border-none rounded-[2.5rem] p-8 shadow-xl">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-accent dark:text-primary mb-8 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" /> Market Status
               </h4>
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-bold text-muted-foreground ml-1 uppercase">Active Contract Address</Label>
-                  <div className="relative">
-                    <Input 
-                      value={contractAddress}
-                      onChange={(e) => {
-                        setContractAddress(e.target.value);
-                        localStorage.setItem("alibank_contract_address", e.target.value);
-                        setIsContractValid(null);
-                      }}
-                      className="h-12 rounded-xl border-primary/10 bg-white/50 dark:bg-black/50 font-mono text-[10px] pr-10 truncate"
-                    />
-                    {isContractValid === true && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-600" />}
+              <div className="space-y-6">
+                {SUPPORTED_ASSETS.map((asset) => (
+                  <div key={asset.symbol} className="flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className={cn("w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center", asset.color)}>
+                        <asset.icon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-accent dark:text-primary">{asset.symbol}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase">{asset.name}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-accent dark:text-primary">{asset.price}</p>
+                      <p className={cn("text-[9px] font-bold", asset.change.startsWith('+') ? "text-green-600" : "text-red-600")}>
+                        {asset.change}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
-                  <p className="text-[10px] text-muted-foreground leading-relaxed italic">
-                    All vault operations are decentralized and secured by the Ethereum blockchain. Withdrawal is only permitted to the original depositing address.
-                  </p>
-                </div>
+                ))}
               </div>
+              <Button variant="outline" className="w-full mt-10 border-primary/20 text-primary font-black uppercase text-[10px] tracking-widest h-12 rounded-xl">
+                Lihat Semua Aset <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
             </Card>
 
-            <Card className="liquid-glass-dark rounded-[2rem] p-6 text-white border-none shadow-xl">
-              <div className="space-y-4">
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                  <ShieldCheck className="w-6 h-6 text-primary" />
+            <Card className="liquid-glass-dark rounded-[2.5rem] p-8 text-white border-none shadow-2xl relative overflow-hidden">
+               <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-2xl" />
+               <div className="relative z-10 space-y-6">
+                <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center">
+                  <ShieldCheck className="w-8 h-8 text-primary shadow-glow" />
                 </div>
-                <h4 className="font-black italic uppercase tracking-tighter">Security Protocol</h4>
-                <p className="text-[10px] text-white/70 leading-relaxed uppercase tracking-widest font-bold">
-                  Transactions require double-layer verification. Ensure gas fees are sufficient on Sepolia.
+                <h4 className="text-xl font-black italic uppercase tracking-tighter">Keamanan Protokol</h4>
+                <p className="text-[11px] text-white/70 leading-relaxed font-medium uppercase tracking-wider">
+                  Seluruh dana di dalam Vault diamankan oleh Smart Contract yang terdesentralisasi. AliBank tidak memiliki akses ke kunci pribadi Anda.
                 </p>
-                <Button variant="link" className="text-primary p-0 h-auto text-[10px] font-black uppercase tracking-widest">
-                  View Audit Report <ExternalLink className="w-3 h-3 ml-1" />
-                </Button>
+                <div className="pt-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
+                  <ExternalLink className="w-4 h-4" /> Buka Laporan Audit
+                </div>
               </div>
             </Card>
           </div>
+
         </div>
       </main>
     </div>
