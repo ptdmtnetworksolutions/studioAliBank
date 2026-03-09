@@ -1,13 +1,11 @@
-
-// Service Worker minimal untuk syarat PWA
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  console.log('AliBank Service Worker: Installed');
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+  console.log('AliBank Service Worker: Activated');
 });
 
 self.addEventListener('fetch', (event) => {
-  // Biarkan browser menangani fetch secara default
+  // Handler dasar untuk PWA
 });
