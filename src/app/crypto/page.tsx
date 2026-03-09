@@ -72,8 +72,9 @@ export default function CryptoPage() {
         toast({
           variant: "destructive",
           title: "Jaringan Salah",
-          description: "Silakan ubah jaringan MetaMask Anda ke Sepolia.",
+          description: "Klik pojok kiri atas MetaMask (sebelah Account 1) dan pilih 'Sepolia'.",
         });
+        setIsContractValid(false);
         setLoading(false);
         return;
       }
@@ -94,7 +95,7 @@ export default function CryptoPage() {
             toast({
               variant: "destructive",
               title: "Kontrak Tidak Ditemukan",
-              description: "Kontrak tidak ada di jaringan ini. Pastikan Anda sudah Deploy ke Sepolia.",
+              description: "Kontrak tidak ada di jaringan ini. Pastikan MetaMask di jaringan SEPOLIA.",
             });
           } else {
             setIsContractValid(true);
@@ -206,7 +207,7 @@ export default function CryptoPage() {
                 )}
                 {isContractValid === false && (
                   <Badge variant="destructive" className="flex gap-1 items-center">
-                    <AlertCircle className="w-3 h-3" /> Alamat/Jaringan Salah
+                    <AlertCircle className="w-3 h-3" /> Jaringan Salah
                   </Badge>
                 )}
               </div>
@@ -225,9 +226,12 @@ export default function CryptoPage() {
                   />
                   {isContractValid === true && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-600" />}
                 </div>
-                <p className="text-[8px] text-muted-foreground mt-1 ml-1 uppercase font-bold tracking-widest leading-relaxed">
-                  PENTING: Jika muncul "Alamat/Jaringan Salah", pastikan MetaMask Anda sudah berada di jaringan <strong>Sepolia</strong>.
-                </p>
+                <div className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/10">
+                  <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">Lokasi Tombol Ganti Jaringan:</p>
+                  <p className="text-[9px] text-muted-foreground leading-relaxed">
+                    Klik tombol lonjong berisi ikon-ikon kecil di <strong>POJOK KIRI ATAS</strong> MetaMask (tepat di sebelah kiri tulisan "Account 1"), lalu pilih <strong>Sepolia</strong>.
+                  </p>
+                </div>
               </div>
             </Card>
 
@@ -322,16 +326,13 @@ export default function CryptoPage() {
                 <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
                   <CheckCircle2 className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-black italic uppercase tracking-tighter">Selesai Deploy!</h3>
-                <p className="text-xs text-white/70 leading-relaxed uppercase font-bold">
-                  Langkah terakhir untuk aktivasi:
-                </p>
+                <h3 className="text-xl font-black italic uppercase tracking-tighter">Solusi Jaringan</h3>
                 <div className="space-y-4">
                   {[
-                    "Pastikan MetaMask di jaringan Sepolia.",
-                    "Salin alamat kontrak dari tombol 'Copy' di Remix.",
-                    "Tempel alamat di kolom Konfigurasi di atas.",
-                    "Klik 'AKTIFKAN BRIDGE' untuk memverifikasi kontrak."
+                    "Cek pojok kiri atas MetaMask (sebelah kiri tulisan Account 1).",
+                    "Klik tombol ikon tersebut.",
+                    "Pilih 'Sepolia Test Network'.",
+                    "Kembali ke sini dan klik 'AKTIFKAN BRIDGE'."
                   ].map((item, i) => (
                     <div key={i} className="flex items-start gap-3">
                       <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0 text-[10px] font-bold text-white">{i+1}</div>
