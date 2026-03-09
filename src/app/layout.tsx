@@ -13,8 +13,11 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'AliBank',
+  },
+  formatDetection: {
+    telephone: false,
   },
 };
 
@@ -24,6 +27,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -39,8 +43,10 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/icon.svg" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body className="font-body antialiased bg-background text-foreground transition-colors duration-300">
+      <body className="font-body antialiased bg-background text-foreground transition-colors duration-300 overflow-x-hidden">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -48,8 +54,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <FirebaseClientProvider>
-            <div className="min-h-screen relative">
-              {children}
+            <div className="min-h-screen relative flex flex-col">
+              <div className="flex-1 pb-24">
+                {children}
+              </div>
               <BottomNav />
             </div>
             <Toaster />
@@ -59,7 +67,11 @@ export default function RootLayout({
           {`
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js');
+                navigator.serviceWorker.register('/sw.js').then(function(registration) {
+                  console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, function(err) {
+                  console.log('ServiceWorker registration failed: ', err);
+                });
               });
             }
           `}

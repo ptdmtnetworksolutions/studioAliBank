@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -72,9 +73,11 @@
 @layer base {
   * {
     @apply border-border;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-background text-foreground font-body antialiased selection:bg-primary/30 selection:text-accent;
+    overscroll-behavior-y: none;
   }
 }
 
@@ -117,4 +120,12 @@ h1, h2, h3, h4 {
 
 .dark header {
   @apply bg-black/60 border-white/5;
+}
+
+/* PWA Optimizations */
+@media all and (display-mode: standalone) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-top: env(safe-area-inset-top);
+  }
 }
