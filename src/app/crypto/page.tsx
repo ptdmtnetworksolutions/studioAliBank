@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -40,7 +41,6 @@ export default function CryptoPage() {
   const [address, setAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState<string>("0");
   const [vaultBalance, setVaultBalance] = useState<string>("0");
-  // Menggunakan alamat kontrak user yang sudah dideploy
   const [contractAddress, setContractAddress] = useState("0x59B9149D05138c6709D3552783aA3b85f992C79c");
   const [loading, setLoading] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
@@ -56,7 +56,7 @@ export default function CryptoPage() {
       toast({
         variant: "destructive",
         title: "Web3 Tidak Ditemukan",
-        description: "Jika di ponsel, silakan buka aplikasi AliBank melalui Browser di dalam aplikasi MetaMask.",
+        description: "Gunakan browser di dalam aplikasi MetaMask Mobile.",
       });
       return;
     }
@@ -65,6 +65,19 @@ export default function CryptoPage() {
     setIsContractValid(null);
     try {
       const provider = new BrowserProvider(window.ethereum);
+      
+      // Check network
+      const network = await provider.getNetwork();
+      if (network.chainId !== 11155111n) { // Sepolia chainId
+        toast({
+          variant: "destructive",
+          title: "Jaringan Salah",
+          description: "Silakan ubah jaringan MetaMask Anda ke Sepolia.",
+        });
+        setLoading(false);
+        return;
+      }
+
       const accounts = await provider.send("eth_requestAccounts", []);
       const userAddress = accounts[0];
       const ethBalance = await provider.getBalance(userAddress);
@@ -81,7 +94,7 @@ export default function CryptoPage() {
             toast({
               variant: "destructive",
               title: "Kontrak Tidak Ditemukan",
-              description: "Pastikan MetaMask Anda berada di jaringan Sepolia.",
+              description: "Kontrak tidak ada di jaringan ini. Pastikan Anda sudah Deploy ke Sepolia.",
             });
           } else {
             setIsContractValid(true);
@@ -104,7 +117,7 @@ export default function CryptoPage() {
       toast({
         variant: "destructive",
         title: "Koneksi Ditolak",
-        description: "User menolak permintaan atau terjadi kesalahan jaringan.",
+        description: "Gagal menghubungkan dompet.",
       });
     } finally {
       setLoading(false);
@@ -193,7 +206,7 @@ export default function CryptoPage() {
                 )}
                 {isContractValid === false && (
                   <Badge variant="destructive" className="flex gap-1 items-center">
-                    <AlertCircle className="w-3 h-3" /> Alamat Salah
+                    <AlertCircle className="w-3 h-3" /> Alamat/Jaringan Salah
                   </Badge>
                 )}
               </div>
@@ -213,7 +226,7 @@ export default function CryptoPage() {
                   {isContractValid === true && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-600" />}
                 </div>
                 <p className="text-[8px] text-muted-foreground mt-1 ml-1 uppercase font-bold tracking-widest leading-relaxed">
-                  PENTING: Pastikan Anda menyalin alamat kontrak dari panel <strong>"Deployed Contracts"</strong> (paling bawah), bukan hash transaksi dari log konsol.
+                  PENTING: Jika muncul "Alamat/Jaringan Salah", pastikan MetaMask Anda sudah berada di jaringan <strong>Sepolia</strong>.
                 </p>
               </div>
             </Card>
