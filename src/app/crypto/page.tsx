@@ -313,7 +313,7 @@ export default function CryptoPage() {
                     <strong>PANDUAN CEPAT:</strong>
                   </p>
                   <ol className="text-[8px] text-muted-foreground list-decimal ml-4 space-y-1">
-                    <li>Aktifkan <strong>"Show test networks"</strong> di MetaMask Settings {'>'} Advanced.</li>
+                    <li>Aktifkan <strong>"Show test networks"</strong> di MetaMask Settings {'>>'} Advanced.</li>
                     <li>Pilih jaringan <strong>Sepolia</strong> di MetaMask.</li>
                     <li>Deploy <code>AliBankPayment.sol</code> dari proyek ini di Remix.</li>
                     <li>Salin alamat kontrak hasil deploy.</li>
@@ -328,7 +328,7 @@ export default function CryptoPage() {
               <div>
                 <h4 className="text-xs font-bold text-amber-800 uppercase tracking-tight dark:text-amber-400">Penting!</h4>
                 <p className="text-[9px] text-amber-700 leading-relaxed dark:text-amber-500">
-                  Pastikan Anda memiliki saldo Sepolia ETH untuk membayar gas fee. Jika belum punya, Anda bisa mencarinya di "Sepolia Faucet" di Google.
+                  Pastikan Anda memiliki saldo Sepolia ETH untuk membayar gas fee. Jika saldo 0 (insufficient funds), cari <strong>"Sepolia Faucet"</strong> di Google untuk mendapatkan ETH gratis.
                 </p>
               </div>
             </div>
