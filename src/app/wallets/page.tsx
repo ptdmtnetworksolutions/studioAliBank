@@ -7,6 +7,7 @@ import { Wallet, Plus, Bitcoin, Gift, ArrowRight, ExternalLink } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useState, useEffect } from "react";
 
 const iconMap: Record<string, any> = {
   Wallet,
@@ -15,6 +16,12 @@ const iconMap: Record<string, any> = {
 };
 
 export default function WalletsPage() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <div className="min-h-screen pb-12">
       <Navbar />
@@ -45,7 +52,9 @@ export default function WalletsPage() {
                   
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-muted-foreground">{wallet.name}</p>
-                    <h3 className="text-3xl font-bold text-accent">${wallet.balance.toLocaleString()}</h3>
+                    <h3 className="text-3xl font-bold text-accent">
+                      ${mounted ? wallet.balance.toLocaleString() : wallet.balance.toFixed(2)}
+                    </h3>
                   </div>
 
                   <div className="flex gap-2 mt-8">

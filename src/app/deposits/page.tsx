@@ -7,6 +7,7 @@ import { PiggyBank, TrendingUp, Calendar, ChevronRight, ShieldCheck, Zap } from 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
 
 const depositProducts = [
   { 
@@ -36,6 +37,12 @@ const depositProducts = [
 ];
 
 export default function DepositsPage() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <div className="min-h-screen pb-12">
       <Navbar />
@@ -64,7 +71,9 @@ export default function DepositsPage() {
                   </div>
                   <div className="flex justify-between items-end">
                     <div>
-                      <p className="text-2xl font-bold text-accent">${dep.amount.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-accent">
+                        ${mounted ? dep.amount.toLocaleString() : dep.amount.toFixed(2)}
+                      </p>
                       <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Principal Amount</p>
                     </div>
                     <Button size="sm" variant="ghost" className="text-primary p-0 h-auto hover:bg-transparent">
@@ -80,7 +89,9 @@ export default function DepositsPage() {
                 <TrendingUp className="w-6 h-6" />
                 <h3 className="font-bold">Total Interest Earned</h3>
               </div>
-              <p className="text-3xl font-bold">$1,240.42</p>
+              <p className="text-3xl font-bold">
+                ${mounted ? (1240.42).toLocaleString() : "1,240.42"}
+              </p>
               <p className="text-xs text-white/70 mt-1">Accumulated since Jan 2024</p>
             </div>
           </div>

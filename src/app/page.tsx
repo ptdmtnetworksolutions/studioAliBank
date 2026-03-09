@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
 
 const quickServices = [
   { name: "Top Up", icon: Smartphone, color: "bg-blue-100 text-blue-600", desc: "Mobile & Wallets" },
@@ -30,6 +31,12 @@ const quickServices = [
 ];
 
 export default function Dashboard() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <div className="min-h-screen pb-20 bg-background">
       <Navbar />
@@ -50,7 +57,7 @@ export default function Dashboard() {
                   <div>
                     <p className="text-white/70 text-sm font-bold uppercase tracking-[0.2em] mb-2">Total Combined Balance</p>
                     <h2 className="text-6xl font-extrabold tracking-tighter drop-shadow-md">
-                      ${MOCK_USER.totalBalance.toLocaleString()}
+                      ${mounted ? MOCK_USER.totalBalance.toLocaleString() : MOCK_USER.totalBalance.toFixed(2)}
                     </h2>
                     <p className="text-white/60 text-xs mt-3 flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" /> Updated just now
@@ -205,7 +212,9 @@ export default function Dashboard() {
                       </div>
                       <Badge variant="secondary" className="bg-primary text-white font-bold">{dep.rate}</Badge>
                     </div>
-                    <p className="text-2xl font-extrabold text-accent">${dep.amount.toLocaleString()}</p>
+                    <p className="text-2xl font-extrabold text-accent">
+                      ${mounted ? dep.amount.toLocaleString() : dep.amount.toFixed(2)}
+                    </p>
                   </div>
                 ))}
                 <Button variant="outline" className="w-full border-primary/20 text-primary hover:bg-primary/5 h-12 rounded-xl font-bold">
@@ -230,7 +239,9 @@ export default function Dashboard() {
                     </div>
                     <span className="text-sm font-bold text-accent">FinPay Wallet</span>
                   </div>
-                  <span className="text-sm font-extrabold text-accent">$450.25</span>
+                  <span className="text-sm font-extrabold text-accent">
+                    ${mounted ? (450.25).toLocaleString() : "450.25"}
+                  </span>
                 </div>
                 <Button variant="ghost" className="w-full text-sm font-bold text-muted-foreground hover:bg-accent/5 rounded-xl h-12">
                   + Link New Platform

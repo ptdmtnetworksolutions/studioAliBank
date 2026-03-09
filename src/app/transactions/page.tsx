@@ -7,10 +7,15 @@ import { Search, Filter, ArrowUpRight, ArrowDownLeft, Download } from "lucide-re
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const filtered = MOCK_TRANSACTIONS.filter(t => 
     t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -75,7 +80,7 @@ export default function TransactionsPage() {
                     "font-bold text-lg",
                     tx.type === "income" ? "text-green-600" : "text-accent"
                   )}>
-                    {tx.type === "income" ? "+" : "-"}${tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    {tx.type === "income" ? "+" : "-"}${mounted ? tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : tx.amount.toFixed(2)}
                   </p>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Completed</p>
                 </div>
