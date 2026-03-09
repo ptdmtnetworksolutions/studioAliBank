@@ -14,7 +14,8 @@ import {
   ChevronRight,
   Cpu,
   Settings,
-  AlertCircle
+  AlertCircle,
+  CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -145,12 +146,6 @@ export default function CryptoPage() {
     }
   };
 
-  const [contractAddr, setContractAddr] = useState("");
-  useEffect(() => {
-    const saved = localStorage.getItem("alibank_contract_address");
-    if (saved) setContractAddr(saved);
-  }, []);
-
   return (
     <div className="min-h-screen pb-20 bg-background">
       <Navbar />
@@ -170,21 +165,31 @@ export default function CryptoPage() {
           <div className="lg:col-span-7 space-y-6">
             
             <Card className="liquid-glass border-none rounded-[2rem] p-6 mb-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Settings className="w-5 h-5 text-primary" />
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-accent dark:text-primary">Konfigurasi Kontrak Pintar</h4>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Settings className="w-5 h-5 text-primary" />
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-accent dark:text-primary">Konfigurasi Kontrak Pintar</h4>
+                </div>
+                {contractAddress.length === 42 && (
+                  <Badge className="bg-green-100 text-green-700 border-green-200 flex gap-1 items-center">
+                    <CheckCircle2 className="w-3 h-3" /> Terkoneksi
+                  </Badge>
+                )}
               </div>
               <div className="space-y-2">
-                <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Deployed Contract Address (Sepolia Testnet)</Label>
-                <Input 
-                  placeholder="0x..."
-                  value={contractAddr}
-                  onChange={(e) => {
-                    setContractAddr(e.target.value);
-                    localStorage.setItem("alibank_contract_address", e.target.value);
-                  }}
-                  className="h-12 rounded-xl border-primary/20 bg-white/50 dark:bg-black/50 font-mono text-xs"
-                />
+                <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Alamat Kontrak Hasil Deploy (Remix)</Label>
+                <div className="relative">
+                  <Input 
+                    placeholder="0x..."
+                    value={contractAddress}
+                    onChange={(e) => {
+                      setContractAddress(e.target.value);
+                      localStorage.setItem("alibank_contract_address", e.target.value);
+                    }}
+                    className="h-12 rounded-xl border-primary/20 bg-white/50 dark:bg-black/50 font-mono text-xs pr-10"
+                  />
+                  {contractAddress.length === 42 && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-600" />}
+                </div>
               </div>
             </Card>
 
@@ -233,7 +238,7 @@ export default function CryptoPage() {
                       <div className="grid grid-cols-2 gap-3">
                         <Button 
                           onClick={() => handleSmartContractAction('deposit')}
-                          disabled={txLoading || !amount}
+                          disabled={txLoading || !amount || contractAddress.length !== 42}
                           className="h-14 gold-gradient text-white font-black italic rounded-2xl flex gap-2 active:scale-95 transition-all"
                         >
                           {txLoading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ArrowDownRight className="w-5 h-5" />}
@@ -241,7 +246,7 @@ export default function CryptoPage() {
                         </Button>
                         <Button 
                           onClick={() => handleSmartContractAction('withdraw')}
-                          disabled={txLoading || !amount}
+                          disabled={txLoading || !amount || contractAddress.length !== 42}
                           variant="outline"
                           className="h-14 border-primary/20 text-primary font-black italic rounded-2xl flex gap-2 active:scale-95 transition-all"
                         >
@@ -271,37 +276,27 @@ export default function CryptoPage() {
                 )}
               </div>
             </Card>
-
-            <div className="liquid-glass p-8 rounded-[2rem] border-primary/10 flex gap-5 items-center">
-              <div className="w-12 h-12 rounded-2xl bg-green-50 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-sm font-bold text-accent dark:text-primary uppercase tracking-tight">Status Keamanan</h4>
-                <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  Semua transaksi diproses secara atomik menggunakan prinsip Trustless Banking.
-                </p>
-              </div>
-            </div>
           </div>
 
           <div className="lg:col-span-5 space-y-6">
-            <Card className="liquid-glass-dark rounded-[2.5rem] p-8 border-none text-white overflow-hidden relative group shadow-2xl">
-              <div className="absolute inset-0 gold-gradient opacity-10" />
+            <Card className="liquid-glass-dark rounded-[2.5rem] p-8 border-none text-white overflow-hidden relative group shadow-2xl bg-green-900/40">
               <div className="relative z-10 space-y-6">
                 <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
-                  <Zap className="w-6 h-6 text-primary" />
+                  <CheckCircle2 className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-black italic uppercase tracking-tighter">Keuntungan On-Chain</h3>
+                <h3 className="text-xl font-black italic uppercase tracking-tighter">Langkah Terakhir!</h3>
+                <p className="text-xs text-white/70 leading-relaxed uppercase font-bold">
+                  Karena Anda sudah sukses deploy di Remix:
+                </p>
                 <div className="space-y-4">
                   {[
-                    "Transparansi Publik 100%",
-                    "Bunga Vault s/d 8.5% p.a.",
-                    "Keamanan Lapis Ganda (Web3)",
-                    "Akses Tanpa Perantara Bank"
+                    "Cari 'Deployed Contracts' di pojok kiri bawah Remix.",
+                    "Klik ikon kotak (Copy) di samping alamat kontrak.",
+                    "Tempel alamat tersebut di kolom Konfigurasi di atas.",
+                    "Tekan tombol DEPOSIT untuk transaksi pertama Anda!"
                   ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <div className="w-2 h-2 rounded-full bg-primary" />
+                    <div key={i} className="flex items-start gap-3">
+                      <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0 text-[10px] font-bold text-white">{i+1}</div>
                       <p className="text-[10px] font-black uppercase tracking-widest text-white/80">{item}</p>
                     </div>
                   ))}
@@ -314,26 +309,12 @@ export default function CryptoPage() {
                 <Info className="w-5 h-5 text-primary shrink-0" />
                 <div className="space-y-2">
                   <p className="text-[9px] font-bold leading-relaxed text-muted-foreground uppercase tracking-wider">
-                    <strong>PANDUAN SOLUSI ERROR SALDO:</strong>
+                    <strong>PENTING:</strong>
                   </p>
-                  <ol className="text-[8px] text-muted-foreground list-decimal ml-4 space-y-1">
-                    <li>Di MetaMask, pastikan Anda sudah beralih ke jaringan <strong>Sepolia Test Network</strong>.</li>
-                    <li>Jika saldo belum muncul, tunggu 1-2 menit hingga transaksi di blokchain selesai.</li>
-                    <li>Setelah saldo muncul (0.05 ETH), kembali ke <strong>Remix IDE</strong>.</li>
-                    <li>Pastikan Environment adalah <strong>"Injected Provider - MetaMask"</strong>.</li>
-                    <li>Klik <strong>Deploy</strong>, lalu salin alamat kontraknya ke aplikasi ini.</li>
-                  </ol>
+                  <p className="text-[8px] text-muted-foreground leading-relaxed uppercase">
+                    Pastikan dompet MetaMask Anda berada di jaringan <strong>Sepolia Test Network</strong> agar saldo Vault terbaca dengan benar.
+                  </p>
                 </div>
-              </div>
-            </div>
-            
-            <div className="bg-amber-50 border border-amber-200 p-6 rounded-[2rem] flex gap-4 dark:bg-amber-900/20 dark:border-amber-900/40">
-              <AlertCircle className="w-6 h-6 text-amber-600 shrink-0" />
-              <div>
-                <h4 className="text-xs font-bold text-amber-800 uppercase tracking-tight dark:text-amber-400">Penting!</h4>
-                <p className="text-[9px] text-amber-700 leading-relaxed dark:text-amber-500">
-                  Pastikan dompet MetaMask Anda berada di jaringan <strong>Sepolia Test Network</strong> sebelum menekan tombol "AKTIFKAN BRIDGE".
-                </p>
               </div>
             </div>
           </div>
