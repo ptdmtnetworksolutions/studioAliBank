@@ -20,7 +20,8 @@ import {
   Bitcoin,
   ShieldCheck,
   Zap,
-  Cpu
+  Cpu,
+  Globe
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -99,7 +100,6 @@ export default function Dashboard() {
   const savings = userData?.savings || 0;
   const accountNumber = userData?.accountNumber || "---";
   
-  // Robust crypto balances with individual defaults to prevent .toFixed() errors
   const cryptoBalances = {
     BTC: userData?.cryptoBalances?.BTC ?? 0,
     ETH: userData?.cryptoBalances?.ETH ?? 0,
@@ -120,7 +120,9 @@ export default function Dashboard() {
               />
             </div>
             <div>
-              <p className="text-[10px] font-black text-primary uppercase tracking-widest">Premium Nasabah</p>
+              <p className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1">
+                Platinum Private <Globe className="w-3 h-3" />
+              </p>
               <h2 className="font-bold text-accent leading-tight text-lg dark:text-primary">
                 {userData?.name?.split(' ')[0] || "Client"}
               </h2>
@@ -145,7 +147,7 @@ export default function Dashboard() {
       <main className="max-w-2xl mx-auto px-4 pt-4 space-y-6">
         <div className="flex items-center justify-between px-2">
            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-black px-4 py-1.5 rounded-full text-[9px] uppercase tracking-tighter">
-             {userData?.tier || "Platinum Member"}
+             MAINNET ACTIVE
            </Badge>
            <button 
              onClick={copyAccountNumber}
@@ -162,14 +164,14 @@ export default function Dashboard() {
           <div className="relative z-10 space-y-8">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">Available Balance</span>
+                <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">Available Assets</span>
                 <button onClick={() => setShowBalance(!showBalance)} className="text-white/60 hover:text-white bg-white/10 p-2 rounded-xl transition-colors">
                   {showBalance ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                 </button>
               </div>
               <Link href="/transactions">
                 <Button size="sm" variant="ghost" className="bg-black/20 text-white rounded-2xl text-[10px] font-black px-5 h-10 hover:bg-black/30 border border-white/10 uppercase tracking-widest">
-                  History <ChevronRight className="w-4 h-4 ml-1" />
+                  Live Audit <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </Link>
             </div>
@@ -180,15 +182,15 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-2 gap-4 pt-8 border-t border-white/20">
               <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Total Savings</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Portfolio Value</p>
                 <p className="text-xl font-black">Rp {savings.toLocaleString('id-ID')}</p>
               </div>
-              <Link href="/topup" className="flex items-center justify-between bg-white/10 p-4 rounded-2xl hover:bg-white/20 transition-all group">
+              <Link href="/crypto" className="flex items-center justify-between bg-white/10 p-4 rounded-2xl hover:bg-white/20 transition-all group border border-white/10">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Manage Funds</p>
-                  <p className="text-sm font-black uppercase tracking-wider">Top Up Wallet</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Live Exchange</p>
+                  <p className="text-sm font-black uppercase tracking-wider italic">Trade Now</p>
                 </div>
-                <Zap className="w-6 h-6 fill-white group-hover:scale-110 transition-transform" />
+                <Globe className="w-6 h-6 fill-white group-hover:rotate-180 transition-transform duration-1000" />
               </Link>
             </div>
           </div>
@@ -198,27 +200,27 @@ export default function Dashboard() {
         <section className="space-y-4">
           <div className="flex justify-between items-center px-2">
             <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground italic flex items-center gap-2">
-              <Bitcoin className="w-4 h-4 text-primary" /> Portofolio Kripto
+              <Bitcoin className="w-4 h-4 text-primary" /> Global Assets
             </h3>
-            <Link href="/crypto" className="text-[10px] font-black text-primary uppercase hover:underline">Market <ChevronRight className="w-3 h-3 inline" /></Link>
+            <Link href="/crypto" className="text-[10px] font-black text-primary uppercase hover:underline">Market Data <ChevronRight className="w-3 h-3 inline" /></Link>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <Link href="/crypto" className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2 hover:border-primary/30 transition-all">
-              <Bitcoin className="w-6 h-6 text-orange-500" />
+            <Link href="/crypto" className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2 hover:border-primary/30 transition-all group">
+              <Bitcoin className="w-6 h-6 text-orange-500 group-hover:scale-110 transition-transform" />
               <div>
                 <p className="text-[9px] font-black text-muted-foreground uppercase">BTC</p>
                 <p className="text-xs font-black text-accent dark:text-primary">{cryptoBalances.BTC.toFixed(6)}</p>
               </div>
             </Link>
-            <Link href="/crypto" className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2 hover:border-primary/30 transition-all">
-              <Cpu className="w-6 h-6 text-blue-500" />
+            <Link href="/crypto" className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2 hover:border-primary/30 transition-all group">
+              <Cpu className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" />
               <div>
                 <p className="text-[9px] font-black text-muted-foreground uppercase">ETH</p>
                 <p className="text-xs font-black text-accent dark:text-primary">{cryptoBalances.ETH.toFixed(4)}</p>
               </div>
             </Link>
-            <Link href="/crypto" className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2 hover:border-primary/30 transition-all">
-              <ShieldCheck className="w-6 h-6 text-green-500" />
+            <Link href="/crypto" className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2 hover:border-primary/30 transition-all group">
+              <ShieldCheck className="w-6 h-6 text-green-500 group-hover:scale-110 transition-transform" />
               <div>
                 <p className="text-[9px] font-black text-muted-foreground uppercase">USDT</p>
                 <p className="text-xs font-black text-accent dark:text-primary">{cryptoBalances.USDT.toLocaleString()}</p>
@@ -251,16 +253,16 @@ export default function Dashboard() {
           })}
         </section>
 
-        <section className="relative overflow-hidden liquid-glass rounded-[2.5rem] p-8 border-primary/20 border-2 group cursor-pointer hover:border-primary/40 transition-all">
+        <section className="relative overflow-hidden liquid-glass rounded-[2.5rem] p-8 border-primary/20 border-2 group cursor-pointer hover:border-primary/40 transition-all bg-primary/5">
           <div className="flex items-center gap-6">
             <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center shrink-0 shadow-xl p-3">
               <LogoIcon className="text-white" />
             </div>
             <div className="flex-1">
-              <h4 className="text-base font-black text-accent dark:text-primary uppercase tracking-tight mb-1">Security Update</h4>
-              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-widest leading-relaxed">Your account is secured with end-to-end encryption and biometrics.</p>
+              <h4 className="text-base font-black text-accent dark:text-primary uppercase tracking-tight mb-1">Asset Protection</h4>
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-widest leading-relaxed italic">Real-time encryption and multi-signature security for your Mainnet assets.</p>
             </div>
-            <ChevronRight className="w-6 h-6 text-primary group-hover:translate-x-2 transition-transform" />
+            <ShieldCheck className="w-6 h-6 text-primary group-hover:scale-125 transition-transform" />
           </div>
         </section>
       </main>

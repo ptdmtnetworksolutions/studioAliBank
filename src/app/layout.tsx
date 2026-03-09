@@ -1,3 +1,4 @@
+
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -8,8 +9,8 @@ import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
-  title: 'AliBank - Bintang Kejora Perbankan',
-  description: 'Pendamping perbankan cerdas, elegan, dan terintegrasi kripto.',
+  title: 'AliBank - Bintang Kejora Perbankan Riil',
+  description: 'Ekosistem perbankan elit dengan integrasi aset kripto Mainnet dan manajemen kekayaan cerdas.',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -69,7 +70,7 @@ export default function RootLayout({
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                  console.log('AliBank SW registered');
+                  console.log('AliBank Production SW registered');
                 }, function(err) {
                   console.log('AliBank SW failed');
                 });
