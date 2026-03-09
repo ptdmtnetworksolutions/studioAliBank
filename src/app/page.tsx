@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useDoc, useFirestore } from "@/firebase";
@@ -21,7 +20,8 @@ import {
   QrCode,
   EyeOff,
   Bitcoin,
-  Zap
+  Zap,
+  Home
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
