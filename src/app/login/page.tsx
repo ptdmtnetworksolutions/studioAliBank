@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithPopup, GoogleAuthProvider, AuthError } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Sparkles, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
+import { Sparkles, AlertCircle, Loader2, ShieldCheck, Globe } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
@@ -15,6 +15,13 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [currentDomain, setCurrentDomain] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentDomain(window.location.hostname);
+    }
+  }, []);
 
   const handleLogin = async () => {
     if (!auth || !db) {
@@ -36,20 +43,18 @@ export default function LoginPage() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Cek apakah data user sudah ada di Firestore
       const userDocRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
-        // Inisialisasi data nasabah baru jika belum ada
         await setDoc(userDocRef, {
           uid: user.uid,
           name: user.displayName || 'Nasabah AliBank',
           email: user.email,
           photoURL: user.photoURL,
           accountNumber: '88' + Math.floor(1000000000 + Math.random() * 9000000000).toString(),
-          totalBalance: 15000000, // Saldo awal simulasi Rp 15 Juta
-          savings: 5000000,       // Tabungan awal simulasi Rp 5 Juta
+          totalBalance: 15000000,
+          savings: 5000000,
           createdAt: serverTimestamp(),
           tier: 'Premium'
         });
@@ -72,7 +77,7 @@ export default function LoginPage() {
       } else if (authError.code === 'auth/popup-closed-by-user') {
         errorMessage = "Jendela login ditutup sebelum selesai.";
       } else if (authError.code === 'auth/unauthorized-domain') {
-        errorMessage = "Domain ini belum diizinkan. Harap tambahkan domain ini ke 'Authorized Domains' di Firebase Console (Authentication > Settings).";
+        errorMessage = `Domain "${currentDomain}" belum diizinkan. Harap tambahkan domain ini ke 'Authorized Domains' di Firebase Console.`;
       }
 
       toast({
@@ -87,16 +92,15 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 relative overflow-hidden">
-      {/* Background Decor */}
       <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-primary/10 blur-[100px] rounded-full" />
       <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-accent/10 blur-[100px] rounded-full" />
 
       <div className="relative z-10 flex flex-col items-center">
-        <div className="w-24 h-24 rounded-[2.5rem] gold-gradient flex items-center justify-center shadow-2xl mb-8 animate-bounce-slow">
+        <div className="w-24 h-24 rounded-[2.5rem] gold-gradient flex items-center justify-center shadow-2xl mb-8">
           <Sparkles className="text-white w-12 h-12" />
         </div>
         
-        <h1 className="text-5xl font-black text-accent mb-4 tracking-tighter italic">AliBank</h1>
+        <h1 className="text-5xl font-black text-accent mb-4 tracking-tighter italic text-center">AliBank</h1>
         <p className="text-muted-foreground mb-12 text-center max-w-xs font-medium leading-relaxed">
           Era baru perbankan premium. Cerdas, elegan, dan aman di genggaman Anda.
         </p>
@@ -130,9 +134,16 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div className="mt-16 flex items-center gap-2 text-primary/40 bg-primary/5 px-4 py-2 rounded-full border border-primary/5">
-        <ShieldCheck className="w-4 h-4" />
-        <span className="text-[10px] font-bold uppercase tracking-widest">End-to-End Encrypted System</span>
+      <div className="mt-16 flex flex-col items-center gap-4">
+        <div className="flex items-center gap-2 text-primary/40 bg-primary/5 px-4 py-2 rounded-full border border-primary/5">
+          <ShieldCheck className="w-4 h-4" />
+          <span className="text-[10px] font-bold uppercase tracking-widest">End-to-End Encrypted System</span>
+        </div>
+        
+        <div className="flex items-center gap-2 text-muted-foreground/60 text-[10px] font-bold">
+          <Globe className="w-3 h-3" />
+          <span>DOMAIN: {currentDomain}</span>
+        </div>
       </div>
     </div>
   );
