@@ -1,9 +1,10 @@
+
 import { cn } from "@/lib/utils";
 
 /**
  * Logo resmi AliBank "Bintang Kejora".
  * Desain Bintang Empat Sudut Melengkung yang elegan dalam bingkai rounded square.
- * Menggunakan struktur SVG yang stabil untuk mencegah error hydration.
+ * Menggunakan suppressHydrationWarning untuk mencegah error hydration pada elemen SVG.
  */
 export function LogoIcon({ className }: { className?: string }) {
   return (

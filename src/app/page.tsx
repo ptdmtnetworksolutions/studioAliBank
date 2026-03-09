@@ -19,7 +19,8 @@ import {
   EyeOff,
   Bitcoin,
   ShieldCheck,
-  Zap
+  Zap,
+  Cpu
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -97,6 +98,7 @@ export default function Dashboard() {
   const balance = userData?.totalBalance || 0;
   const savings = userData?.savings || 0;
   const accountNumber = userData?.accountNumber || "---";
+  const cryptoBalances = userData?.cryptoBalances || { BTC: 0, ETH: 0, USDT: 0 };
 
   return (
     <div className="min-h-screen pb-32 bg-background">
@@ -182,6 +184,39 @@ export default function Dashboard() {
                 </div>
                 <Zap className="w-6 h-6 fill-white group-hover:scale-110 transition-transform" />
               </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Crypto Portfolio Section */}
+        <section className="space-y-4">
+          <div className="flex justify-between items-center px-2">
+            <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground italic flex items-center gap-2">
+              <Bitcoin className="w-4 h-4 text-primary" /> Portofolio Kripto
+            </h3>
+            <Link href="/crypto" className="text-[10px] font-black text-primary uppercase hover:underline">Market <ChevronRight className="w-3 h-3 inline" /></Link>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2">
+              <Bitcoin className="w-6 h-6 text-orange-500" />
+              <div>
+                <p className="text-[9px] font-black text-muted-foreground uppercase">BTC</p>
+                <p className="text-xs font-black text-accent dark:text-primary">{cryptoBalances.BTC.toFixed(6)}</p>
+              </div>
+            </div>
+            <div className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2">
+              <Cpu className="w-6 h-6 text-blue-500" />
+              <div>
+                <p className="text-[9px] font-black text-muted-foreground uppercase">ETH</p>
+                <p className="text-xs font-black text-accent dark:text-primary">{cryptoBalances.ETH.toFixed(4)}</p>
+              </div>
+            </div>
+            <div className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2">
+              <ShieldCheck className="w-6 h-6 text-green-500" />
+              <div>
+                <p className="text-[9px] font-black text-muted-foreground uppercase">USDT</p>
+                <p className="text-xs font-black text-accent dark:text-primary">{cryptoBalances.USDT.toLocaleString()}</p>
+              </div>
             </div>
           </div>
         </section>
