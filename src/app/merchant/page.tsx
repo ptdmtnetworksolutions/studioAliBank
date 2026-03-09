@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -38,7 +39,7 @@ import { useState, useMemo, useEffect } from "react";
 import { MOCK_MERCHANT } from "@/app/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useUser, useFirestore, useCollection } from "@/firebase";
+import { useUser, useFirestore, useCollection, useDoc } from "@/firebase";
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, doc, setDoc, increment } from "firebase/firestore";
 import Link from "next/link";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -64,6 +65,13 @@ export default function MerchantDashboard() {
     cryptoCurrency: "USDT"
   });
 
+  // Fetch Real Merchant Profile from Firestore
+  const merchantDocRef = useMemo(() => {
+    if (!db) return null;
+    return doc(db, "merchants", MOCK_MERCHANT.merchantId);
+  }, [db]);
+  const { data: merchantData } = useDoc(merchantDocRef);
+
   // Fetch Real Invoices from Firestore
   const invoicesQuery = useMemo(() => {
     if (!db || !user) return null;
@@ -82,14 +90,36 @@ export default function MerchantDashboard() {
   };
 
   const handleSettlement = () => {
+    if (!merchantData || (merchantData.pendingSettlement || 0) <= 0) {
+      toast({ variant: "destructive", title: "No Funds", description: "You have no pending settlement to withdraw." });
+      return;
+    }
+
     setIsSettling(true);
-    setTimeout(() => {
-      setIsSettling(false);
-      toast({ 
-        title: "Settlement Initiated", 
-        description: `Rp ${MOCK_MERCHANT.pendingSettlement.toLocaleString('id-ID')} is being transferred to your bank account.` 
+    const amount = merchantData.pendingSettlement || 0;
+
+    // Simulate clearing the settlement balance
+    const merchantRef = doc(db!, "merchants", MOCK_MERCHANT.merchantId);
+    const payload = {
+      pendingSettlement: 0
+    };
+
+    setDoc(merchantRef, payload, { merge: true })
+      .then(() => {
+        setIsSettling(false);
+        toast({ 
+          title: "Settlement Success", 
+          description: `Rp ${amount.toLocaleString('id-ID')} has been transferred to your linked bank account.` 
+        });
+      })
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: merchantRef.path,
+          operation: 'update',
+          requestResourceData: payload
+        }));
+        setIsSettling(false);
       });
-    }, 1500);
   };
 
   const handleCreateInvoice = () => {
@@ -119,7 +149,6 @@ export default function MerchantDashboard() {
         }));
       });
 
-    // Reset and close UI optimistically
     toast({ 
       title: "Invoice Created", 
       description: `Invoice ${invoiceId} has been generated successfully.` 
@@ -136,6 +165,10 @@ export default function MerchantDashboard() {
       default: return null;
     }
   };
+
+  // Helper values for display
+  const totalRev = merchantData?.totalRevenue || MOCK_MERCHANT.totalRevenue;
+  const pendingSett = merchantData?.pendingSettlement ?? 0;
 
   return (
     <div className="min-h-screen pb-20 bg-background">
@@ -224,14 +257,18 @@ export default function MerchantDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="liquid-glass border-none rounded-[2rem] p-6 space-y-2">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-black text-accent">Rp {mounted ? MOCK_MERCHANT.totalRevenue.toLocaleString('id-ID') : "..."}</p>
+                <p className="text-2xl font-black text-accent">
+                  Rp {mounted ? totalRev.toLocaleString('id-ID') : "..."}
+                </p>
                 <div className="flex items-center gap-1 text-green-600 text-[10px] font-bold">
                   <ArrowUpRight className="w-3 h-3" /> +12.5% this month
                 </div>
               </Card>
               <Card className="liquid-glass border-none rounded-[2rem] p-6 space-y-2">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Settlement Balance</p>
-                <p className="text-2xl font-black text-primary">Rp {mounted ? MOCK_MERCHANT.pendingSettlement.toLocaleString('id-ID') : "..."}</p>
+                <p className="text-2xl font-black text-primary">
+                  Rp {mounted ? pendingSett.toLocaleString('id-ID') : "..."}
+                </p>
                 <p className="text-[9px] text-muted-foreground italic font-medium">Ready for withdrawal</p>
               </Card>
               <Card className="liquid-glass border-none rounded-[2rem] p-6 space-y-2">
@@ -318,18 +355,18 @@ export default function MerchantDashboard() {
                 <h3 className="text-xl font-black italic uppercase tracking-tighter">Settlement Hub</h3>
                 <div className="p-6 rounded-2xl bg-white/10 border border-white/10 space-y-1">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Payable Amount</p>
-                  <p className="text-3xl font-black italic">Rp {mounted ? MOCK_MERCHANT.pendingSettlement.toLocaleString('id-ID') : "..."}</p>
+                  <p className="text-3xl font-black italic">Rp {mounted ? pendingSett.toLocaleString('id-ID') : "..."}</p>
                 </div>
                 <Button 
                   onClick={handleSettlement}
-                  disabled={isSettling}
+                  disabled={isSettling || pendingSett <= 0}
                   className="w-full h-14 gold-gradient text-white font-black italic uppercase rounded-xl shadow-lg flex items-center justify-center gap-3"
                 >
                   {isSettling ? <RefreshCw className="animate-spin" /> : <Zap className="w-5 h-5" />}
                   Instant Settlement
                 </Button>
                 <p className="text-[9px] text-white/50 text-center italic leading-relaxed">
-                  Funds will be credited to your linked BCA account (**** 8821) within 15 minutes.
+                  Funds will be credited to your linked bank account within 15 minutes.
                 </p>
               </div>
             </Card>
