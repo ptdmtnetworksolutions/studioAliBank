@@ -10,7 +10,6 @@ import Script from 'next/script';
 export const metadata: Metadata = {
   title: 'AliBank - Bintang Kejora Perbankan',
   description: 'Pendamping perbankan cerdas, elegan, dan terintegrasi kripto.',
-  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
