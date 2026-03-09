@@ -6,19 +6,10 @@ import {
   Bitcoin, 
   Cpu, 
   ShieldCheck, 
-  TrendingUp, 
-  ArrowUpRight, 
-  ArrowDownRight, 
   RefreshCw, 
-  Zap, 
   Wallet,
-  Coins,
   ArrowRightLeft,
-  LineChart,
-  BarChart3,
   History,
-  Sparkles,
-  Info,
   Link2,
   Unlink,
   Loader2
@@ -27,9 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect, useMemo } from "react";
-import { BrowserProvider, formatEther, parseEther, Contract } from "ethers";
+import { BrowserProvider, formatEther, Contract } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useUser, useDoc, useFirestore } from "@/firebase";
@@ -43,6 +33,7 @@ import {
   Tooltip,
   CartesianGrid 
 } from "recharts";
+import { LogoIcon } from "@/components/ui/logo";
 
 const CONTRACT_ABI = [
   "function deposit() public payable",
@@ -50,7 +41,7 @@ const CONTRACT_ABI = [
   "function balances(address) public view returns (uint256)"
 ];
 
-const DEFAULT_CONTRACT = "0x59B9149D05138c6709D3552783aA3b85f992C79c";
+const DEFAULT_CONTRACT = "0x8BAF47E3B6A974A827A7E8F7A1D206B1F992C79C";
 
 const ASSETS = [
   { id: "ETH", name: "Ethereum", icon: Cpu, color: "text-blue-500", price: 48500000, change: "+2.4%" },
@@ -85,17 +76,14 @@ export default function CryptoPage() {
 
   const { data: userData } = useDoc(userDocRef);
 
-  // Persistence Engine: Restore connection from Firestore & Sync with MetaMask
   useEffect(() => {
     const syncWallet = async () => {
-      // 1. Pull from Firestore (Our Source of Truth)
       if (userData?.walletAddress) {
         setAddress(userData.walletAddress);
         await checkVaultBalance(userData.walletAddress);
       }
       setIsInitializing(false);
 
-      // 2. Setup MetaMask Listeners
       if (typeof window.ethereum !== 'undefined') {
         const handleAccountsChanged = (accounts: string[]) => {
           if (accounts.length > 0) {
@@ -110,12 +98,10 @@ export default function CryptoPage() {
 
         window.ethereum.on('accountsChanged', handleAccountsChanged);
         
-        // Initial check if MetaMask is already unlocked
         try {
           const provider = new BrowserProvider(window.ethereum);
           const accounts = await provider.send("eth_accounts", []);
           if (accounts.length > 0 && !userData?.walletAddress) {
-             // If MetaMask is open but Firestore is empty, auto-sync
              const currentAddr = accounts[0];
              setAddress(currentAddr);
              if (userDocRef) {
@@ -249,8 +235,8 @@ export default function CryptoPage() {
         <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6 pt-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-2xl gold-gradient flex items-center justify-center shadow-xl">
-                <Sparkles className="text-white w-7 h-7" />
+              <div className="w-12 h-12 rounded-2xl gold-gradient flex items-center justify-center shadow-xl p-2.5">
+                <LogoIcon className="text-white" />
               </div>
               <h1 className="text-4xl font-black text-accent italic uppercase tracking-tighter dark:text-primary">Crypto Bridge</h1>
             </div>
@@ -286,8 +272,6 @@ export default function CryptoPage() {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
-          {/* Main Trading Area */}
           <div className="lg:col-span-8 space-y-6">
             <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl">
               <CardHeader className="flex flex-row items-center justify-between border-b border-primary/5 pb-6">
@@ -393,7 +377,6 @@ export default function CryptoPage() {
             </div>
           </div>
 
-          {/* Sidebar Area */}
           <div className="lg:col-span-4 space-y-6">
             <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white shadow-2xl overflow-hidden relative">
               <div className="absolute top-0 right-0 p-4">
@@ -401,7 +384,9 @@ export default function CryptoPage() {
               </div>
               <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-8">
-                  <Sparkles className="text-primary w-6 h-6" />
+                  <div className="w-8 h-8 p-1">
+                    <LogoIcon className="text-primary" />
+                  </div>
                   <h3 className="text-xl font-black italic uppercase tracking-tighter">AI Analysis</h3>
                 </div>
                 <div className="space-y-6">
@@ -468,7 +453,6 @@ export default function CryptoPage() {
               </div>
             </Card>
           </div>
-
         </div>
       </main>
     </div>

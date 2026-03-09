@@ -8,9 +8,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Sparkles, Loader2, ShieldCheck, Mail, Lock, UserPlus } from 'lucide-react';
+import { Loader2, ShieldCheck, Mail, Lock, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { LogoIcon } from '@/components/ui/logo';
 
 export default function LoginPage() {
   const auth = useAuth();
@@ -50,8 +51,8 @@ export default function LoginPage() {
       <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-accent/10 blur-[100px] rounded-full" />
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-sm">
-        <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center shadow-2xl mb-6">
-          <Sparkles className="text-white w-8 h-8" />
+        <div className="w-20 h-20 rounded-2xl gold-gradient flex items-center justify-center shadow-2xl mb-6 p-4">
+          <LogoIcon className="text-white" />
         </div>
         
         <h1 className="text-3xl font-black text-accent mb-2 tracking-tighter italic uppercase">AliBank</h1>

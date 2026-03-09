@@ -9,9 +9,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Sparkles, Loader2, ShieldCheck, Mail, Lock, Phone, User, ArrowLeft } from 'lucide-react';
+import { Loader2, ShieldCheck, Mail, Lock, Phone, User, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { LogoIcon } from '@/components/ui/logo';
 
 export default function RegisterPage() {
   const auth = useAuth();
@@ -36,7 +37,6 @@ export default function RegisterPage() {
       const result = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       const user = result.user;
 
-      // Create user profile in Firestore with crypto balances
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         name: formData.name,
@@ -82,8 +82,8 @@ export default function RegisterPage() {
           </Button>
         </Link>
 
-        <div className="w-14 h-14 rounded-2xl gold-gradient flex items-center justify-center shadow-xl mb-4">
-          <Sparkles className="text-white w-7 h-7" />
+        <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center shadow-xl mb-4 p-3">
+          <LogoIcon className="text-white" />
         </div>
         
         <h1 className="text-2xl font-black text-accent mb-1 tracking-tighter italic uppercase">Buka Rekening</h1>

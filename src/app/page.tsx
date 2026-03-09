@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { 
   Plus, 
   ChevronRight, 
-  Sparkles,
   Wallet,
   Bell,
   Copy,
@@ -32,6 +31,7 @@ import { doc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { useAuth } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { LogoIcon } from "@/components/ui/logo";
 
 const mainServices = [
   { name: "Transfer", icon: Send, color: "bg-blue-50 text-blue-600", href: "/transfer" },
@@ -87,8 +87,8 @@ export default function Dashboard() {
   if (!mounted || userLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
-        <div className="w-16 h-16 rounded-2xl gold-gradient animate-pulse flex items-center justify-center">
-          <Sparkles className="text-white w-8 h-8" />
+        <div className="w-16 h-16 rounded-2xl gold-gradient animate-pulse flex items-center justify-center p-3">
+          <LogoIcon className="text-white" />
         </div>
       </div>
     );
@@ -212,8 +212,8 @@ export default function Dashboard() {
 
         <section className="relative overflow-hidden liquid-glass rounded-[2.5rem] p-8 border-primary/20 border-2 group cursor-pointer hover:border-primary/40 transition-all">
           <div className="flex items-center gap-6">
-            <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center shrink-0 shadow-xl">
-              <ShieldCheck className="text-white w-8 h-8" />
+            <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center shrink-0 shadow-xl p-3">
+              <LogoIcon className="text-white" />
             </div>
             <div className="flex-1">
               <h4 className="text-base font-black text-accent dark:text-primary uppercase tracking-tight mb-1">Security Update</h4>

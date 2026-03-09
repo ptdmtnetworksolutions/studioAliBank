@@ -12,13 +12,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
+import { LogoIcon } from "@/components/ui/logo";
 
 const navItems = [
   { name: "Main", href: "/", icon: Home },
   { name: "History", href: "/transactions", icon: Clock },
   { name: "SCAN", href: "/topup", icon: QrCode, isCenter: true },
   { name: "Bridge", href: "/crypto", icon: Bitcoin },
-  { name: "AI", href: "/ai-assistant", icon: Sparkles },
+  { name: "AI", href: "/ai-assistant", icon: LogoIcon }, // Menggunakan LogoIcon kustom
 ];
 
 export function BottomNav() {
@@ -29,7 +30,6 @@ export function BottomNav() {
     setMounted(true);
   }, []);
 
-  // Sembunyikan navigasi di halaman login dan register
   const isAuthPage = pathname === "/login" || pathname === "/register";
   
   if (!mounted || isAuthPage) return null;
@@ -46,8 +46,8 @@ export function BottomNav() {
               <div key={item.name} className="flex items-center justify-center relative h-full">
                 <div className="absolute -top-10 left-1/2 -translate-x-1/2">
                   <Link href={item.href}>
-                    <button className="gold-gradient w-20 h-20 rounded-[2.2rem] flex items-center justify-center shadow-2xl border-4 border-accent dark:border-black hover:scale-105 active:scale-95 transition-all">
-                      <Icon className="w-10 h-10 text-white" />
+                    <button className="gold-gradient w-20 h-20 rounded-[2.2rem] flex items-center justify-center shadow-2xl border-4 border-accent dark:border-black hover:scale-105 active:scale-95 transition-all p-4">
+                      <Icon className="w-12 h-12 text-white" />
                     </button>
                   </Link>
                 </div>

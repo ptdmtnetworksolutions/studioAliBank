@@ -9,14 +9,15 @@ import {
   Send, 
   Wallet, 
   PiggyBank, 
-  Sparkles,
   Menu,
   X,
-  Bitcoin
+  Bitcoin,
+  Sparkles
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { LogoIcon } from "@/components/ui/logo";
 
 const navItems = [
   { name: "Beranda", href: "/", icon: LayoutDashboard },
@@ -39,8 +40,8 @@ export function Navbar() {
       <div className="container mx-auto px-4">
         <div className="liquid-glass rounded-2xl mt-4 px-6 h-16 flex items-center justify-between border border-primary/20">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl gold-gradient flex items-center justify-center shadow-lg">
-              <Sparkles className="text-white w-6 h-6" />
+            <div className="w-9 h-9 rounded-xl gold-gradient flex items-center justify-center shadow-lg p-1.5">
+              <LogoIcon className="text-white" />
             </div>
             <span className="font-bold text-xl tracking-tighter italic text-accent dark:text-primary uppercase">AliBank</span>
           </Link>
