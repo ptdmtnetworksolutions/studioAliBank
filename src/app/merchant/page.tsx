@@ -17,7 +17,9 @@ import {
   Globe,
   Settings,
   Terminal,
-  CheckCircle2
+  CheckCircle2,
+  HelpCircle,
+  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +33,11 @@ import {
   DialogTrigger,
   DialogFooter
 } from "@/components/ui/dialog";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -198,6 +205,27 @@ const pay = async () => {
 };
   `.trim();
 
+  const HelpIcon = ({ title, content }: { title: string, content: string }) => (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className="text-muted-foreground hover:text-primary transition-colors focus:outline-none">
+          <HelpCircle className="w-4 h-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 rounded-2xl liquid-glass border-primary/20 p-5 shadow-2xl">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-primary" />
+            <h4 className="font-black italic uppercase text-xs text-accent tracking-tighter">Fitur: {title}</h4>
+          </div>
+          <p className="text-[11px] leading-relaxed text-muted-foreground font-medium italic">
+            {content}
+          </p>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+
   if (!mounted) return null;
 
   return (
@@ -256,17 +284,37 @@ const pay = async () => {
 
           <TabsContent value="overview" className="space-y-8 animate-in fade-in zoom-in duration-300">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-2">
+              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-2 relative">
+                <div className="absolute top-6 right-6">
+                  <HelpIcon 
+                    title="Total Revenue" 
+                    content="Akumulasi seluruh transaksi yang berhasil diproses melalui AliBank Gateway. Angka ini mencakup pembayaran via Crypto Bridge dan Saldo Internal nasabah." 
+                  />
+                </div>
                 <p className="text-[10px] font-black uppercase text-muted-foreground">Total Revenue</p>
                 <p className="text-3xl font-black text-accent">Rp {totalRev.toLocaleString('id-ID')}</p>
                 <div className="flex items-center gap-1 text-green-600 text-[10px] font-bold"><ArrowUpRight className="w-3 h-3" /> Growth Active</div>
               </Card>
-              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-2">
+
+              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-2 relative">
+                <div className="absolute top-6 right-6">
+                  <HelpIcon 
+                    title="Pending Settlement" 
+                    content="Dana hasil penjualan yang sudah diverifikasi namun belum ditarik ke rekening bank Anda. Proses 'Withdraw' akan mengirimkan dana ini dalam IDR secara instan." 
+                  />
+                </div>
                 <p className="text-[10px] font-black uppercase text-muted-foreground">Pending Settlement</p>
                 <p className="text-3xl font-black text-primary">Rp {pendingSett.toLocaleString('id-ID')}</p>
                 <Button onClick={handleSettlement} disabled={isSettling || pendingSett <= 0} size="sm" className="mt-2 gold-gradient text-white rounded-xl h-10 w-full uppercase font-black text-[10px]">Withdraw Now</Button>
               </Card>
-              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-2">
+
+              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-2 relative">
+                <div className="absolute top-6 right-6">
+                  <HelpIcon 
+                    title="Gateway Status" 
+                    content="Indikator konektivitas node blockchain AliBank ke Ethereum Mainnet. 'Online' berarti sistem siap memproses transaksi on-chain secara real-time." 
+                  />
+                </div>
                 <p className="text-[10px] font-black uppercase text-muted-foreground">Gateway Status</p>
                 <div className="flex items-center gap-2 mt-2">
                   <Badge className="bg-green-600 text-white uppercase font-black text-[8px]">Mainnet Online</Badge>
@@ -278,7 +326,13 @@ const pay = async () => {
 
             <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between border-b border-primary/5 p-8">
-                <CardTitle className="text-xl font-black italic uppercase flex items-center gap-2"><Zap className="w-5 h-5 text-primary" /> Live Transactions</CardTitle>
+                <div className="flex items-center gap-3">
+                  <CardTitle className="text-xl font-black italic uppercase flex items-center gap-2"><Zap className="w-5 h-5 text-primary" /> Live Transactions</CardTitle>
+                  <HelpIcon 
+                    title="Live Transactions" 
+                    content="Daftar invoice aktif dan riwayat pembayaran pelanggan. Anda bisa memantau status 'Paid' untuk pengiriman barang segera." 
+                  />
+                </div>
                 <div className="relative w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input placeholder="Search..." className="pl-10 h-10 rounded-xl bg-primary/5 border-none text-xs" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -319,7 +373,13 @@ const pay = async () => {
           <TabsContent value="developer" className="space-y-8 animate-in slide-in-from-right-10 duration-500">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-6">
-                <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6">
+                <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6 relative">
+                  <div className="absolute top-8 right-8">
+                    <HelpIcon 
+                      title="API Keys" 
+                      content="Kunci rahasia untuk otentikasi server-ke-server. Jangan bagikan kunci ini. Gunakan fitur 'Rotate' jika kunci Anda bocor." 
+                    />
+                  </div>
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-black italic uppercase flex items-center gap-2"><Code className="w-6 h-6 text-primary" /> API Keys</h3>
                     <Button onClick={rotateApiKey} variant="outline" className="h-9 rounded-xl border-primary/20 text-primary text-[10px] font-black uppercase">Rotate Key</Button>
@@ -336,7 +396,13 @@ const pay = async () => {
                   </div>
                 </Card>
 
-                <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6">
+                <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6 relative">
+                  <div className="absolute top-8 right-8">
+                    <HelpIcon 
+                      title="Webhook Settings" 
+                      content="URL di server Anda yang akan dipanggil AliBank secara otomatis saat pembayaran sukses. Berguna untuk mengaktifkan order di sistem Anda secara real-time." 
+                    />
+                  </div>
                   <div className="flex items-center gap-2">
                     <Globe className="w-6 h-6 text-primary" />
                     <h3 className="text-xl font-black italic uppercase">Webhook Settings</h3>
@@ -359,7 +425,13 @@ const pay = async () => {
               </div>
 
               <div className="space-y-6">
-                <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white">
+                <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white relative">
+                  <div className="absolute top-8 right-8 text-white/40">
+                    <HelpIcon 
+                      title="SDK Integration" 
+                      content="Gunakan SDK resmi AliBank untuk mengotomatiskan pembuatan invoice dan verifikasi pembayaran langsung dari aplikasi Anda." 
+                    />
+                  </div>
                   <div className="flex items-center gap-3 mb-6">
                     <Terminal className="w-6 h-6 text-primary" />
                     <h3 className="text-xl font-black italic uppercase">Quick Integration</h3>
