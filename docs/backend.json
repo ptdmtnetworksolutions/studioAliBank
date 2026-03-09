@@ -3,7 +3,7 @@
   "entities": {
     "UserProfile": {
       "title": "User Profile",
-      "description": "Informasi profil, saldo utama, dan saldo aset kripto pengguna.",
+      "description": "Informasi profil, saldo utama, saldo aset kripto, dan tautan dompet Web3 pengguna.",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
@@ -14,6 +14,7 @@
         "totalBalance": { "type": "number" },
         "savings": { "type": "number" },
         "tier": { "type": "string" },
+        "walletAddress": { "type": "string", "description": "Alamat dompet MetaMask yang terhubung secara persisten." },
         "cryptoBalances": {
           "type": "object",
           "properties": {

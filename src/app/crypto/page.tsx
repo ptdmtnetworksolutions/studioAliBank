@@ -18,7 +18,9 @@ import {
   BarChart3,
   History,
   Sparkles,
-  Info
+  Info,
+  Link2,
+  Unlink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,7 +70,6 @@ export default function CryptoPage() {
   const { toast } = useToast();
   const { user } = useUser();
   const db = useFirestore();
-  const [activeTab, setActiveTab] = useState("market");
   const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
   const [tradeAmount, setTradeAmount] = useState("");
   const [loading, setLoading] = useState(false);
@@ -82,6 +83,27 @@ export default function CryptoPage() {
 
   const { data: userData } = useDoc(userDocRef);
 
+  // Auto-connect if walletAddress is stored in profile
+  useEffect(() => {
+    if (userData?.walletAddress && !address) {
+      setAddress(userData.walletAddress);
+      checkVaultBalance(userData.walletAddress);
+    }
+  }, [userData, address]);
+
+  const checkVaultBalance = async (walletAddr: string) => {
+    if (typeof window.ethereum !== 'undefined') {
+      try {
+        const provider = new BrowserProvider(window.ethereum);
+        const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
+        const vault = await contract.balances(walletAddr);
+        setVaultBalance(formatEther(vault));
+      } catch (err) {
+        console.error("Failed to read vault balance:", err);
+      }
+    }
+  };
+
   const connectWallet = async () => {
     if (typeof window.ethereum === 'undefined') {
       const dappUrl = window.location.href.split('://')[1];
@@ -92,13 +114,34 @@ export default function CryptoPage() {
     try {
       const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
-      setAddress(accounts[0]);
+      const newAddress = accounts[0];
+      setAddress(newAddress);
       
-      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
-      const vault = await contract.balances(accounts[0]);
-      setVaultBalance(formatEther(vault));
+      // Persist the connection to Firestore
+      if (userDocRef) {
+        await updateDoc(userDocRef, {
+          walletAddress: newAddress
+        });
+      }
+
+      await checkVaultBalance(newAddress);
+      toast({ title: "Dompet Terhubung", description: "Alamat dompet Anda telah tertaut secara permanen dengan akun AliBank." });
     } catch (err) {
-      toast({ variant: "destructive", title: "Web3 Error", description: "Gagal terhubung ke dompet." });
+      toast({ variant: "destructive", title: "Web3 Error", description: "Gagal menghubungkan dompet." });
+    }
+  };
+
+  const disconnectWallet = async () => {
+    if (!userDocRef) return;
+    try {
+      await updateDoc(userDocRef, {
+        walletAddress: null
+      });
+      setAddress(null);
+      setVaultBalance("0");
+      toast({ title: "Dompet Diputuskan", description: "Hubungan dompet telah dihapus dari profil Anda." });
+    } catch (err) {
+      toast({ variant: "destructive", title: "Gagal", description: "Gagal memutuskan hubungan dompet." });
     }
   };
 
@@ -140,10 +183,10 @@ export default function CryptoPage() {
         timestamp: serverTimestamp()
       });
 
-      toast({ title: "Berhasil", description: `Transaksi ${type === 'buy' ? 'pembelian' : 'penjualan'} selesai.` });
+      toast({ title: "Eksekusi Berhasil", description: `Transaksi ${type === 'buy' ? 'pembelian' : 'penjualan'} ${selectedAsset.id} selesai.` });
       setTradeAmount("");
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Trading Gagal", description: err.message });
+      toast({ variant: "destructive", title: "Transaksi Gagal", description: err.message });
     } finally {
       setLoading(false);
     }
@@ -162,7 +205,7 @@ export default function CryptoPage() {
               </div>
               <h1 className="text-4xl font-black text-accent italic uppercase tracking-tighter dark:text-primary">Crypto Exchange</h1>
             </div>
-            <p className="text-muted-foreground text-sm font-medium">Platform bursa kripto elit dengan eksekusi instan AliBank.</p>
+            <p className="text-muted-foreground text-sm font-medium">Platform bursa kripto elit AliBank dengan koneksi dompet persisten.</p>
           </div>
           
           <div className="flex items-center gap-4">
@@ -170,9 +213,20 @@ export default function CryptoPage() {
               <p className="text-[10px] font-black uppercase text-muted-foreground">Saldo Utama</p>
               <p className="text-lg font-black text-accent dark:text-primary">Rp {(userData?.totalBalance || 0).toLocaleString('id-ID')}</p>
             </div>
-            <Button onClick={connectWallet} variant="outline" className="rounded-full border-primary/20 text-primary font-bold">
-              <Wallet className="w-4 h-4 mr-2" /> {address ? `${address.slice(0, 6)}...` : "Hubungkan Wallet"}
-            </Button>
+            {address ? (
+              <div className="flex items-center gap-2">
+                <Badge className="bg-green-600 text-white font-bold h-10 px-4 rounded-full flex items-center gap-2">
+                  <Link2 className="w-4 h-4" /> {address.slice(0, 6)}...{address.slice(-4)}
+                </Badge>
+                <Button onClick={disconnectWallet} variant="ghost" size="icon" className="text-destructive hover:bg-destructive/5 rounded-full">
+                  <Unlink className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={connectWallet} variant="outline" className="rounded-full border-primary/20 text-primary font-bold h-10 px-6">
+                <Wallet className="w-4 h-4 mr-2" /> Hubungkan Wallet
+              </Button>
+            )}
           </div>
         </header>
 
@@ -300,7 +354,7 @@ export default function CryptoPage() {
                   </div>
                 </div>
                 <p className="text-[11px] text-white/70 leading-relaxed italic">
-                  "Tren pasar menunjukkan akumulasi kuat pada aset {selectedAsset.id}. Indikator RSI menunjukkan kondisi oversold, waktu yang tepat untuk masuk."
+                  "Tren pasar menunjukkan akumulasi kuat pada aset {selectedAsset.id}. Koneksi dompet persisten Anda memastikan eksekusi perdagangan yang lebih cepat."
                 </p>
                 <div className="pt-4 border-t border-white/10 space-y-3">
                   <div className="flex justify-between text-[10px] font-bold uppercase">
