@@ -15,7 +15,8 @@ import {
   Cpu,
   Settings,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,7 +28,6 @@ import { BrowserProvider, formatEther, parseEther, Contract } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-// ABI yang sudah disesuaikan dengan kode AliBankPayment.sol
 const CONTRACT_ABI = [
   "function deposit() public payable",
   "function withdraw(uint256 _amount) public",
@@ -172,15 +172,15 @@ export default function CryptoPage() {
                 </div>
                 {contractAddress.length === 42 && (
                   <Badge className="bg-green-100 text-green-700 border-green-200 flex gap-1 items-center">
-                    <CheckCircle2 className="w-3 h-3" /> Terkoneksi
+                    <CheckCircle2 className="w-3 h-3" /> Terverifikasi
                   </Badge>
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Alamat Kontrak Hasil Deploy (Remix)</Label>
+                <Label className="text-[9px] uppercase font-bold text-muted-foreground ml-1">Alamat Kontrak (Salin dari Remix)</Label>
                 <div className="relative">
                   <Input 
-                    placeholder="0x..."
+                    placeholder="Contoh: 0x59B..."
                     value={contractAddress}
                     onChange={(e) => {
                       setContractAddress(e.target.value);
@@ -190,6 +190,9 @@ export default function CryptoPage() {
                   />
                   {contractAddress.length === 42 && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-600" />}
                 </div>
+                <p className="text-[8px] text-muted-foreground mt-1 ml-1 uppercase font-bold tracking-widest">
+                  Gunakan alamat dari daftar "Deployed Contracts" di Remix yang paling bawah.
+                </p>
               </div>
             </Card>
 
@@ -284,16 +287,16 @@ export default function CryptoPage() {
                 <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
                   <CheckCircle2 className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-black italic uppercase tracking-tighter">Langkah Terakhir!</h3>
+                <h3 className="text-xl font-black italic uppercase tracking-tighter">Selesai Deploy!</h3>
                 <p className="text-xs text-white/70 leading-relaxed uppercase font-bold">
-                  Karena Anda sudah sukses deploy di Remix:
+                  Langkah terakhir untuk aktivasi:
                 </p>
                 <div className="space-y-4">
                   {[
-                    "Cari 'Deployed Contracts' di pojok kiri bawah Remix.",
+                    "Pilih kontrak yang paling bawah di daftar Remix.",
                     "Klik ikon kotak (Copy) di samping alamat kontrak.",
                     "Tempel alamat tersebut di kolom Konfigurasi di atas.",
-                    "Tekan tombol DEPOSIT untuk transaksi pertama Anda!"
+                    "Tekan tombol DEPOSIT untuk setoran pertama Anda!"
                   ].map((item, i) => (
                     <div key={i} className="flex items-start gap-3">
                       <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0 text-[10px] font-bold text-white">{i+1}</div>
