@@ -10,7 +10,6 @@ import {
   Cpu, 
   Loader2, 
   CheckCircle2, 
-  ArrowLeft,
   Zap,
   Lock,
   Globe,
@@ -40,6 +39,25 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentStep, setPaymentStep] = useState<'selection' | 'processing' | 'success'>('selection');
   const [statusText, setStatusText] = useState("Initializing Gateway...");
+  const [cryptoRates, setCryptoRates] = useState<Record<string, number>>({ ETH: 0, BTC: 0, USDT: 0 });
+
+  // Fetch Live Prices for accurate conversion
+  useEffect(() => {
+    async function fetchLivePrices() {
+      try {
+        const response = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=ethereum,bitcoin,tether&vs_currencies=idr");
+        const data = await response.json();
+        setCryptoRates({
+          ETH: 1 / data.ethereum.idr,
+          BTC: 1 / data.bitcoin.idr,
+          USDT: 1 / data.tether.idr
+        });
+      } catch (err) {
+        console.error("Price fetch error during checkout:", err);
+      }
+    }
+    fetchLivePrices();
+  }, []);
 
   // Fetch specific invoice
   useEffect(() => {
@@ -64,11 +82,6 @@ export default function CheckoutPage() {
     }
     fetchInvoice();
   }, [db, invoiceId]);
-
-  const cryptoRates = {
-    ETH: 0.000021, 
-    USDT: 0.000063 
-  };
 
   const processPaymentFinalization = (method: string) => {
     if (!db || !invoice) return;
@@ -222,6 +235,8 @@ export default function CheckoutPage() {
     );
   }
 
+  const cryptoEquiv = invoice.amountIdr * (cryptoRates[invoice.cryptoCurrency] || 0);
+
   return (
     <div className="min-h-screen bg-background pb-20 relative overflow-hidden">
       {/* Background Decor */}
@@ -302,15 +317,15 @@ export default function CheckoutPage() {
 
                 <div className="pt-4 border-t border-primary/5">
                   <div className="flex justify-between items-center mb-4">
-                    <span className="text-[10px] font-black uppercase text-muted-foreground">Crypto Equivalent</span>
+                    <span className="text-[10px] font-black uppercase text-muted-foreground">Crypto Equivalent (Live Rate)</span>
                     <span className="text-xs font-black text-primary italic">
-                      ≈ {(invoice.amountIdr * cryptoRates[invoice.cryptoCurrency as keyof typeof cryptoRates]).toFixed(4)} {invoice.cryptoCurrency}
+                      {cryptoEquiv > 0 ? `≈ ${cryptoEquiv.toFixed(6)} ${invoice.cryptoCurrency}` : 'Fetching live rate...'}
                     </span>
                   </div>
                   <div className="bg-primary/5 p-4 rounded-2xl flex items-center gap-3">
                     <Lock className="w-4 h-4 text-primary" />
                     <p className="text-[9px] text-muted-foreground font-medium italic leading-relaxed">
-                      Encryption active. Assets sent via bridge are automatically converted to IDR and settled to the merchant's vault instantly.
+                      Encryption active. Assets sent via bridge are automatically converted to IDR using real-time market rates and settled instantly.
                     </p>
                   </div>
                 </div>

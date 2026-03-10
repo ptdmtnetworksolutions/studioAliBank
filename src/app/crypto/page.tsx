@@ -8,22 +8,16 @@ import {
   ShieldCheck, 
   RefreshCw, 
   Wallet,
-  Link2,
-  Unlink,
   Loader2,
-  AlertTriangle,
-  ArrowDownLeft,
-  ArrowUpRight,
-  ExternalLink,
-  Lock,
+  ArrowDownCircle,
+  ArrowUpCircle,
   Globe,
   Zap,
   HelpCircle,
   Info,
   Sparkles,
   ArrowRightLeft,
-  ArrowDownCircle,
-  ArrowUpCircle
+  Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,28 +54,29 @@ const CONTRACT_ABI = [
 ];
 
 const DEFAULT_CONTRACT = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd"; 
-const MAINNET_CHAIN_ID = "0x1";
 
-const ASSETS = [
-  { id: "ETH", name: "Ethereum", icon: Cpu, color: "text-blue-500", price: 48500000, change: "+2.4%" },
-  { id: "BTC", name: "Bitcoin", icon: Bitcoin, color: "text-orange-500", price: 1050000000, change: "+1.8%" },
-  { id: "USDT", name: "Tether", icon: ShieldCheck, color: "text-green-500", price: 15800, change: "0.0%" },
-];
-
-const MOCK_CHART_DATA = [
-  { time: "00:00", price: 45000000 },
-  { time: "04:00", price: 46200000 },
-  { time: "08:00", price: 45800000 },
-  { time: "12:00", price: 47500000 },
-  { time: "16:00", price: 48200000 },
-  { time: "20:00", price: 48500000 },
-];
+type Asset = {
+  id: string;
+  name: string;
+  icon: any;
+  color: string;
+  price: number;
+  change: string;
+};
 
 export default function CryptoPage() {
   const { toast } = useToast();
   const { user } = useUser();
   const db = useFirestore();
-  const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
+  
+  const [assets, setAssets] = useState<Asset[]>([
+    { id: "ETH", name: "Ethereum", icon: Cpu, color: "text-blue-500", price: 0, change: "0.0%" },
+    { id: "BTC", name: "Bitcoin", icon: Bitcoin, color: "text-orange-500", price: 0, change: "0.0%" },
+    { id: "USDT", name: "Tether", icon: ShieldCheck, color: "text-green-500", price: 0, change: "0.0%" },
+  ]);
+  
+  const [selectedAsset, setSelectedAsset] = useState<Asset>(assets[0]);
+  const [chartData, setChartData] = useState<any[]>([]);
   
   const [buyFiat, setBuyFiat] = useState("");
   const [buyCrypto, setBuyCrypto] = useState("");
@@ -90,6 +85,7 @@ export default function CryptoPage() {
 
   const [bridgeAmount, setBridgeAmount] = useState("");
   const [loading, setLoading] = useState(false);
+  const [priceLoading, setPriceLoading] = useState(true);
   const [address, setAddress] = useState<string | null>(null);
   const [vaultBalance, setVaultBalance] = useState("0");
   const [walletBalance, setWalletBalance] = useState("0");
@@ -99,9 +95,66 @@ export default function CryptoPage() {
 
   const SERVICE_FEE_PERCENT = 0.005; 
 
+  // Real-Time Price Fetching
+  const fetchPrices = useCallback(async () => {
+    try {
+      const response = await fetch(
+        "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether&vs_currencies=idr&include_24hr_change=true"
+      );
+      const data = await response.json();
+      
+      const updatedAssets = [
+        { 
+          id: "ETH", 
+          name: "Ethereum", 
+          icon: Cpu, 
+          color: "text-blue-500", 
+          price: data.ethereum.idr, 
+          change: `${data.ethereum.idr_24h_change.toFixed(2)}%` 
+        },
+        { 
+          id: "BTC", 
+          name: "Bitcoin", 
+          icon: Bitcoin, 
+          color: "text-orange-500", 
+          price: data.bitcoin.idr, 
+          change: `${data.bitcoin.idr_24h_change.toFixed(2)}%` 
+        },
+        { 
+          id: "USDT", 
+          name: "Tether", 
+          icon: ShieldCheck, 
+          color: "text-green-500", 
+          price: data.tether.idr, 
+          change: `${data.tether.idr_24h_change.toFixed(2)}%` 
+        },
+      ];
+      
+      setAssets(updatedAssets);
+      // Update selected asset reference
+      const currentSelected = updatedAssets.find(a => a.id === selectedAsset.id);
+      if (currentSelected) setSelectedAsset(currentSelected);
+      
+      // Generate some simulated chart data points based on current price for visual
+      const basePrice = data.ethereum.idr;
+      const points = Array.from({ length: 12 }, (_, i) => ({
+        time: `${i * 2}:00`,
+        price: basePrice * (1 + (Math.random() * 0.04 - 0.02))
+      }));
+      setChartData(points);
+      
+      setPriceLoading(false);
+    } catch (err) {
+      console.error("Price Fetch Error:", err);
+    }
+  }, [selectedAsset.id]);
+
   useEffect(() => {
     setMounted(true);
-  }, []);
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, [fetchPrices]);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -175,13 +228,45 @@ export default function CryptoPage() {
 
   const handleBuyFiatChange = (val: string) => {
     setBuyFiat(val);
-    if (!val || isNaN(parseFloat(val))) {
+    if (!val || isNaN(parseFloat(val)) || selectedAsset.price === 0) {
       setBuyCrypto("");
     } else {
       const totalAmount = parseFloat(val);
       const fee = totalAmount * SERVICE_FEE_PERCENT;
       const effectiveAmount = totalAmount - fee;
       setBuyCrypto((effectiveAmount / selectedAsset.price).toFixed(8));
+    }
+  };
+
+  const handleBuyCryptoChange = (val: string) => {
+    setBuyCrypto(val);
+    if (!val || isNaN(parseFloat(val)) || selectedAsset.price === 0) {
+      setBuyFiat("");
+    } else {
+      const cryptoAmount = parseFloat(val);
+      const rawFiat = cryptoAmount * selectedAsset.price;
+      const totalFiat = rawFiat / (1 - SERVICE_FEE_PERCENT);
+      setBuyFiat(Math.round(totalFiat).toString());
+    }
+  };
+
+  const handleSellFiatChange = (val: string) => {
+    setSellFiat(val);
+    if (!val || isNaN(parseFloat(val)) || selectedAsset.price === 0) {
+      setSellCrypto("");
+    } else {
+      const fiatAmount = parseFloat(val);
+      setSellCrypto((fiatAmount / selectedAsset.price).toFixed(8));
+    }
+  };
+
+  const handleSellCryptoChange = (val: string) => {
+    setSellCrypto(val);
+    if (!val || isNaN(parseFloat(val)) || selectedAsset.price === 0) {
+      setSellFiat("");
+    } else {
+      const cryptoAmount = parseFloat(val);
+      setSellFiat(Math.round(cryptoAmount * selectedAsset.price).toString());
     }
   };
 
@@ -210,14 +295,14 @@ export default function CryptoPage() {
 
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
-        description: `${type === 'buy' ? 'Beli' : 'Jual'} ${qty} ${selectedAsset.id} (Internal Exchange)`,
+        description: `${type === 'buy' ? 'Beli' : 'Jual'} ${qty} ${selectedAsset.id} (Live Exchange)`,
         category: "Trading",
         amount: fiat,
         type: type === 'buy' ? 'expense' : 'income',
         timestamp: serverTimestamp()
       });
 
-      toast({ title: "Sukses", description: "Transaksi internal berhasil." });
+      toast({ title: "Sukses", description: "Transaksi internal berhasil diproses dengan harga pasar." });
       setBuyFiat(""); setBuyCrypto(""); setSellFiat(""); setSellCrypto("");
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message });
@@ -305,7 +390,7 @@ export default function CryptoPage() {
                 Live Bridge <Globe className="w-6 h-6 animate-pulse text-primary" />
               </h1>
             </div>
-            <p className="text-muted-foreground text-sm font-medium italic">Pertukaran Internal Instan & Jembatan Aset Riil Ethereum Mainnet.</p>
+            <p className="text-muted-foreground text-sm font-medium italic">Data pasar Real-Time & Jembatan Aset Riil Ethereum Mainnet.</p>
           </div>
           
           <div className="flex items-center gap-4">
@@ -324,25 +409,34 @@ export default function CryptoPage() {
             <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl relative">
               <CardHeader className="flex flex-row items-center justify-between border-b border-primary/5 pb-6 pt-12">
                 <div className="flex items-center gap-4">
-                  <div className={cn("p-3 rounded-2xl bg-primary/10", selectedAsset.color)}><selectedAsset.icon className="w-6 h-6" /></div>
+                  <div className={cn("p-3 rounded-2xl bg-primary/10 transition-colors", selectedAsset.color)}><selectedAsset.icon className="w-6 h-6" /></div>
                   <div>
                     <CardTitle className="text-xl font-black">{selectedAsset.name} / IDR</CardTitle>
-                    <p className="text-xs font-bold text-green-600 flex items-center gap-1">{selectedAsset.change} <Globe className="w-3 h-3" /></p>
+                    <p className={cn("text-xs font-bold flex items-center gap-1", selectedAsset.change.startsWith('-') ? "text-destructive" : "text-green-600")}>
+                      {selectedAsset.change} <Globe className="w-3 h-3" />
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-3xl font-black text-accent">Rp {selectedAsset.price.toLocaleString('id-ID')}</p>
+                  {priceLoading ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-primary ml-auto" />
+                  ) : (
+                    <p className="text-3xl font-black text-accent">Rp {selectedAsset.price.toLocaleString('id-ID')}</p>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
                 <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={MOCK_CHART_DATA}>
+                    <AreaChart data={chartData}>
                       <defs><linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/><stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/></linearGradient></defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
                       <XAxis dataKey="time" hide />
-                      <YAxis hide domain={['dataMin - 1000000', 'dataMax + 1000000']} />
-                      <Tooltip />
+                      <YAxis hide domain={['dataMin * 0.98', 'dataMax * 1.02']} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: 'white', borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value: any) => [`Rp ${Math.round(value).toLocaleString()}`, 'Harga']}
+                      />
                       <Area type="monotone" dataKey="price" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorPrice)" />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -353,29 +447,49 @@ export default function CryptoPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 px-2">
                 <ArrowRightLeft className="w-4 h-4 text-primary" />
-                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground italic">Internal Exchange (Tanpa Gas)</h3>
+                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground italic">Pasar Live AliBank (Tanpa Gas)</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6 bg-black/5">
                   <div className="flex justify-between items-center">
                      <h3 className="text-xl font-black italic uppercase text-primary">Beli {selectedAsset.id}</h3>
-                     <HelpIcon title="Internal Buy" content="Beli aset menggunakan saldo Rupiah AliBank. Aset akan disimpan di portfolio internal Anda tanpa biaya gas blockchain." />
+                     <HelpIcon title="Live Market Buy" content="Beli aset dengan harga pasar real-time menggunakan saldo IDR. Aset disimpan di portfolio internal Anda tanpa biaya blockchain." />
                   </div>
                   <div className="space-y-4">
-                    <Input type="number" placeholder="Nominal IDR" value={buyFiat} onChange={(e) => handleBuyFiatChange(e.target.value)} className="h-14 rounded-xl liquid-glass-dark text-white font-bold" />
-                    <Input type="number" readOnly placeholder={`Estimasi ${selectedAsset.id}`} value={buyCrypto} className="h-14 rounded-xl liquid-glass-dark text-white/50 font-bold" />
-                    <Button onClick={() => handleTrade('buy')} disabled={loading || !buyCrypto} className="w-full h-14 gold-gradient text-white font-black uppercase italic rounded-xl">Eksekusi Beli</Button>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Nominal Rupiah</label>
+                      <Input type="number" placeholder="Rp 0" value={buyFiat} onChange={(e) => handleBuyFiatChange(e.target.value)} className="h-14 rounded-xl liquid-glass-dark text-white font-bold" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Jumlah {selectedAsset.id}</label>
+                      <Input type="number" placeholder="0.00" value={buyCrypto} onChange={(e) => handleBuyCryptoChange(e.target.value)} className="h-14 rounded-xl liquid-glass-dark text-white font-bold" />
+                    </div>
+                    <div className="flex justify-between text-[10px] font-bold text-muted-foreground px-1">
+                      <span>Service Fee: {SERVICE_FEE_PERCENT * 100}%</span>
+                      <span>Instant Settlement</span>
+                    </div>
+                    <Button onClick={() => handleTrade('buy')} disabled={loading || !buyCrypto || priceLoading} className="w-full h-14 gold-gradient text-white font-black uppercase italic rounded-xl">Eksekusi Beli</Button>
                   </div>
                 </Card>
 
                 <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6 bg-black/5">
                   <div className="flex justify-between items-center">
                     <h3 className="text-xl font-black italic uppercase text-primary">Jual {selectedAsset.id}</h3>
-                    <HelpIcon title="Internal Sell" content="Jual aset internal Anda untuk mendapatkan saldo Rupiah secara instan." />
+                    <HelpIcon title="Live Market Sell" content="Jual aset internal Anda untuk mendapatkan saldo Rupiah secara instan dengan harga pasar terkini." />
                   </div>
                   <div className="space-y-4">
-                    <Input type="number" placeholder={`Jumlah ${selectedAsset.id}`} value={sellCrypto} onChange={(e) => setSellCrypto(e.target.value)} className="h-14 rounded-xl liquid-glass-dark text-white font-bold" />
-                    <Button onClick={() => handleTrade('sell')} disabled={loading || !sellCrypto} variant="outline" className="w-full h-14 border-primary/20 text-primary font-black uppercase italic rounded-xl">Eksekusi Jual</Button>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Jumlah {selectedAsset.id}</label>
+                      <Input type="number" placeholder="0.00" value={sellCrypto} onChange={(e) => handleSellCryptoChange(e.target.value)} className="h-14 rounded-xl liquid-glass-dark text-white font-bold" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Estimasi Rupiah</label>
+                      <Input type="number" placeholder="Rp 0" value={sellFiat} onChange={(e) => handleSellFiatChange(e.target.value)} className="h-14 rounded-xl liquid-glass-dark text-white font-bold" />
+                    </div>
+                    <div className="flex justify-between text-[10px] font-bold text-muted-foreground px-1">
+                      <span>Status: {userData?.cryptoBalances?.[selectedAsset.id] || 0} {selectedAsset.id} Miliki</span>
+                    </div>
+                    <Button onClick={() => handleTrade('sell')} disabled={loading || !sellCrypto || priceLoading} variant="outline" className="w-full h-14 border-primary/20 text-primary font-black uppercase italic rounded-xl">Eksekusi Jual</Button>
                   </div>
                 </Card>
               </div>
@@ -383,10 +497,38 @@ export default function CryptoPage() {
           </div>
 
           <div className="lg:col-span-4 space-y-6">
+             <section className="space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground italic px-2">Aset Terdaftar</h3>
+              <div className="grid grid-cols-1 gap-3">
+                {assets.map((asset) => (
+                  <button 
+                    key={asset.id} 
+                    onClick={() => setSelectedAsset(asset)}
+                    className={cn(
+                      "liquid-glass p-5 rounded-2xl border-primary/5 flex items-center justify-between hover:border-primary/40 transition-all text-left",
+                      selectedAsset.id === asset.id ? "border-primary/40 bg-primary/5" : ""
+                    )}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={cn("p-2 rounded-xl bg-white/10", asset.color)}><asset.icon className="w-5 h-5" /></div>
+                      <div>
+                        <p className="text-xs font-black text-accent">{asset.name}</p>
+                        <p className="text-[10px] font-bold text-muted-foreground">{asset.id}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-accent italic">Rp {asset.price.toLocaleString()}</p>
+                      <p className={cn("text-[9px] font-bold", asset.change.startsWith('-') ? "text-destructive" : "text-green-600")}>{asset.change}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 bg-accent/5 space-y-6">
               <div className="flex justify-between items-center">
-                <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">Mainnet Bridge <Lock className="w-3 h-3 text-primary" /></h4>
-                <HelpIcon title="Smart Contract Vault" content="Fitur ini berinteraksi langsung dengan Smart Contract AliBank di Ethereum Mainnet. Anda wajib menghubungkan MetaMask untuk menyetor aset asli ke brankas on-chain." />
+                <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">Mainnet Vault <Lock className="w-3 h-3 text-primary" /></h4>
+                <HelpIcon title="Smart Contract Vault" content="Brankas on-chain AliBank. Dana Anda di sini benar-benar terkunci di blockchain Ethereum." />
               </div>
 
               {!address ? (
@@ -399,7 +541,7 @@ export default function CryptoPage() {
                 <div className="space-y-6">
                   <div className="p-6 rounded-2xl bg-black/40 flex flex-col items-center space-y-2 border border-primary/10">
                     <span className="text-3xl font-black text-primary italic">{parseFloat(vaultBalance).toFixed(6)} ETH</span>
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Saldo di Smart Contract</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Saldo Brankas On-Chain</span>
                   </div>
 
                   <div className="space-y-4 pt-4 border-t border-primary/5">
@@ -440,11 +582,11 @@ export default function CryptoPage() {
               <div className="absolute inset-0 gold-gradient opacity-10" />
               <div className="relative z-10 flex flex-col items-center text-center space-y-4">
                 <Sparkles className="w-10 h-10 text-primary animate-pulse" />
-                <h3 className="text-lg font-black italic uppercase tracking-tighter">The AliBank Promise</h3>
+                <h3 className="text-lg font-black italic uppercase tracking-tighter">Audit Transparansi</h3>
                 <p className="text-[11px] font-medium leading-relaxed italic opacity-80">
-                  Transparansi penuh. Aset yang Anda setor ke Vault dapat diverifikasi langsung di Etherscan tanpa perantara bank.
+                  Setiap transaksi di Brankas Brige dapat diverifikasi secara publik di Etherscan. Keamanan aset Anda adalah prioritas elit kami.
                 </p>
-                <Badge className="bg-primary text-white font-black text-[8px] uppercase tracking-widest">Audited Smart Contract</Badge>
+                <Badge className="bg-primary text-white font-black text-[8px] uppercase tracking-widest">Publicly Auditable</Badge>
               </div>
             </Card>
           </div>
