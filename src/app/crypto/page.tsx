@@ -20,7 +20,8 @@ import {
   Zap,
   HelpCircle,
   Info,
-  Sparkles
+  Sparkles,
+  ArrowRightLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,8 +95,7 @@ export default function CryptoPage() {
   const [isWrongNetwork, setIsWrongNetwork] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Simulation of spread (AliBank revenue model)
-  const SERVICE_FEE_PERCENT = 0.005; // 0.5% fee
+  const SERVICE_FEE_PERCENT = 0.005; 
 
   useEffect(() => {
     setMounted(true);
@@ -147,46 +147,23 @@ export default function CryptoPage() {
         if (accounts.length > 0) {
           setAddress(accounts[0]);
           await checkMainnetBalances(accounts[0]);
-        } else if (userData?.walletAddress) {
-          setAddress(userData.walletAddress);
-          await checkMainnetBalances(userData.walletAddress);
         }
       }
       setIsInitializing(false);
     };
     sync();
-    if (typeof window.ethereum !== 'undefined' && mounted) {
-      const handleAccs = (accs: string[]) => {
-        if (accs.length > 0) {
-          setAddress(accs[0]);
-          if (userDocRef) updateDoc(userDocRef, { walletAddress: accs[0] });
-          checkMainnetBalances(accs[0]);
-        } else {
-          setAddress(null);
-          resetBalances();
-        }
-      };
-      window.ethereum.on('accountsChanged', handleAccs);
-      return () => window.ethereum?.removeListener('accountsChanged', handleAccs);
-    }
-  }, [mounted, user, userData?.walletAddress, userDocRef, checkMainnetBalances, resetBalances]);
+  }, [mounted, user, checkMainnetBalances, resetBalances]);
 
   const connectWallet = async () => {
     if (typeof window.ethereum === 'undefined') return;
     try {
       setLoading(true);
       const provider = new BrowserProvider(window.ethereum);
-      const network = await provider.getNetwork();
-      if (network.chainId !== 1n) {
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: MAINNET_CHAIN_ID }],
-        });
-      }
       const accounts = await provider.send("eth_requestAccounts", []);
       setAddress(accounts[0]);
       if (userDocRef) updateDoc(userDocRef, { walletAddress: accounts[0] });
       await checkMainnetBalances(accounts[0]);
+      toast({ title: "Mainnet Connected", description: "Dompet Anda siap untuk fitur Bridge." });
     } catch (err) {
       toast({ variant: "destructive", title: "Web3 Error", description: "Gagal menghubungkan dompet." });
     } finally {
@@ -199,7 +176,6 @@ export default function CryptoPage() {
     if (!val || isNaN(parseFloat(val))) {
       setBuyCrypto("");
     } else {
-      // Logic: User pays total amount, AliBank gets fee, remaining buys crypto
       const totalAmount = parseFloat(val);
       const fee = totalAmount * SERVICE_FEE_PERCENT;
       const effectiveAmount = totalAmount - fee;
@@ -217,33 +193,54 @@ export default function CryptoPage() {
     try {
       if (type === 'buy') {
         if ((userData?.totalBalance || 0) < fiat) throw new Error("Saldo IDR tidak cukup.");
-        updateDoc(userDocRef!, { 
+        await updateDoc(userDocRef!, { 
           totalBalance: increment(-fiat), 
           [`cryptoBalances.${selectedAsset.id}`]: increment(qty) 
         });
       } else {
         const currentAssetBalance = userData?.cryptoBalances?.[selectedAsset.id] || 0;
         if (currentAssetBalance < qty) throw new Error(`Saldo ${selectedAsset.id} tidak cukup.`);
-        updateDoc(userDocRef!, { 
+        await updateDoc(userDocRef!, { 
           totalBalance: increment(fiat), 
           [`cryptoBalances.${selectedAsset.id}`]: increment(-qty) 
         });
       }
 
-      addDoc(collection(db, "users", user.uid, "transactions"), {
+      await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
         description: `${type === 'buy' ? 'Beli' : 'Jual'} ${qty} ${selectedAsset.id} (Internal Exchange)`,
         category: "Trading",
         amount: fiat,
-        feeIncluded: fiat * SERVICE_FEE_PERCENT,
         type: type === 'buy' ? 'expense' : 'income',
         timestamp: serverTimestamp()
       });
 
-      toast({ title: "Success", description: "Transaksi berhasil diproses." });
+      toast({ title: "Sukses", description: "Transaksi internal berhasil." });
       setBuyFiat(""); setBuyCrypto(""); setSellFiat(""); setSellCrypto("");
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDepositToVault = async () => {
+    if (!address || typeof window.ethereum === 'undefined' || !depositAmount) return;
+    setLoading(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
+      
+      const tx = await contract.deposit({ value: parseEther(depositAmount) });
+      toast({ title: "Transaksi Dikirim", description: "Menunggu konfirmasi blockchain..." });
+      await tx.wait();
+      
+      toast({ title: "Setoran Berhasil", description: "Aset Anda kini aman di AliBank Vault." });
+      setDepositAmount("");
+      await checkMainnetBalances(address);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Vault Error", description: err.message });
     } finally {
       setLoading(false);
     }
@@ -284,12 +281,12 @@ export default function CryptoPage() {
                 Live Bridge <Globe className="w-6 h-6 animate-pulse text-primary" />
               </h1>
             </div>
-            <p className="text-muted-foreground text-sm font-medium">Bursa aset riil AliBank. Bebas biaya admin bulanan, hanya biaya layanan per transaksi.</p>
+            <p className="text-muted-foreground text-sm font-medium italic">Pertukaran Internal Instan & Jembatan Aset Riil Ethereum Mainnet.</p>
           </div>
           
           <div className="flex items-center gap-4">
             {address ? (
-              <Badge className={cn("font-bold h-10 px-4 rounded-full flex items-center gap-2", isWrongNetwork ? "bg-destructive" : "bg-green-600 text-white")}>
+              <Badge className={cn("font-bold h-10 px-4 rounded-full flex items-center gap-2", isWrongNetwork ? "bg-destructive text-white" : "bg-green-600 text-white")}>
                 {isWrongNetwork ? "Wrong Network" : `${address.slice(0, 6)}...${address.slice(-4)}`}
               </Badge>
             ) : (
@@ -314,7 +311,7 @@ export default function CryptoPage() {
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
-                <div className="h-[300px] w-full">
+                <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={MOCK_CHART_DATA}>
                       <defs><linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/><stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/></linearGradient></defs>
@@ -329,54 +326,93 @@ export default function CryptoPage() {
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6 bg-black/5">
-                <div className="flex justify-between items-center">
-                   <h3 className="text-xl font-black italic uppercase text-primary">Beli {selectedAsset.id}</h3>
-                   <HelpIcon title="Service Fee" content="AliBank mengenakan biaya layanan 0.5% untuk setiap transaksi beli sebagai pengganti biaya admin bulanan." />
-                </div>
-                <div className="space-y-4">
-                  <Input type="number" placeholder="Nominal IDR" value={buyFiat} onChange={(e) => handleBuyFiatChange(e.target.value)} className="h-14 rounded-xl liquid-glass-dark text-white font-bold" />
-                  <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
-                    <div className="flex justify-between text-[9px] font-black uppercase text-muted-foreground">
-                      <span>Service Fee (0.5%)</span>
-                      <span>Rp {buyFiat ? (parseFloat(buyFiat) * SERVICE_FEE_PERCENT).toLocaleString('id-ID') : "0"}</span>
-                    </div>
+            {/* Section 1: Internal Trading (No Wallet Needed) */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 px-2">
+                <ArrowRightLeft className="w-4 h-4 text-primary" />
+                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground italic">Internal Exchange (Tanpa Gas)</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6 bg-black/5">
+                  <div className="flex justify-between items-center">
+                     <h3 className="text-xl font-black italic uppercase text-primary">Beli {selectedAsset.id}</h3>
+                     <HelpIcon title="Internal Buy" content="Beli aset menggunakan saldo Rupiah AliBank. Aset akan disimpan di portfolio internal Anda tanpa biaya gas blockchain." />
                   </div>
-                  <Input type="number" readOnly placeholder={`Estimasi ${selectedAsset.id}`} value={buyCrypto} className="h-14 rounded-xl liquid-glass-dark text-white/50 font-bold" />
-                  <Button onClick={() => handleTrade('buy')} disabled={loading || !buyCrypto} className="w-full h-14 gold-gradient text-white font-black uppercase italic rounded-xl">Eksekusi Beli</Button>
-                </div>
-              </Card>
+                  <div className="space-y-4">
+                    <Input type="number" placeholder="Nominal IDR" value={buyFiat} onChange={(e) => handleBuyFiatChange(e.target.value)} className="h-14 rounded-xl liquid-glass-dark text-white font-bold" />
+                    <Input type="number" readOnly placeholder={`Estimasi ${selectedAsset.id}`} value={buyCrypto} className="h-14 rounded-xl liquid-glass-dark text-white/50 font-bold" />
+                    <Button onClick={() => handleTrade('buy')} disabled={loading || !buyCrypto} className="w-full h-14 gold-gradient text-white font-black uppercase italic rounded-xl">Eksekusi Beli</Button>
+                  </div>
+                </Card>
 
-              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6 bg-black/5">
-                <h3 className="text-xl font-black italic uppercase text-primary">Jual {selectedAsset.id}</h3>
-                <div className="space-y-4">
-                  <Input type="number" placeholder={`Jumlah ${selectedAsset.id}`} value={sellCrypto} onChange={(e) => setSellCrypto(e.target.value)} className="h-14 rounded-xl liquid-glass-dark text-white font-bold" />
-                  <Input type="number" readOnly placeholder="Estimasi IDR" value={sellFiat} className="h-14 rounded-xl liquid-glass-dark text-white/50 font-bold" />
-                  <Button onClick={() => handleTrade('sell')} disabled={loading || !sellCrypto} variant="outline" className="w-full h-14 border-primary/20 text-primary font-black uppercase italic rounded-xl">Eksekusi Jual</Button>
-                </div>
-              </Card>
+                <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6 bg-black/5">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-black italic uppercase text-primary">Jual {selectedAsset.id}</h3>
+                    <HelpIcon title="Internal Sell" content="Jual aset internal Anda untuk mendapatkan saldo Rupiah secara instan." />
+                  </div>
+                  <div className="space-y-4">
+                    <Input type="number" placeholder={`Jumlah ${selectedAsset.id}`} value={sellCrypto} onChange={(e) => setSellCrypto(e.target.value)} className="h-14 rounded-xl liquid-glass-dark text-white font-bold" />
+                    <Button onClick={() => handleTrade('sell')} disabled={loading || !sellCrypto} variant="outline" className="w-full h-14 border-primary/20 text-primary font-black uppercase italic rounded-xl">Eksekusi Jual</Button>
+                  </div>
+                </Card>
+              </div>
             </div>
           </div>
 
           <div className="lg:col-span-4 space-y-6">
+            {/* Section 2: Mainnet Bridge (Wallet Required) */}
+            <Card className="liquid-glass border-none rounded-[2.5rem] p-8 bg-accent/5 space-y-6">
+              <div className="flex justify-between items-center">
+                <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">Mainnet Bridge <Lock className="w-3 h-3 text-primary" /></h4>
+                <HelpIcon title="Smart Contract Vault" content="Fitur ini berinteraksi langsung dengan Smart Contract AliBank di Ethereum Mainnet. Anda wajib menghubungkan MetaMask untuk menyetor aset asli ke brankas on-chain." />
+              </div>
+
+              {!address ? (
+                <div className="p-8 rounded-3xl bg-black/20 border border-dashed border-primary/20 text-center space-y-4">
+                  <Wallet className="w-10 h-10 text-primary/40 mx-auto" />
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">Hubungkan Dompet untuk mengakses Brankas Blockchain (ETH Mainnet)</p>
+                  <Button onClick={connectWallet} size="sm" className="rounded-full gold-gradient text-white w-full h-10 font-black italic uppercase text-[10px]">Koneksikan Sekarang</Button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="p-6 rounded-2xl bg-black/40 flex flex-col items-center space-y-2 border border-primary/10">
+                    <span className="text-3xl font-black text-primary italic">{parseFloat(vaultBalance).toFixed(6)} ETH</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Saldo di Smart Contract</span>
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t border-primary/5">
+                    <div className="flex justify-between text-[9px] font-black uppercase text-muted-foreground">
+                      <span>Dompet MetaMask</span>
+                      <span>{parseFloat(walletBalance).toFixed(4)} ETH</span>
+                    </div>
+                    <Input 
+                      type="number" 
+                      placeholder="Jumlah ETH untuk disetor" 
+                      value={depositAmount} 
+                      onChange={(e) => setDepositAmount(e.target.value)} 
+                      className="h-12 rounded-xl liquid-glass border-none text-accent font-bold text-xs" 
+                    />
+                    <Button 
+                      onClick={handleDepositToVault} 
+                      disabled={loading || !depositAmount} 
+                      className="w-full h-12 bg-primary text-white font-black italic uppercase rounded-xl text-xs"
+                    >
+                      Setor ke Vault
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </Card>
+
             <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white relative overflow-hidden group">
               <div className="absolute inset-0 gold-gradient opacity-10" />
               <div className="relative z-10 flex flex-col items-center text-center space-y-4">
                 <Sparkles className="w-10 h-10 text-primary animate-pulse" />
-                <h3 className="text-lg font-black italic uppercase">The AliBank Promise</h3>
+                <h3 className="text-lg font-black italic uppercase tracking-tighter">The AliBank Promise</h3>
                 <p className="text-[11px] font-medium leading-relaxed italic opacity-80">
-                  Kami tidak membebani nasabah dengan biaya bulanan. Pendapatan kami murni dari volume transaksi dan kemitraan bisnis. Semakin Anda aktif bertransaksi, semakin kami berkembang bersama Anda.
+                  Transparansi penuh. Aset yang Anda setor ke Vault dapat diverifikasi langsung di Etherscan tanpa perantara bank.
                 </p>
-                <Badge className="bg-primary text-white font-black">ACTIVE POLICY: 0 ADMIN FEE</Badge>
-              </div>
-            </Card>
-
-            <Card className="liquid-glass border-none rounded-[2.5rem] p-8 bg-accent/5">
-              <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 mb-6">Mainnet Vault Balance <Lock className="w-3 h-3 text-primary" /></h4>
-              <div className="p-6 rounded-2xl bg-black/40 flex flex-col items-center space-y-2 border border-primary/10">
-                <span className="text-3xl font-black text-primary italic">{parseFloat(vaultBalance).toFixed(6)} ETH</span>
-                <span className="text-[10px] font-bold text-muted-foreground uppercase">Secured Assets</span>
+                <Badge className="bg-primary text-white font-black text-[8px] uppercase tracking-widest">Audited Smart Contract</Badge>
               </div>
             </Card>
           </div>
