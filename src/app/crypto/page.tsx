@@ -13,6 +13,7 @@ import {
   Loader2,
   AlertTriangle,
   ArrowDownLeft,
+  ArrowUpRight,
   ExternalLink,
   Lock,
   Globe,
@@ -76,9 +77,11 @@ export default function CryptoPage() {
   const db = useFirestore();
   const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
   const [tradeAmount, setTradeAmount] = useState("");
+  const [depositAmount, setDepositAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
   const [vaultBalance, setVaultBalance] = useState("0");
+  const [walletBalance, setWalletBalance] = useState("0");
   const [isInitializing, setIsInitializing] = useState(true);
   const [isWrongNetwork, setIsWrongNetwork] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -94,32 +97,37 @@ export default function CryptoPage() {
 
   const { data: userData } = useDoc(userDocRef);
 
-  const checkVaultBalance = async (walletAddr: string) => {
+  const checkMainnetBalances = async (walletAddr: string) => {
     if (typeof window.ethereum === 'undefined') return;
     
     try {
       const provider = new BrowserProvider(window.ethereum);
       const network = await provider.getNetwork();
       
-      // Cek apakah di Mainnet (ID: 1)
       if (network.chainId !== 1n) {
         setIsWrongNetwork(true);
         setVaultBalance("0");
+        setWalletBalance("0");
         return;
       }
 
       setIsWrongNetwork(false);
-      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
-      const balance = await contract.balances(walletAddr).catch(() => null);
       
-      if (balance !== null) {
-        setVaultBalance(formatEther(balance));
+      // 1. Ambil saldo ETH di Dompet (MetaMask)
+      const ethBalance = await provider.getBalance(walletAddr);
+      setWalletBalance(formatEther(ethBalance));
+
+      // 2. Ambil saldo ETH di dalam Vault (Smart Contract)
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
+      const balanceInVault = await contract.balances(walletAddr).catch(() => null);
+      
+      if (balanceInVault !== null) {
+        setVaultBalance(formatEther(balanceInVault));
       } else {
         setVaultBalance("0");
       }
     } catch (err) {
-      console.error("Failed to read vault balance:", err);
-      setVaultBalance("0");
+      console.error("Failed to read mainnet data:", err);
     }
   };
 
@@ -127,7 +135,7 @@ export default function CryptoPage() {
     const syncWallet = async () => {
       if (userData?.walletAddress) {
         setAddress(userData.walletAddress);
-        await checkVaultBalance(userData.walletAddress);
+        await checkMainnetBalances(userData.walletAddress);
       }
       setIsInitializing(false);
 
@@ -139,10 +147,11 @@ export default function CryptoPage() {
             if (userDocRef) {
               updateDoc(userDocRef, { walletAddress: newAddr });
             }
-            checkVaultBalance(newAddr);
+            checkMainnetBalances(newAddr);
           } else {
             setAddress(null);
             setVaultBalance("0");
+            setWalletBalance("0");
           }
         };
 
@@ -177,7 +186,6 @@ export default function CryptoPage() {
       const provider = new BrowserProvider(window.ethereum);
       const network = await provider.getNetwork();
       
-      // Paksa pindah ke Mainnet jika di network lain
       if (network.chainId !== 1n) {
         try {
           await window.ethereum.request({
@@ -202,10 +210,33 @@ export default function CryptoPage() {
         updateDoc(userDocRef, { walletAddress: newAddress });
       }
 
-      await checkVaultBalance(newAddress);
+      await checkMainnetBalances(newAddress);
       toast({ title: "Mainnet Bridge Active", description: "Dompet aset riil Anda telah terhubung." });
     } catch (err) {
       toast({ variant: "destructive", title: "Web3 Error", description: "Gagal menghubungkan dompet." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDepositToVault = async () => {
+    if (!address || !depositAmount || typeof window.ethereum === 'undefined') return;
+    
+    setLoading(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
+      
+      const tx = await contract.deposit({ value: parseEther(depositAmount) });
+      toast({ title: "Transaction Broadcasted", description: "Menyetorkan ETH ke AliBank Vault di Mainnet..." });
+      await tx.wait();
+      
+      await checkMainnetBalances(address);
+      setDepositAmount("");
+      toast({ title: "Deposit Success", description: "ETH Anda telah aman di dalam Vault AliBank." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Deposit Failed", description: err.message });
     } finally {
       setLoading(false);
     }
@@ -229,7 +260,7 @@ export default function CryptoPage() {
       toast({ title: "Transaction Broadcasted", description: "Memproses penarikan di Ethereum Mainnet..." });
       await tx.wait();
       
-      await checkVaultBalance(address);
+      await checkMainnetBalances(address);
       toast({ title: "Withdrawal Success", description: "Aset telah ditarik ke dompet pribadi Anda." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Withdrawal Failed", description: err.message });
@@ -244,6 +275,7 @@ export default function CryptoPage() {
       updateDoc(userDocRef, { walletAddress: null });
       setAddress(null);
       setVaultBalance("0");
+      setWalletBalance("0");
       toast({ title: "Disconnected", description: "Hubungan dompet telah diputus secara aman." });
     } catch (err) {
       toast({ variant: "destructive", title: "Failed", description: "Gagal memutuskan hubungan." });
@@ -319,17 +351,22 @@ export default function CryptoPage() {
           
           <div className="flex items-center gap-4">
             {address ? (
-              <div className="flex items-center gap-2">
-                <Badge className={cn(
-                  "font-bold h-10 px-4 rounded-full flex items-center gap-2",
-                  isWrongNetwork ? "bg-destructive text-white" : "bg-green-600 text-white"
-                )}>
-                  {isWrongNetwork ? <AlertTriangle className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
-                  {isWrongNetwork ? "Switch to Ethereum Mainnet" : `${address.slice(0, 6)}...${address.slice(-4)}`}
-                </Badge>
-                <Button onClick={disconnectWallet} variant="ghost" size="icon" className="text-destructive hover:bg-destructive/5 rounded-full">
-                  <Unlink className="w-4 h-4" />
-                </Button>
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-2">
+                  <Badge className={cn(
+                    "font-bold h-10 px-4 rounded-full flex items-center gap-2",
+                    isWrongNetwork ? "bg-destructive text-white" : "bg-green-600 text-white"
+                  )}>
+                    {isWrongNetwork ? <AlertTriangle className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                    {isWrongNetwork ? "Switch to Mainnet" : `${address.slice(0, 6)}...${address.slice(-4)}`}
+                  </Badge>
+                  <Button onClick={disconnectWallet} variant="ghost" size="icon" className="text-destructive hover:bg-destructive/5 rounded-full">
+                    <Unlink className="w-4 h-4" />
+                  </Button>
+                </div>
+                <p className="text-[10px] font-black text-primary uppercase pr-4 tracking-widest">
+                  Wallet: {parseFloat(walletBalance).toFixed(4)} ETH
+                </p>
               </div>
             ) : (
               <Button 
@@ -476,16 +513,34 @@ export default function CryptoPage() {
                 </div>
                 
                 <div className="space-y-3">
+                  <div className="relative">
+                    <Input 
+                      type="number" 
+                      placeholder="Jumlah Setor (ETH)" 
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      className="h-12 rounded-xl border-primary/10 bg-white/30 text-xs font-bold"
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleDepositToVault}
+                    disabled={loading || !address || !depositAmount}
+                    className="w-full h-14 gold-gradient text-white font-black uppercase italic rounded-xl shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 className="animate-spin w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
+                    Setor ke Vault
+                  </Button>
                   <Button 
                     onClick={handleWithdrawFromVault}
                     disabled={loading || !address || parseFloat(vaultBalance) <= 0}
-                    className="w-full h-14 gold-gradient text-white font-black uppercase italic rounded-xl shadow-lg flex items-center justify-center gap-2"
+                    variant="outline"
+                    className="w-full h-12 border-primary/20 text-primary font-black uppercase italic rounded-xl flex items-center justify-center gap-2"
                   >
-                    {loading ? <Loader2 className="animate-spin w-5 h-5" /> : <ArrowDownLeft className="w-5 h-5" />}
+                    {loading ? <Loader2 className="animate-spin w-4 h-4" /> : <ArrowDownLeft className="w-4 h-4" />}
                     Tarik ke Dompet
                   </Button>
                   <p className="text-[9px] text-muted-foreground leading-relaxed text-center italic font-bold">
-                    Penarikan dari Vault ke MetaMask akan dikenakan biaya gas (Gas Fee) jaringan Ethereum Mainnet.
+                    Setoran dan penarikan diproses di jaringan Ethereum Mainnet. Biaya gas (Gas Fee) berlaku.
                   </p>
                 </div>
               </div>
