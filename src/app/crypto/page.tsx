@@ -30,7 +30,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { BrowserProvider, formatEther, Contract, parseEther } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -104,6 +104,144 @@ export default function CryptoPage() {
 
   const { data: userData } = useDoc(userDocRef);
 
+  const resetBalances = useCallback(() => {
+    setVaultBalance("0");
+    setWalletBalance("0");
+    setIsWrongNetwork(false);
+  }, []);
+
+  const checkMainnetBalances = useCallback(async (walletAddr: string) => {
+    if (typeof window.ethereum === 'undefined' || !walletAddr) return;
+    
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+      
+      if (network.chainId !== 1n) {
+        setIsWrongNetwork(true);
+        setVaultBalance("0");
+        setWalletBalance("0");
+        return;
+      }
+
+      setIsWrongNetwork(false);
+      const ethBalance = await provider.getBalance(walletAddr);
+      setWalletBalance(formatEther(ethBalance));
+
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
+      const balanceInVault = await contract.balances(walletAddr).catch(() => null);
+      
+      if (balanceInVault !== null) {
+        setVaultBalance(formatEther(balanceInVault));
+      } else {
+        setVaultBalance("0");
+      }
+    } catch (err) {
+      console.error("Failed to read mainnet data:", err);
+    }
+  }, []);
+
+  // Sync wallet state only for the logged in user
+  useEffect(() => {
+    if (!user) {
+      setAddress(null);
+      resetBalances();
+      return;
+    }
+
+    const syncWithMetaMask = async () => {
+      if (typeof window.ethereum !== 'undefined') {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        
+        // If the wallet address in Firestore doesn't match current MetaMask, or if MetaMask has accounts
+        if (accounts.length > 0) {
+          const currentMetaMaskAddr = accounts[0];
+          setAddress(currentMetaMaskAddr);
+          await checkMainnetBalances(currentMetaMaskAddr);
+        } else if (userData?.walletAddress) {
+          // Fallback to saved address if no active MetaMask session but data exists
+          setAddress(userData.walletAddress);
+          await checkMainnetBalances(userData.walletAddress);
+        } else {
+          setAddress(null);
+          resetBalances();
+        }
+      }
+      setIsInitializing(false);
+    };
+
+    if (mounted) syncWithMetaMask();
+
+    // MetaMask Event Listeners
+    if (typeof window.ethereum !== 'undefined') {
+      const handleAccountsChanged = (accounts: string[]) => {
+        if (accounts.length > 0) {
+          const newAddr = accounts[0];
+          setAddress(newAddr);
+          if (userDocRef) {
+            updateDoc(userDocRef, { walletAddress: newAddr });
+          }
+          checkMainnetBalances(newAddr);
+        } else {
+          setAddress(null);
+          resetBalances();
+        }
+      };
+
+      const handleChainChanged = () => window.location.reload();
+
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
+      
+      return () => {
+        if (window.ethereum?.removeListener) {
+          window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+          window.ethereum.removeListener('chainChanged', handleChainChanged);
+        }
+      };
+    }
+  }, [mounted, user, userData?.walletAddress, userDocRef, checkMainnetBalances, resetBalances]);
+
+  const connectWallet = async () => {
+    if (typeof window.ethereum === 'undefined') return;
+    try {
+      setLoading(true);
+      const provider = new BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+      
+      if (network.chainId !== 1n) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: MAINNET_CHAIN_ID }],
+          });
+        } catch (switchError: any) {
+          toast({ variant: "destructive", title: "Mainnet Required", description: "Gunakan Mainnet untuk aset riil." });
+          return;
+        }
+      }
+
+      const accounts = await provider.send("eth_requestAccounts", []);
+      const activeAddr = accounts[0];
+      setAddress(activeAddr);
+      if (userDocRef) updateDoc(userDocRef, { walletAddress: activeAddr });
+      await checkMainnetBalances(activeAddr);
+    } catch (err) {
+      toast({ variant: "destructive", title: "Web3 Error", description: "Gagal menghubungkan dompet." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const disconnectWallet = async () => {
+    setAddress(null);
+    resetBalances();
+    if (userDocRef) {
+      updateDoc(userDocRef, { walletAddress: null });
+    }
+    toast({ title: "Dompet Terputus", description: "Identitas Web3 Anda telah dilepas dari akun AliBank." });
+  };
+
   const handleBuyFiatChange = (val: string) => {
     setBuyFiat(val);
     if (!val || isNaN(parseFloat(val))) {
@@ -137,108 +275,6 @@ export default function CryptoPage() {
       setSellFiat("");
     } else {
       setSellFiat(Math.round(parseFloat(val) * selectedAsset.price).toString());
-    }
-  };
-
-  const checkMainnetBalances = async (walletAddr: string) => {
-    if (typeof window.ethereum === 'undefined') return;
-    
-    try {
-      const provider = new BrowserProvider(window.ethereum);
-      const network = await provider.getNetwork();
-      
-      if (network.chainId !== 1n) {
-        setIsWrongNetwork(true);
-        setVaultBalance("0");
-        setWalletBalance("0");
-        return;
-      }
-
-      setIsWrongNetwork(false);
-      const ethBalance = await provider.getBalance(walletAddr);
-      setWalletBalance(formatEther(ethBalance));
-
-      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
-      const balanceInVault = await contract.balances(walletAddr).catch(() => null);
-      
-      if (balanceInVault !== null) {
-        setVaultBalance(formatEther(balanceInVault));
-      } else {
-        setVaultBalance("0");
-      }
-    } catch (err) {
-      console.error("Failed to read mainnet data:", err);
-    }
-  };
-
-  useEffect(() => {
-    const syncWallet = async () => {
-      if (userData?.walletAddress) {
-        setAddress(userData.walletAddress);
-        await checkMainnetBalances(userData.walletAddress);
-      }
-      setIsInitializing(false);
-
-      if (typeof window.ethereum !== 'undefined') {
-        const handleAccountsChanged = (accounts: string[]) => {
-          if (accounts.length > 0) {
-            const newAddr = accounts[0];
-            setAddress(newAddr);
-            if (userDocRef) {
-              updateDoc(userDocRef, { walletAddress: newAddr });
-            }
-            checkMainnetBalances(newAddr);
-          } else {
-            setAddress(null);
-            setVaultBalance("0");
-            setWalletBalance("0");
-          }
-        };
-
-        const handleChainChanged = () => window.location.reload();
-
-        window.ethereum.on('accountsChanged', handleAccountsChanged);
-        window.ethereum.on('chainChanged', handleChainChanged);
-        
-        return () => {
-          if (window.ethereum?.removeListener) {
-            window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-            window.ethereum.removeListener('chainChanged', handleChainChanged);
-          }
-        };
-      }
-    };
-
-    if (userData) syncWallet();
-  }, [userData?.walletAddress, userDocRef]);
-
-  const connectWallet = async () => {
-    if (typeof window.ethereum === 'undefined') return;
-    try {
-      setLoading(true);
-      const provider = new BrowserProvider(window.ethereum);
-      const network = await provider.getNetwork();
-      
-      if (network.chainId !== 1n) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: MAINNET_CHAIN_ID }],
-          });
-        } catch (switchError: any) {
-          toast({ variant: "destructive", title: "Mainnet Required", description: "Gunakan Mainnet untuk aset riil." });
-          return;
-        }
-      }
-
-      const accounts = await provider.send("eth_requestAccounts", []);
-      setAddress(accounts[0]);
-      if (userDocRef) updateDoc(userDocRef, { walletAddress: accounts[0] });
-      await checkMainnetBalances(accounts[0]);
-    } catch (err) {
-      toast({ variant: "destructive", title: "Web3 Error", description: "Gagal menghubungkan dompet." });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -364,7 +400,7 @@ export default function CryptoPage() {
                     {isWrongNetwork ? <AlertTriangle className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
                     {isWrongNetwork ? "Switch Network" : `${address.slice(0, 6)}...${address.slice(-4)}`}
                   </Badge>
-                  <Button onClick={() => setAddress(null)} variant="ghost" size="icon" className="text-destructive rounded-full"><Unlink className="w-4 h-4" /></Button>
+                  <Button onClick={disconnectWallet} variant="ghost" size="icon" className="text-destructive rounded-full"><Unlink className="w-4 h-4" /></Button>
                 </div>
                 <p className="text-[10px] font-black text-primary uppercase pr-4 tracking-widest">
                   Wallet: {parseFloat(walletBalance).toFixed(4)} ETH

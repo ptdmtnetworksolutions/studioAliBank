@@ -21,15 +21,16 @@ import {
   ShieldCheck,
   Zap,
   Cpu,
-  Globe
+  Globe,
+  Unlink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Image from "next/image";
-import { doc } from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { useAuth } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -71,23 +72,50 @@ export default function Dashboard() {
     }
   }, [user, userLoading, router]);
 
-  // Sync Real-time Mainnet ETH Balance
+  const fetchEthBalance = useCallback(async (addr: string) => {
+    if (typeof window.ethereum === 'undefined' || !addr) return;
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const balance = await provider.getBalance(addr);
+      setMainnetEthBalance(formatEther(balance));
+    } catch (err) {
+      console.error("Home Mainnet Sync Error:", err);
+      setMainnetEthBalance("0");
+    }
+  }, []);
+
+  // Sync Real-time Mainnet ETH Balance ONLY for the connected wallet of current user
   useEffect(() => {
-    async function fetchEthBalance() {
-      if (userData?.walletAddress && typeof window.ethereum !== 'undefined') {
-        try {
-          const provider = new BrowserProvider(window.ethereum);
-          const balance = await provider.getBalance(userData.walletAddress);
-          setMainnetEthBalance(formatEther(balance));
-        } catch (err) {
-          console.error("Home Mainnet Sync Error:", err);
+    const sync = async () => {
+      if (typeof window.ethereum !== 'undefined' && mounted && user) {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        
+        // If there's an active MetaMask session
+        if (accounts.length > 0) {
+          const activeAddr = accounts[0];
+          // Double check if this matches what we expect or just show active
+          await fetchEthBalance(activeAddr);
+        } else if (userData?.walletAddress) {
+          // If no active session, but we have a saved address, try fetching it
+          await fetchEthBalance(userData.walletAddress);
+        } else {
+          setMainnetEthBalance("0");
         }
       }
+    };
+
+    sync();
+
+    // Listen for changes
+    if (typeof window.ethereum !== 'undefined' && mounted) {
+      const handleAccounts = (accounts: string[]) => {
+        if (accounts.length > 0) fetchEthBalance(accounts[0]);
+        else setMainnetEthBalance("0");
+      };
+      window.ethereum.on('accountsChanged', handleAccounts);
+      return () => window.ethereum?.removeListener('accountsChanged', handleAccounts);
     }
-    if (mounted && userData?.walletAddress) {
-      fetchEthBalance();
-    }
-  }, [mounted, userData?.walletAddress]);
+  }, [mounted, user, userData?.walletAddress, fetchEthBalance]);
 
   const handleLogout = async () => {
     if (auth) {
@@ -122,7 +150,7 @@ export default function Dashboard() {
   
   const cryptoBalances = {
     BTC: userData?.cryptoBalances?.BTC ?? 0,
-    ETH: mainnetEthBalance !== "0" ? parseFloat(mainnetEthBalance) : (userData?.cryptoBalances?.ETH ?? 0),
+    ETH: parseFloat(mainnetEthBalance),
     USDT: userData?.cryptoBalances?.USDT ?? 0,
   };
 
@@ -168,9 +196,9 @@ export default function Dashboard() {
         <div className="flex items-center justify-between px-2">
            <Badge variant="outline" className={cn(
              "font-black px-4 py-1.5 rounded-full text-[9px] uppercase tracking-tighter",
-             userData?.walletAddress ? "bg-green-600/10 text-green-600 border-green-600/20" : "bg-primary/10 text-primary border-primary/20"
+             mainnetEthBalance !== "0" ? "bg-green-600/10 text-green-600 border-green-600/20" : "bg-primary/10 text-primary border-primary/20"
            )}>
-             {userData?.walletAddress ? "BRIDGE CONNECTED" : "MAINNET ACTIVE"}
+             {mainnetEthBalance !== "0" ? "BRIDGE CONNECTED" : "MAINNET ACTIVE"}
            </Badge>
            <button 
              onClick={copyAccountNumber}
@@ -240,9 +268,9 @@ export default function Dashboard() {
               <div>
                 <p className="text-[9px] font-black text-muted-foreground uppercase">ETH</p>
                 <p className="text-xs font-black text-accent dark:text-primary">
-                  {userData?.walletAddress ? cryptoBalances.ETH.toFixed(4) : "0.0000"}
+                  {cryptoBalances.ETH.toFixed(4)}
                 </p>
-                {userData?.walletAddress && (
+                {mainnetEthBalance !== "0" && (
                   <Badge variant="outline" className="text-[6px] h-3 px-1 border-green-600/30 text-green-600 bg-green-600/5 mt-1">MAINNET</Badge>
                 )}
               </div>
