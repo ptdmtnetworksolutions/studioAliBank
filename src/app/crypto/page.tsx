@@ -21,7 +21,9 @@ import {
   HelpCircle,
   Info,
   Sparkles,
-  ArrowRightLeft
+  ArrowRightLeft,
+  ArrowDownCircle,
+  ArrowUpCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,7 +88,7 @@ export default function CryptoPage() {
   const [sellFiat, setSellFiat] = useState("");
   const [sellCrypto, setSellCrypto] = useState("");
 
-  const [depositAmount, setDepositAmount] = useState("");
+  const [bridgeAmount, setBridgeAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
   const [vaultBalance, setVaultBalance] = useState("0");
@@ -131,7 +133,7 @@ export default function CryptoPage() {
       const balanceInVault = await contract.balances(walletAddr).catch(() => null);
       if (balanceInVault !== null) setVaultBalance(formatEther(balanceInVault));
     } catch (err) {
-      console.error(err);
+      console.error("Blockchain Fetch Error:", err);
     }
   }, [resetBalances]);
 
@@ -225,19 +227,41 @@ export default function CryptoPage() {
   };
 
   const handleDepositToVault = async () => {
-    if (!address || typeof window.ethereum === 'undefined' || !depositAmount) return;
+    if (!address || typeof window.ethereum === 'undefined' || !bridgeAmount) return;
     setLoading(true);
     try {
       const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
       
-      const tx = await contract.deposit({ value: parseEther(depositAmount) });
-      toast({ title: "Transaksi Dikirim", description: "Menunggu konfirmasi blockchain..." });
+      const tx = await contract.deposit({ value: parseEther(bridgeAmount) });
+      toast({ title: "Setoran Diproses", description: "Menunggu konfirmasi blockchain..." });
       await tx.wait();
       
       toast({ title: "Setoran Berhasil", description: "Aset Anda kini aman di AliBank Vault." });
-      setDepositAmount("");
+      setBridgeAmount("");
+      await checkMainnetBalances(address);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Vault Error", description: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWithdrawFromVault = async () => {
+    if (!address || typeof window.ethereum === 'undefined' || !bridgeAmount) return;
+    setLoading(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
+      
+      const tx = await contract.withdraw(parseEther(bridgeAmount));
+      toast({ title: "Penarikan Diproses", description: "Menunggu konfirmasi blockchain..." });
+      await tx.wait();
+      
+      toast({ title: "Penarikan Berhasil", description: "Aset telah dikembalikan ke dompet Anda." });
+      setBridgeAmount("");
       await checkMainnetBalances(address);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Vault Error", description: err.message });
@@ -326,7 +350,6 @@ export default function CryptoPage() {
               </CardContent>
             </Card>
 
-            {/* Section 1: Internal Trading (No Wallet Needed) */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 px-2">
                 <ArrowRightLeft className="w-4 h-4 text-primary" />
@@ -360,7 +383,6 @@ export default function CryptoPage() {
           </div>
 
           <div className="lg:col-span-4 space-y-6">
-            {/* Section 2: Mainnet Bridge (Wallet Required) */}
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 bg-accent/5 space-y-6">
               <div className="flex justify-between items-center">
                 <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">Mainnet Bridge <Lock className="w-3 h-3 text-primary" /></h4>
@@ -387,18 +409,28 @@ export default function CryptoPage() {
                     </div>
                     <Input 
                       type="number" 
-                      placeholder="Jumlah ETH untuk disetor" 
-                      value={depositAmount} 
-                      onChange={(e) => setDepositAmount(e.target.value)} 
+                      placeholder="Jumlah ETH" 
+                      value={bridgeAmount} 
+                      onChange={(e) => setBridgeAmount(e.target.value)} 
                       className="h-12 rounded-xl liquid-glass border-none text-accent font-bold text-xs" 
                     />
-                    <Button 
-                      onClick={handleDepositToVault} 
-                      disabled={loading || !depositAmount} 
-                      className="w-full h-12 bg-primary text-white font-black italic uppercase rounded-xl text-xs"
-                    >
-                      Setor ke Vault
-                    </Button>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button 
+                        onClick={handleDepositToVault} 
+                        disabled={loading || !bridgeAmount} 
+                        className="h-12 bg-primary text-white font-black italic uppercase rounded-xl text-[10px] flex items-center gap-2"
+                      >
+                        <ArrowDownCircle className="w-4 h-4" /> Setor
+                      </Button>
+                      <Button 
+                        onClick={handleWithdrawFromVault} 
+                        disabled={loading || !bridgeAmount || parseFloat(vaultBalance) <= 0} 
+                        variant="outline"
+                        className="h-12 border-primary/20 text-primary font-black italic uppercase rounded-xl text-[10px] flex items-center gap-2"
+                      >
+                        <ArrowUpCircle className="w-4 h-4" /> Tarik
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
