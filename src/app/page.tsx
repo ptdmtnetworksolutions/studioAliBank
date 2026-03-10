@@ -34,6 +34,7 @@ import { signOut } from "firebase/auth";
 import { useAuth } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
+import { BrowserProvider, formatEther } from "ethers";
 
 const mainServices = [
   { name: "Transfer", icon: Send, color: "bg-blue-50 text-blue-600", href: "/transfer" },
@@ -54,6 +55,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
+  const [mainnetEthBalance, setMainnetEthBalance] = useState<string>("0");
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -68,6 +70,24 @@ export default function Dashboard() {
       router.push('/login');
     }
   }, [user, userLoading, router]);
+
+  // Sync Real-time Mainnet ETH Balance
+  useEffect(() => {
+    async function fetchEthBalance() {
+      if (userData?.walletAddress && typeof window.ethereum !== 'undefined') {
+        try {
+          const provider = new BrowserProvider(window.ethereum);
+          const balance = await provider.getBalance(userData.walletAddress);
+          setMainnetEthBalance(formatEther(balance));
+        } catch (err) {
+          console.error("Home Mainnet Sync Error:", err);
+        }
+      }
+    }
+    if (mounted && userData?.walletAddress) {
+      fetchEthBalance();
+    }
+  }, [mounted, userData?.walletAddress]);
 
   const handleLogout = async () => {
     if (auth) {
@@ -102,7 +122,7 @@ export default function Dashboard() {
   
   const cryptoBalances = {
     BTC: userData?.cryptoBalances?.BTC ?? 0,
-    ETH: userData?.cryptoBalances?.ETH ?? 0,
+    ETH: mainnetEthBalance !== "0" ? parseFloat(mainnetEthBalance) : (userData?.cryptoBalances?.ETH ?? 0),
     USDT: userData?.cryptoBalances?.USDT ?? 0,
   };
 
@@ -146,8 +166,11 @@ export default function Dashboard() {
       
       <main className="max-w-2xl mx-auto px-4 pt-4 space-y-6">
         <div className="flex items-center justify-between px-2">
-           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-black px-4 py-1.5 rounded-full text-[9px] uppercase tracking-tighter">
-             MAINNET ACTIVE
+           <Badge variant="outline" className={cn(
+             "font-black px-4 py-1.5 rounded-full text-[9px] uppercase tracking-tighter",
+             userData?.walletAddress ? "bg-green-600/10 text-green-600 border-green-600/20" : "bg-primary/10 text-primary border-primary/20"
+           )}>
+             {userData?.walletAddress ? "BRIDGE CONNECTED" : "MAINNET ACTIVE"}
            </Badge>
            <button 
              onClick={copyAccountNumber}
@@ -196,7 +219,7 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Crypto Portfolio Section */}
+        {/* Crypto Portfolio Section - Synchronized with Mainnet */}
         <section className="space-y-4">
           <div className="flex justify-between items-center px-2">
             <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground italic flex items-center gap-2">
@@ -216,7 +239,12 @@ export default function Dashboard() {
               <Cpu className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" />
               <div>
                 <p className="text-[9px] font-black text-muted-foreground uppercase">ETH</p>
-                <p className="text-xs font-black text-accent dark:text-primary">{cryptoBalances.ETH.toFixed(4)}</p>
+                <p className="text-xs font-black text-accent dark:text-primary">
+                  {userData?.walletAddress ? cryptoBalances.ETH.toFixed(4) : "0.0000"}
+                </p>
+                {userData?.walletAddress && (
+                  <Badge variant="outline" className="text-[6px] h-3 px-1 border-green-600/30 text-green-600 bg-green-600/5 mt-1">MAINNET</Badge>
+                )}
               </div>
             </Link>
             <Link href="/crypto" className="liquid-glass p-4 rounded-3xl border-primary/5 flex flex-col items-center text-center space-y-2 hover:border-primary/30 transition-all group">
