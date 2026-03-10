@@ -17,12 +17,19 @@ import {
   ExternalLink,
   Lock,
   Globe,
-  Zap
+  Zap,
+  HelpCircle,
+  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useState, useEffect, useMemo } from "react";
 import { BrowserProvider, formatEther, Contract, parseEther } from "ethers";
 import { useToast } from "@/hooks/use-toast";
@@ -113,11 +120,9 @@ export default function CryptoPage() {
 
       setIsWrongNetwork(false);
       
-      // 1. Ambil saldo ETH di Dompet (MetaMask)
       const ethBalance = await provider.getBalance(walletAddr);
       setWalletBalance(formatEther(ethBalance));
 
-      // 2. Ambil saldo ETH di dalam Vault (Smart Contract)
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
       const balanceInVault = await contract.balances(walletAddr).catch(() => null);
       
@@ -329,6 +334,27 @@ export default function CryptoPage() {
     }
   };
 
+  const HelpIcon = ({ title, content }: { title: string, content: string }) => (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className="text-muted-foreground hover:text-primary transition-colors focus:outline-none">
+          <HelpCircle className="w-4 h-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 rounded-2xl liquid-glass border-primary/20 p-5 shadow-2xl">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-primary" />
+            <h4 className="font-black italic uppercase text-xs text-accent tracking-tighter">Fitur: {title}</h4>
+          </div>
+          <p className="text-[11px] leading-relaxed text-muted-foreground font-medium italic">
+            {content}
+          </p>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+
   if (!mounted) return null;
 
   return (
@@ -398,6 +424,12 @@ export default function CryptoPage() {
               <div className="absolute top-4 left-4 z-10">
                 <Badge className="bg-primary text-white font-black italic">PROD-ACTIVE</Badge>
               </div>
+              <div className="absolute top-4 right-4 z-10">
+                <HelpIcon 
+                  title="Price Chart" 
+                  content="Grafik ini menunjukkan pergerakan harga aset riil di pasar global secara real-time. Data diperbarui menggunakan aggregator harga terpercaya." 
+                />
+              </div>
               <CardHeader className="flex flex-row items-center justify-between border-b border-primary/5 pb-6 pt-12">
                 <div className="flex items-center gap-4">
                   <div className={cn("p-3 rounded-2xl bg-primary/10", selectedAsset.color)}>
@@ -440,7 +472,13 @@ export default function CryptoPage() {
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6">
+              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6 relative">
+                <div className="absolute top-6 right-6">
+                  <HelpIcon 
+                    title="Trading Buy" 
+                    content="Gunakan saldo Rupiah AliBank Anda untuk membeli aset kripto riil. Transaksi diselesaikan secara instan menggunakan infrastruktur Mainnet Bridge kami." 
+                  />
+                </div>
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-black uppercase italic tracking-tighter">Beli {selectedAsset.id}</h3>
                   <Badge variant="outline" className="border-primary/20 text-primary">Saldo: Rp {(userData?.totalBalance || 0).toLocaleString('id-ID')}</Badge>
@@ -466,7 +504,13 @@ export default function CryptoPage() {
                 </div>
               </Card>
 
-              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6">
+              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6 relative">
+                <div className="absolute top-6 right-6">
+                  <HelpIcon 
+                    title="Trading Sell" 
+                    content="Tukarkan aset kripto yang Anda miliki di AliBank kembali menjadi saldo Rupiah dengan harga pasar saat ini secara transparan." 
+                  />
+                </div>
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-black uppercase italic tracking-tighter">Jual {selectedAsset.id}</h3>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase">Miliki: {userData?.cryptoBalances?.[selectedAsset.id] || 0}</p>
@@ -497,6 +541,12 @@ export default function CryptoPage() {
 
           <div className="lg:col-span-4 space-y-6">
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 relative overflow-hidden bg-accent/5">
+              <div className="absolute top-4 right-4 z-20">
+                <HelpIcon 
+                  title="Mainnet Vault" 
+                  content="Brankas terenkripsi langsung di blockchain Ethereum. Aset yang disetorkan ke sini aman dalam Smart Contract AliBank dan dapat ditarik kembali ke dompet pribadi Anda kapan saja." 
+                />
+              </div>
               <div className="absolute top-0 right-0 p-4">
                 <div className="w-20 h-20 bg-primary/10 rounded-full blur-2xl animate-pulse" />
               </div>
@@ -546,7 +596,13 @@ export default function CryptoPage() {
               </div>
             </Card>
 
-            <Card className="liquid-glass border-none rounded-[2.5rem] p-8">
+            <Card className="liquid-glass border-none rounded-[2.5rem] p-8 relative">
+              <div className="absolute top-8 right-8 z-20">
+                <HelpIcon 
+                  title="Global Market Data" 
+                  content="Daftar harga aset digital teratas yang diambil langsung dari sumber data bursa kripto global terpercaya secara real-time." 
+                />
+              </div>
               <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-6 italic">Global Market Data</h4>
               <div className="space-y-4">
                 {ASSETS.map((asset) => (
@@ -579,6 +635,12 @@ export default function CryptoPage() {
             </Card>
 
             <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white shadow-2xl overflow-hidden relative">
+              <div className="absolute top-8 right-8 z-20">
+                <HelpIcon 
+                  title="Audit Transparency" 
+                  content="Seluruh operasi AliBank bersifat terbuka dan dapat diverifikasi oleh siapa pun di Etherscan. Ini menjamin tidak ada manipulasi data dan aset Anda benar-benar tersimpan di blockchain." 
+                />
+              </div>
               <div className="absolute top-0 right-0 p-4">
                 <Globe className="w-20 h-20 text-white/5 animate-spin-slow" />
               </div>
