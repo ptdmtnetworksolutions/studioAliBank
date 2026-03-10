@@ -22,7 +22,8 @@ import {
   Zap,
   Cpu,
   Globe,
-  Unlink
+  Unlink,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,29 +85,20 @@ export default function Dashboard() {
     }
   }, []);
 
-  // Sync Real-time Mainnet ETH Balance ONLY for the connected wallet of current user
   useEffect(() => {
     const sync = async () => {
       if (typeof window.ethereum !== 'undefined' && mounted && user) {
         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        
-        // If there's an active MetaMask session
         if (accounts.length > 0) {
-          const activeAddr = accounts[0];
-          // Double check if this matches what we expect or just show active
-          await fetchEthBalance(activeAddr);
+          await fetchEthBalance(accounts[0]);
         } else if (userData?.walletAddress) {
-          // If no active session, but we have a saved address, try fetching it
           await fetchEthBalance(userData.walletAddress);
         } else {
           setMainnetEthBalance("0");
         }
       }
     };
-
     sync();
-
-    // Listen for changes
     if (typeof window.ethereum !== 'undefined' && mounted) {
       const handleAccounts = (accounts: string[]) => {
         if (accounts.length > 0) fetchEthBalance(accounts[0]);
@@ -193,6 +185,19 @@ export default function Dashboard() {
       </header>
       
       <main className="max-w-2xl mx-auto px-4 pt-4 space-y-6">
+        {/* New: Zero Fee Policy Banner */}
+        <div className="px-2">
+          <div className="liquid-glass p-3 rounded-2xl border-primary/10 flex items-center justify-between bg-primary/5">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-accent/80">AliBank Policy: Rp 0 Monthly Admin Fee</span>
+            </div>
+            <Badge className="bg-green-600 text-white text-[8px] font-black uppercase">Active</Badge>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between px-2">
            <Badge variant="outline" className={cn(
              "font-black px-4 py-1.5 rounded-full text-[9px] uppercase tracking-tighter",
@@ -247,7 +252,6 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Crypto Portfolio Section - Synchronized with Mainnet */}
         <section className="space-y-4">
           <div className="flex justify-between items-center px-2">
             <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground italic flex items-center gap-2">
