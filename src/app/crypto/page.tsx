@@ -64,15 +64,22 @@ type Asset = {
   change: string;
 };
 
+// Fallback prices in case API fails (Approximate values)
+const FALLBACK_PRICES: Record<string, number> = {
+  ETH: 45000000,
+  BTC: 1500000000,
+  USDT: 16000
+};
+
 export default function CryptoPage() {
   const { toast } = useToast();
   const { user } = useUser();
   const db = useFirestore();
   
   const [assets, setAssets] = useState<Asset[]>([
-    { id: "ETH", name: "Ethereum", icon: Cpu, color: "text-blue-500", price: 0, change: "0.0%" },
-    { id: "BTC", name: "Bitcoin", icon: Bitcoin, color: "text-orange-500", price: 0, change: "0.0%" },
-    { id: "USDT", name: "Tether", icon: ShieldCheck, color: "text-green-500", price: 0, change: "0.0%" },
+    { id: "ETH", name: "Ethereum", icon: Cpu, color: "text-blue-500", price: FALLBACK_PRICES.ETH, change: "0.0%" },
+    { id: "BTC", name: "Bitcoin", icon: Bitcoin, color: "text-orange-500", price: FALLBACK_PRICES.BTC, change: "0.0%" },
+    { id: "USDT", name: "Tether", icon: ShieldCheck, color: "text-green-500", price: FALLBACK_PRICES.USDT, change: "0.0%" },
   ]);
   
   const [selectedAsset, setSelectedAsset] = useState<Asset>(assets[0]);
@@ -95,12 +102,17 @@ export default function CryptoPage() {
 
   const SERVICE_FEE_PERCENT = 0.005; 
 
-  // Real-Time Price Fetching
+  // Real-Time Price Fetching with enhanced error handling
   const fetchPrices = useCallback(async () => {
     try {
       const response = await fetch(
         "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether&vs_currencies=idr&include_24hr_change=true"
       );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
       
       const updatedAssets = [
@@ -109,24 +121,24 @@ export default function CryptoPage() {
           name: "Ethereum", 
           icon: Cpu, 
           color: "text-blue-500", 
-          price: data.ethereum.idr, 
-          change: `${data.ethereum.idr_24h_change.toFixed(2)}%` 
+          price: data.ethereum?.idr || FALLBACK_PRICES.ETH, 
+          change: `${(data.ethereum?.idr_24h_change || 0).toFixed(2)}%` 
         },
         { 
           id: "BTC", 
           name: "Bitcoin", 
           icon: Bitcoin, 
           color: "text-orange-500", 
-          price: data.bitcoin.idr, 
-          change: `${data.bitcoin.idr_24h_change.toFixed(2)}%` 
+          price: data.bitcoin?.idr || FALLBACK_PRICES.BTC, 
+          change: `${(data.bitcoin?.idr_24h_change || 0).toFixed(2)}%` 
         },
         { 
           id: "USDT", 
           name: "Tether", 
           icon: ShieldCheck, 
           color: "text-green-500", 
-          price: data.tether.idr, 
-          change: `${data.tether.idr_24h_change.toFixed(2)}%` 
+          price: data.tether?.idr || FALLBACK_PRICES.USDT, 
+          change: `${(data.tether?.idr_24h_change || 0).toFixed(2)}%` 
         },
       ];
       
@@ -136,18 +148,27 @@ export default function CryptoPage() {
       if (currentSelected) setSelectedAsset(currentSelected);
       
       // Generate some simulated chart data points based on current price for visual
-      const basePrice = data.ethereum.idr;
+      const basePrice = data.ethereum?.idr || FALLBACK_PRICES.ETH;
       const points = Array.from({ length: 12 }, (_, i) => ({
         time: `${i * 2}:00`,
         price: basePrice * (1 + (Math.random() * 0.04 - 0.02))
       }));
       setChartData(points);
-      
-      setPriceLoading(false);
     } catch (err) {
-      console.error("Price Fetch Error:", err);
+      console.warn("Price Fetch Error (using fallbacks):", err);
+      // Generate chart data for fallback prices too
+      if (chartData.length === 0) {
+        const basePrice = FALLBACK_PRICES[selectedAsset.id] || 0;
+        const points = Array.from({ length: 12 }, (_, i) => ({
+          time: `${i * 2}:00`,
+          price: basePrice * (1 + (Math.random() * 0.04 - 0.02))
+        }));
+        setChartData(points);
+      }
+    } finally {
+      setPriceLoading(false);
     }
-  }, [selectedAsset.id]);
+  }, [selectedAsset.id, chartData.length]);
 
   useEffect(() => {
     setMounted(true);
