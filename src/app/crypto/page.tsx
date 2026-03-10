@@ -39,7 +39,7 @@ import {
 } from "recharts";
 import { LogoIcon } from "@/components/ui/logo";
 
-// ABI yang disesuaikan tepat dengan AliBankVault.sol milik Anda
+// ABI resmi AliBankVault.sol
 const CONTRACT_ABI = [
   "function deposit() public payable",
   "function withdraw(uint256 _amount) public",
@@ -49,10 +49,10 @@ const CONTRACT_ABI = [
 ];
 
 /**
- * PENTING: SETELAH DEPLOY DI REMIX, GANTI ALAMAT DI BAWAH INI
- * dengan "Deployed Contract Address" yang muncul di tab Deploy Remix.
+ * PRODUCTION SMART CONTRACT ADDRESS
+ * Alamat brankas AliBank yang baru saja Anda deploy dan verifikasi.
  */
-const DEFAULT_CONTRACT = "0x8BAF47E3B6A974A827A7E8F7A1D206B1F992C79C"; 
+const DEFAULT_CONTRACT = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd"; 
 const MAINNET_CHAIN_ID = "0x1"; // Ethereum Mainnet
 
 const ASSETS = [
@@ -224,7 +224,7 @@ export default function CryptoPage() {
       }
 
       const tx = await contract.withdraw(balance);
-      toast({ title: "Transaction Broadcasted", description: "Memproses transaksi di Ethereum Mainnet..." });
+      toast({ title: "Transaction Broadcasted", description: "Memproses penarikan di Ethereum Mainnet..." });
       await tx.wait();
       
       await checkVaultBalance(address);
@@ -470,7 +470,7 @@ export default function CryptoPage() {
                 </div>
                 <div className="p-6 rounded-2xl bg-white/50 dark:bg-black/50 flex flex-col items-center justify-center space-y-2 mb-6 border border-primary/10">
                   <span className="text-3xl font-black text-primary italic">{parseFloat(vaultBalance).toFixed(6)} ETH</span>
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mainnet Balance</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Vault Balance</span>
                 </div>
                 
                 <div className="space-y-3">
@@ -490,7 +490,7 @@ export default function CryptoPage() {
             </Card>
 
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8">
-              <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-6 italic">Production Exchange</h4>
+              <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-6 italic">Global Market Data</h4>
               <div className="space-y-4">
                 {ASSETS.map((asset) => (
                   <button 
@@ -530,7 +530,7 @@ export default function CryptoPage() {
                   <div className="w-8 h-8">
                     <LogoIcon className="text-primary" />
                   </div>
-                  <h3 className="text-xl font-black italic uppercase tracking-tighter">Production Insight</h3>
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter">Audit Transparency</h3>
                 </div>
                 <div className="p-4 rounded-2xl bg-white/5 border border-white/10 mb-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -538,12 +538,19 @@ export default function CryptoPage() {
                     <span className="text-[10px] font-black uppercase text-white/40">Etherscan Verified</span>
                   </div>
                   <p className="text-[11px] text-white/70 leading-relaxed italic">
-                    "AliBank Smart Contract beroperasi dengan standar keamanan tinggi. Semua penarikan dari Vault ke bursa luar (seperti Indodax) diproses secara instan di jaringan Mainnet."
+                    "AliBank Smart Contract beroperasi dengan standar keamanan tinggi. Semua penarikan dari Vault diproses secara instan di jaringan Mainnet."
                   </p>
                 </div>
-                <Button variant="ghost" className="w-full text-[10px] font-bold text-primary hover:bg-white/5 gap-2">
-                  View Contract on Etherscan <ExternalLink className="w-3 h-3" />
-                </Button>
+                <a 
+                  href={`https://etherscan.io/address/${DEFAULT_CONTRACT}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-full"
+                >
+                  <Button variant="ghost" className="w-full text-[10px] font-bold text-primary hover:bg-white/5 gap-2">
+                    View Contract on Etherscan <ExternalLink className="w-3 h-3" />
+                  </Button>
+                </a>
               </div>
             </Card>
           </div>
