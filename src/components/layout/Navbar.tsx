@@ -13,22 +13,26 @@ import {
   X,
   Bitcoin,
   Sparkles,
-  Store
+  Store,
+  User
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LogoIcon } from "@/components/ui/logo";
 
-const navItems = [
+const personalItems = [
   { name: "Beranda", href: "/", icon: LayoutDashboard },
   { name: "Transaksi", href: "/transactions", icon: History },
   { name: "Transfer", href: "/transfer", icon: Send },
   { name: "Dompet", href: "/wallets", icon: Wallet },
   { name: "Deposito", href: "/deposits", icon: PiggyBank },
   { name: "Kripto", href: "/crypto", icon: Bitcoin },
-  { name: "Merchant", href: "/merchant", icon: Store },
-  { name: "AI", href: "/ai-assistant", icon: Sparkles },
+  { name: "AI Insight", href: "/ai-assistant", icon: Sparkles },
+];
+
+const businessItems = [
+  { name: "Merchant Console", href: "/merchant", icon: Store },
 ];
 
 export function Navbar() {
@@ -49,32 +53,55 @@ export function Navbar() {
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-medium text-sm",
-                    isActive 
-                      ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
-                      : "text-accent hover:bg-primary/10"
-                  )}
-                >
-                  <Icon className="w-4 h-4" />
-                  {item.name}
-                </Link>
-              );
-            })}
+          <div className="hidden lg:flex items-center gap-1">
+            <div className="flex items-center gap-1 pr-4 border-r border-primary/10">
+              {personalItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-xl transition-all font-medium text-[11px] uppercase tracking-wider",
+                      isActive 
+                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
+                        : "text-accent hover:bg-primary/10"
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="pl-4 flex items-center gap-1">
+              {businessItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-xl transition-all font-bold text-[11px] uppercase tracking-wider",
+                      isActive 
+                        ? "bg-accent text-accent-foreground shadow-lg" 
+                        : "text-primary hover:bg-primary/10"
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
 
           <Button 
             variant="ghost" 
             size="icon" 
-            className="md:hidden text-accent dark:text-primary"
+            className="lg:hidden text-accent dark:text-primary"
             onClick={() => setIsOpen(!isOpen)}
           >
             {isOpen ? <X /> : <Menu />}
@@ -83,8 +110,9 @@ export function Navbar() {
 
         {/* Mobile Nav */}
         {isOpen && (
-          <div className="md:hidden mt-2 liquid-glass rounded-2xl p-4 flex flex-col gap-2 animate-in slide-in-from-top-4">
-            {navItems.map((item) => {
+          <div className="lg:hidden mt-2 liquid-glass rounded-2xl p-4 flex flex-col gap-2 animate-in slide-in-from-top-4 max-h-[70vh] overflow-y-auto">
+            <p className="text-[10px] font-black uppercase text-muted-foreground px-4 py-2 tracking-widest">Personal Banking</p>
+            {personalItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
@@ -97,6 +125,28 @@ export function Navbar() {
                     isActive 
                       ? "bg-primary text-primary-foreground" 
                       : "text-accent hover:bg-primary/10"
+                  )}
+                >
+                  <Icon className="w-5 h-5" />
+                  {item.name}
+                </Link>
+              );
+            })}
+            <div className="h-px bg-primary/10 my-2 mx-4" />
+            <p className="text-[10px] font-black uppercase text-muted-foreground px-4 py-2 tracking-widest">Business & Merchant</p>
+            {businessItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold",
+                    isActive 
+                      ? "bg-accent text-accent-foreground" 
+                      : "text-primary hover:bg-primary/10"
                   )}
                 >
                   <Icon className="w-5 h-5" />
