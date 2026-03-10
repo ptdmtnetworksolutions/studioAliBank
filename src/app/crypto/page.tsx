@@ -179,7 +179,7 @@ export default function CryptoPage() {
 
   const { data: userData } = useDoc(userDocRef);
 
-  // Fetch Bridge Requests to show pending settlements
+  // Mengambil permintaan Bridge yang masih PENDING (Fase Settlement)
   const bridgeRequestsQuery = useMemo(() => {
     if (!db || !user) return null;
     return query(
@@ -193,6 +193,7 @@ export default function CryptoPage() {
   const { data: pendingBridges } = useCollection(bridgeRequestsQuery);
 
   const pendingAmount = useMemo(() => {
+    if (!pendingBridges) return 0;
     return pendingBridges.reduce((acc, curr) => acc + (curr.cryptoAmount || 0), 0);
   }, [pendingBridges]);
 
@@ -251,9 +252,9 @@ export default function CryptoPage() {
       setAddress(accounts[0]);
       if (userDocRef) updateDoc(userDocRef, { walletAddress: accounts[0] });
       await checkMainnetBalances(accounts[0]);
-      toast({ title: "Mainnet Connected", description: "Dompet Anda siap untuk fitur Bridge." });
+      toast({ title: "Mainnet Terhubung", description: "Dompet Anda siap untuk fitur Bridge AliBank." });
     } catch (err) {
-      toast({ variant: "destructive", title: "Web3 Error", description: "Gagal menghubungkan dompet." });
+      toast({ variant: "destructive", title: "Web3 Error", description: "Gagal menghubungkan dompet MetaMask." });
     } finally {
       setLoading(false);
     }
@@ -284,7 +285,7 @@ export default function CryptoPage() {
 
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
-        description: `${type === 'buy' ? 'Beli' : 'Jual'} ${qty} ${selectedAsset.id} (Live Exchange)`,
+        description: `${type === 'buy' ? 'Beli' : 'Jual'} ${qty} ${selectedAsset.id} (Pasar AliBank)`,
         category: "Trading",
         amount: fiat,
         type: type === 'buy' ? 'expense' : 'income',
@@ -292,10 +293,10 @@ export default function CryptoPage() {
         timestamp: serverTimestamp()
       });
 
-      toast({ title: "Sukses", description: "Transaksi internal berhasil diproses dengan harga pasar." });
+      toast({ title: "Berhasil", description: `Transaksi ${type === 'buy' ? 'pembelian' : 'penjualan'} aset internal berhasil.` });
       setBuyFiat(""); setBuyCrypto(""); setSellFiat(""); setSellCrypto("");
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message });
+      toast({ variant: "destructive", title: "Gagal", description: err.message });
     } finally {
       setLoading(false);
     }
@@ -310,10 +311,10 @@ export default function CryptoPage() {
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
       
       const tx = await contract.deposit({ value: parseEther(bridgeAmount) });
-      toast({ title: "Setoran Diproses", description: "Menunggu konfirmasi blockchain..." });
+      toast({ title: "Setoran Diproses", description: "Menunggu konfirmasi blockchain (ETH sedang dikirim dari MetaMask ke Vault)..." });
       await tx.wait();
       
-      toast({ title: "Setoran Berhasil", description: "ETH Anda kini aman di AliBank Vault. Saldo MetaMask Anda telah berkurang." });
+      toast({ title: "Brankas Terisi", description: "ETH Anda kini aman di Brankas Smart Contract AliBank." });
       setBridgeAmount("");
       await checkMainnetBalances(address);
     } catch (err: any) {
@@ -332,10 +333,10 @@ export default function CryptoPage() {
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
       
       const tx = await contract.withdraw(parseEther(bridgeAmount));
-      toast({ title: "Penarikan Diproses", description: "Menunggu konfirmasi blockchain..." });
+      toast({ title: "Penarikan Diproses", description: "Menunggu konfirmasi blockchain (ETH sedang ditarik dari Vault ke dompet Anda)..." });
       await tx.wait();
       
-      toast({ title: "Penarikan Berhasil", description: "Aset telah ditarik dari Vault dan dikirim kembali ke MetaMask Anda." });
+      toast({ title: "Aset Ditarik", description: "ETH telah kembali ke dompet MetaMask Anda." });
       setBridgeAmount("");
       await checkMainnetBalances(address);
     } catch (err: any) {
@@ -357,7 +358,7 @@ export default function CryptoPage() {
 
     setLoading(true);
     try {
-      // 1. Kurangi Saldo Internal
+      // 1. Kurangi Saldo Internal di database (instan)
       await updateDoc(userDocRef!, {
         "cryptoBalances.ETH": increment(-qty)
       });
@@ -365,18 +366,18 @@ export default function CryptoPage() {
       // 2. Catat Transaksi Bridge (Fase Settlement)
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
-        description: `Bridge Internal ETH ke Mainnet Vault`,
+        description: `Bridge Internal ETH ke Mainnet Vault (Proses Settlement)`,
         category: "Bridge",
         cryptoAmount: qty,
         amount: 0,
         type: "expense",
-        status: "pending", // Ini yang menunjukkan dana sedang diproses oleh Treasury
+        status: "pending", 
         timestamp: serverTimestamp()
       });
 
       toast({ 
-        title: "Proses Bridge Dimulai", 
-        description: "Permintaan pemindahan aset internal ke Vault On-Chain sedang diproses oleh AliBank Treasury." 
+        title: "Permintaan Bridge Diterima", 
+        description: "Saldo internal Anda telah dikunci. AliBank Treasury sedang memproses pengiriman aset asli ke Brankas Blockchain Anda." 
       });
       setBridgeAmount("");
     } catch (err: any) {
@@ -402,7 +403,7 @@ export default function CryptoPage() {
                 Live Bridge <Globe className="w-6 h-6 animate-pulse text-primary" />
               </h1>
             </div>
-            <p className="text-muted-foreground text-sm font-medium italic">Manajemen Aset Hibrida: Internal & Ethereum Mainnet.</p>
+            <p className="text-muted-foreground text-sm font-medium italic">Manajemen Aset Hibrida: Internal & Brankas Blockchain.</p>
           </div>
           
           <div className="flex items-center gap-4">
@@ -459,7 +460,7 @@ export default function CryptoPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 px-2">
                 <ArrowRightLeft className="w-4 h-4 text-primary" />
-                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground italic">Pasar Live AliBank (Internal Assets)</h3>
+                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground italic">Pasar AliBank (Aset Internal)</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6 bg-black/5">
@@ -530,7 +531,7 @@ export default function CryptoPage() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2"><Info className="w-4 h-4 text-primary" /><h4 className="font-black italic uppercase text-xs text-accent tracking-tighter">Vault Guide</h4></div>
                       <p className="text-[11px] leading-relaxed text-muted-foreground font-medium italic">
-                        Setoran dari MetaMask akan mengurangi saldo dompet Anda dan memindahkannya ke Smart Contract. Penarikan akan mengembalikan aset dari Smart Contract ke dompet Anda.
+                        Setoran dari MetaMask akan memindahkan ETH ke Smart Contract AliBankVault.sol. Penarikan akan mengembalikan aset dari Brankas ke dompet pribadi Anda.
                       </p>
                     </div>
                   </PopoverContent>
@@ -547,7 +548,7 @@ export default function CryptoPage() {
                 <div className="space-y-6">
                   <div className="p-6 rounded-2xl bg-black/40 flex flex-col items-center space-y-2 border border-primary/10">
                     <span className="text-3xl font-black text-primary italic">{parseFloat(vaultBalance).toFixed(6)} ETH</span>
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Saldo Brankas On-Chain</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Saldo Brankas On-Chain</span>
                   </div>
 
                   {pendingAmount > 0 && (
@@ -557,17 +558,19 @@ export default function CryptoPage() {
                         <Clock className="w-3 h-3 text-primary" />
                       </div>
                       <p className="text-lg font-black text-accent italic">{pendingAmount.toFixed(6)} ETH</p>
-                      <p className="text-[8px] font-medium text-muted-foreground italic mt-1">AliBank Treasury sedang memproses pemindahan aset Anda ke Mainnet Vault.</p>
+                      <p className="text-[8px] font-medium text-muted-foreground italic mt-1 leading-tight">
+                        Aset internal sedang diproses oleh Treasury menuju Brankas Blockchain. Mohon tunggu konfirmasi Mainnet.
+                      </p>
                     </div>
                   )}
 
                   <div className="space-y-4 pt-4 border-t border-primary/5">
                     <div className="flex justify-between text-[9px] font-black uppercase text-muted-foreground">
-                      <span>MetaMask Wallet</span>
+                      <span>Dompet MetaMask</span>
                       <span className="text-accent">{parseFloat(walletBalance).toFixed(4)} ETH</span>
                     </div>
                     <div className="flex justify-between text-[9px] font-black uppercase text-muted-foreground">
-                      <span>Internal Portfolio</span>
+                      <span>Portofolio Internal</span>
                       <span className="text-primary">{userData?.cryptoBalances?.ETH?.toFixed(4) || "0.0000"} ETH</span>
                     </div>
                     <Input 
@@ -615,7 +618,7 @@ export default function CryptoPage() {
                 <Sparkles className="w-10 h-10 text-primary animate-pulse" />
                 <h3 className="text-lg font-black italic uppercase tracking-tighter">Blockchain Proof</h3>
                 <p className="text-[11px] font-medium leading-relaxed italic opacity-80">
-                  Aset di Brankas terikat pada alamat dompet Anda. Anda dapat menariknya ke MetaMask kapan saja menggunakan kunci privat Anda sendiri.
+                  Aset di Brankas terikat pada alamat dompet Anda. Transaksi dicatat di kontrak: 0x8BAF...
                 </p>
                 <Badge className="bg-primary text-white font-black text-[8px] uppercase tracking-widest">Decentralized Custody</Badge>
               </div>
