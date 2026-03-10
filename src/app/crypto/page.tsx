@@ -18,7 +18,8 @@ import {
   Sparkles,
   ArrowRightLeft,
   Lock,
-  ArrowUpRight
+  ArrowUpRight,
+  Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,8 +34,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { BrowserProvider, formatEther, Contract, parseEther } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useUser, useDoc, useFirestore } from "@/firebase";
-import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { useUser, useDoc, useFirestore, useCollection } from "@/firebase";
+import { doc, updateDoc, increment, addDoc, collection, serverTimestamp, query, where, orderBy } from "firebase/firestore";
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -178,6 +179,23 @@ export default function CryptoPage() {
 
   const { data: userData } = useDoc(userDocRef);
 
+  // Fetch Bridge Requests to show pending settlements
+  const bridgeRequestsQuery = useMemo(() => {
+    if (!db || !user) return null;
+    return query(
+      collection(db, "users", user.uid, "transactions"),
+      where("category", "==", "Bridge"),
+      where("status", "==", "pending"),
+      orderBy("timestamp", "desc")
+    );
+  }, [db, user]);
+
+  const { data: pendingBridges } = useCollection(bridgeRequestsQuery);
+
+  const pendingAmount = useMemo(() => {
+    return pendingBridges.reduce((acc, curr) => acc + (curr.cryptoAmount || 0), 0);
+  }, [pendingBridges]);
+
   const resetBalances = useCallback(() => {
     setVaultBalance("0");
     setWalletBalance("0");
@@ -270,6 +288,7 @@ export default function CryptoPage() {
         category: "Trading",
         amount: fiat,
         type: type === 'buy' ? 'expense' : 'income',
+        status: "success",
         timestamp: serverTimestamp()
       });
 
@@ -343,13 +362,15 @@ export default function CryptoPage() {
         "cryptoBalances.ETH": increment(-qty)
       });
 
-      // 2. Catat Transaksi Bridge
+      // 2. Catat Transaksi Bridge (Fase Settlement)
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
-        description: `Bridge Internal ETH ke Mainnet Vault (${qty} ETH)`,
+        description: `Bridge Internal ETH ke Mainnet Vault`,
         category: "Bridge",
+        cryptoAmount: qty,
         amount: 0,
         type: "expense",
+        status: "pending", // Ini yang menunjukkan dana sedang diproses oleh Treasury
         timestamp: serverTimestamp()
       });
 
@@ -528,6 +549,17 @@ export default function CryptoPage() {
                     <span className="text-3xl font-black text-primary italic">{parseFloat(vaultBalance).toFixed(6)} ETH</span>
                     <span className="text-[10px] font-bold text-muted-foreground uppercase">Saldo Brankas On-Chain</span>
                   </div>
+
+                  {pendingAmount > 0 && (
+                    <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 animate-pulse">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-black text-primary uppercase">Pending Settlement</span>
+                        <Clock className="w-3 h-3 text-primary" />
+                      </div>
+                      <p className="text-lg font-black text-accent italic">{pendingAmount.toFixed(6)} ETH</p>
+                      <p className="text-[8px] font-medium text-muted-foreground italic mt-1">AliBank Treasury sedang memproses pemindahan aset Anda ke Mainnet Vault.</p>
+                    </div>
+                  )}
 
                   <div className="space-y-4 pt-4 border-t border-primary/5">
                     <div className="flex justify-between text-[9px] font-black uppercase text-muted-foreground">
