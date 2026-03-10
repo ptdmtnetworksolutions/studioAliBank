@@ -23,7 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect, useMemo } from "react";
-import { BrowserProvider, formatEther, Contract } from "ethers";
+import { BrowserProvider, formatEther, Contract, parseEther } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useUser, useDoc, useFirestore } from "@/firebase";
@@ -39,19 +39,21 @@ import {
 } from "recharts";
 import { LogoIcon } from "@/components/ui/logo";
 
+// ABI yang disesuaikan tepat dengan AliBankVault.sol milik Anda
 const CONTRACT_ABI = [
   "function deposit() public payable",
   "function withdraw(uint256 _amount) public",
-  "function balances(address) public view returns (uint256)"
+  "function balances(address) public view returns (uint256)",
+  "event Deposited(address indexed user, uint256 amount)",
+  "event Withdrawn(address indexed user, uint256 amount)"
 ];
 
 /**
- * LANGKAH BERIKUTNYA: 
- * Ganti alamat di bawah ini dengan alamat Smart Contract asli Anda 
- * yang telah di-deploy ke Ethereum Mainnet melalui Remix IDE.
+ * PENTING: SETELAH DEPLOY DI REMIX, GANTI ALAMAT DI BAWAH INI
+ * dengan "Deployed Contract Address" yang muncul di tab Deploy Remix.
  */
 const DEFAULT_CONTRACT = "0x8BAF47E3B6A974A827A7E8F7A1D206B1F992C79C"; 
-const MAINNET_CHAIN_ID = "0x1"; // Ethereum Mainnet (ID 1)
+const MAINNET_CHAIN_ID = "0x1"; // Ethereum Mainnet
 
 const ASSETS = [
   { id: "ETH", name: "Ethereum", icon: Cpu, color: "text-blue-500", price: 48500000, change: "+2.4%" },
@@ -79,6 +81,11 @@ export default function CryptoPage() {
   const [vaultBalance, setVaultBalance] = useState("0");
   const [isInitializing, setIsInitializing] = useState(true);
   const [isWrongNetwork, setIsWrongNetwork] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -94,7 +101,6 @@ export default function CryptoPage() {
       const provider = new BrowserProvider(window.ethereum);
       const network = await provider.getNetwork();
       
-      // Verifikasi Jaringan: Harus Ethereum Mainnet (Chain ID 1)
       if (network.chainId !== 1n) {
         setIsWrongNetwork(true);
         setVaultBalance("0");
@@ -191,7 +197,7 @@ export default function CryptoPage() {
       setAddress(newAddress);
       
       if (userDocRef) {
-        await updateDoc(userDocRef, { walletAddress: newAddress });
+        updateDoc(userDocRef, { walletAddress: newAddress });
       }
 
       await checkVaultBalance(newAddress);
@@ -233,7 +239,7 @@ export default function CryptoPage() {
   const disconnectWallet = async () => {
     if (!userDocRef) return;
     try {
-      await updateDoc(userDocRef, { walletAddress: null });
+      updateDoc(userDocRef, { walletAddress: null });
       setAddress(null);
       setVaultBalance("0");
       toast({ title: "Disconnected", description: "Hubungan dompet telah diputus secara aman." });
@@ -255,7 +261,7 @@ export default function CryptoPage() {
           throw new Error("Saldo IDR tidak mencukupi.");
         }
         
-        await updateDoc(userDocRef!, {
+        updateDoc(userDocRef!, {
           totalBalance: increment(-totalCost),
           [`cryptoBalances.${selectedAsset.id}`]: increment(amount)
         });
@@ -265,13 +271,13 @@ export default function CryptoPage() {
           throw new Error(`Saldo ${selectedAsset.id} tidak mencukupi.`);
         }
 
-        await updateDoc(userDocRef!, {
+        updateDoc(userDocRef!, {
           totalBalance: increment(totalCost),
           [`cryptoBalances.${selectedAsset.id}`]: increment(-amount)
         });
       }
 
-      await addDoc(collection(db, "users", user.uid, "transactions"), {
+      addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
         description: `${type === 'buy' ? 'Beli' : 'Jual'} ${amount} ${selectedAsset.id} (Mainnet Bridge)`,
         category: "Trading",
@@ -288,6 +294,8 @@ export default function CryptoPage() {
       setLoading(false);
     }
   };
+
+  if (!mounted) return null;
 
   return (
     <div className="min-h-screen pb-32 bg-background">
@@ -504,7 +512,7 @@ export default function CryptoPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-black text-accent">Rp {asset.price.toLocaleString('id-ID')}</p>
-                      <p className={cn("text-[9px] font-bold", asset.change.startsWith('+') ? "text-green-600" : "text-red-600")}>
+                      <p className={cn("text-[9px) font-bold", asset.change.startsWith('+') ? "text-green-600" : "text-red-600")}>
                         {asset.change}
                       </p>
                     </div>
