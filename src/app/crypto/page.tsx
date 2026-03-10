@@ -39,7 +39,7 @@ import {
 } from "recharts";
 import { LogoIcon } from "@/components/ui/logo";
 
-// ABI resmi AliBankVault.sol
+// ABI resmi sesuai dengan AliBankVault.sol yang dideploy
 const CONTRACT_ABI = [
   "function deposit() public payable",
   "function withdraw(uint256 _amount) public",
@@ -50,7 +50,7 @@ const CONTRACT_ABI = [
 
 /**
  * PRODUCTION SMART CONTRACT ADDRESS
- * Alamat brankas AliBank yang baru saja Anda deploy dan verifikasi.
+ * Alamat brankas AliBank di Ethereum Mainnet.
  */
 const DEFAULT_CONTRACT = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd"; 
 const MAINNET_CHAIN_ID = "0x1"; // Ethereum Mainnet
@@ -101,6 +101,7 @@ export default function CryptoPage() {
       const provider = new BrowserProvider(window.ethereum);
       const network = await provider.getNetwork();
       
+      // Cek apakah di Mainnet (ID: 1)
       if (network.chainId !== 1n) {
         setIsWrongNetwork(true);
         setVaultBalance("0");
@@ -176,6 +177,7 @@ export default function CryptoPage() {
       const provider = new BrowserProvider(window.ethereum);
       const network = await provider.getNetwork();
       
+      // Paksa pindah ke Mainnet jika di network lain
       if (network.chainId !== 1n) {
         try {
           await window.ethereum.request({
