@@ -83,7 +83,13 @@ export default function CryptoPage() {
   const { user } = useUser();
   const db = useFirestore();
   const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
-  const [tradeAmount, setTradeAmount] = useState("");
+  
+  // State for Trading Inputs
+  const [buyFiat, setBuyFiat] = useState("");
+  const [buyCrypto, setBuyCrypto] = useState("");
+  const [sellFiat, setSellFiat] = useState("");
+  const [sellCrypto, setSellCrypto] = useState("");
+
   const [depositAmount, setDepositAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
@@ -103,6 +109,44 @@ export default function CryptoPage() {
   }, [db, user]);
 
   const { data: userData } = useDoc(userDocRef);
+
+  // Auto-calculate conversion for Buy
+  const handleBuyFiatChange = (val: string) => {
+    setBuyFiat(val);
+    if (!val || isNaN(parseFloat(val))) {
+      setBuyCrypto("");
+    } else {
+      setBuyCrypto((parseFloat(val) / selectedAsset.price).toFixed(8));
+    }
+  };
+
+  const handleBuyCryptoChange = (val: string) => {
+    setBuyCrypto(val);
+    if (!val || isNaN(parseFloat(val))) {
+      setBuyFiat("");
+    } else {
+      setBuyFiat(Math.round(parseFloat(val) * selectedAsset.price).toString());
+    }
+  };
+
+  // Auto-calculate conversion for Sell
+  const handleSellFiatChange = (val: string) => {
+    setSellFiat(val);
+    if (!val || isNaN(parseFloat(val))) {
+      setSellCrypto("");
+    } else {
+      setSellCrypto((parseFloat(val) / selectedAsset.price).toFixed(8));
+    }
+  };
+
+  const handleSellCryptoChange = (val: string) => {
+    setSellCrypto(val);
+    if (!val || isNaN(parseFloat(val))) {
+      setSellFiat("");
+    } else {
+      setSellFiat(Math.round(parseFloat(val) * selectedAsset.price).toString());
+    }
+  };
 
   const checkMainnetBalances = async (walletAddr: string) => {
     if (typeof window.ethereum === 'undefined') return;
@@ -288,45 +332,52 @@ export default function CryptoPage() {
   };
 
   const handleTrade = async (type: 'buy' | 'sell') => {
-    if (!user || !db || !tradeAmount) return;
+    if (!user || !db) return;
+    
+    const qty = type === 'buy' ? parseFloat(buyCrypto) : parseFloat(sellCrypto);
+    const fiat = type === 'buy' ? parseFloat(buyFiat) : parseFloat(sellFiat);
+
+    if (isNaN(qty) || qty <= 0) return;
+
     setLoading(true);
-
-    const amount = parseFloat(tradeAmount);
-    const totalCost = amount * selectedAsset.price;
-
     try {
       if (type === 'buy') {
-        if ((userData?.totalBalance || 0) < totalCost) {
+        if ((userData?.totalBalance || 0) < fiat) {
           throw new Error("Saldo IDR tidak mencukupi.");
         }
         
         updateDoc(userDocRef!, {
-          totalBalance: increment(-totalCost),
-          [`cryptoBalances.${selectedAsset.id}`]: increment(amount)
+          totalBalance: increment(-fiat),
+          [`cryptoBalances.${selectedAsset.id}`]: increment(qty)
         });
       } else {
         const currentAssetBalance = userData?.cryptoBalances?.[selectedAsset.id] || 0;
-        if (currentAssetBalance < amount) {
+        if (currentAssetBalance < qty) {
           throw new Error(`Saldo ${selectedAsset.id} tidak mencukupi.`);
         }
 
         updateDoc(userDocRef!, {
-          totalBalance: increment(totalCost),
-          [`cryptoBalances.${selectedAsset.id}`]: increment(-amount)
+          totalBalance: increment(fiat),
+          [`cryptoBalances.${selectedAsset.id}`]: increment(-qty)
         });
       }
 
       addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
-        description: `${type === 'buy' ? 'Beli' : 'Jual'} ${amount} ${selectedAsset.id} (Mainnet Bridge)`,
+        description: `${type === 'buy' ? 'Beli' : 'Jual'} ${qty} ${selectedAsset.id} (Mainnet Bridge)`,
         category: "Trading",
-        amount: totalCost,
+        amount: fiat,
         type: type === 'buy' ? 'expense' : 'income',
         timestamp: serverTimestamp()
       });
 
       toast({ title: "Execution Success", description: `Transaksi ${selectedAsset.id} telah diselesaikan di pasar riil.` });
-      setTradeAmount("");
+      
+      // Clear inputs
+      setBuyFiat("");
+      setBuyCrypto("");
+      setSellFiat("");
+      setSellCrypto("");
     } catch (err: any) {
       toast({ variant: "destructive", title: "Trading Error", description: err.message });
     } finally {
@@ -472,65 +523,93 @@ export default function CryptoPage() {
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6 relative">
+              {/* Buy Card */}
+              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6 relative bg-black/5">
                 <div className="absolute top-6 right-6">
                   <HelpIcon 
                     title="Trading Buy" 
                     content="Gunakan saldo Rupiah AliBank Anda untuk membeli aset kripto riil. Transaksi diselesaikan secara instan menggunakan infrastruktur Mainnet Bridge kami." 
                   />
                 </div>
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-black uppercase italic tracking-tighter">Beli {selectedAsset.id}</h3>
-                  <Badge variant="outline" className="border-primary/20 text-primary">Saldo: Rp {(userData?.totalBalance || 0).toLocaleString('id-ID')}</Badge>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter text-primary">Beli {selectedAsset.id}</h3>
+                  <Badge variant="outline" className="border-primary/40 text-primary font-bold bg-primary/5">Saldo: Rp {(userData?.totalBalance || 0).toLocaleString('id-ID')}</Badge>
                 </div>
+                
                 <div className="space-y-4">
-                  <div className="relative">
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-primary/40">{selectedAsset.id}</span>
+                  <div className="relative group">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-primary/40 text-xs uppercase">Nominal IDR</span>
+                    <Input 
+                      type="number" 
+                      placeholder="0" 
+                      value={buyFiat}
+                      onChange={(e) => handleBuyFiatChange(e.target.value)}
+                      className="h-16 pl-28 pr-4 rounded-xl border-none liquid-glass-dark text-white font-black text-xl italic"
+                    />
+                  </div>
+                  
+                  <div className="relative group">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-primary/40 text-xs uppercase">Jumlah {selectedAsset.id}</span>
                     <Input 
                       type="number" 
                       placeholder="0.00" 
-                      value={tradeAmount}
-                      onChange={(e) => setTradeAmount(e.target.value)}
-                      className="h-14 rounded-xl border-none liquid-glass-dark text-white font-bold"
+                      value={buyCrypto}
+                      onChange={(e) => handleBuyCryptoChange(e.target.value)}
+                      className="h-16 pl-28 pr-4 rounded-xl border-none liquid-glass-dark text-white font-black text-xl italic"
                     />
                   </div>
+
                   <Button 
                     onClick={() => handleTrade('buy')}
-                    disabled={loading || !tradeAmount}
-                    className="w-full h-14 gold-gradient text-white font-black uppercase italic rounded-xl shadow-lg"
+                    disabled={loading || !buyCrypto}
+                    className="w-full h-16 gold-gradient text-white font-black uppercase italic rounded-2xl shadow-xl hover:scale-[1.02] transition-transform"
                   >
                     {loading ? <RefreshCw className="animate-spin" /> : "Eksekusi Beli"}
                   </Button>
                 </div>
               </Card>
 
-              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6 relative">
+              {/* Sell Card */}
+              <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-6 relative bg-black/5">
                 <div className="absolute top-6 right-6">
                   <HelpIcon 
                     title="Trading Sell" 
                     content="Tukarkan aset kripto yang Anda miliki di AliBank kembali menjadi saldo Rupiah dengan harga pasar saat ini secara transparan." 
                   />
                 </div>
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-black uppercase italic tracking-tighter">Jual {selectedAsset.id}</h3>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Miliki: {userData?.cryptoBalances?.[selectedAsset.id] || 0}</p>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter text-primary">Jual {selectedAsset.id}</h3>
+                  <Badge variant="outline" className="border-primary/40 text-primary font-bold bg-primary/5">Miliki: {userData?.cryptoBalances?.[selectedAsset.id] || 0}</Badge>
                 </div>
+
                 <div className="space-y-4">
-                  <div className="relative">
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-primary/40">{selectedAsset.id}</span>
+                  <div className="relative group">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-primary/40 text-xs uppercase">Nominal IDR</span>
+                    <Input 
+                      type="number" 
+                      placeholder="0" 
+                      value={sellFiat}
+                      onChange={(e) => handleSellFiatChange(e.target.value)}
+                      className="h-16 pl-28 pr-4 rounded-xl border-none liquid-glass-dark text-white font-black text-xl italic"
+                    />
+                  </div>
+
+                  <div className="relative group">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-primary/40 text-xs uppercase">Jumlah {selectedAsset.id}</span>
                     <Input 
                       type="number" 
                       placeholder="0.00" 
-                      value={tradeAmount}
-                      onChange={(e) => setTradeAmount(e.target.value)}
-                      className="h-14 rounded-xl border-none liquid-glass-dark text-white font-bold"
+                      value={sellCrypto}
+                      onChange={(e) => handleSellCryptoChange(e.target.value)}
+                      className="h-16 pl-28 pr-4 rounded-xl border-none liquid-glass-dark text-white font-black text-xl italic"
                     />
                   </div>
+
                   <Button 
                     onClick={() => handleTrade('sell')}
-                    disabled={loading || !tradeAmount}
+                    disabled={loading || !sellCrypto}
                     variant="outline"
-                    className="w-full h-14 border-primary/20 text-primary font-black uppercase italic rounded-xl"
+                    className="w-full h-16 border-primary/20 text-primary font-black uppercase italic rounded-2xl hover:bg-primary/10 shadow-lg"
                   >
                     {loading ? <RefreshCw className="animate-spin" /> : "Eksekusi Jual"}
                   </Button>
