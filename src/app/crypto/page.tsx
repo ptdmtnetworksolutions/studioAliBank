@@ -179,23 +179,24 @@ export default function CryptoPage() {
 
   const { data: userData } = useDoc(userDocRef);
 
-  // Mengambil permintaan Bridge yang masih PENDING (Fase Settlement)
-  const bridgeRequestsQuery = useMemo(() => {
+  // Menggunakan kueri yang lebih sederhana untuk menghindari kesalahan Missing Index
+  const transactionsQuery = useMemo(() => {
     if (!db || !user) return null;
     return query(
       collection(db, "users", user.uid, "transactions"),
-      where("category", "==", "Bridge"),
-      where("status", "==", "pending"),
       orderBy("timestamp", "desc")
     );
   }, [db, user]);
 
-  const { data: pendingBridges } = useCollection(bridgeRequestsQuery);
+  const { data: allTransactions } = useCollection(transactionsQuery);
 
+  // Penyaringan status dilakukan di sisi klien untuk menghindari indeks komposit Firestore yang rumit
   const pendingAmount = useMemo(() => {
-    if (!pendingBridges) return 0;
-    return pendingBridges.reduce((acc, curr) => acc + (curr.cryptoAmount || 0), 0);
-  }, [pendingBridges]);
+    if (!allTransactions) return 0;
+    return allTransactions
+      .filter(t => t.category === "Bridge" && t.status === "pending")
+      .reduce((acc, curr) => acc + (curr.cryptoAmount || 0), 0);
+  }, [allTransactions]);
 
   const resetBalances = useCallback(() => {
     setVaultBalance("0");
@@ -358,12 +359,10 @@ export default function CryptoPage() {
 
     setLoading(true);
     try {
-      // 1. Kurangi Saldo Internal di database (instan)
       await updateDoc(userDocRef!, {
         "cryptoBalances.ETH": increment(-qty)
       });
 
-      // 2. Catat Transaksi Bridge (Fase Settlement)
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
         description: `Bridge Internal ETH ke Mainnet Vault (Proses Settlement)`,
