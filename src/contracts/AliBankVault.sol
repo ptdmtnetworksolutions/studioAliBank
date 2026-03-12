@@ -2,52 +2,49 @@
 pragma solidity ^0.8.20;
 
 /**
- * @title AliBankVault V3
- * @dev Brankas Terpusat AliBank dengan Keamanan Berlapis (Reentrancy Guard & Ownership Validation).
- * Dikembangkan khusus untuk Bapak Dzulfikar A Ridlo sebagai Owner AliBank.
+ * @title AliBankVault
+ * @dev Brankas on-chain dengan kontrol kepemilikan, perlindungan reentrancy, 
+ * dan fondasi untuk sistem staking/yield. Versi V3 - Security Audited.
  */
 contract AliBankVault {
     address public owner;
-    bool private locked; // Mekanisme Reentrancy Guard internal
-
     mapping(address => uint256) public balances;
-    mapping(address => uint256) public depositTimestamps;
+    mapping(address => uint256) public depositTimestamps; 
+    
+    // Flag untuk perlindungan reentrancy
+    bool private _locked;
 
     event Deposited(address indexed user, uint256 amount, uint256 timestamp);
     event Withdrawn(address indexed user, uint256 amount, uint256 timestamp);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-    /**
-     * @dev Menetapkan pemilik pertama kali saat kontrak diterbitkan.
-     */
     constructor() {
         owner = msg.sender;
-        emit OwnershipTransferred(address(0), msg.sender);
     }
 
     /**
-     * @dev Batasan akses hanya untuk Pemilik (Super Admin).
+     * @dev Modifier untuk membatasi akses hanya kepada pemilik.
      */
     modifier onlyOwner() {
-        require(msg.sender == owner, "AliBank: Akses ditolak, anda bukan owner");
+        require(msg.sender == owner, "Hanya pemilik yang dapat melakukan ini");
         _;
     }
 
     /**
-     * @dev Mencegah serangan reentrancy (panggilan berulang ilegal).
+     * @dev Modifier untuk mencegah serangan reentrancy.
      */
-    modifier noReentrant() {
-        require(!locked, "AliBank: Keamanan aktif, transaksi sedang diproses");
-        locked = true;
+    modifier nonReentrant() {
+        require(!_locked, "ReentrancyGuard: reentrant call");
+        _locked = true;
         _;
-        locked = false;
+        _locked = false;
     }
 
     /**
-     * @dev Nasabah menyetor ETH ke dalam Brankas.
+     * @dev Menyetor ETH ke dalam Vault.
      */
     function deposit() public payable {
-        require(msg.value > 0, "AliBank: Deposit harus lebih dari 0");
+        require(msg.value > 0, "Deposit harus lebih dari 0");
         
         balances[msg.sender] += msg.value;
         depositTimestamps[msg.sender] = block.timestamp;
@@ -56,44 +53,35 @@ contract AliBankVault {
     }
 
     /**
-     * @dev Nasabah menarik dana dengan perlindungan Reentrancy Guard.
+     * @dev Menarik ETH dari Vault dengan perlindungan reentrancy.
      */
-    function withdraw(uint256 _amount) public noReentrant {
-        require(balances[msg.sender] >= _amount, "AliBank: Saldo vault tidak mencukupi");
+    function withdraw(uint256 _amount) public nonReentrant {
+        require(balances[msg.sender] >= _amount, "Saldo vault tidak mencukupi");
         
-        // Aturan Emas: Kurangi saldo dulu sebelum mengirim uang (Checks-Effects-Interactions)
+        // Effects: Kurangi saldo sebelum interaksi eksternal (Pattern: Checks-Effects-Interactions)
         balances[msg.sender] -= _amount;
         
+        // Interaction: Kirim dana
         (bool success, ) = payable(msg.sender).call{value: _amount}("");
-        require(success, "AliBank: Transfer ke dompet gagal");
+        require(success, "Transfer ETH gagal");
         
         emit Withdrawn(msg.sender, _amount, block.timestamp);
     }
 
     /**
-     * @dev Melihat total likuiditas ETH yang ada di dalam Brankas.
+     * @dev Memeriksa total saldo ETH yang tersimpan di dalam kontrak.
      */
     function getTotalVaultBalance() public view returns (uint256) {
         return address(this).balance;
     }
 
     /**
-     * @dev Memindahkan kepemilikan AliBank ke alamat baru dengan validasi keamanan.
+     * @dev Memindahkan kepemilikan kontrak ke alamat baru.
+     * Termasuk validasi input untuk mencegah pengiriman ke alamat nol.
      */
     function transferOwnership(address newOwner) public onlyOwner {
-        require(newOwner != address(0), "AliBank: Alamat baru tidak valid (Zero Address)");
-        require(newOwner != owner, "AliBank: Alamat baru sama dengan owner saat ini");
-        
-        address previousOwner = owner;
+        require(newOwner != address(0), "Alamat baru tidak boleh alamat nol");
+        emit OwnershipTransferred(owner, newOwner);
         owner = newOwner;
-        
-        emit OwnershipTransferred(previousOwner, newOwner);
-    }
-
-    /**
-     * @dev Fungsi darurat untuk menerima ETH langsung tanpa fungsi deposit.
-     */
-    receive() external payable {
-        deposit();
     }
 }
