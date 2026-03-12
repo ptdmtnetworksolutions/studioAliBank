@@ -49,7 +49,7 @@ const CONTRACT_ABI = [
   "function depositTimestamps(address) public view returns (uint256)"
 ];
 
-// Alamat kontrak V3 Pak Dzulfikar (Security Grade A)
+// Alamat kontrak V3 Terverifikasi (0x5626...)
 const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 
 export default function AdminControlPage() {

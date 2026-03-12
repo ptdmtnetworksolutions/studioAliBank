@@ -46,7 +46,7 @@ import {
 } from "recharts";
 import { LogoIcon } from "@/components/ui/logo";
 
-// ABI TERBARU: Mendukung ReentrancyGuard, Ownership, dan Staking
+// ABI V3: Mendukung ReentrancyGuard, Ownership, dan Staking
 const CONTRACT_ABI = [
   "function deposit() public payable",
   "function withdraw(uint256 _amount) public",
@@ -58,7 +58,7 @@ const CONTRACT_ABI = [
   "event Withdrawn(address indexed user, uint256 amount, uint256 timestamp)"
 ];
 
-// Alamat kontrak V3 (0x5626...)
+// Alamat kontrak V3 Terverifikasi
 const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
 
 type Asset = {
