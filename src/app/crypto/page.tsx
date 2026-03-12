@@ -24,7 +24,9 @@ import {
   BarChart3,
   ArrowUpRight,
   HelpCircle,
-  ArrowUpDown
+  ArrowUpDown,
+  Wallet2,
+  PieChart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -295,6 +297,29 @@ export default function CryptoDeFiPage() {
       setIsProcessing(false);
     }
   };
+
+  const totalEstimatedValue = useMemo(() => {
+    if (!userData || !coins.length) return 0;
+    
+    let cryptoValue = 0;
+    const balances = userData.cryptoBalances || {};
+    
+    Object.entries(balances).forEach(([symbol, qty]) => {
+      const coin = coins.find(c => c.symbol.toUpperCase() === symbol.toUpperCase());
+      if (coin) {
+        cryptoValue += (qty as number) * coin.current_price;
+      }
+    });
+
+    // Add MetaMask ETH if on mainnet or if we want to include it
+    const ethCoin = coins.find(c => c.symbol.toUpperCase() === 'ETH');
+    if (ethCoin) {
+      cryptoValue += parseFloat(walletBalance) * ethCoin.current_price;
+      cryptoValue += parseFloat(vaultBalance) * ethCoin.current_price;
+    }
+
+    return (userData.totalBalance || 0) + cryptoValue;
+  }, [userData, coins, walletBalance, vaultBalance]);
 
   if (!mounted) return null;
 
@@ -616,8 +641,8 @@ export default function CryptoDeFiPage() {
             </div>
 
             <div className="lg:col-span-3 space-y-6">
-              <Card className="liquid-glass-dark rounded-[2.5rem] p-8 border-none text-white shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles className="w-16 h-16" /></div>
+              <Card className="liquid-glass-dark rounded-[2.5rem] p-8 border-none text-white shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><PieChart className="w-20 h-20" /></div>
                 <div className="flex items-center gap-2 mb-6">
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
                     <Activity className="w-4 h-4" /> Portfolio Insight
@@ -631,25 +656,57 @@ export default function CryptoDeFiPage() {
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <div className="space-y-6">
+                
+                <div className="space-y-8">
                   <div>
-                    <p className="text-[9px] font-bold text-white/60 uppercase">Total Asset Value (Est.)</p>
-                    <p className="text-2xl font-black italic tracking-tighter">
-                      Rp {((userData?.totalBalance || 0) + (selectedCoin?.current_price || 0) * (userData?.cryptoBalances?.ETH || 0)).toLocaleString()}
+                    <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest">Estimated Total Value</p>
+                    <p className="text-3xl font-black italic tracking-tighter text-white">
+                      Rp {totalEstimatedValue.toLocaleString('id-ID')}
                     </p>
                   </div>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center text-[10px]">
-                      <span className="font-bold opacity-60">IDR Liquidity</span>
-                      <span className="font-black italic">Rp {userData?.totalBalance?.toLocaleString() || "0"}</span>
+
+                  <div className="space-y-5">
+                    <div className="flex justify-between items-center group/item cursor-help">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                        <span className="text-[10px] font-bold text-white/60 uppercase">IDR Liquidity</span>
+                      </div>
+                      <span className="text-xs font-black italic">Rp {userData?.totalBalance?.toLocaleString() || "0"}</span>
                     </div>
-                    <div className="flex justify-between items-center text-[10px]">
-                      <span className="font-bold opacity-60">Crypto Assets</span>
-                      <span className="font-black italic">{(userData?.cryptoBalances?.ETH || 0).toFixed(4)} ETH</span>
+
+                    <div className="flex justify-between items-center group/item cursor-help">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                        <span className="text-[10px] font-bold text-white/60 uppercase">Ethereum (ETH)</span>
+                      </div>
+                      <span className="text-xs font-black italic">
+                        {( (userData?.cryptoBalances?.ETH || 0) + parseFloat(walletBalance) + parseFloat(vaultBalance) ).toFixed(4)} ETH
+                      </span>
                     </div>
+
+                    {userData?.cryptoBalances?.BTC > 0 && (
+                      <div className="flex justify-between items-center group/item">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                          <span className="text-[10px] font-bold text-white/60 uppercase">Bitcoin (BTC)</span>
+                        </div>
+                        <span className="text-xs font-black italic">{(userData?.cryptoBalances?.BTC || 0).toFixed(6)} BTC</span>
+                      </div>
+                    )}
+
+                    {userData?.cryptoBalances?.USDT > 0 && (
+                      <div className="flex justify-between items-center group/item">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                          <span className="text-[10px] font-bold text-white/60 uppercase">Tether (USDT)</span>
+                        </div>
+                        <span className="text-xs font-black italic">Rp {(userData?.cryptoBalances?.USDT || 0).toLocaleString()}</span>
+                      </div>
+                    )}
                   </div>
-                  <Button className="w-full h-12 gold-gradient text-white rounded-2xl font-black uppercase italic text-[10px] shadow-lg">
-                    Optimize Yield
+
+                  <Button className="w-full h-12 gold-gradient text-white rounded-2xl font-black uppercase italic text-[10px] shadow-lg hover:scale-[1.02] transition-transform">
+                    Optimize Yield <Zap className="w-3 h-3 ml-2" />
                   </Button>
                 </div>
               </Card>
