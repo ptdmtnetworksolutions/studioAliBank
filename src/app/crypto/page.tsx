@@ -200,7 +200,7 @@ export default function CryptoDeFiPage() {
       await tx.wait();
       
       const txRef = collection(db, "users", user.uid, "transactions");
-      await addDoc(txRef, {
+      const logPayload = {
         date: new Date().toISOString(),
         description: `${action === 'deposit' ? 'Staking' : 'Penarikan'} Vault V3`,
         category: "Bridge",
@@ -209,7 +209,9 @@ export default function CryptoDeFiPage() {
         type: action === 'deposit' ? 'expense' : 'income',
         status: "success",
         timestamp: serverTimestamp()
-      });
+      };
+      
+      addDoc(txRef, logPayload);
 
       toast({ title: "Berhasil!", description: `Aset telah berhasil ${action === 'deposit' ? 'disimpan di' : 'ditarik dari'} Vault V3.` });
       setBridgeAmount("");
@@ -243,7 +245,7 @@ export default function CryptoDeFiPage() {
         };
         updateDoc(userRef, payload).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: userRef.path, operation: 'update', requestResourceData: payload })));
         
-        await addDoc(collection(db, "users", user.uid, "transactions"), {
+        addDoc(collection(db, "users", user.uid, "transactions"), {
           date: new Date().toISOString(),
           description: `Swap IDR ke ${assetKey}`,
           category: "Swap",
@@ -268,7 +270,7 @@ export default function CryptoDeFiPage() {
         };
         updateDoc(userRef, payload).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: userRef.path, operation: 'update', requestResourceData: payload })));
 
-        await addDoc(collection(db, "users", user.uid, "transactions"), {
+        addDoc(collection(db, "users", user.uid, "transactions"), {
           date: new Date().toISOString(),
           description: `Swap ${assetKey} ke IDR`,
           category: "Swap",
@@ -281,7 +283,7 @@ export default function CryptoDeFiPage() {
         });
       }
 
-      await addDoc(collection(db, "users", user.uid, "notifications"), {
+      addDoc(collection(db, "users", user.uid, "notifications"), {
         title: "Swap Berhasil",
         message: `Pertukaran aset senilai ${swapDirection === 'buy' ? 'Rp ' + amount.toLocaleString() : amount + ' ' + assetKey} telah selesai.`,
         type: "success",
@@ -311,7 +313,6 @@ export default function CryptoDeFiPage() {
       }
     });
 
-    // Add MetaMask ETH if on mainnet or if we want to include it
     const ethCoin = coins.find(c => c.symbol.toUpperCase() === 'ETH');
     if (ethCoin) {
       cryptoValue += parseFloat(walletBalance) * ethCoin.current_price;
@@ -559,6 +560,20 @@ export default function CryptoDeFiPage() {
                       </Button>
                     </div>
 
+                    {/* Balance Summary in Swap Tab */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex flex-col items-center">
+                        <p className="text-[8px] font-black uppercase text-muted-foreground mb-1">Saldo IDR</p>
+                        <p className="text-sm font-black text-accent">Rp {userData?.totalBalance?.toLocaleString() || "0"}</p>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-accent/5 border border-accent/10 flex flex-col items-center">
+                        <p className="text-[8px] font-black uppercase text-muted-foreground mb-1">Saldo {selectedCoin?.symbol.toUpperCase() || 'Asset'}</p>
+                        <p className="text-sm font-black text-primary">
+                          {(userData?.cryptoBalances?.[selectedCoin?.symbol.toUpperCase() || ''] || 0).toFixed(selectedCoin?.symbol.toUpperCase() === 'BTC' ? 8 : 4)}
+                        </p>
+                      </div>
+                    </div>
+
                     <div className="space-y-4">
                       <div className="relative">
                         <label className="text-[9px] font-black text-muted-foreground uppercase ml-1 mb-1 block">
@@ -641,6 +656,7 @@ export default function CryptoDeFiPage() {
             </div>
 
             <div className="lg:col-span-3 space-y-6">
+              {/* Active Asset Portfolio Card */}
               <Card className="liquid-glass-dark rounded-[2.5rem] p-8 border-none text-white shadow-2xl relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><PieChart className="w-20 h-20" /></div>
                 <div className="flex items-center gap-2 mb-6">
