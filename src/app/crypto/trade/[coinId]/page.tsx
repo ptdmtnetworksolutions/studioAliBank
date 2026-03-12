@@ -24,6 +24,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Slider } from "@/components/ui/slider";
 import { useUser, useFirestore, useDoc } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +51,10 @@ export default function CryptoTradePage() {
   const [orderQty, setOrderQty] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [marketCoins, setMarketCoins] = useState<any[]>([]);
+  
+  // Percent states
+  const [buyPercent, setBuyPercent] = useState(0);
+  const [sellPercent, setSellPercent] = useState(0);
 
   // Refs for TradingView
   const container = useRef<HTMLDivElement>(null);
@@ -115,6 +120,31 @@ export default function CryptoTradePage() {
   }, [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
+  const priceIdr = coinData?.market_data?.current_price?.idr || 0;
+
+  const handleBuyPercentChange = (val: number[]) => {
+    const percent = val[0];
+    setBuyPercent(percent);
+    if (!userData || !priceIdr) return;
+    
+    const maxBalance = userData.totalBalance || 0;
+    const targetAmount = (maxBalance * percent) / 100;
+    setOrderAmount(targetAmount.toFixed(0));
+    setOrderQty((targetAmount / priceIdr).toFixed(8));
+  };
+
+  const handleSellPercentChange = (val: number[]) => {
+    const percent = val[0];
+    setSellPercent(percent);
+    if (!userData || !coinData || !priceIdr) return;
+    
+    const assetKey = coinData.symbol.toUpperCase();
+    const maxQty = userData.cryptoBalances?.[assetKey] || 0;
+    const targetQty = (maxQty * percent) / 100;
+    setOrderQty(targetQty.toFixed(8));
+    setOrderAmount((targetQty * priceIdr).toFixed(0));
+  };
+
   const handleTrade = async (type: 'buy' | 'sell') => {
     if (!user || !db || !userDocRef || !coinData) return;
     
@@ -152,6 +182,7 @@ export default function CryptoTradePage() {
 
       toast({ title: "Eksekusi Berhasil", description: `Order ${type} ${coinData.name} telah diselesaikan.` });
       setOrderAmount(""); setOrderQty("");
+      setBuyPercent(0); setSellPercent(0);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal", description: err.message });
     } finally {
@@ -168,7 +199,6 @@ export default function CryptoTradePage() {
     );
   }
 
-  const priceIdr = coinData.market_data.current_price.idr;
   const change24h = coinData.market_data.price_change_percentage_24h;
 
   return (
@@ -287,12 +317,12 @@ export default function CryptoTradePage() {
                 <TabsTrigger value="sell" className="font-black uppercase text-xs data-[state=active]:bg-destructive data-[state=active]:text-white transition-all">Jual {coinData.symbol}</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="buy" className="p-8 space-y-6">
+              <TabsContent value="buy" className="p-8 space-y-8">
                 <div className="flex justify-between items-end mb-2">
                   <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Saldo IDR Tersedia</p>
                   <p className="text-xs font-black text-accent">Rp {userData?.totalBalance?.toLocaleString() || "0"}</p>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Jumlah IDR yang digunakan</label>
                     <div className="relative">
@@ -309,6 +339,25 @@ export default function CryptoTradePage() {
                       />
                     </div>
                   </div>
+
+                  {/* Percentage Slider Buy */}
+                  <div className="space-y-4 px-2">
+                    <Slider 
+                      value={[buyPercent]} 
+                      max={100} 
+                      step={25} 
+                      onValueChange={handleBuyPercentChange}
+                      className="cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase px-1">
+                      <span className={cn(buyPercent === 0 && "text-primary")}>0%</span>
+                      <span className={cn(buyPercent === 25 && "text-primary")}>25%</span>
+                      <span className={cn(buyPercent === 50 && "text-primary")}>50%</span>
+                      <span className={cn(buyPercent === 75 && "text-primary")}>75%</span>
+                      <span className={cn(buyPercent === 100 && "text-primary")}>100%</span>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Estimasi Koin Diterima</label>
                     <div className="relative">
@@ -326,18 +375,18 @@ export default function CryptoTradePage() {
                 <Button 
                   onClick={() => handleTrade('buy')}
                   disabled={isProcessing || !orderAmount}
-                  className="w-full h-16 bg-green-600 hover:bg-green-700 text-white font-black uppercase italic text-lg rounded-[2rem] shadow-xl transition-all"
+                  className="w-full h-16 bg-green-600 hover:bg-green-700 text-white font-black uppercase italic text-lg rounded-[2rem] shadow-xl transition-all mt-4"
                 >
                   {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : `Konfirmasi Pembelian ${coinData.symbol}`}
                 </Button>
               </TabsContent>
 
-              <TabsContent value="sell" className="p-8 space-y-6">
+              <TabsContent value="sell" className="p-8 space-y-8">
                 <div className="flex justify-between items-end mb-2">
                   <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Saldo {coinData.symbol} Tersedia</p>
                   <p className="text-xs font-black text-accent">{(userData?.cryptoBalances?.[coinData.symbol.toUpperCase()] || 0).toFixed(8)} {coinData.symbol.toUpperCase()}</p>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Jumlah {coinData.symbol} yang dijual</label>
                     <div className="relative">
@@ -354,6 +403,25 @@ export default function CryptoTradePage() {
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-primary uppercase">{coinData.symbol}</span>
                     </div>
                   </div>
+
+                  {/* Percentage Slider Sell */}
+                  <div className="space-y-4 px-2">
+                    <Slider 
+                      value={[sellPercent]} 
+                      max={100} 
+                      step={25} 
+                      onValueChange={handleSellPercentChange}
+                      className="cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase px-1">
+                      <span className={cn(sellPercent === 0 && "text-primary")}>0%</span>
+                      <span className={cn(sellPercent === 25 && "text-primary")}>25%</span>
+                      <span className={cn(sellPercent === 50 && "text-primary")}>50%</span>
+                      <span className={cn(sellPercent === 75 && "text-primary")}>75%</span>
+                      <span className={cn(sellPercent === 100 && "text-primary")}>100%</span>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Estimasi IDR Diterima</label>
                     <div className="relative">
@@ -371,7 +439,7 @@ export default function CryptoTradePage() {
                 <Button 
                   onClick={() => handleTrade('sell')}
                   disabled={isProcessing || !orderQty}
-                  className="w-full h-16 bg-destructive hover:bg-destructive/90 text-white font-black uppercase italic text-lg rounded-[2rem] shadow-xl transition-all"
+                  className="w-full h-16 bg-destructive hover:bg-destructive/90 text-white font-black uppercase italic text-lg rounded-[2rem] shadow-xl transition-all mt-4"
                 >
                   {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : `Konfirmasi Penjualan ${coinData.symbol}`}
                 </Button>
