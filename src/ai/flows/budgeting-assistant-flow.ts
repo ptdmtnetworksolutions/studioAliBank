@@ -72,10 +72,20 @@ const budgetingAssistantFlow = ai.defineFlow(
     outputSchema: BudgetingAssistantOutputSchema,
   },
   async (input) => {
-    const { output } = await budgetingAssistantPrompt(input);
-    if (!output) {
-      throw new Error('Failed to generate budget.');
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      try {
+        const { output } = await budgetingAssistantPrompt(input);
+        if (!output) throw new Error('Empty output from AI');
+        return output;
+      } catch (error) {
+        attempts++;
+        if (attempts >= maxAttempts) throw error;
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+      }
     }
-    return output;
+    throw new Error('Failed to generate budget after retries.');
   }
 );

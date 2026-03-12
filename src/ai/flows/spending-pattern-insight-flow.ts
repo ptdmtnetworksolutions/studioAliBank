@@ -72,7 +72,21 @@ const spendingPatternInsightFlow = ai.defineFlow(
     outputSchema: SpendingPatternInsightOutputSchema,
   },
   async (input) => {
-    const {output} = await spendingPatternInsightPrompt(input);
-    return output!;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      try {
+        const {output} = await spendingPatternInsightPrompt(input);
+        if (!output) throw new Error('Empty output from AI');
+        return output;
+      } catch (error) {
+        attempts++;
+        if (attempts >= maxAttempts) throw error;
+        // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+      }
+    }
+    throw new Error('Failed to get spending insight after retries.');
   }
 );

@@ -78,10 +78,20 @@ const savingsOpportunityAdvisorFlow = ai.defineFlow(
     outputSchema: SavingsOpportunityAdvisorOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    if (!output) {
-      throw new Error('Failed to get a response from the AI assistant.');
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      try {
+        const { output } = await prompt(input);
+        if (!output) throw new Error('Failed to get a response from the AI assistant.');
+        return output;
+      } catch (error) {
+        attempts++;
+        if (attempts >= maxAttempts) throw error;
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+      }
     }
-    return output;
+    throw new Error('Failed to get AI response after retries.');
   }
 );
