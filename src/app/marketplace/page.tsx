@@ -14,7 +14,8 @@ import {
   TrendingUp,
   TrendingDown,
   BarChart3,
-  Globe
+  Globe,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,28 +52,29 @@ export default function MarketplacePage() {
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   
-  // FIXED: Collection reference must have an odd number of segments
   const itemsQuery = useMemo(() => {
     if (!db) return null;
     return query(collection(db, "marketplace"));
   }, [db]);
   const { data: dbProducts, loading: itemsLoading } = useCollection<any>(itemsQuery);
 
-  // Market State (Live Crypto Prices)
   const [coins, setCoins] = useState<CoinData[]>([]);
   const [marketLoading, setMarketLoading] = useState(true);
 
   const fetchMarketData = useCallback(async () => {
     try {
       const response = await fetch(
-        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=idr&order=market_cap_desc&per_page=20&page=1&sparkline=false"
+        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=idr&order=market_cap_desc&per_page=20&page=1&sparkline=false",
+        { signal: AbortSignal.timeout(10000) }
       );
       if (response.ok) {
         const data = await response.json();
-        setCoins(data);
+        if (Array.isArray(data)) {
+          setCoins(data);
+        }
       }
     } catch (err) {
-      console.error("Market fetch error:", err);
+      console.warn("Market fetch handled error:", err);
     } finally {
       setMarketLoading(false);
     }
@@ -243,7 +245,7 @@ export default function MarketplacePage() {
               <div className="text-center py-20 liquid-glass rounded-[3rem] border-dashed border-2 border-primary/5">
                 <Package className="w-16 h-16 text-primary/10 mx-auto mb-4" />
                 <h3 className="text-xl font-black text-accent uppercase italic">Inventory Empty</h3>
-                <p className="text-xs text-muted-foreground font-medium mt-2">Belum ada produk riil di koleksi /marketplace database Anda.</p>
+                <p className="text-xs text-muted-foreground font-medium mt-2">Belum ada produk riil di koleksi database Anda.</p>
               </div>
             )}
           </TabsContent>
@@ -274,7 +276,7 @@ export default function MarketplacePage() {
                       Array.from({ length: 5 }).map((_, i) => (
                         <tr key={i}><td colSpan={4} className="px-8 py-8 animate-pulse bg-primary/5" /></tr>
                       ))
-                    ) : coins.map((coin) => (
+                    ) : coins.length > 0 ? coins.map((coin) => (
                       <tr key={coin.id} className="hover:bg-primary/5 transition-colors group">
                         <td className="px-8 py-5">
                           <div className="flex items-center gap-4">
@@ -308,7 +310,15 @@ export default function MarketplacePage() {
                           </Button>
                         </td>
                       </tr>
-                    ))}
+                    )) : (
+                      <tr>
+                        <td colSpan={4} className="py-20 text-center">
+                          <RefreshCw className="w-10 h-10 text-primary/20 mx-auto mb-4" />
+                          <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Gagal memuat pasar kripto riil. Silakan coba lagi.</p>
+                          <Button variant="ghost" className="mt-4 text-[10px] font-black uppercase" onClick={fetchMarketData}>Muat Ulang</Button>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

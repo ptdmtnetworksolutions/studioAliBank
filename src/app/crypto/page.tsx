@@ -89,27 +89,6 @@ export default function CryptoDeFiPage() {
   const [bridgeAmount, setBridgeAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Fetch Live Market Data
-  const fetchMarketData = useCallback(async () => {
-    try {
-      const response = await fetch(
-        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=idr&order=market_cap_desc&per_page=15&page=1&sparkline=false"
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setCoins(data);
-        if (!selectedCoin) {
-          setSelectedCoin(data[0]);
-          generateChartData(data[0].current_price);
-        }
-      }
-    } catch (err) {
-      console.error("Market fetch error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedCoin]);
-
   const generateChartData = (basePrice: number) => {
     const points = Array.from({ length: 24 }, (_, i) => ({
       time: `${i}:00`,
@@ -117,6 +96,34 @@ export default function CryptoDeFiPage() {
     }));
     setChartData(points);
   };
+
+  // Fetch Live Market Data with enhanced error handling
+  const fetchMarketData = useCallback(async () => {
+    try {
+      const response = await fetch(
+        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=idr&order=market_cap_desc&per_page=15&page=1&sparkline=false",
+        { signal: AbortSignal.timeout(10000) } // 10s timeout
+      );
+      
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        setCoins(data);
+        if (!selectedCoin) {
+          setSelectedCoin(data[0]);
+          generateChartData(data[0].current_price);
+        }
+      }
+    } catch (err) {
+      // Log error but don't crash UI
+      console.warn("Market fetch handled error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCoin]);
 
   useEffect(() => {
     setMounted(true);
@@ -245,7 +252,7 @@ export default function CryptoDeFiPage() {
           
           {/* Left Panel: Market Feed (Indodax Style) */}
           <div className="lg:col-span-3 space-y-6">
-            <Card className="rounded-[2rem] border-none shadow-sm overflow-hidden bg-white h-[600px] flex flex-col">
+            <Card className="rounded-2xl border-none shadow-sm overflow-hidden bg-white h-[600px] flex flex-col">
               <div className="p-6 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
                 <h3 className="text-xs font-black uppercase tracking-widest text-accent flex items-center gap-2">
                   <LayoutGrid className="w-4 h-4 text-primary" /> Market List
@@ -256,7 +263,7 @@ export default function CryptoDeFiPage() {
                   Array.from({ length: 10 }).map((_, i) => (
                     <div key={i} className="p-4 animate-pulse bg-primary/5 h-16" />
                   ))
-                ) : coins.map((coin) => (
+                ) : coins.length > 0 ? coins.map((coin) => (
                   <button 
                     key={coin.id} 
                     onClick={() => {
@@ -283,7 +290,12 @@ export default function CryptoDeFiPage() {
                       {coin.current_price.toLocaleString('id-ID')}
                     </p>
                   </button>
-                ))}
+                )) : (
+                  <div className="p-10 text-center">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Pasar sedang sibuk, memuat ulang...</p>
+                    <Button variant="ghost" size="sm" onClick={fetchMarketData} className="mt-2 h-8 text-[9px] font-black uppercase"><RefreshCw className="w-3 h-3 mr-2" /> Coba Lagi</Button>
+                  </div>
+                )}
               </div>
             </Card>
           </div>
@@ -294,18 +306,20 @@ export default function CryptoDeFiPage() {
               <div className="absolute top-6 left-8 z-10 flex justify-between w-[calc(100%-4rem)] items-start">
                 <div>
                   <h3 className="text-xl font-black text-accent uppercase italic flex items-center gap-2">
-                    {selectedCoin?.name} Market <TrendingUp className="w-4 h-4 text-primary" />
+                    {selectedCoin?.name || "Pasar"} Market <TrendingUp className="w-4 h-4 text-primary" />
                   </h3>
                   <p className="text-2xl font-black text-primary italic mt-1">
-                    Rp {selectedCoin?.current_price.toLocaleString('id-ID')}
+                    Rp {selectedCoin?.current_price.toLocaleString('id-ID') || "---"}
                   </p>
                 </div>
-                <Button 
-                  onClick={() => router.push(`/crypto/trade/${selectedCoin?.id}`)}
-                  className="rounded-xl gold-gradient text-white font-black italic uppercase text-[10px] h-10 px-6 shadow-lg"
-                >
-                  Go to Terminal <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
+                {selectedCoin && (
+                  <Button 
+                    onClick={() => router.push(`/crypto/trade/${selectedCoin.id}`)}
+                    className="rounded-xl gold-gradient text-white font-black italic uppercase text-[10px] h-10 px-6 shadow-lg"
+                  >
+                    Go to Terminal <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                )}
               </div>
               <CardContent className="pt-28 h-full px-0">
                 <ResponsiveContainer width="100%" height="100%">
@@ -432,7 +446,7 @@ export default function CryptoDeFiPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center text-[10px]">
                     <span className="font-bold opacity-60">IDR Liquidity</span>
-                    <span className="font-black italic">Rp {userData?.totalBalance?.toLocaleString()}</span>
+                    <span className="font-black italic">Rp {userData?.totalBalance?.toLocaleString() || "0"}</span>
                   </div>
                   <div className="flex justify-between items-center text-[10px]">
                     <span className="font-bold opacity-60">Crypto Assets</span>
