@@ -23,7 +23,8 @@ import {
   LayoutGrid,
   BarChart3,
   ArrowUpRight,
-  HelpCircle
+  HelpCircle,
+  ArrowUpDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,6 +55,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 const CONTRACT_ABI = [
   "function deposit() public payable",
@@ -95,6 +98,10 @@ export default function CryptoDeFiPage() {
   const [isWrongNetwork, setIsWrongNetwork] = useState(false);
   const [bridgeAmount, setBridgeAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Swap states
+  const [swapAmount, setSwapAmount] = useState("");
+  const [swapDirection, setSwapDirection] = useState<'buy' | 'sell'>('buy');
 
   const generateChartData = (basePrice: number) => {
     const points = Array.from({ length: 24 }, (_, i) => ({
@@ -140,7 +147,7 @@ export default function CryptoDeFiPage() {
 
   const transactionsQuery = useMemo(() => (!db || !user) ? null : query(
     collection(db, "users", user.uid, "transactions"),
-    where("category", "in", ["Trading", "Bridge"]),
+    where("category", "in", ["Trading", "Bridge", "Swap"]),
     orderBy("timestamp", "desc"),
     limit(10)
   ), [db, user]);
@@ -208,6 +215,85 @@ export default function CryptoDeFiPage() {
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal", description: err.message });
     } finally { setIsProcessing(false); }
+  };
+
+  const handleSwap = async () => {
+    if (!user || !db || !userData || !selectedCoin || !swapAmount) return;
+    const amount = parseFloat(swapAmount);
+    if (isNaN(amount) || amount <= 0) return;
+
+    setIsProcessing(true);
+    const price = selectedCoin.current_price;
+    const assetKey = selectedCoin.symbol.toUpperCase();
+    const userRef = doc(db, "users", user.uid);
+    
+    try {
+      if (swapDirection === 'buy') {
+        if (userData.totalBalance < amount) {
+          toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: "Saldo IDR Anda tidak mencukupi untuk melakukan swap ini." });
+          setIsProcessing(false);
+          return;
+        }
+        const qty = amount / price;
+        const payload = { 
+          totalBalance: increment(-amount),
+          [`cryptoBalances.${assetKey}`]: increment(qty)
+        };
+        updateDoc(userRef, payload).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: userRef.path, operation: 'update', requestResourceData: payload })));
+        
+        await addDoc(collection(db, "users", user.uid, "transactions"), {
+          date: new Date().toISOString(),
+          description: `Swap IDR ke ${assetKey}`,
+          category: "Swap",
+          amount: amount,
+          cryptoAmount: qty,
+          cryptoCurrency: assetKey,
+          type: 'expense',
+          status: "success",
+          timestamp: serverTimestamp()
+        });
+      } else {
+        const currentQty = userData.cryptoBalances?.[assetKey] || 0;
+        if (currentQty < amount) {
+          toast({ variant: "destructive", title: "Saldo Aset Tidak Cukup", description: `Saldo ${assetKey} Anda tidak mencukupi.` });
+          setIsProcessing(false);
+          return;
+        }
+        const idrValue = amount * price;
+        const payload = { 
+          totalBalance: increment(idrValue),
+          [`cryptoBalances.${assetKey}`]: increment(-amount)
+        };
+        updateDoc(userRef, payload).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: userRef.path, operation: 'update', requestResourceData: payload })));
+
+        await addDoc(collection(db, "users", user.uid, "transactions"), {
+          date: new Date().toISOString(),
+          description: `Swap ${assetKey} ke IDR`,
+          category: "Swap",
+          amount: idrValue,
+          cryptoAmount: amount,
+          cryptoCurrency: assetKey,
+          type: 'income',
+          status: "success",
+          timestamp: serverTimestamp()
+        });
+      }
+
+      await addDoc(collection(db, "users", user.uid, "notifications"), {
+        title: "Swap Berhasil",
+        message: `Pertukaran aset senilai ${swapDirection === 'buy' ? 'Rp ' + amount.toLocaleString() : amount + ' ' + assetKey} telah selesai.`,
+        type: "success",
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
+      toast({ title: "Swap Berhasil", description: "Saldo Anda telah diperbarui secara instan." });
+      setSwapAmount("");
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal", description: err.message });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (!mounted) return null;
@@ -360,9 +446,10 @@ export default function CryptoDeFiPage() {
               </Card>
 
               <Tabs defaultValue="vault" className="w-full">
-                <TabsList className="bg-primary/5 p-1.5 rounded-[2rem] h-16 border border-primary/10 grid grid-cols-2">
-                  <TabsTrigger value="vault" className="rounded-[1.5rem] font-black uppercase text-[10px]">Staking Vault V3</TabsTrigger>
-                  <TabsTrigger value="history" className="rounded-[1.5rem] font-black uppercase text-[10px]">Audit History</TabsTrigger>
+                <TabsList className="bg-primary/5 p-1.5 rounded-[2rem] h-16 border border-primary/10 grid grid-cols-3">
+                  <TabsTrigger value="vault" className="rounded-[1.5rem] font-black uppercase text-[10px]">Vault V3</TabsTrigger>
+                  <TabsTrigger value="swap" className="rounded-[1.5rem] font-black uppercase text-[10px]">Quick Swap</TabsTrigger>
+                  <TabsTrigger value="history" className="rounded-[1.5rem] font-black uppercase text-[10px]">Audit</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="vault" className="mt-6 animate-in fade-in slide-in-from-bottom-2">
@@ -423,6 +510,78 @@ export default function CryptoDeFiPage() {
                   </Card>
                 </TabsContent>
 
+                <TabsContent value="swap" className="mt-6 animate-in fade-in slide-in-from-bottom-2">
+                  <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-primary">AliBank Quick Swap</h4>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-primary/40 cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
+                            <p className="text-[10px] font-bold">Tukar saldo IDR dengan koin pilihan Anda secara instan. Saldo akan langsung terpotong/bertambah di profil AliBank Anda.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setSwapDirection(swapDirection === 'buy' ? 'sell' : 'buy')}
+                        className="h-8 rounded-xl text-[9px] font-black uppercase gap-2 hover:bg-primary/10"
+                      >
+                        <ArrowUpDown className="w-3.5 h-3.5" /> Toggle Direction
+                      </Button>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <label className="text-[9px] font-black text-muted-foreground uppercase ml-1 mb-1 block">
+                          {swapDirection === 'buy' ? 'Bayar dengan IDR' : `Tukar dari ${selectedCoin?.symbol.toUpperCase() || 'Asset'}`}
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-6 top-1/2 -translate-y-1/2 text-lg font-black text-primary/40">
+                            {swapDirection === 'buy' ? 'Rp' : selectedCoin?.symbol.toUpperCase()}
+                          </span>
+                          <Input 
+                            type="number" 
+                            placeholder="0.00" 
+                            value={swapAmount}
+                            onChange={(e) => setSwapAmount(e.target.value)}
+                            className="h-16 pl-20 rounded-2xl liquid-glass border-none text-lg font-black italic" 
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-center py-2">
+                        <div className="w-10 h-10 rounded-full gold-gradient flex items-center justify-center text-white shadow-lg">
+                          <ArrowRightLeft className="w-5 h-5" />
+                        </div>
+                      </div>
+
+                      <div className="p-5 rounded-2xl bg-primary/5 border border-primary/10">
+                        <div className="flex justify-between items-center text-[10px] font-black uppercase">
+                          <span className="text-muted-foreground">Estimasi Diterima</span>
+                          <span className="text-accent italic">
+                            {swapDirection === 'buy' 
+                              ? ((parseFloat(swapAmount) || 0) / (selectedCoin?.current_price || 1)).toFixed(6) + ' ' + selectedCoin?.symbol.toUpperCase()
+                              : 'Rp ' + ((parseFloat(swapAmount) || 0) * (selectedCoin?.current_price || 0)).toLocaleString()
+                            }
+                          </span>
+                        </div>
+                      </div>
+
+                      <Button 
+                        onClick={handleSwap}
+                        disabled={isProcessing || !swapAmount}
+                        className="w-full h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl"
+                      >
+                        {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : "Eksekusi Swap Instan"}
+                      </Button>
+                    </div>
+                  </Card>
+                </TabsContent>
+
                 <TabsContent value="history" className="mt-6 animate-in fade-in slide-in-from-bottom-2">
                   <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden">
                     <div className="divide-y divide-primary/5">
@@ -441,7 +600,7 @@ export default function CryptoDeFiPage() {
                             </div>
                           </div>
                           <p className={cn("text-sm font-black italic", tx.type === 'income' ? "text-green-600" : "text-accent")}>
-                            {tx.type === 'income' ? '+' : '-'}{tx.cryptoAmount ? `${tx.cryptoAmount} ${tx.cryptoCurrency}` : `Rp ${tx.amount.toLocaleString()}`}
+                            {tx.type === 'income' ? '+' : '-'}{tx.cryptoAmount ? `${tx.cryptoAmount.toFixed(4)} ${tx.cryptoCurrency}` : `Rp ${tx.amount?.toLocaleString()}`}
                           </p>
                         </div>
                       )) : (
