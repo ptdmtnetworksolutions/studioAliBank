@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LogoIcon } from "@/components/ui/logo";
 import { useUser } from "@/firebase";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 const personalItems = [
   { name: "Beranda", href: "/", icon: LayoutDashboard },
@@ -77,7 +78,7 @@ export function Navbar() {
                 );
               })}
             </div>
-            <div className="pl-4 flex items-center gap-1">
+            <div className="pl-4 flex items-center gap-4">
               {businessItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
@@ -97,20 +98,25 @@ export function Navbar() {
                   </Link>
                 );
               })}
+              <div className="w-px h-6 bg-primary/10 mx-2" />
+              <NotificationCenter />
             </div>
           </div>
 
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="lg:hidden text-accent dark:text-primary"
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            {isOpen ? <X /> : <Menu />}
-          </Button>
+          <div className="flex items-center gap-2 lg:hidden">
+            <NotificationCenter />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-accent dark:text-primary"
+              onClick={() => setIsOpen(!isOpen)}
+            >
+              {isOpen ? <X /> : <Menu />}
+            </Button>
+          </div>
         </div>
 
-        {/* Mobile Nav - Stealth Access Only via Manual Route */}
+        {/* Mobile Nav */}
         {isOpen && (
           <div className="lg:hidden mt-2 liquid-glass rounded-2xl p-4 flex flex-col gap-2 animate-in slide-in-from-top-4 max-h-[70vh] overflow-y-auto">
             <p className="text-[10px] font-black uppercase text-muted-foreground px-4 py-2 tracking-widest">Personal Banking</p>

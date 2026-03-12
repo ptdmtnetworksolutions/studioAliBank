@@ -8,14 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useEffect, useMemo } from "react";
 import { useUser, useFirestore, useDoc, useCollection } from "@/firebase";
-import { doc, collection, query, where } from "firebase/firestore";
+import { doc, collection, query, addDoc, updateDoc, increment, serverTimestamp } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 const depositProducts = [
   { 
     name: "Elite Fixed Deposit", 
     rate: "4.85%", 
     term: "12-24 Bulan", 
-    min: "Rp 10.000.000", 
+    min: 10000000, 
     tag: "Terpopuler",
     color: "bg-primary/10 text-primary"
   },
@@ -23,7 +24,7 @@ const depositProducts = [
     name: "Flexi Saver", 
     rate: "3.20%", 
     term: "Tanpa Kunci", 
-    min: "Rp 1.000.000", 
+    min: 1000000, 
     tag: "Likuiditas Tinggi",
     color: "bg-green-100 text-green-700"
   },
@@ -31,7 +32,7 @@ const depositProducts = [
     name: "Growth Certificate", 
     rate: "5.10%", 
     term: "36+ Bulan", 
-    min: "Rp 25.000.000", 
+    min: 25000000, 
     tag: "Imbal Hasil Terbaik",
     color: "bg-blue-100 text-blue-700"
   }
@@ -40,17 +41,16 @@ const depositProducts = [
 export default function DepositsPage() {
   const { user } = useUser();
   const db = useFirestore();
+  const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
+  const [isPlacing, setIsPlacing] = useState<string | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
-  const depositsQuery = useMemo(() => {
-    if (!db || !user) return null;
-    return query(collection(db, "users", user.uid, "deposits"));
-  }, [db, user]);
+  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const { data: userData } = useDoc(userDocRef);
 
+  const depositsQuery = useMemo(() => (!db || !user) ? null : query(collection(db, "users", user.uid, "deposits")), [db, user]);
   const { data: userDeposits, loading } = useCollection(depositsQuery);
 
   const totalInterest = useMemo(() => {
@@ -58,18 +58,65 @@ export default function DepositsPage() {
     return userDeposits.reduce((acc, curr) => acc + (curr.accruedInterest || 0), 0);
   }, [userDeposits]);
 
-  if (!mounted || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const handleOpenPlacement = async (product: any) => {
+    if (!user || !db || !userData) return;
+    if (userData.totalBalance < product.min) {
+      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Minimum penempatan untuk ${product.name} adalah Rp ${product.min.toLocaleString('id-ID')}.` });
+      return;
+    }
+
+    setIsPlacing(product.name);
+    try {
+      const depositsColRef = collection(db, "users", user.uid, "deposits");
+      const notifColRef = collection(db, "users", user.uid, "notifications");
+      const txColRef = collection(db, "users", user.uid, "transactions");
+
+      const maturity = new Date();
+      maturity.setFullYear(maturity.getFullYear() + 1);
+
+      await addDoc(depositsColRef, {
+        type: product.name,
+        amount: product.min,
+        rate: product.rate,
+        maturityDate: maturity.toISOString(),
+        accruedInterest: 0,
+        createdAt: new Date().toISOString()
+      });
+
+      await updateDoc(userDocRef!, { totalBalance: increment(-product.min) });
+
+      await addDoc(txColRef, {
+        date: new Date().toISOString(),
+        description: `Penempatan Deposito: ${product.name}`,
+        category: "Investasi",
+        amount: product.min,
+        type: "expense",
+        timestamp: serverTimestamp()
+      });
+
+      await addDoc(notifColRef, {
+        title: "Penempatan Deposito Aktif",
+        message: `Berhasil menempatkan Rp ${product.min.toLocaleString('id-ID')} pada ${product.name}.`,
+        type: "success",
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
+      toast({ title: "Penempatan Berhasil", description: "Dana Anda kini berkembang di instrumen elit." });
+    } catch (err) {
+      console.error(err);
+    } finally { setIsPlacing(null); }
+  };
+
+  if (!mounted || loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    </div>
+  );
 
   return (
     <div className="min-h-screen pb-32">
       <Navbar />
-      
       <main className="container mx-auto px-4 max-w-6xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
           <div>
@@ -77,7 +124,6 @@ export default function DepositsPage() {
             <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-1">Ganti tabungan pasif dengan instrumen deposito elit.</p>
           </div>
         </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-4 space-y-6">
             <h2 className="text-sm font-black text-accent uppercase tracking-widest flex items-center gap-2">
@@ -96,14 +142,9 @@ export default function DepositsPage() {
                     </div>
                     <div className="flex justify-between items-end">
                       <div>
-                        <p className="text-2xl font-black text-accent italic tracking-tighter">
-                          Rp {dep.amount.toLocaleString('id-ID')}
-                        </p>
+                        <p className="text-2xl font-black text-accent italic tracking-tighter">Rp {dep.amount.toLocaleString('id-ID')}</p>
                         <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Principal Amount</p>
                       </div>
-                      <Button size="sm" variant="ghost" className="text-primary p-0 h-auto hover:bg-transparent font-bold text-[10px] uppercase">
-                        Ledger <ChevronRight className="w-4 h-4" />
-                      </Button>
                     </div>
                   </div>
                 ))
@@ -114,19 +155,14 @@ export default function DepositsPage() {
                 </div>
               )}
             </div>
-            
             <div className="p-8 rounded-[2rem] gold-gradient text-white shadow-xl shadow-primary/20">
               <div className="flex items-center gap-3 mb-4">
                 <TrendingUp className="w-6 h-6" />
                 <h3 className="font-black uppercase italic tracking-tighter">Yield Realized</h3>
               </div>
-              <p className="text-4xl font-black italic tracking-tighter">
-                Rp {totalInterest.toLocaleString('id-ID')}
-              </p>
-              <p className="text-[9px] text-white/70 mt-1 font-bold uppercase tracking-widest">Akumulasi bunga berjalan</p>
+              <p className="text-4xl font-black italic tracking-tighter">Rp {totalInterest.toLocaleString('id-ID')}</p>
             </div>
           </div>
-
           <div className="lg:col-span-8 space-y-6">
             <h2 className="text-sm font-black text-accent uppercase tracking-widest">Market Opportunities</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -142,36 +178,20 @@ export default function DepositsPage() {
                   <CardContent className="px-8 pb-8">
                     <div className="space-y-4 mb-8">
                       <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
-                        <span className="text-muted-foreground flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-primary" /> Holding Term
-                        </span>
+                        <span className="text-muted-foreground flex items-center gap-2"><Calendar className="w-4 h-4 text-primary" /> Holding Term</span>
                         <span className="text-accent">{product.term}</span>
                       </div>
                       <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
-                        <span className="text-muted-foreground flex items-center gap-2">
-                          <Zap className="w-4 h-4 text-primary" /> Min. Entry
-                        </span>
-                        <span className="text-accent">{product.min}</span>
+                        <span className="text-muted-foreground flex items-center gap-2"><Zap className="w-4 h-4 text-primary" /> Min. Entry</span>
+                        <span className="text-accent">Rp {product.min.toLocaleString('id-ID')}</span>
                       </div>
                     </div>
-                    <Button className="w-full h-14 bg-accent text-white hover:bg-accent/90 rounded-2xl font-black uppercase italic tracking-widest text-xs shadow-lg">
-                      Open Placement
+                    <Button onClick={() => handleOpenPlacement(product)} disabled={isPlacing === product.name} className="w-full h-14 bg-accent text-white hover:bg-accent/90 rounded-2xl font-black uppercase italic tracking-widest text-xs shadow-lg">
+                      {isPlacing === product.name ? <Loader2 className="w-4 h-4 animate-spin" /> : "Open Placement"}
                     </Button>
                   </CardContent>
                 </Card>
               ))}
-            </div>
-
-            <div className="liquid-glass p-8 rounded-[3rem] border-primary/20 flex flex-col md:flex-row items-center gap-8">
-              <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-10 h-10 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h4 className="font-black text-accent uppercase italic tracking-tighter mb-1 text-lg">Financial Guarantee</h4>
-                <p className="text-[10px] text-muted-foreground font-medium italic leading-relaxed uppercase tracking-widest">
-                  Seluruh deposito riil nasabah AliBank dijamin oleh Lembaga Penjamin Simpanan (LPS) hingga Rp 2 Miliar per entitas akun.
-                </p>
-              </div>
             </div>
           </div>
         </div>

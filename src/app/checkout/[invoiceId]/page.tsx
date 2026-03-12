@@ -19,10 +19,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useFirestore, useUser, useCollection } from "@/firebase";
+import { useFirestore, useUser } from "@/firebase";
 import { collection, query, where, getDocs, doc, setDoc, increment, addDoc, serverTimestamp, collectionGroup } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { MOCK_MERCHANT } from "@/app/lib/mock-data";
 import { LogoIcon } from "@/components/ui/logo";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -63,7 +62,6 @@ export default function CheckoutPage() {
       if (!db || !invoiceId) return;
       
       try {
-        // Menggunakan collectionGroup agar bisa menemukan invoice di mana pun (Merchant mana pun)
         const q = query(
           collectionGroup(db, "invoices"),
           where("invoiceId", "==", invoiceId)
@@ -88,7 +86,6 @@ export default function CheckoutPage() {
     const invoiceRef = doc(db, invoice.path);
     const merchantRef = doc(db, "merchants", invoice.merchantId);
     
-    // 1. Update Invoice Status
     const invoicePayload = {
       status: "paid",
       paidAt: new Date().toISOString(),
@@ -104,36 +101,18 @@ export default function CheckoutPage() {
         }));
       });
 
-    // 2. Update Merchant Balance
     const merchantPayload = {
       totalRevenue: increment(invoice.amountIdr),
       pendingSettlement: increment(invoice.amountIdr)
     };
-    setDoc(merchantRef, merchantPayload, { merge: true })
-      .catch(async () => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: merchantRef.path,
-          operation: 'write',
-          requestResourceData: merchantPayload
-        }));
-      });
+    setDoc(merchantRef, merchantPayload, { merge: true });
 
-    // 3. Update User Balance if AliBank internal
     if (method === 'AliBank' && user) {
       const userRef = doc(db, "users", user.uid);
       const transactionColRef = collection(db, "users", user.uid, "transactions");
+      const notifColRef = collection(db, "users", user.uid, "notifications");
 
-      const userPayload = {
-        totalBalance: increment(-invoice.amountIdr)
-      };
-      setDoc(userRef, userPayload, { merge: true })
-        .catch(async () => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: userRef.path,
-            operation: 'update',
-            requestResourceData: userPayload
-          }));
-        });
+      setDoc(userRef, { totalBalance: increment(-invoice.amountIdr) }, { merge: true });
 
       const logPayload = {
         date: new Date().toISOString(),
@@ -143,14 +122,15 @@ export default function CheckoutPage() {
         type: "expense",
         timestamp: serverTimestamp()
       };
-      addDoc(transactionColRef, logPayload)
-        .catch(async () => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: transactionColRef.path,
-            operation: 'create',
-            requestResourceData: logPayload
-          }));
-        });
+      addDoc(transactionColRef, logPayload);
+
+      addDoc(notifColRef, {
+        title: "Pembayaran Marketplace Berhasil",
+        message: `Pembayaran sebesar Rp ${invoice.amountIdr.toLocaleString('id-ID')} untuk ${invoice.productName || 'produk'} telah diproses.`,
+        type: "success",
+        read: false,
+        createdAt: new Date().toISOString()
+      });
     }
 
     setPaymentStep('success');
@@ -163,16 +143,12 @@ export default function CheckoutPage() {
       toast({ variant: "destructive", title: "Login Required", description: "Please login to pay with your AliBank account." });
       return;
     }
-    
     setIsProcessing(true);
     setPaymentStep('processing');
     setStatusText("Verifying Internal Assets...");
-    
     setTimeout(() => {
       setStatusText("Finalizing Settlement...");
-      setTimeout(() => {
-        processPaymentFinalization('AliBank');
-      }, 1000);
+      setTimeout(() => processPaymentFinalization('AliBank'), 1000);
     }, 1500);
   };
 
@@ -180,65 +156,51 @@ export default function CheckoutPage() {
     setIsProcessing(true);
     setPaymentStep('processing');
     setStatusText("Connecting to Mainnet Bridge...");
-    
     setTimeout(() => {
       setStatusText("Verifying V3 Vault Transaction...");
       setTimeout(() => {
         setStatusText("Converting Assets to IDR Settlement...");
-        setTimeout(() => {
-          processPaymentFinalization('Crypto Bridge');
-        }, 1200);
+        setTimeout(() => processPaymentFinalization('Crypto Bridge'), 1200);
       }, 1500);
     }, 1500);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-        <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground italic">Verifying Gateway Access...</p>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+      <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+      <p className="text-xs font-black uppercase tracking-widest text-muted-foreground italic">Verifying Gateway Access...</p>
+    </div>
+  );
 
-  if (!invoice) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-        <XCircle className="w-16 h-16 text-destructive mb-4" />
-        <h2 className="text-2xl font-black italic uppercase text-accent">Invoice Not Found</h2>
-        <p className="text-muted-foreground text-sm text-center mt-2">The requested payment link is invalid or has expired.</p>
-        <Button variant="outline" className="mt-8 rounded-xl" onClick={() => router.push('/')}>Return Home</Button>
-      </div>
-    );
-  }
+  if (!invoice) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+      <XCircle className="w-16 h-16 text-destructive mb-4" />
+      <h2 className="text-2xl font-black italic uppercase text-accent">Invoice Not Found</h2>
+      <Button variant="outline" className="mt-8 rounded-xl" onClick={() => router.push('/')}>Return Home</Button>
+    </div>
+  );
 
-  if (paymentStep === 'success') {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 animate-in fade-in zoom-in duration-500">
-        <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mb-6">
-          <CheckCircle2 className="w-12 h-12 text-green-600" />
-        </div>
-        <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">Payment Confirmed</h2>
-        <p className="text-muted-foreground text-sm text-center mb-8 max-w-xs leading-relaxed">
-          Your payment for <span className="font-bold text-accent">{invoice.productName || invoice.invoiceId}</span> has been processed and settled.
-        </p>
-        <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-6 mb-8 text-center">
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Paid (Settled in IDR)</p>
-          <p className="text-3xl font-black text-primary italic">Rp {invoice.amountIdr.toLocaleString()}</p>
-        </Card>
-        <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl" onClick={() => router.push('/')}>
-          Back to Dashboard
-        </Button>
+  if (paymentStep === 'success') return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 animate-in fade-in zoom-in duration-500">
+      <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mb-6">
+        <CheckCircle2 className="w-12 h-12 text-green-600" />
       </div>
-    );
-  }
+      <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">Payment Confirmed</h2>
+      <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-6 mb-8 text-center">
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Paid (Settled in IDR)</p>
+        <p className="text-3xl font-black text-primary italic">Rp {invoice.amountIdr.toLocaleString('id-ID')}</p>
+      </Card>
+      <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl" onClick={() => router.push('/')}>
+        Back to Dashboard
+      </Button>
+    </div>
+  );
 
   const cryptoEquiv = invoice.amountIdr * (cryptoRates[invoice.cryptoCurrency || 'ETH'] || 0);
 
   return (
     <div className="min-h-screen bg-background pb-20 relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-64 gold-gradient opacity-10 blur-[100px]" />
-      
       <main className="container mx-auto px-4 pt-12 max-w-lg relative z-10">
         {paymentStep === 'processing' ? (
           <div className="flex flex-col items-center justify-center h-[60vh] space-y-6">
@@ -246,10 +208,7 @@ export default function CheckoutPage() {
               <div className="absolute inset-0 bg-primary/20 blur-3xl animate-pulse rounded-full" />
               <Loader2 className="w-16 h-16 animate-spin text-primary relative z-10" />
             </div>
-            <div className="text-center">
-              <h3 className="text-xl font-black italic uppercase tracking-tighter text-accent">{statusText}</h3>
-              <p className="text-xs text-muted-foreground mt-2 font-medium">Please do not close this window.</p>
-            </div>
+            <h3 className="text-xl font-black italic uppercase tracking-tighter text-accent">{statusText}</h3>
           </div>
         ) : (
           <>
@@ -258,47 +217,27 @@ export default function CheckoutPage() {
                 <LogoIcon className="text-white" />
               </div>
               <h1 className="text-xl font-black italic uppercase tracking-tighter text-accent">AliBank Gateway</h1>
-              <Badge className="bg-primary/10 text-primary border-primary/20 px-3 py-0.5 rounded-full text-[8px] font-black uppercase mt-2">Secure Payment Service</Badge>
             </div>
-
             <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl mb-6">
               <CardHeader className="bg-accent/5 p-8 border-b border-primary/5 text-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Checkout: {invoice.productName || "Product"}</p>
-                <h2 className="text-4xl font-black text-accent italic tracking-tighter">Rp {invoice.amountIdr.toLocaleString()}</h2>
-                <div className="flex items-center justify-center gap-2 mt-2">
-                  <Badge variant="outline" className="border-primary/20 text-primary font-bold">{invoice.invoiceId}</Badge>
-                </div>
+                <h2 className="text-4xl font-black text-accent italic tracking-tighter">Rp {invoice.amountIdr.toLocaleString('id-ID')}</h2>
               </CardHeader>
               <CardContent className="p-8 space-y-6">
                 <div className="space-y-4">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground italic flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-primary" /> Select Payment Method
-                  </h3>
-                  
-                  <button 
-                    onClick={handlePayInternal}
-                    className="w-full liquid-glass-dark p-6 rounded-[1.5rem] border-white/10 hover:border-primary/40 transition-all text-left flex items-center justify-between group"
-                  >
+                  <button onClick={handlePayInternal} className="w-full liquid-glass-dark p-6 rounded-[1.5rem] border-white/10 hover:border-primary/40 transition-all text-left flex items-center justify-between group">
                     <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-2xl bg-white/10 text-white group-hover:bg-primary transition-colors">
-                        <LogoIcon className="w-6 h-6" />
-                      </div>
+                      <div className="p-3 rounded-2xl bg-white/10 text-white group-hover:bg-primary transition-colors"><LogoIcon className="w-6 h-6" /></div>
                       <div>
                         <p className="text-sm font-black text-white italic">AliBank Account</p>
                         <p className="text-[9px] font-medium text-white/50 uppercase">Instant Internal Transfer</p>
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-white/40 group-hover:translate-x-1 transition-transform" />
+                    <ChevronRight className="w-4 h-4 text-white/40" />
                   </button>
-
-                  <button 
-                    onClick={handlePayCrypto}
-                    className="w-full liquid-glass p-6 rounded-[1.5rem] border-primary/10 hover:border-primary/30 transition-all text-left flex items-center justify-between group"
-                  >
+                  <button onClick={handlePayCrypto} className="w-full liquid-glass p-6 rounded-[1.5rem] border-primary/10 hover:border-primary/30 transition-all text-left flex items-center justify-between group">
                     <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                        <Wallet className="w-6 h-6" />
-                      </div>
+                      <div className="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors"><Wallet className="w-6 h-6" /></div>
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-black text-accent italic">Mainnet Bridge</p>
@@ -310,34 +249,8 @@ export default function CheckoutPage() {
                     <Bitcoin className="w-4 h-4 text-orange-500" />
                   </button>
                 </div>
-
-                <div className="pt-4 border-t border-primary/5">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-[10px] font-black uppercase text-muted-foreground">Crypto Equivalent</span>
-                    <span className="text-xs font-black text-primary italic">
-                      {cryptoEquiv > 0 ? `≈ ${cryptoEquiv.toFixed(6)} ${invoice.cryptoCurrency || 'ETH'}` : 'Fetching rate...'}
-                    </span>
-                  </div>
-                  <div className="bg-primary/5 p-4 rounded-2xl flex items-center gap-3">
-                    <Lock className="w-4 h-4 text-primary" />
-                    <p className="text-[9px] text-muted-foreground font-medium italic leading-relaxed">
-                      Encryption active. Marketplace assets are settled instantly to the merchant upon confirmation.
-                    </p>
-                  </div>
-                </div>
               </CardContent>
             </Card>
-
-            <div className="flex flex-col items-center gap-2">
-              <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                Powered by AliBank V3 Infrastructure <Globe className="w-2.5 h-2.5" />
-              </p>
-              <div className="flex gap-4 opacity-30 grayscale pointer-events-none">
-                <ShieldCheck className="w-4 h-4" />
-                <Globe className="w-4 h-4" />
-                <Cpu className="w-4 h-4" />
-              </div>
-            </div>
           </>
         )}
       </main>
