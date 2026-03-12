@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -47,14 +46,16 @@ import {
 } from "recharts";
 import { LogoIcon } from "@/components/ui/logo";
 
-// ABI TERBARU: Menyertakan getTotalVaultBalance
+// ABI TERBARU: Menyertakan getTotalVaultBalance dan depositTimestamps
 const CONTRACT_ABI = [
   "function deposit() public payable",
   "function withdraw(uint256 _amount) public",
   "function balances(address) public view returns (uint256)",
   "function getTotalVaultBalance() public view returns (uint256)",
-  "event Deposited(address indexed user, uint256 amount)",
-  "event Withdrawn(address indexed user, uint256 amount)"
+  "function depositTimestamps(address) public view returns (uint256)",
+  "function owner() public view returns (address)",
+  "event Deposited(address indexed user, uint256 amount, uint256 timestamp)",
+  "event Withdrawn(address indexed user, uint256 amount, uint256 timestamp)"
 ];
 
 const DEFAULT_CONTRACT = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd"; 
@@ -99,6 +100,7 @@ export default function CryptoPage() {
   const [address, setAddress] = useState<string | null>(null);
   const [vaultBalance, setVaultBalance] = useState("0");
   const [walletBalance, setWalletBalance] = useState("0");
+  const [depositTime, setDepositTime] = useState<number>(0);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isWrongNetwork, setIsWrongNetwork] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -111,7 +113,7 @@ export default function CryptoPage() {
         "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether&vs_currencies=idr&include_24hr_change=true"
       );
       
-      if (!response.ok) throw new Error("API rate limit or connection issue");
+      if (!response.ok) throw new Error("API issue");
 
       const data = await response.json();
       
@@ -153,7 +155,6 @@ export default function CryptoPage() {
       }));
       setChartData(points);
     } catch (err) {
-      console.warn("Price Fetch Failed:", err);
       if (chartData.length === 0) {
         const basePrice = FALLBACK_PRICES[selectedAsset.id] || 0;
         const points = Array.from({ length: 12 }, (_, i) => ({
@@ -201,6 +202,7 @@ export default function CryptoPage() {
   const resetBalances = useCallback(() => {
     setVaultBalance("0");
     setWalletBalance("0");
+    setDepositTime(0);
     setIsWrongNetwork(false);
   }, []);
 
@@ -220,6 +222,9 @@ export default function CryptoPage() {
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
       const balanceInVault = await contract.balances(walletAddr).catch(() => null);
       if (balanceInVault !== null) setVaultBalance(formatEther(balanceInVault));
+      
+      const time = await contract.depositTimestamps(walletAddr).catch(() => 0n);
+      setDepositTime(Number(time));
     } catch (err) {
       console.error("Blockchain Fetch Error:", err);
     }
@@ -388,6 +393,10 @@ export default function CryptoPage() {
 
   if (!mounted) return null;
 
+  const formattedDepositTime = depositTime > 0 
+    ? new Date(depositTime * 1000).toLocaleDateString() + " " + new Date(depositTime * 1000).toLocaleTimeString()
+    : "No Activity";
+
   return (
     <div className="min-h-screen pb-32 bg-background">
       <Navbar />
@@ -548,6 +557,9 @@ export default function CryptoPage() {
                   <div className="p-6 rounded-2xl bg-black/40 flex flex-col items-center space-y-2 border border-primary/10">
                     <span className="text-3xl font-black text-primary italic">{parseFloat(vaultBalance).toFixed(6)} ETH</span>
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Saldo Brankas On-Chain</span>
+                    <Badge variant="outline" className="mt-2 text-[8px] border-primary/30 text-primary">
+                      Staking Age: {formattedDepositTime}
+                    </Badge>
                   </div>
 
                   {pendingAmount > 0 && (
@@ -615,11 +627,11 @@ export default function CryptoPage() {
               <div className="absolute inset-0 gold-gradient opacity-10" />
               <div className="relative z-10 flex flex-col items-center text-center space-y-4">
                 <Sparkles className="w-10 h-10 text-primary animate-pulse" />
-                <h3 className="text-lg font-black italic uppercase tracking-tighter">Blockchain Proof</h3>
+                <h3 className="text-lg font-black italic uppercase tracking-tighter">Yield Engine Ready</h3>
                 <p className="text-[11px] font-medium leading-relaxed italic opacity-80">
-                  Aset di Brankas terikat pada dompet Anda. Transaksi dicatat secara publik di Mainnet.
+                  Pelacakan waktu setoran aktif. Imbal hasil Anda akan dihitung berdasarkan durasi aset mengendap di dalam Brankas.
                 </p>
-                <Badge className="bg-primary text-white font-black text-[8px] uppercase tracking-widest">Decentralized Custody</Badge>
+                <Badge className="bg-primary text-white font-black text-[8px] uppercase tracking-widest">Foundation Level 1</Badge>
               </div>
             </Card>
           </div>

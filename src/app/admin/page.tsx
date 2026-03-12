@@ -15,7 +15,8 @@ import {
   ArrowRightLeft,
   Lock,
   Globe,
-  RefreshCw
+  RefreshCw,
+  Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,8 +44,11 @@ import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
 
 const CONTRACT_ABI = [
-  "function getTotalVaultBalance() public view returns (uint256)"
+  "function getTotalVaultBalance() public view returns (uint256)",
+  "function owner() public view returns (address)",
+  "function depositTimestamps(address) public view returns (uint256)"
 ];
+
 // Ganti dengan alamat kontrak baru Anda setelah deploy ulang di Remix
 const DEFAULT_CONTRACT = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
 
@@ -70,7 +74,6 @@ export default function AdminControlPage() {
     setIsAuthorized(true);
   }, [user, userLoading, router]);
 
-  // Fetch On-Chain Vault Balance (Real-Time from Blockchain)
   const syncOnChainVault = useCallback(async () => {
     if (typeof window.ethereum === 'undefined') return;
     setSyncingVault(true);
@@ -90,7 +93,6 @@ export default function AdminControlPage() {
     if (isAuthorized) syncOnChainVault();
   }, [isAuthorized, syncOnChainVault]);
 
-  // Fetch All Users for Management
   const usersQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
     return query(collection(db, "users"), limit(100));
@@ -98,7 +100,6 @@ export default function AdminControlPage() {
   
   const { data: allUsers } = useCollection(usersQuery);
 
-  // Fetch Pending Bridge Settlements
   const pendingSettlementsQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
     return query(
@@ -207,11 +208,11 @@ export default function AdminControlPage() {
 
           <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white space-y-2">
             <div className="flex items-center justify-between mb-2">
-              <Zap className="w-5 h-5 text-primary" />
-              <Globe className="w-5 h-5 opacity-50 text-primary" />
+              <Activity className="w-5 h-5 text-primary" />
+              <Badge variant="outline" className="text-[8px] font-black uppercase text-white border-white/20">Staking Node</Badge>
             </div>
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-70">System Health</p>
-            <p className="text-2xl font-black italic tracking-tighter">100% OPERATIONAL</p>
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Vault Status</p>
+            <p className="text-2xl font-black italic tracking-tighter">YIELD READY</p>
           </Card>
         </div>
 
