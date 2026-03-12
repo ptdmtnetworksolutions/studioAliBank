@@ -46,7 +46,7 @@ import {
 } from "recharts";
 import { LogoIcon } from "@/components/ui/logo";
 
-// ABI TERBARU: Menyertakan getTotalVaultBalance dan depositTimestamps
+// ABI TERBARU: Mendukung ReentrancyGuard, Ownership, dan Staking
 const CONTRACT_ABI = [
   "function deposit() public payable",
   "function withdraw(uint256 _amount) public",
@@ -58,8 +58,8 @@ const CONTRACT_ABI = [
   "event Withdrawn(address indexed user, uint256 amount, uint256 timestamp)"
 ];
 
-// Alamat kontrak baru Pak Dzulfikar (0x59B9...)
-const DEFAULT_CONTRACT = "0x59B9149D05138c6709D3552783aA3b85f992C79c"; 
+// Alamat kontrak V3 (0x5626...)
+const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
 
 type Asset = {
   id: string;
@@ -197,7 +197,7 @@ export default function CryptoPage() {
     if (!allTransactions) return 0;
     return allTransactions
       .filter(t => t.category === "Bridge" && t.status === "pending")
-      .reduce((acc, curr) => acc + (curr.cryptoAmount || 0), 0);
+      .reduce((acc, curr) => acc + (curr.cryptoAmount || 0), 0), [allTransactions]);
   }, [allTransactions]);
 
   const resetBalances = useCallback(() => {
@@ -540,7 +540,7 @@ export default function CryptoPage() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2"><Info className="w-4 h-4 text-primary" /><h4 className="font-black italic uppercase text-xs text-accent tracking-tighter">Vault Guide</h4></div>
                       <p className="text-[11px] leading-relaxed text-muted-foreground font-medium italic">
-                        Setoran dari MetaMask akan memindahkan ETH ke Smart Contract AliBankVault. Penarikan akan mengembalikan aset dari Brankas ke dompet pribadi Anda.
+                        Setoran dari MetaMask akan memindahkan ETH ke Smart Contract AliBankVault V3 yang lebih aman dengan Reentrancy Guard.
                       </p>
                     </div>
                   </PopoverContent>
@@ -557,7 +557,7 @@ export default function CryptoPage() {
                 <div className="space-y-6">
                   <div className="p-6 rounded-2xl bg-black/40 flex flex-col items-center space-y-2 border border-primary/10">
                     <span className="text-3xl font-black text-primary italic">{parseFloat(vaultBalance).toFixed(6)} ETH</span>
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Saldo Brankas On-Chain</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Saldo Brankas V3 On-Chain</span>
                     <Badge variant="outline" className="mt-2 text-[8px] border-primary/30 text-primary">
                       Staking Age: {formattedDepositTime}
                     </Badge>
@@ -571,7 +571,7 @@ export default function CryptoPage() {
                       </div>
                       <p className="text-lg font-black text-accent italic">{pendingAmount.toFixed(6)} ETH</p>
                       <p className="text-[8px] font-medium text-muted-foreground italic mt-1 leading-tight">
-                        Aset internal sedang diproses oleh Treasury menuju Brankas Blockchain.
+                        Aset internal sedang diproses oleh Treasury menuju Brankas V3 Anda.
                       </p>
                     </div>
                   )}
@@ -628,11 +628,11 @@ export default function CryptoPage() {
               <div className="absolute inset-0 gold-gradient opacity-10" />
               <div className="relative z-10 flex flex-col items-center text-center space-y-4">
                 <Sparkles className="w-10 h-10 text-primary animate-pulse" />
-                <h3 className="text-lg font-black italic uppercase tracking-tighter">Yield Engine Ready</h3>
+                <h3 className="text-lg font-black italic uppercase tracking-tighter">V3 Security Active</h3>
                 <p className="text-[11px] font-medium leading-relaxed italic opacity-80">
-                  Pelacakan waktu setoran aktif. Imbal hasil Anda akan dihitung berdasarkan durasi aset mengendap di dalam Brankas.
+                  Brankas V3 kini melindungi aset Anda dengan Reentrancy Guard dan Validasi Kepemilikan tingkat lanjut.
                 </p>
-                <Badge className="bg-primary text-white font-black text-[8px] uppercase tracking-widest">Foundation Level 1</Badge>
+                <Badge className="bg-primary text-white font-black text-[8px] uppercase tracking-widest">Audited V3</Badge>
               </div>
             </Card>
           </div>

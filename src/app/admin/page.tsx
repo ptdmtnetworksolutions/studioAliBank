@@ -49,8 +49,8 @@ const CONTRACT_ABI = [
   "function depositTimestamps(address) public view returns (uint256)"
 ];
 
-// Alamat kontrak baru Pak Dzulfikar (Ownership & Staking Foundation)
-const DEFAULT_CONTRACT = "0x59B9149D05138c6709D3552783aA3b85f992C79c";
+// Alamat kontrak V3 Pak Dzulfikar (Security Grade A)
+const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 
 export default function AdminControlPage() {
   const { user, loading: userLoading } = useUser();
@@ -62,7 +62,6 @@ export default function AdminControlPage() {
   const [onChainTotal, setOnChainTotal] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
 
-  // OWNER IDENTITY CHECK
   const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
   useEffect(() => {
