@@ -214,10 +214,13 @@ export default function Dashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-white/20">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Savings Portfolio</p>
+                  <Link href="/savings" className="space-y-1 group/savings transition-transform active:scale-95">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 group-hover/savings:text-white transition-colors">Savings Portfolio</p>
+                      <ChevronRight className="w-3 h-3 text-white/40 group-hover/savings:text-white group-hover/savings:translate-x-1 transition-all" />
+                    </div>
                     <p className="text-xl font-black italic">Rp {savings.toLocaleString('id-ID')}</p>
-                  </div>
+                  </Link>
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Yield Realized</p>
                     <p className="text-xl font-black italic text-green-300">+ 4.85%</p>
