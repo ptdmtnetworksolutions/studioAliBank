@@ -170,56 +170,6 @@ export default function MarketplacePage() {
     }
   };
 
-  const handleQuickBuyCrypto = async (coin: CoinData) => {
-    if (!user || !db || !userDocRef) return;
-    
-    const amountToBuy = 1000000; // Contoh pembelian tetap Rp 1 Juta
-    if ((userData?.totalBalance || 0) < amountToBuy) {
-      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: "Silakan top up saldo IDR Anda terlebih dahulu." });
-      return;
-    }
-
-    setIsProcessing(coin.id);
-    const cryptoQty = amountToBuy / coin.current_price;
-    const assetKey = coin.symbol.toUpperCase();
-
-    try {
-      const payload = {
-        totalBalance: increment(-amountToBuy),
-        [`cryptoBalances.${assetKey}`]: increment(cryptoQty)
-      };
-
-      updateDoc(userDocRef, payload)
-        .catch(async () => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: userDocRef.path,
-            operation: 'update',
-            requestResourceData: payload
-          }));
-        });
-
-      const txRef = collection(db, "users", user.uid, "transactions");
-      const txData = {
-        date: new Date().toISOString(),
-        description: `Beli ${coin.name} (${assetKey}) via Global Market`,
-        category: "Trading",
-        amount: amountToBuy,
-        cryptoAmount: cryptoQty,
-        type: "expense",
-        status: "success",
-        timestamp: serverTimestamp()
-      };
-
-      await addDoc(txRef, txData);
-      
-      toast({ title: "Pembelian Berhasil", description: `Anda telah membeli ${cryptoQty.toFixed(6)} ${assetKey}.` });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsProcessing(null);
-    }
-  };
-
   return (
     <div className="min-h-screen pb-32 bg-background">
       <Navbar />
@@ -386,11 +336,10 @@ export default function MarketplacePage() {
                         </td>
                         <td className="px-8 py-5 text-right">
                           <Button 
-                            onClick={() => handleQuickBuyCrypto(coin)}
-                            disabled={!!isProcessing}
+                            onClick={() => router.push(`/crypto/trade/${coin.id}`)}
                             className="h-10 px-6 rounded-xl gold-gradient text-white font-black italic uppercase text-[10px] shadow-lg hover:scale-105 transition-all"
                           >
-                            {isProcessing === coin.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Quick Buy"}
+                            Trade Now
                           </Button>
                         </td>
                       </tr>
