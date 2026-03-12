@@ -1,10 +1,10 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
 import { 
   ShieldAlert, 
   Users, 
-  Zap, 
   Search, 
   CheckCircle2, 
   Loader2,
@@ -12,13 +12,14 @@ import {
   Coins,
   TrendingUp,
   Clock,
-  ArrowRightLeft,
   Lock,
   RefreshCw,
-  Activity
+  Activity,
+  ShoppingBag,
+  ArrowUpRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,7 +33,6 @@ import {
   updateDoc, 
   increment, 
   collectionGroup, 
-  where,
   orderBy
 } from "firebase/firestore";
 import { BrowserProvider, Contract, formatEther } from "ethers";
@@ -44,8 +44,7 @@ import { cn } from "@/lib/utils";
 
 const CONTRACT_ABI = [
   "function getTotalVaultBalance() public view returns (uint256)",
-  "function owner() public view returns (address)",
-  "function depositTimestamps(address) public view returns (uint256)"
+  "function owner() public view returns (address)"
 ];
 
 const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
@@ -90,25 +89,21 @@ export default function AdminControlPage() {
     if (isAuthorized) syncOnChainVault();
   }, [isAuthorized, syncOnChainVault]);
 
+  // Query All Users
   const usersQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
     return query(collection(db, "users"), limit(100));
   }, [db, isAuthorized]);
-  
   const { data: allUsers } = useCollection(usersQuery);
 
-  const pendingSettlementsQuery = useMemo(() => {
+  // Query All Marketplace Invoices (Global)
+  const allInvoicesQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
-    return query(
-      collectionGroup(db, "transactions"), 
-      where("status", "==", "pending"),
-      orderBy("timestamp", "desc")
-    );
+    return query(collectionGroup(db, "invoices"), orderBy("createdAt", "desc"), limit(50));
   }, [db, isAuthorized]);
+  const { data: globalInvoices, loading: invoicesLoading } = useCollection(allInvoicesQuery);
 
-  const { data: pendingSettlements } = useCollection(pendingSettlementsQuery);
-
-  const handleAdjustBalance = (userId: string, asset: 'totalBalance' | 'cryptoBalances.ETH', amount: number) => {
+  const handleAdjustBalance = (userId: string, asset: string, amount: number) => {
     if (!db) return;
     const userRef = doc(db, "users", userId);
     const payload = { [asset]: increment(amount) };
@@ -127,13 +122,16 @@ export default function AdminControlPage() {
   };
 
   const platformStats = useMemo(() => {
-    if (!allUsers) return { totalIdr: 0, totalEth: 0, userCount: 0 };
-    return allUsers.reduce((acc, curr) => ({
-      totalIdr: acc.totalIdr + (curr.totalBalance || 0),
-      totalEth: acc.totalEth + (curr.cryptoBalances?.ETH || 0),
-      userCount: acc.userCount + 1
-    }), { totalIdr: 0, totalEth: 0, userCount: 0 });
-  }, [allUsers]);
+    const users = allUsers || [];
+    const invoices = globalInvoices || [];
+    
+    return {
+      totalIdr: users.reduce((acc, curr) => acc + (curr.totalBalance || 0), 0),
+      totalSales: invoices.filter(i => i.status === 'paid').reduce((acc, curr) => acc + (curr.amountIdr || 0), 0),
+      userCount: users.length,
+      paidInvoices: invoices.filter(i => i.status === 'paid').length
+    };
+  }, [allUsers, globalInvoices]);
 
   if (userLoading || !isAuthorized) {
     return (
@@ -170,9 +168,9 @@ export default function AdminControlPage() {
           <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-primary/5">
             <div className="flex items-center justify-between mb-2">
               <Database className="w-5 h-5 text-primary" />
-              <Badge variant="outline" className="text-[8px] font-black uppercase">Live Liquidity</Badge>
+              <Badge variant="outline" className="text-[8px] font-black uppercase">Platform IDR</Badge>
             </div>
-            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Platform IDR</p>
+            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Liquidity</p>
             <p className="text-3xl font-black text-accent italic tracking-tighter">Rp {platformStats.totalIdr.toLocaleString()}</p>
           </Card>
 
@@ -188,28 +186,28 @@ export default function AdminControlPage() {
             </div>
             <div className="flex items-center justify-between mb-2">
               <Coins className="w-5 h-5 text-blue-500" />
-              <Badge variant="outline" className="text-[8px] font-black uppercase">On-Chain Vault</Badge>
+              <Badge variant="outline" className="text-[8px] font-black uppercase">On-Chain V3</Badge>
             </div>
-            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Vault V3 Reserve</p>
+            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Vault Reserve</p>
             <p className="text-3xl font-black text-blue-600 italic tracking-tighter">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
           </Card>
 
           <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-green-500/5">
             <div className="flex items-center justify-between mb-2">
-              <Users className="w-5 h-5 text-green-500" />
+              <ShoppingBag className="w-5 h-5 text-green-500" />
               <TrendingUp className="w-4 h-4 text-green-600" />
             </div>
-            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Active Accounts</p>
-            <p className="text-3xl font-black text-green-700 italic tracking-tighter">{platformStats.userCount}</p>
+            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Marketplace Volume</p>
+            <p className="text-3xl font-black text-green-700 italic tracking-tighter">Rp {platformStats.totalSales.toLocaleString()}</p>
           </Card>
 
           <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white space-y-2">
             <div className="flex items-center justify-between mb-2">
               <Activity className="w-5 h-5 text-primary" />
-              <Badge variant="outline" className="text-[8px] font-black uppercase text-white border-white/20">Staking Node</Badge>
+              <Badge variant="outline" className="text-[8px] font-black uppercase text-white border-white/20">System Status</Badge>
             </div>
             <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Mainnet Reach</p>
-            <p className="text-2xl font-black italic tracking-tighter">CONNECTED</p>
+            <p className="text-2xl font-black italic tracking-tighter">OPERATIONAL</p>
           </Card>
         </div>
 
@@ -218,8 +216,8 @@ export default function AdminControlPage() {
             <TabsTrigger value="users" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
               User Management
             </TabsTrigger>
-            <TabsTrigger value="settlements" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all relative">
-              Bridge Queue
+            <TabsTrigger value="marketplace" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
+              Marketplace Audit
             </TabsTrigger>
           </TabsList>
 
@@ -264,7 +262,7 @@ export default function AdminControlPage() {
                           </div>
                         </td>
                         <td className="px-8 py-5 text-sm font-black italic text-accent">Rp {u.totalBalance?.toLocaleString()}</td>
-                        <td className="px-8 py-5 text-sm font-black text-primary italic">{u.cryptoBalances?.ETH?.toFixed(4) || "0.0000"} ETH</td>
+                        <td className="px-8 py-5 text-sm font-black text-primary italic">{(u.cryptoBalances?.ETH || 0).toFixed(4)} ETH</td>
                         <td className="px-8 py-5 text-right space-x-2">
                           <Button 
                             variant="outline" 
@@ -283,22 +281,59 @@ export default function AdminControlPage() {
             </section>
           </TabsContent>
 
-          <TabsContent value="settlements">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-12">
-                <section className="liquid-glass rounded-[3rem] overflow-hidden border-none shadow-2xl">
-                  <div className="p-8 border-b border-primary/5 bg-blue-500/5">
-                    <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3 text-accent">
-                      <Clock className="w-6 h-6 text-blue-600" /> Bridge Settlements
-                    </h3>
-                  </div>
-                  <div className="p-8 text-center py-20 bg-muted/10 rounded-[2rem] border-2 border-dashed border-primary/10">
-                    <CheckCircle2 className="w-12 h-12 text-primary/20 mx-auto mb-4" />
-                    <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">V3 Mainnet Bridge is Synced and Automated.</p>
-                  </div>
-                </section>
+          <TabsContent value="marketplace">
+            <section className="liquid-glass rounded-[3rem] overflow-hidden border-none shadow-2xl">
+              <div className="p-8 border-b border-primary/5 bg-green-500/5">
+                <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3 text-accent">
+                  <ShoppingBag className="w-6 h-6 text-green-600" /> Global Sales Ledger
+                </h3>
               </div>
-            </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-primary/5 text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                      <th className="px-8 py-6">Invoice ID</th>
+                      <th className="px-8 py-6">Product</th>
+                      <th className="px-8 py-6">Customer</th>
+                      <th className="px-8 py-6">Amount</th>
+                      <th className="px-8 py-6">Status</th>
+                      <th className="px-8 py-6 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-primary/5">
+                    {globalInvoices?.map((inv) => (
+                      <tr key={inv.id} className="hover:bg-primary/5 transition-colors">
+                        <td className="px-8 py-5 font-black text-accent text-xs">{inv.invoiceId}</td>
+                        <td className="px-8 py-5 text-xs font-bold text-muted-foreground">{inv.productName || "Direct Payment"}</td>
+                        <td className="px-8 py-5 text-xs font-medium">{inv.customerName}</td>
+                        <td className="px-8 py-5 text-xs font-black italic text-primary">Rp {inv.amountIdr?.toLocaleString()}</td>
+                        <td className="px-8 py-5">
+                          <Badge variant="outline" className={cn(
+                            "text-[8px] font-black uppercase px-3 py-1 rounded-full",
+                            inv.status === 'paid' ? "bg-green-100 text-green-600 border-green-200" : "bg-primary/10 text-primary border-primary/20"
+                          )}>
+                            {inv.status}
+                          </Badge>
+                        </td>
+                        <td className="px-8 py-5 text-right">
+                          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                            <ArrowUpRight className="w-4 h-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {(!globalInvoices || globalInvoices.length === 0) && (
+                      <tr>
+                        <td colSpan={6} className="py-20 text-center">
+                          <Loader2 className="w-10 h-10 animate-spin text-primary/10 mx-auto mb-4" />
+                          <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">No Marketplace Activity Detected.</p>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </TabsContent>
         </Tabs>
       </main>

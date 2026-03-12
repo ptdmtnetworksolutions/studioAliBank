@@ -17,10 +17,10 @@ import {
   XCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useFirestore, useUser } from "@/firebase";
-import { collection, query, where, getDocs, doc, setDoc, increment, addDoc, serverTimestamp } from "firebase/firestore";
+import { useFirestore, useUser, useCollection } from "@/firebase";
+import { collection, query, where, getDocs, doc, setDoc, increment, addDoc, serverTimestamp, collectionGroup } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { MOCK_MERCHANT } from "@/app/lib/mock-data";
 import { LogoIcon } from "@/components/ui/logo";
@@ -41,7 +41,6 @@ export default function CheckoutPage() {
   const [statusText, setStatusText] = useState("Initializing Gateway...");
   const [cryptoRates, setCryptoRates] = useState<Record<string, number>>({ ETH: 0, BTC: 0, USDT: 0 });
 
-  // Fetch Live Prices for accurate conversion
   useEffect(() => {
     async function fetchLivePrices() {
       try {
@@ -59,20 +58,20 @@ export default function CheckoutPage() {
     fetchLivePrices();
   }, []);
 
-  // Fetch specific invoice
   useEffect(() => {
     async function fetchInvoice() {
       if (!db || !invoiceId) return;
       
       try {
+        // Menggunakan collectionGroup agar bisa menemukan invoice di mana pun (Merchant mana pun)
         const q = query(
-          collection(db, "merchants", MOCK_MERCHANT.merchantId, "invoices"),
+          collectionGroup(db, "invoices"),
           where("invoiceId", "==", invoiceId)
         );
         const snapshot = await getDocs(q);
         if (!snapshot.empty) {
-          const docData = snapshot.docs[0].data();
-          setInvoice({ ...docData, id: snapshot.docs[0].id });
+          const docRef = snapshot.docs[0];
+          setInvoice({ ...docRef.data(), id: docRef.id, path: docRef.ref.path });
         }
       } catch (err) {
         console.error(err);
@@ -83,11 +82,11 @@ export default function CheckoutPage() {
     fetchInvoice();
   }, [db, invoiceId]);
 
-  const processPaymentFinalization = (method: string) => {
+  const processPaymentFinalization = async (method: string) => {
     if (!db || !invoice) return;
 
-    const invoiceRef = doc(db, "merchants", MOCK_MERCHANT.merchantId, "invoices", invoice.id);
-    const merchantRef = doc(db, "merchants", MOCK_MERCHANT.merchantId);
+    const invoiceRef = doc(db, invoice.path);
+    const merchantRef = doc(db, "merchants", invoice.merchantId);
     
     // 1. Update Invoice Status
     const invoicePayload = {
@@ -95,6 +94,7 @@ export default function CheckoutPage() {
       paidAt: new Date().toISOString(),
       paymentMethod: method
     };
+    
     setDoc(invoiceRef, invoicePayload, { merge: true })
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -104,9 +104,8 @@ export default function CheckoutPage() {
         }));
       });
 
-    // 2. Update Merchant Balance (Settlement) - Auto Convert to IDR
+    // 2. Update Merchant Balance
     const merchantPayload = {
-      ...MOCK_MERCHANT,
       totalRevenue: increment(invoice.amountIdr),
       pendingSettlement: increment(invoice.amountIdr)
     };
@@ -119,7 +118,7 @@ export default function CheckoutPage() {
         }));
       });
 
-    // 3. Update User Balance if internal
+    // 3. Update User Balance if AliBank internal
     if (method === 'AliBank' && user) {
       const userRef = doc(db, "users", user.uid);
       const transactionColRef = collection(db, "users", user.uid, "transactions");
@@ -138,8 +137,8 @@ export default function CheckoutPage() {
 
       const logPayload = {
         date: new Date().toISOString(),
-        description: `Payment for ${invoice.invoiceId} to ${MOCK_MERCHANT.businessName}`,
-        category: "Payment",
+        description: `Marketplace Payment: ${invoice.productName || invoice.invoiceId}`,
+        category: "Marketplace",
         amount: invoice.amountIdr,
         type: "expense",
         timestamp: serverTimestamp()
@@ -156,7 +155,7 @@ export default function CheckoutPage() {
 
     setPaymentStep('success');
     setIsProcessing(false);
-    toast({ title: "Payment Successful", description: `Settlement for ${MOCK_MERCHANT.businessName} has been processed.` });
+    toast({ title: "Payment Successful", description: `Transaction settled and recorded.` });
   };
 
   const handlePayInternal = () => {
@@ -182,9 +181,8 @@ export default function CheckoutPage() {
     setPaymentStep('processing');
     setStatusText("Connecting to Mainnet Bridge...");
     
-    // Simulation logic for crypto payment
     setTimeout(() => {
-      setStatusText("Verifying Blockchain Transaction...");
+      setStatusText("Verifying V3 Vault Transaction...");
       setTimeout(() => {
         setStatusText("Converting Assets to IDR Settlement...");
         setTimeout(() => {
@@ -222,7 +220,7 @@ export default function CheckoutPage() {
         </div>
         <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">Payment Confirmed</h2>
         <p className="text-muted-foreground text-sm text-center mb-8 max-w-xs leading-relaxed">
-          Your payment to <span className="font-bold text-accent">{MOCK_MERCHANT.businessName}</span> for <span className="font-bold">{invoice.invoiceId}</span> has been processed.
+          Your payment for <span className="font-bold text-accent">{invoice.productName || invoice.invoiceId}</span> has been processed and settled.
         </p>
         <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-6 mb-8 text-center">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Paid (Settled in IDR)</p>
@@ -235,11 +233,10 @@ export default function CheckoutPage() {
     );
   }
 
-  const cryptoEquiv = invoice.amountIdr * (cryptoRates[invoice.cryptoCurrency] || 0);
+  const cryptoEquiv = invoice.amountIdr * (cryptoRates[invoice.cryptoCurrency || 'ETH'] || 0);
 
   return (
     <div className="min-h-screen bg-background pb-20 relative overflow-hidden">
-      {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-64 gold-gradient opacity-10 blur-[100px]" />
       
       <main className="container mx-auto px-4 pt-12 max-w-lg relative z-10">
@@ -266,11 +263,10 @@ export default function CheckoutPage() {
 
             <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl mb-6">
               <CardHeader className="bg-accent/5 p-8 border-b border-primary/5 text-center">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Payment for {MOCK_MERCHANT.businessName}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Checkout: {invoice.productName || "Product"}</p>
                 <h2 className="text-4xl font-black text-accent italic tracking-tighter">Rp {invoice.amountIdr.toLocaleString()}</h2>
                 <div className="flex items-center justify-center gap-2 mt-2">
                   <Badge variant="outline" className="border-primary/20 text-primary font-bold">{invoice.invoiceId}</Badge>
-                  <span className="text-[10px] font-bold text-muted-foreground italic uppercase">Ref: 8829-X</span>
                 </div>
               </CardHeader>
               <CardContent className="p-8 space-y-6">
@@ -306,9 +302,9 @@ export default function CheckoutPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-black text-accent italic">Mainnet Bridge</p>
-                          <Badge className="bg-primary text-white text-[7px] font-black h-4 px-1 animate-pulse">LIVE BRIDGE</Badge>
+                          <Badge className="bg-primary text-white text-[7px] font-black h-4 px-1 animate-pulse">LIVE V3</Badge>
                         </div>
-                        <p className="text-[9px] font-medium text-muted-foreground uppercase">Pay with MetaMask / TrustWallet</p>
+                        <p className="text-[9px] font-medium text-muted-foreground uppercase">Pay with MetaMask / Wallet</p>
                       </div>
                     </div>
                     <Bitcoin className="w-4 h-4 text-orange-500" />
@@ -317,15 +313,15 @@ export default function CheckoutPage() {
 
                 <div className="pt-4 border-t border-primary/5">
                   <div className="flex justify-between items-center mb-4">
-                    <span className="text-[10px] font-black uppercase text-muted-foreground">Crypto Equivalent (Live Rate)</span>
+                    <span className="text-[10px] font-black uppercase text-muted-foreground">Crypto Equivalent</span>
                     <span className="text-xs font-black text-primary italic">
-                      {cryptoEquiv > 0 ? `≈ ${cryptoEquiv.toFixed(6)} ${invoice.cryptoCurrency}` : 'Fetching live rate...'}
+                      {cryptoEquiv > 0 ? `≈ ${cryptoEquiv.toFixed(6)} ${invoice.cryptoCurrency || 'ETH'}` : 'Fetching rate...'}
                     </span>
                   </div>
                   <div className="bg-primary/5 p-4 rounded-2xl flex items-center gap-3">
                     <Lock className="w-4 h-4 text-primary" />
                     <p className="text-[9px] text-muted-foreground font-medium italic leading-relaxed">
-                      Encryption active. Assets sent via bridge are automatically converted to IDR using real-time market rates and settled instantly.
+                      Encryption active. Marketplace assets are settled instantly to the merchant upon confirmation.
                     </p>
                   </div>
                 </div>
@@ -334,7 +330,7 @@ export default function CheckoutPage() {
 
             <div className="flex flex-col items-center gap-2">
               <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                Powered by AliBank Intelligence <Globe className="w-2.5 h-2.5" />
+                Powered by AliBank V3 Infrastructure <Globe className="w-2.5 h-2.5" />
               </p>
               <div className="flex gap-4 opacity-30 grayscale pointer-events-none">
                 <ShieldCheck className="w-4 h-4" />
