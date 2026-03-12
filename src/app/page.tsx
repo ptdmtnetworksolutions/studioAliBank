@@ -23,7 +23,8 @@ import {
   Cpu,
   Globe,
   Unlink,
-  Sparkles
+  Sparkles,
+  ShoppingBag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +44,7 @@ const mainServices = [
   { name: "Transfer", icon: Send, color: "bg-blue-50 text-blue-600", href: "/transfer" },
   { name: "Top Up", icon: Plus, color: "bg-green-50 text-green-600", href: "/topup" },
   { name: "Crypto Bridge", icon: Bitcoin, color: "bg-orange-50 text-orange-600", href: "/crypto", badge: "Live" },
-  { name: "E-Wallet", icon: Wallet, color: "bg-amber-50 text-amber-700", href: "/wallets" },
+  { name: "Marketplace", icon: ShoppingBag, color: "bg-amber-50 text-amber-700", href: "/marketplace" },
   { name: "Elite Deposits", icon: PiggyBank, color: "bg-green-50 text-green-600", href: "/deposits" },
   { name: "Withdraw", icon: ArrowDownToLine, color: "bg-indigo-50 text-indigo-600" },
   { name: "Pay QRIS", icon: QrCode, color: "bg-teal-50 text-teal-600", href: "/topup" },

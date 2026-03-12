@@ -60,6 +60,21 @@
       },
       "required": ["invoiceId", "merchantId", "amountIdr", "status"]
     },
+    "MarketplaceItem": {
+      "title": "Marketplace Item",
+      "description": "Produk yang dijual di Marketplace Crypto.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "priceIdr": { "type": "number" },
+        "category": { "type": "string" },
+        "stock": { "type": "number" },
+        "image": { "type": "string" }
+      },
+      "required": ["id", "name", "priceIdr"]
+    },
     "Transaction": {
       "title": "Transaction",
       "description": "Catatan transaksi keuangan pengguna.",
@@ -111,6 +126,10 @@
     "/merchants/{merchantId}/invoices/{invoiceId}": {
       "schema": "Invoice",
       "description": "Data tagihan pembayaran merchant."
+    },
+    "/marketplace/items": {
+      "schema": "MarketplaceItem",
+      "description": "Koleksi produk marketplace publik."
     }
   }
 }

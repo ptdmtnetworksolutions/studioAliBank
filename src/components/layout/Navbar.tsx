@@ -13,7 +13,8 @@ import {
   X,
   Bitcoin,
   Sparkles,
-  Store
+  Store,
+  ShoppingBag
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,7 @@ const personalItems = [
   { name: "Beranda", href: "/", icon: LayoutDashboard },
   { name: "Transaksi", href: "/transactions", icon: History },
   { name: "Transfer", href: "/transfer", icon: Send },
-  { name: "Dompet", href: "/wallets", icon: Wallet },
+  { name: "Marketplace", href: "/marketplace", icon: ShoppingBag },
   { name: "Deposito", href: "/deposits", icon: PiggyBank },
   { name: "Kripto", href: "/crypto", icon: Bitcoin },
   { name: "AI Insight", href: "/ai-assistant", icon: Sparkles },
