@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -13,6 +12,8 @@ import { useFirestore, useUser } from "@/firebase";
 import { collection, addDoc, doc, updateDoc, increment, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function TransferPage() {
   const [selected, setSelected] = useState<string | null>(null);
@@ -24,7 +25,7 @@ export default function TransferPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleTransfer = async () => {
+  const handleTransfer = () => {
     if (!user || !db || !amount || !selected) {
       toast({
         variant: "destructive",
@@ -38,47 +39,64 @@ export default function TransferPage() {
     const numAmount = parseFloat(amount);
     const beneficiary = MOCK_BENEFICIARIES.find(b => b.id === selected);
 
-    try {
-      // 1. Catat Transaksi
-      await addDoc(collection(db, "users", user.uid, "transactions"), {
-        date: new Date().toISOString(),
-        description: `Transfer ke ${beneficiary?.name} (${note || 'Tanpa catatan'})`,
-        category: "Transfer",
-        amount: numAmount,
-        type: "expense",
-        timestamp: serverTimestamp()
-      });
+    // 1. Catat Transaksi
+    const txRef = collection(db, "users", user.uid, "transactions");
+    const txData = {
+      date: new Date().toISOString(),
+      description: `Transfer ke ${beneficiary?.name} (${note || 'Tanpa catatan'})`,
+      category: "Transfer",
+      amount: numAmount,
+      type: "expense",
+      timestamp: serverTimestamp()
+    };
 
-      // 2. Update Saldo
-      const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, {
-        totalBalance: increment(-numAmount)
-      });
+    addDoc(txRef, txData).catch(async (err) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: txRef.path,
+        operation: 'create',
+        requestResourceData: txData
+      }));
+    });
 
-      // 3. Tambahkan Notifikasi
-      await addDoc(collection(db, "users", user.uid, "notifications"), {
-        title: "Transfer Berhasil",
-        message: `Anda telah mengirim Rp ${numAmount.toLocaleString('id-ID')} ke ${beneficiary?.name}.`,
-        type: "success",
-        read: false,
-        createdAt: new Date().toISOString()
-      });
+    // 2. Update Saldo
+    const userRef = doc(db, "users", user.uid);
+    updateDoc(userRef, {
+      totalBalance: increment(-numAmount)
+    }).catch(async (err) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: userRef.path,
+        operation: 'update',
+        requestResourceData: { totalBalance: increment(-numAmount) }
+      }));
+    });
 
-      toast({
-        title: "Transfer Berhasil!",
-        description: `Rp ${numAmount.toLocaleString('id-ID')} telah dikirim ke ${beneficiary?.name}.`,
-      });
-      router.push('/');
-    } catch (err) {
-      console.error(err);
-      toast({
-        variant: "destructive",
-        title: "Transfer Gagal",
-        description: "Terjadi kesalahan sistem. Silakan coba lagi.",
-      });
-    } finally {
+    // 3. Tambahkan Notifikasi
+    const notifRef = collection(db, "users", user.uid, "notifications");
+    const notifData = {
+      title: "Transfer Berhasil",
+      message: `Anda telah mengirim Rp ${numAmount.toLocaleString('id-ID')} ke ${beneficiary?.name}.`,
+      type: "success",
+      read: false,
+      createdAt: new Date().toISOString()
+    };
+
+    addDoc(notifRef, notifData).catch(async (err) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: notifRef.path,
+        operation: 'create',
+        requestResourceData: notifData
+      }));
+    });
+
+    toast({
+      title: "Transfer Berhasil!",
+      description: `Rp ${numAmount.toLocaleString('id-ID')} telah dikirim ke ${beneficiary?.name}.`,
+    });
+    
+    setTimeout(() => {
       setLoading(false);
-    }
+      router.push('/');
+    }, 1000);
   };
 
   return (

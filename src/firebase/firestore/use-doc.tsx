@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { DocumentReference, onSnapshot, DocumentData } from 'firebase/firestore';
 
 export function useDoc<T = DocumentData>(docRef: DocumentReference<T> | null) {
-  const [data, setData] = useState<T | null>(null);
+  const [data, setData] = useState<(T & { id: string }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -17,11 +17,10 @@ export function useDoc<T = DocumentData>(docRef: DocumentReference<T> | null) {
     const unsubscribe = onSnapshot(
       docRef,
       (snapshot) => {
-        setData(snapshot.data() || null);
+        setData(snapshot.exists() ? { ...(snapshot.data() as T), id: snapshot.id } : null);
         setLoading(false);
       },
       (err) => {
-        console.error("Error fetching document:", err);
         setError(err);
         setLoading(false);
       }
