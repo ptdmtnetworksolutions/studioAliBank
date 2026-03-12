@@ -17,7 +17,8 @@ import {
   Coins,
   TrendingUp,
   MoreVertical,
-  Edit2
+  Edit2,
+  Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,30 +29,49 @@ import { useUser, useFirestore, useCollection } from "@/firebase";
 import { collection, query, orderBy, limit, doc, updateDoc, increment } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/errors";
 
 export default function AdminControlPage() {
   const { user, loading: userLoading } = useUser();
   const db = useFirestore();
+  const router = useRouter();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAuthorized, setIsAuthorized] = useState(false);
 
-  // Security Check: Hanya akses manual untuk Owner
+  // KONTROL AKSES PEMILIK TUNGGAL (OWNER)
+  const OWNER_EMAIL = "alidzulfikar075@gmail.com";
+
   useEffect(() => {
-    if (!userLoading && !user) {
-      window.location.href = '/login';
+    if (userLoading) return;
+
+    if (!user) {
+      router.push('/login');
+      return;
     }
-    // Di sini Anda bisa menambahkan UID spesifik Anda untuk proteksi ekstra
+
+    // Validasi Kepemilikan (Super Admin)
+    if (user.email !== OWNER_EMAIL) {
+      console.warn("Unauthorized access attempt to Owner Panel by:", user.email);
+      router.push('/');
+      return;
+    }
+
     setIsAuthorized(true);
-  }, [user, userLoading]);
+    toast({
+      title: "Otoritas Diterima",
+      description: "Selamat datang kembali, Pemilik AliBank.",
+    });
+  }, [user, userLoading, router, toast]);
 
   // Fetch Platform Users
   const usersQuery = useMemo(() => {
-    if (!db) return null;
+    if (!db || !isAuthorized) return null;
     return query(collection(db, "users"), limit(50));
-  }, [db]);
+  }, [db, isAuthorized]);
+  
   const { data: allUsers, loading: usersLoading } = useCollection(usersQuery);
 
   const handleAdjustBalance = (userId: string, amount: number) => {
@@ -61,7 +81,7 @@ export default function AdminControlPage() {
     
     updateDoc(userRef, payload)
       .then(() => {
-        toast({ title: "Balance Adjusted", description: "Intervensi saldo berhasil dilakukan." });
+        toast({ title: "Intervensi Berhasil", description: "Saldo nasabah telah disesuaikan secara manual." });
       })
       .catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -81,7 +101,14 @@ export default function AdminControlPage() {
     }), { totalIdr: 0, totalEth: 0, userCount: 0 });
   }, [allUsers]);
 
-  if (!isAuthorized) return null;
+  if (userLoading || !isAuthorized) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+        <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground animate-pulse">Memverifikasi Otoritas Pemilik...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pb-32 bg-background">
@@ -94,8 +121,13 @@ export default function AdminControlPage() {
               <ShieldAlert className="text-destructive w-8 h-8" />
             </div>
             <div>
-              <h1 className="text-4xl font-black text-accent uppercase italic tracking-tighter">Owner Control Panel</h1>
-              <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Akses Otoritas Penuh & Kepemilikan Sistem.</p>
+              <div className="flex items-center gap-2 mb-1">
+                <h1 className="text-4xl font-black text-accent uppercase italic tracking-tighter">Owner Control Panel</h1>
+                <Badge variant="destructive" className="animate-pulse">SUPER ADMIN</Badge>
+              </div>
+              <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">
+                Akses Eksklusif: {OWNER_EMAIL}
+              </p>
             </div>
           </div>
         </header>
@@ -124,17 +156,17 @@ export default function AdminControlPage() {
               <Users className="w-5 h-5 text-green-500" />
               <TrendingUp className="w-4 h-4 text-green-600" />
             </div>
-            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Verified Users</p>
+            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Nasabah Terverifikasi</p>
             <p className="text-3xl font-black text-green-700 italic tracking-tighter">{platformStats.userCount}</p>
           </Card>
 
           <Card className="liquid-glass-dark border-none rounded-[2rem] p-8 text-white space-y-2">
             <div className="flex items-center justify-between mb-2">
               <Zap className="w-5 h-5 text-primary" />
-              <Settings className="w-5 h-5 opacity-50" />
+              <Lock className="w-5 h-5 opacity-50 text-primary" />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-70">System Integrity</p>
-            <p className="text-2xl font-black italic tracking-tighter">100% SECURE</p>
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Integritas Sistem</p>
+            <p className="text-2xl font-black italic tracking-tighter">100% TERENKRIPSI</p>
           </Card>
         </div>
 
@@ -167,12 +199,12 @@ export default function AdminControlPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-primary/5">
-                    {allUsers?.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase())).map((u) => (
-                      <tr key={u.uid} className="hover:bg-primary/5 transition-colors group">
+                    {allUsers?.filter(u => u.name?.toLowerCase().includes(searchTerm.toLowerCase())).map((u) => (
+                      <tr key={u.id} className="hover:bg-primary/5 transition-colors group">
                         <td className="px-8 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center text-[10px] font-black text-white">
-                              {u.name[0]}
+                              {u.name ? u.name[0] : "?"}
                             </div>
                             <div>
                               <p className="text-xs font-black text-accent">{u.name}</p>
@@ -187,7 +219,7 @@ export default function AdminControlPage() {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            onClick={() => handleAdjustBalance(u.uid, 1000000)} 
+                            onClick={() => handleAdjustBalance(u.id, 1000000)} 
                             className="hover:bg-primary/10 text-primary"
                           >
                             <PlusIcon className="w-4 h-4" />
@@ -208,7 +240,7 @@ export default function AdminControlPage() {
                 Policy Control
               </h3>
               <p className="text-[11px] text-white/60 mb-6 leading-relaxed italic">
-                Sebagai pemilik, Anda memiliki hak veto untuk membekukan akun atau menyesuaikan parameter likuiditas demi stabilitas ekonomi AliBank.
+                Akses super admin ini bersifat absolut. Anda dapat membekukan sistem atau menyesuaikan likuiditas demi stabilitas AliBank.
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <Button variant="outline" className="h-12 rounded-xl border-white/10 text-white font-bold text-[10px] uppercase">Freeze App</Button>
