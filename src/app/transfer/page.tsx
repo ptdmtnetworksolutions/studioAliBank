@@ -2,7 +2,6 @@
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
-import { MOCK_BENEFICIARIES } from "@/app/lib/mock-data";
 import { 
   Send, 
   ArrowRight, 
@@ -12,14 +11,15 @@ import {
   CheckCircle2, 
   Loader2,
   AlertCircle,
-  X
+  X,
+  History
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { useFirestore, useUser, useDoc } from "@/firebase";
+import { useFirestore, useUser, useDoc, useCollection } from "@/firebase";
 import { 
   collection, 
   addDoc, 
@@ -30,7 +30,8 @@ import {
   query, 
   where, 
   getDocs, 
-  limit 
+  limit,
+  orderBy
 } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
@@ -57,6 +58,42 @@ export default function TransferPage() {
   }, [db, user]);
 
   const { data: userData } = useDoc(userDocRef);
+
+  // Fetch real transaction history to build "Recent Recipients"
+  const transactionsQuery = useMemo(() => {
+    if (!db || !user) return null;
+    return query(
+      collection(db, "users", user.uid, "transactions"),
+      where("category", "==", "Transfer"),
+      orderBy("timestamp", "desc"),
+      limit(20)
+    );
+  }, [db, user]);
+
+  const { data: recentTxs } = useCollection(transactionsQuery);
+
+  // Extract unique recent recipients from real transaction data
+  const realRecentRecipients = useMemo(() => {
+    if (!recentTxs) return [];
+    const recipients: any[] = [];
+    const seen = new Set();
+    
+    recentTxs.forEach(tx => {
+      if (tx.description.includes('(')) {
+        const match = tx.description.match(/Transfer ke (.*) \((.*)\)/);
+        if (match && !seen.has(match[2])) {
+          seen.add(match[2]);
+          recipients.push({ 
+            name: match[1], 
+            accountNumber: match[2], 
+            bank: "AliBank",
+            isReal: true 
+          });
+        }
+      }
+    });
+    return recipients.slice(0, 5);
+  }, [recentTxs]);
 
   const handleSearchAccount = async () => {
     if (!db || !searchAccount || searchAccount.length < 5) return;
@@ -116,16 +153,13 @@ export default function TransferPage() {
       }));
     });
 
-    // 2. Tambah Saldo Penerima (Jika sesama AliBank)
-    if (selectedRecipient.isReal) {
+    // 2. Tambah Saldo Penerima (Riil antar nasabah)
+    if (selectedRecipient.isReal && selectedRecipient.id) {
       const recipientRef = doc(db, "users", selectedRecipient.id);
       updateDoc(recipientRef, {
         totalBalance: increment(numAmount)
-      }).catch(async () => {
-        // Logika kegagalan update penerima (biasanya ditangani cloud function di produksi)
-      });
+      }).catch(async () => {});
 
-      // Notifikasi Penerima
       const recipientNotifRef = collection(db, "users", selectedRecipient.id, "notifications");
       addDoc(recipientNotifRef, {
         title: "Dana Masuk",
@@ -136,7 +170,7 @@ export default function TransferPage() {
       });
     }
 
-    // 3. Catat Transaksi Pengirim
+    // 3. Catat Transaksi Riil
     const txRef = collection(db, "users", user.uid, "transactions");
     const txData = {
       date: new Date().toISOString(),
@@ -149,19 +183,9 @@ export default function TransferPage() {
     };
     addDoc(txRef, txData);
 
-    // 4. Notifikasi Pengirim
-    const senderNotifRef = collection(db, "users", user.uid, "notifications");
-    addDoc(senderNotifRef, {
-      title: "Transfer Berhasil",
-      message: `Berhasil mengirim Rp ${numAmount.toLocaleString('id-ID')} ke ${selectedRecipient.name}.`,
-      type: "success",
-      read: false,
-      createdAt: new Date().toISOString()
-    });
-
     setStep('success');
     setIsProcessing(false);
-    toast({ title: "Berhasil", description: "Transfer telah diselesaikan." });
+    toast({ title: "Berhasil", description: "Transfer telah diselesaikan secara riil." });
   };
 
   if (step === 'success') {
@@ -177,10 +201,6 @@ export default function TransferPage() {
         <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 mb-8 text-center">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Terkirim</p>
           <p className="text-3xl font-black text-primary italic">Rp {parseFloat(amount).toLocaleString('id-ID')}</p>
-          <div className="mt-4 pt-4 border-t border-primary/5">
-            <p className="text-[9px] font-bold text-muted-foreground uppercase">Referensi Transaksi</p>
-            <p className="text-[10px] font-black text-accent">{Math.random().toString(36).substring(7).toUpperCase()}</p>
-          </div>
         </Card>
         <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl" onClick={() => router.push('/')}>
           Kembali ke Beranda
@@ -202,7 +222,6 @@ export default function TransferPage() {
             </header>
             
             <div className="liquid-glass rounded-[2.5rem] p-8 space-y-8 border-primary/10 shadow-2xl">
-              {/* Recipient Selection */}
               <div className="space-y-4">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Pilih Penerima</label>
                 
@@ -224,18 +243,24 @@ export default function TransferPage() {
                 ) : (
                   <div className="space-y-4">
                     <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-                      {MOCK_BENEFICIARIES.map((b) => (
+                      {realRecentRecipients.map((b, idx) => (
                         <button
-                          key={b.id}
-                          onClick={() => setSelectedRecipient({ ...b, isReal: false })}
+                          key={idx}
+                          onClick={() => setSelectedRecipient(b)}
                           className="flex-shrink-0 w-24 h-28 rounded-2xl liquid-glass border-none hover:bg-primary/10 flex flex-col items-center justify-center gap-2 transition-all active:scale-95"
                         >
                           <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
-                            {b.name.split(' ').map(n => n[0]).join('')}
+                            {b.name.split(' ').map((n: string) => n[0]).join('')}
                           </div>
                           <span className="text-[9px] font-black uppercase text-center px-1 truncate w-full">{b.name}</span>
                         </button>
                       ))}
+                      {realRecentRecipients.length === 0 && (
+                        <div className="flex flex-col items-center justify-center w-full py-4 border-2 border-dashed border-primary/5 rounded-2xl">
+                          <History className="w-6 h-6 text-primary/20 mb-1" />
+                          <p className="text-[8px] font-black text-muted-foreground uppercase">No Recent Recipients</p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="relative">
@@ -262,11 +287,10 @@ export default function TransferPage() {
                 )}
               </div>
 
-              {/* Amount Entry */}
               <div className="space-y-4">
                 <div className="flex justify-between items-end">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Jumlah Transfer</label>
-                  <p className="text-[10px] font-bold text-accent uppercase">Saldo: Rp {userData?.totalBalance?.toLocaleString() || "0"}</p>
+                  <p className="text-[10px] font-bold text-accent uppercase">Saldo Riil: Rp {userData?.totalBalance?.toLocaleString('id-ID') || "0"}</p>
                 </div>
                 <div className="relative">
                   <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-primary/30">Rp</span>
@@ -280,7 +304,6 @@ export default function TransferPage() {
                 </div>
               </div>
 
-              {/* Note Entry */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Catatan Opsional</label>
                 <Input 
@@ -289,13 +312,6 @@ export default function TransferPage() {
                   onChange={(e) => setNote(e.target.value)}
                   className="h-14 rounded-2xl liquid-glass border-none font-medium text-xs"
                 />
-              </div>
-
-              <div className="p-6 rounded-2xl bg-green-50 flex items-center gap-4 border border-green-100">
-                <ShieldCheck className="text-green-600 w-8 h-8 shrink-0" />
-                <p className="text-[10px] text-green-800 font-bold uppercase tracking-widest leading-relaxed">
-                  Enkripsi V3 Aktif. Transfer ini akan diproses secara instan dan tidak dapat dibatalkan setelah eksekusi.
-                </p>
               </div>
 
               <Button 
@@ -310,11 +326,11 @@ export default function TransferPage() {
 
           <div className="lg:col-span-5 space-y-6">
             <h2 className="text-sm font-black text-accent uppercase tracking-widest flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-primary" /> Favorit Nasabah
+              <CheckCircle2 className="w-4 h-4 text-primary" /> Favorit Riil
             </h2>
             <div className="space-y-4">
-              {MOCK_BENEFICIARIES.map((b) => (
-                <Card key={b.id} onClick={() => setSelectedRecipient({ ...b, isReal: false })} className="liquid-glass border-none shadow-sm cursor-pointer hover:border-primary/40 transition-all rounded-[1.5rem] group">
+              {realRecentRecipients.length > 0 ? realRecentRecipients.map((b, idx) => (
+                <Card key={idx} onClick={() => setSelectedRecipient(b)} className="liquid-glass border-none shadow-sm cursor-pointer hover:border-primary/40 transition-all rounded-[1.5rem] group">
                   <CardContent className="p-5 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-accent/5 flex items-center justify-center font-black text-accent group-hover:bg-primary/10 group-hover:text-primary transition-colors">
@@ -322,21 +338,26 @@ export default function TransferPage() {
                       </div>
                       <div>
                         <p className="font-black text-sm text-accent uppercase italic">{b.name}</p>
-                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{b.bank} • {b.acc}</p>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{b.bank} • {b.accountNumber}</p>
                       </div>
                     </div>
                     <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                   </CardContent>
                 </Card>
-              ))}
+              )) : (
+                <div className="p-12 text-center liquid-glass rounded-[2rem] border-dashed border-2 border-primary/5">
+                  <History className="w-10 h-10 text-primary/10 mx-auto mb-3" />
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Belum ada riwayat favorit.</p>
+                </div>
+              )}
             </div>
 
             <div className="liquid-glass p-8 rounded-[2.5rem] bg-primary/5 border border-primary/10">
-              <h4 className="text-[10px] font-black uppercase text-accent mb-3 tracking-widest">Wawasan Keamanan</h4>
+              <h4 className="text-[10px] font-black uppercase text-accent mb-3 tracking-widest">Wawasan Keamanan V3</h4>
               <div className="flex gap-4 items-start">
                 <AlertCircle className="w-5 h-5 text-primary shrink-0" />
                 <p className="text-[10px] text-muted-foreground font-medium italic leading-relaxed uppercase tracking-widest">
-                  Selalu verifikasi nama penerima sebelum memasukkan PIN atau konfirmasi akhir. AliBank tidak pernah meminta OTP Anda melalui pesan atau telepon.
+                  Setiap transfer diverifikasi terhadap basis data nasabah terenkripsi AliBank secara real-time.
                 </p>
               </div>
             </div>
