@@ -49,10 +49,19 @@ export default function TransferPage() {
         timestamp: serverTimestamp()
       });
 
-      // 2. Update Saldo (Simulasi di sisi pengirim)
+      // 2. Update Saldo
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
         totalBalance: increment(-numAmount)
+      });
+
+      // 3. Tambahkan Notifikasi
+      await addDoc(collection(db, "users", user.uid, "notifications"), {
+        title: "Transfer Berhasil",
+        message: `Anda telah mengirim Rp ${numAmount.toLocaleString('id-ID')} ke ${beneficiary?.name}.`,
+        type: "success",
+        read: false,
+        createdAt: new Date().toISOString()
       });
 
       toast({

@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -172,20 +173,12 @@ export default function Dashboard() {
             <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-2xl bg-white/50 border border-primary/5 shadow-sm dark:bg-white/5">
               <LogOut className="w-5 h-5 text-accent dark:text-primary" />
             </Button>
-            <div className="relative">
-              <Button variant="ghost" size="icon" className="rounded-2xl bg-white/50 border border-primary/5 shadow-sm dark:bg-white/5">
-                <Bell className="w-5 h-5 text-accent dark:text-primary" />
-              </Button>
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-white text-[8px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-black">
-                1
-              </span>
-            </div>
+            <NotificationCenter />
           </div>
         </div>
       </header>
       
       <main className="max-w-2xl mx-auto px-4 pt-4 space-y-6">
-        {/* New: Zero Fee Policy Banner */}
         <div className="px-2">
           <div className="liquid-glass p-3 rounded-2xl border-primary/10 flex items-center justify-between bg-primary/5">
             <div className="flex items-center gap-2">

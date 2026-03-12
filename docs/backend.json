@@ -72,6 +72,20 @@
         "type": { "type": "string", "enum": ["income", "expense"] }
       },
       "required": ["date", "description", "amount", "type"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Notifikasi sistem atau transaksi untuk pengguna.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "success", "alert"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "message", "read"]
     }
   },
   "auth": {
@@ -85,6 +99,10 @@
     "/users/{userId}/transactions/{transactionId}": {
       "schema": "Transaction",
       "description": "Riwayat transaksi milik pengguna."
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Daftar notifikasi pengguna."
     },
     "/merchants/{merchantId}": {
       "schema": "MerchantProfile",
