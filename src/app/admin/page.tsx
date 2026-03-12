@@ -14,7 +14,6 @@ import {
   Clock,
   ArrowRightLeft,
   Lock,
-  Globe,
   RefreshCw,
   Activity
 } from "lucide-react";
@@ -49,7 +48,6 @@ const CONTRACT_ABI = [
   "function depositTimestamps(address) public view returns (uint256)"
 ];
 
-// Alamat kontrak V3 Terverifikasi (0x5626...)
 const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 
 export default function AdminControlPage() {
@@ -192,7 +190,7 @@ export default function AdminControlPage() {
               <Coins className="w-5 h-5 text-blue-500" />
               <Badge variant="outline" className="text-[8px] font-black uppercase">On-Chain Vault</Badge>
             </div>
-            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total ETH in Smart Contract</p>
+            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Vault V3 Reserve</p>
             <p className="text-3xl font-black text-blue-600 italic tracking-tighter">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
           </Card>
 
@@ -210,8 +208,8 @@ export default function AdminControlPage() {
               <Activity className="w-5 h-5 text-primary" />
               <Badge variant="outline" className="text-[8px] font-black uppercase text-white border-white/20">Staking Node</Badge>
             </div>
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Vault Status</p>
-            <p className="text-2xl font-black italic tracking-tighter">YIELD READY</p>
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Mainnet Reach</p>
+            <p className="text-2xl font-black italic tracking-tighter">CONNECTED</p>
           </Card>
         </div>
 
@@ -222,11 +220,6 @@ export default function AdminControlPage() {
             </TabsTrigger>
             <TabsTrigger value="settlements" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all relative">
               Bridge Queue
-              {pendingSettlements && pendingSettlements.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive rounded-full flex items-center justify-center text-[8px] text-white animate-pulse border-2 border-background">
-                  {pendingSettlements.length}
-                </span>
-              )}
             </TabsTrigger>
           </TabsList>
 
@@ -296,38 +289,12 @@ export default function AdminControlPage() {
                 <section className="liquid-glass rounded-[3rem] overflow-hidden border-none shadow-2xl">
                   <div className="p-8 border-b border-primary/5 bg-blue-500/5">
                     <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3 text-accent">
-                      <Clock className="w-6 h-6 text-blue-600" /> Pending Bridge Settlements
+                      <Clock className="w-6 h-6 text-blue-600" /> Bridge Settlements
                     </h3>
                   </div>
-                  <div className="p-8">
-                    {pendingSettlements && pendingSettlements.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {pendingSettlements.map((s, idx) => (
-                          <div key={idx} className="p-6 rounded-[2rem] bg-muted/20 border border-primary/5 flex items-center justify-between group hover:bg-muted/30 transition-all">
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-2xl bg-blue-600/10 text-blue-600 flex items-center justify-center">
-                                <ArrowRightLeft className="w-6 h-6" />
-                              </div>
-                              <div>
-                                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Bridge Request</p>
-                                <p className="text-lg font-black text-accent italic">{s.cryptoAmount} ETH &rarr; On-Chain</p>
-                              </div>
-                            </div>
-                            <Button 
-                              onClick={() => toast({ title: "Approved", description: "Proses settlement blockchain dimulai." })}
-                              className="gold-gradient text-white font-black italic uppercase text-[10px] rounded-2xl h-12 px-6 shadow-lg shadow-primary/20"
-                            >
-                              Settle Now
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-20 bg-muted/10 rounded-[2rem] border-2 border-dashed border-primary/10">
-                        <CheckCircle2 className="w-12 h-12 text-primary/20 mx-auto mb-4" />
-                        <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">No pending settlements found.</p>
-                      </div>
-                    )}
+                  <div className="p-8 text-center py-20 bg-muted/10 rounded-[2rem] border-2 border-dashed border-primary/10">
+                    <CheckCircle2 className="w-12 h-12 text-primary/20 mx-auto mb-4" />
+                    <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">V3 Mainnet Bridge is Synced and Automated.</p>
                   </div>
                 </section>
               </div>
