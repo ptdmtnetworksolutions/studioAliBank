@@ -13,8 +13,7 @@ import {
   X,
   Bitcoin,
   Sparkles,
-  Store,
-  ShieldAlert
+  Store
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -54,7 +53,7 @@ export function Navbar() {
             <span className="font-bold text-xl tracking-tighter italic text-accent dark:text-primary uppercase">AliBank</span>
           </Link>
 
-          {/* Desktop Nav */}
+          {/* Desktop Nav - Public Items Only */}
           <div className="hidden lg:flex items-center gap-1">
             <div className="flex items-center gap-1 pr-4 border-r border-primary/10">
               {personalItems.map((item) => {
@@ -97,19 +96,6 @@ export function Navbar() {
                   </Link>
                 );
               })}
-              {/* Owner Access Link */}
-              <Link
-                href="/admin"
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-xl transition-all font-black text-[11px] uppercase tracking-wider ml-2",
-                  pathname === "/admin"
-                    ? "bg-destructive text-white shadow-lg"
-                    : "text-destructive hover:bg-destructive/10"
-                )}
-              >
-                <ShieldAlert className="w-3.5 h-3.5" />
-                Owner
-              </Link>
             </div>
           </div>
 
@@ -123,7 +109,7 @@ export function Navbar() {
           </Button>
         </div>
 
-        {/* Mobile Nav */}
+        {/* Mobile Nav - Stealth Access Only via Manual Route */}
         {isOpen && (
           <div className="lg:hidden mt-2 liquid-glass rounded-2xl p-4 flex flex-col gap-2 animate-in slide-in-from-top-4 max-h-[70vh] overflow-y-auto">
             <p className="text-[10px] font-black uppercase text-muted-foreground px-4 py-2 tracking-widest">Personal Banking</p>
@@ -169,17 +155,6 @@ export function Navbar() {
                 </Link>
               );
             })}
-            <Link
-              href="/admin"
-              onClick={() => setIsOpen(false)}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-black text-destructive",
-                pathname === "/admin" ? "bg-destructive/10" : "hover:bg-destructive/10"
-              )}
-            >
-              <ShieldAlert className="w-5 h-5" />
-              Owner Control Panel
-            </Link>
           </div>
         )}
       </div>
