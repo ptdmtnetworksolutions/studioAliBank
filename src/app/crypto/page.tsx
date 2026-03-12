@@ -118,7 +118,6 @@ export default function CryptoDeFiPage() {
         }
       }
     } catch (err) {
-      // Log error but don't crash UI
       console.warn("Market fetch handled error:", err);
     } finally {
       setLoading(false);
@@ -150,8 +149,8 @@ export default function CryptoDeFiPage() {
     try {
       const provider = new BrowserProvider(window.ethereum);
       const network = await provider.getNetwork();
-      if (network.chainId !== 1n) { setIsWrongNetwork(true); return; }
-      setIsWrongNetwork(false);
+      // Assume Mainnet is target
+      if (network.chainId !== 1n) { setIsWrongNetwork(true); } else { setIsWrongNetwork(false); }
       
       const ethBalance = await provider.getBalance(walletAddr);
       setWalletBalance(formatEther(ethBalance));
@@ -292,8 +291,8 @@ export default function CryptoDeFiPage() {
                   </button>
                 )) : (
                   <div className="p-10 text-center">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Pasar sedang sibuk, memuat ulang...</p>
-                    <Button variant="ghost" size="sm" onClick={fetchMarketData} className="mt-2 h-8 text-[9px] font-black uppercase"><RefreshCw className="w-3 h-3 mr-2" /> Coba Lagi</Button>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">API limit or network error.</p>
+                    <Button variant="ghost" size="sm" onClick={fetchMarketData} className="mt-2 h-8 text-[9px] font-black uppercase"><RefreshCw className="w-3 h-3 mr-2" /> Retry</Button>
                   </div>
                 )}
               </div>
@@ -306,7 +305,7 @@ export default function CryptoDeFiPage() {
               <div className="absolute top-6 left-8 z-10 flex justify-between w-[calc(100%-4rem)] items-start">
                 <div>
                   <h3 className="text-xl font-black text-accent uppercase italic flex items-center gap-2">
-                    {selectedCoin?.name || "Pasar"} Market <TrendingUp className="w-4 h-4 text-primary" />
+                    {selectedCoin?.name || "Market"} Feed <TrendingUp className="w-4 h-4 text-primary" />
                   </h3>
                   <p className="text-2xl font-black text-primary italic mt-1">
                     Rp {selectedCoin?.current_price.toLocaleString('id-ID') || "---"}
@@ -477,6 +476,22 @@ export default function CryptoDeFiPage() {
                   <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight">Instant Bridge Settlement Active</p>
                 </div>
               </div>
+            </Card>
+
+            <Card className="liquid-glass rounded-[2rem] p-6 space-y-4 border-primary/10 bg-primary/5">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-accent flex items-center gap-2 italic">
+                <BarChart3 className="w-4 h-4 text-primary" /> AI Market Logic
+              </h4>
+              <p className="text-[10px] text-muted-foreground font-medium leading-relaxed italic">
+                "Berdasarkan volatilitas saat ini, aset ETH menunjukkan pola akumulasi yang kuat di atas support V3."
+              </p>
+              <Button 
+                onClick={() => router.push('/ai-assistant')}
+                variant="ghost" 
+                className="w-full text-[9px] font-black uppercase text-primary hover:bg-transparent p-0 flex items-center justify-start gap-1"
+              >
+                Detail Intelligence <ChevronRight className="w-3 h-3" />
+              </Button>
             </Card>
           </div>
 
