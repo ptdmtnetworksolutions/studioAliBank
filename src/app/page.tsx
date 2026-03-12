@@ -55,7 +55,7 @@ const mainServices = [
   { name: "Crypto Bridge", icon: Bitcoin, color: "bg-orange-50 text-orange-600", href: "/crypto", badge: "Live" },
   { name: "Marketplace", icon: ShoppingBag, color: "bg-amber-50 text-amber-700", href: "/marketplace" },
   { name: "Elite Deposits", icon: PiggyBank, color: "bg-emerald-50 text-emerald-600", href: "/deposits" },
-  { name: "Withdraw", icon: ArrowDownToLine, color: "bg-indigo-50 text-indigo-600" },
+  { name: "Withdraw", icon: ArrowDownToLine, color: "bg-indigo-50 text-indigo-600", href: "/withdraw" },
   { name: "Pay QRIS", icon: QrCode, color: "bg-teal-50 text-teal-600", href: "/topup" },
   { name: "AI Insight", icon: Sparkles, color: "bg-purple-50 text-purple-600", href: "/ai-assistant" },
 ];
