@@ -23,8 +23,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useUser, useFirestore, useDoc, useCollection } from "@/firebase";
-import { collection, addDoc, serverTimestamp, doc, query, orderBy } from "firebase/firestore";
+import { useUser, useFirestore, useCollection } from "@/firebase";
+import { collection, addDoc, serverTimestamp, query } from "firebase/firestore";
 import { MOCK_MERCHANT } from "@/app/lib/mock-data";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -51,10 +51,10 @@ export default function MarketplacePage() {
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   
-  // Real Marketplace Items from Firestore
+  // FIXED: Collection reference must have an odd number of segments
   const itemsQuery = useMemo(() => {
     if (!db) return null;
-    return query(collection(db, "marketplace", "items"));
+    return query(collection(db, "marketplace"));
   }, [db]);
   const { data: dbProducts, loading: itemsLoading } = useCollection<any>(itemsQuery);
 
@@ -243,13 +243,12 @@ export default function MarketplacePage() {
               <div className="text-center py-20 liquid-glass rounded-[3rem] border-dashed border-2 border-primary/5">
                 <Package className="w-16 h-16 text-primary/10 mx-auto mb-4" />
                 <h3 className="text-xl font-black text-accent uppercase italic">Inventory Empty</h3>
-                <p className="text-xs text-muted-foreground font-medium mt-2">Belum ada produk riil di koleksi /marketplace/items database Anda.</p>
+                <p className="text-xs text-muted-foreground font-medium mt-2">Belum ada produk riil di koleksi /marketplace database Anda.</p>
               </div>
             )}
           </TabsContent>
 
           <TabsContent value="market">
-            {/* Live Crypto Market remains live as it's from API */}
             <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl">
               <div className="p-8 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
                 <div>
