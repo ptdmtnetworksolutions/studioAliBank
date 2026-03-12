@@ -47,10 +47,12 @@ import {
 } from "recharts";
 import { LogoIcon } from "@/components/ui/logo";
 
+// ABI TERBARU: Menyertakan getTotalVaultBalance
 const CONTRACT_ABI = [
   "function deposit() public payable",
   "function withdraw(uint256 _amount) public",
   "function balances(address) public view returns (uint256)",
+  "function getTotalVaultBalance() public view returns (uint256)",
   "event Deposited(address indexed user, uint256 amount)",
   "event Withdrawn(address indexed user, uint256 amount)"
 ];
@@ -179,7 +181,6 @@ export default function CryptoPage() {
 
   const { data: userData } = useDoc(userDocRef);
 
-  // Menggunakan kueri yang lebih sederhana untuk menghindari kesalahan Missing Index
   const transactionsQuery = useMemo(() => {
     if (!db || !user) return null;
     return query(
@@ -190,7 +191,6 @@ export default function CryptoPage() {
 
   const { data: allTransactions } = useCollection(transactionsQuery);
 
-  // Penyaringan status dilakukan di sisi klien untuk menghindari indeks komposit Firestore yang rumit
   const pendingAmount = useMemo(() => {
     if (!allTransactions) return 0;
     return allTransactions
@@ -312,7 +312,7 @@ export default function CryptoPage() {
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
       
       const tx = await contract.deposit({ value: parseEther(bridgeAmount) });
-      toast({ title: "Setoran Diproses", description: "Menunggu konfirmasi blockchain (ETH sedang dikirim dari MetaMask ke Vault)..." });
+      toast({ title: "Setoran Diproses", description: "Menunggu konfirmasi blockchain..." });
       await tx.wait();
       
       toast({ title: "Brankas Terisi", description: "ETH Anda kini aman di Brankas Smart Contract AliBank." });
@@ -334,7 +334,7 @@ export default function CryptoPage() {
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
       
       const tx = await contract.withdraw(parseEther(bridgeAmount));
-      toast({ title: "Penarikan Diproses", description: "Menunggu konfirmasi blockchain (ETH sedang ditarik dari Vault ke dompet Anda)..." });
+      toast({ title: "Penarikan Diproses", description: "Menunggu konfirmasi blockchain..." });
       await tx.wait();
       
       toast({ title: "Aset Ditarik", description: "ETH telah kembali ke dompet MetaMask Anda." });
@@ -376,7 +376,7 @@ export default function CryptoPage() {
 
       toast({ 
         title: "Permintaan Bridge Diterima", 
-        description: "Saldo internal Anda telah dikunci. AliBank Treasury sedang memproses pengiriman aset asli ke Brankas Blockchain Anda." 
+        description: "AliBank Treasury sedang memproses pengiriman aset asli ke Brankas Blockchain Anda." 
       });
       setBridgeAmount("");
     } catch (err: any) {
@@ -530,7 +530,7 @@ export default function CryptoPage() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2"><Info className="w-4 h-4 text-primary" /><h4 className="font-black italic uppercase text-xs text-accent tracking-tighter">Vault Guide</h4></div>
                       <p className="text-[11px] leading-relaxed text-muted-foreground font-medium italic">
-                        Setoran dari MetaMask akan memindahkan ETH ke Smart Contract AliBankVault.sol. Penarikan akan mengembalikan aset dari Brankas ke dompet pribadi Anda.
+                        Setoran dari MetaMask akan memindahkan ETH ke Smart Contract AliBankVault. Penarikan akan mengembalikan aset dari Brankas ke dompet pribadi Anda.
                       </p>
                     </div>
                   </PopoverContent>
@@ -558,7 +558,7 @@ export default function CryptoPage() {
                       </div>
                       <p className="text-lg font-black text-accent italic">{pendingAmount.toFixed(6)} ETH</p>
                       <p className="text-[8px] font-medium text-muted-foreground italic mt-1 leading-tight">
-                        Aset internal sedang diproses oleh Treasury menuju Brankas Blockchain. Mohon tunggu konfirmasi Mainnet.
+                        Aset internal sedang diproses oleh Treasury menuju Brankas Blockchain.
                       </p>
                     </div>
                   )}
@@ -617,7 +617,7 @@ export default function CryptoPage() {
                 <Sparkles className="w-10 h-10 text-primary animate-pulse" />
                 <h3 className="text-lg font-black italic uppercase tracking-tighter">Blockchain Proof</h3>
                 <p className="text-[11px] font-medium leading-relaxed italic opacity-80">
-                  Aset di Brankas terikat pada alamat dompet Anda. Transaksi dicatat di kontrak: 0x8BAF...
+                  Aset di Brankas terikat pada dompet Anda. Transaksi dicatat secara publik di Mainnet.
                 </p>
                 <Badge className="bg-primary text-white font-black text-[8px] uppercase tracking-widest">Decentralized Custody</Badge>
               </div>

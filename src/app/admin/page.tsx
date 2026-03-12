@@ -19,14 +19,15 @@ import {
   ArrowRightLeft,
   Lock,
   Globe,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useUser, useFirestore, useCollection } from "@/firebase";
 import { 
   collection, 
@@ -41,10 +42,16 @@ import {
   serverTimestamp,
   addDoc
 } from "firebase/firestore";
+import { BrowserProvider, Contract, formatEther } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+
+const CONTRACT_ABI = [
+  "function getTotalVaultBalance() public view returns (uint256)"
+];
+const DEFAULT_CONTRACT = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
 
 export default function AdminControlPage() {
   const { user, loading: userLoading } = useUser();
@@ -53,6 +60,8 @@ export default function AdminControlPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [onChainTotal, setOnChainTotal] = useState<string>("0");
+  const [syncingVault, setSyncingVault] = useState(false);
 
   // OWNER IDENTITY CHECK
   const OWNER_EMAIL = "alidzulfikar075@gmail.com";
@@ -66,6 +75,26 @@ export default function AdminControlPage() {
     setIsAuthorized(true);
   }, [user, userLoading, router]);
 
+  // Fetch On-Chain Vault Balance (Real-Time from Blockchain)
+  const syncOnChainVault = useCallback(async () => {
+    if (typeof window.ethereum === 'undefined') return;
+    setSyncingVault(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
+      const balance = await contract.getTotalVaultBalance();
+      setOnChainTotal(formatEther(balance));
+    } catch (err) {
+      console.error("Vault Sync Error:", err);
+    } finally {
+      setSyncingVault(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAuthorized) syncOnChainVault();
+  }, [isAuthorized, syncOnChainVault]);
+
   // Fetch All Users for Management
   const usersQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
@@ -74,7 +103,7 @@ export default function AdminControlPage() {
   
   const { data: allUsers, loading: usersLoading } = useCollection(usersQuery);
 
-  // Fetch Pending Bridge Settlements (Collection Group Query)
+  // Fetch Pending Bridge Settlements
   const pendingSettlementsQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
     return query(
@@ -93,10 +122,7 @@ export default function AdminControlPage() {
     
     updateDoc(userRef, payload)
       .then(() => {
-        toast({ 
-          title: "Intervensi Berhasil", 
-          description: `Saldo ${asset === 'totalBalance' ? 'IDR' : 'ETH'} nasabah telah disesuaikan.` 
-        });
+        toast({ title: "Intervensi Berhasil", description: `Saldo nasabah telah disesuaikan.` });
       })
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -109,17 +135,7 @@ export default function AdminControlPage() {
 
   const handleApproveSettlement = async (settlement: any) => {
     if (!db) return;
-    // In a real scenario, this would trigger a backend service to send actual ETH.
-    // Here we update the status to mark it as processed in the system.
-    const txRef = doc(db, settlement.path); // Assuming path is stored or we use settlement.id
-    
-    // Note: To get the full path in collectionGroup, we need a custom hook or map the result.
-    // For this MVP, we use the settlement object which should contain its reference path.
-    
-    toast({ 
-      title: "Settlement Approved", 
-      description: "Aset sedang dipindahkan ke Mainnet Vault nasabah." 
-    });
+    toast({ title: "Settlement Approved", description: "Silakan kirim ETH secara manual ke Brankas nasabah via MetaMask Owner." });
   };
 
   const platformStats = useMemo(() => {
@@ -172,13 +188,18 @@ export default function AdminControlPage() {
             <p className="text-3xl font-black text-accent italic tracking-tighter">Rp {platformStats.totalIdr.toLocaleString()}</p>
           </Card>
 
-          <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-blue-500/5">
+          <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-blue-500/5 relative overflow-hidden group">
+            <div className="absolute top-2 right-2">
+              <button onClick={syncOnChainVault} disabled={syncingVault} className="text-blue-600 hover:rotate-180 transition-transform duration-500">
+                <RefreshCw className={cn("w-4 h-4", syncingVault && "animate-spin")} />
+              </button>
+            </div>
             <div className="flex items-center justify-between mb-2">
               <Coins className="w-5 h-5 text-blue-500" />
-              <Badge variant="outline" className="text-[8px] font-black uppercase">Mainnet Bridge</Badge>
+              <Badge variant="outline" className="text-[8px] font-black uppercase">On-Chain Vault</Badge>
             </div>
-            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Platform ETH</p>
-            <p className="text-3xl font-black text-blue-600 italic tracking-tighter">{platformStats.totalEth.toFixed(4)} ETH</p>
+            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total ETH in Smart Contract</p>
+            <p className="text-3xl font-black text-blue-600 italic tracking-tighter">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
           </Card>
 
           <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-green-500/5">
@@ -213,9 +234,6 @@ export default function AdminControlPage() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="system" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
-              Policy & Security
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
@@ -241,7 +259,6 @@ export default function AdminControlPage() {
                       <th className="px-8 py-6">Identity</th>
                       <th className="px-8 py-6">IDR Balance</th>
                       <th className="px-8 py-6">ETH Balance</th>
-                      <th className="px-8 py-6">Wallet Address</th>
                       <th className="px-8 py-6 text-right">Intervention</th>
                     </tr>
                   </thead>
@@ -261,11 +278,6 @@ export default function AdminControlPage() {
                         </td>
                         <td className="px-8 py-5 text-sm font-black italic">Rp {u.totalBalance?.toLocaleString()}</td>
                         <td className="px-8 py-5 text-sm font-black text-primary italic">{u.cryptoBalances?.ETH?.toFixed(4) || "0.0000"} ETH</td>
-                        <td className="px-8 py-5">
-                          <code className="text-[10px] bg-muted/30 px-2 py-1 rounded font-mono text-muted-foreground">
-                            {u.walletAddress ? `${u.walletAddress.slice(0, 6)}...${u.walletAddress.slice(-4)}` : "Not Linked"}
-                          </code>
-                        </td>
                         <td className="px-8 py-5 text-right space-x-2">
                           <Button 
                             variant="outline" 
@@ -274,14 +286,6 @@ export default function AdminControlPage() {
                             className="rounded-xl border-primary/20 text-primary hover:bg-primary text-[10px] font-black"
                           >
                             + 1M IDR
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleAdjustBalance(u.id, 'cryptoBalances.ETH', 0.1)} 
-                            className="rounded-xl border-blue-500/20 text-blue-600 hover:bg-blue-500 text-[10px] font-black"
-                          >
-                            + 0.1 ETH
                           </Button>
                         </td>
                       </tr>
@@ -313,14 +317,13 @@ export default function AdminControlPage() {
                               <div>
                                 <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Bridge Request</p>
                                 <p className="text-lg font-black text-accent italic">{s.cryptoAmount} ETH &rarr; On-Chain Vault</p>
-                                <p className="text-[10px] font-bold text-blue-600 uppercase">Timestamp: {new Date(s.timestamp?.toDate()).toLocaleString()}</p>
                               </div>
                             </div>
                             <Button 
                               onClick={() => handleApproveSettlement(s)}
                               className="gold-gradient text-white font-black italic uppercase text-[10px] rounded-2xl h-12 px-8 shadow-lg shadow-primary/20"
                             >
-                              Finalize Settlement
+                              Approve
                             </Button>
                           </div>
                         ))}
@@ -334,54 +337,6 @@ export default function AdminControlPage() {
                   </div>
                 </section>
               </div>
-
-              <div className="lg:col-span-4">
-                <Card className="liquid-glass-dark rounded-[3rem] p-8 border-none text-white space-y-6">
-                  <h3 className="text-lg font-black uppercase tracking-tighter flex items-center gap-3">
-                    <AlertTriangle className="w-6 h-6 text-primary" /> Settlement Guide
-                  </h3>
-                  <p className="text-[11px] font-medium leading-relaxed italic text-white/70">
-                    Setiap permintaan bridge dari saldo internal nasabah harus diselesaikan melalui treasury AliBank. 
-                    <br/><br/>
-                    Menekan "Finalize" berarti Anda mengonfirmasi bahwa aset riil telah dikirim dari treasury ke Brankas Smart Contract nasabah di Mainnet.
-                  </p>
-                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">Total Queue Value</p>
-                    <p className="text-2xl font-black text-primary italic">
-                      {pendingSettlements?.reduce((acc, curr) => acc + (curr.cryptoAmount || 0), 0).toFixed(4)} ETH
-                    </p>
-                  </div>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="system">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <Card className="liquid-glass rounded-[3rem] p-10 border-none shadow-2xl space-y-8">
-                <div>
-                  <h3 className="text-xl font-black italic uppercase text-accent tracking-tighter mb-2">Global System Freeze</h3>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-widest leading-relaxed">
-                    Matikan akses seluruh transaksi platform jika terdeteksi anomali pada Mainnet Bridge.
-                  </p>
-                </div>
-                <div className="flex items-center justify-between p-6 rounded-3xl bg-destructive/5 border border-destructive/20">
-                  <span className="text-xs font-black uppercase text-destructive italic">Status: System Online</span>
-                  <Button variant="destructive" className="rounded-xl font-black uppercase italic text-[10px] h-12 px-8">ACTIVATE FREEZE</Button>
-                </div>
-              </Card>
-
-              <Card className="liquid-glass rounded-[3rem] p-10 border-none shadow-2xl space-y-8">
-                <div>
-                  <h3 className="text-xl font-black italic uppercase text-accent tracking-tighter mb-2">Audit Log Export</h3>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-widest leading-relaxed">
-                    Download seluruh riwayat transaksi nasabah dan intervensi admin untuk pelaporan regulator.
-                  </p>
-                </div>
-                <Button variant="outline" className="w-full h-14 rounded-2xl border-primary/20 text-primary font-black uppercase italic tracking-widest text-[11px]">
-                  Generate Compliance Report (PDF/CSV)
-                </Button>
-              </Card>
             </div>
           </TabsContent>
         </Tabs>
