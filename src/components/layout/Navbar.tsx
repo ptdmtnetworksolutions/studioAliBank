@@ -14,12 +14,13 @@ import {
   Bitcoin,
   Sparkles,
   Store,
-  User
+  ShieldAlert
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LogoIcon } from "@/components/ui/logo";
+import { useUser } from "@/firebase";
 
 const personalItems = [
   { name: "Beranda", href: "/", icon: LayoutDashboard },
@@ -38,6 +39,7 @@ const businessItems = [
 export function Navbar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useUser();
 
   if (pathname === "/") return null;
 
@@ -95,6 +97,19 @@ export function Navbar() {
                   </Link>
                 );
               })}
+              {/* Owner Access Link */}
+              <Link
+                href="/admin"
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-xl transition-all font-black text-[11px] uppercase tracking-wider ml-2",
+                  pathname === "/admin"
+                    ? "bg-destructive text-white shadow-lg"
+                    : "text-destructive hover:bg-destructive/10"
+                )}
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                Owner
+              </Link>
             </div>
           </div>
 
@@ -154,6 +169,17 @@ export function Navbar() {
                 </Link>
               );
             })}
+            <Link
+              href="/admin"
+              onClick={() => setIsOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-black text-destructive",
+                pathname === "/admin" ? "bg-destructive/10" : "hover:bg-destructive/10"
+              )}
+            >
+              <ShieldAlert className="w-5 h-5" />
+              Owner Control Panel
+            </Link>
           </div>
         )}
       </div>
