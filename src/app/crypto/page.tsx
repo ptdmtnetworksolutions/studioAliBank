@@ -197,7 +197,7 @@ export default function CryptoPage() {
     if (!allTransactions) return 0;
     return allTransactions
       .filter(t => t.category === "Bridge" && t.status === "pending")
-      .reduce((acc, curr) => acc + (curr.cryptoAmount || 0), 0), [allTransactions]);
+      .reduce((acc, curr) => acc + (curr.cryptoAmount || 0), 0);
   }, [allTransactions]);
 
   const resetBalances = useCallback(() => {
