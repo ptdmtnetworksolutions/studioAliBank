@@ -8,7 +8,8 @@ import {
   Loader2,
   AlertCircle,
   Plus,
-  Zap
+  Zap,
+  HelpCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,12 @@ import { useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useCollection, useDoc } from "@/firebase";
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, doc, setDoc, increment } from "firebase/firestore";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function MerchantDashboard() {
   const { toast } = useToast();
@@ -101,36 +108,58 @@ export default function MerchantDashboard() {
   );
 
   return (
-    <div className="min-h-screen pb-32 bg-background">
-      <Navbar />
-      <main className="container mx-auto px-4 max-w-7xl">
-        <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl gold-gradient flex items-center justify-center shadow-xl p-3"><Store className="text-white w-8 h-8" /></div>
-            <div>
-              <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter">Business Console</h1>
-              <p className="text-muted-foreground text-sm font-medium">Real-time settlement & business logic control.</p>
+    <TooltipProvider>
+      <div className="min-h-screen pb-32 bg-background">
+        <Navbar />
+        <main className="container mx-auto px-4 max-w-7xl">
+          <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl gold-gradient flex items-center justify-center shadow-xl p-3"><Store className="text-white w-8 h-8" /></div>
+              <div>
+                <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter">Business Console</h1>
+                <p className="text-muted-foreground text-sm font-medium">Real-time settlement & business logic control.</p>
+              </div>
             </div>
-          </div>
-          <Button onClick={handleCreateInvoice} disabled={isCreatingInvoice} className="rounded-xl gold-gradient text-white font-black h-12 px-6 italic uppercase">
-            {isCreatingInvoice ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />} New Invoice
-          </Button>
-        </header>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-2">
-            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Gross Revenue</p>
-            <p className="text-3xl font-black text-accent italic tracking-tighter">Rp {(merchantData?.totalRevenue || 0).toLocaleString('id-ID')}</p>
-          </Card>
-          <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-2 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-2"><TrendingUp className="text-primary/10 w-16 h-16" /></div>
-            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Pending Settlement</p>
-            <p className="text-3xl font-black text-primary italic tracking-tighter">Rp {(merchantData?.pendingSettlement || 0).toLocaleString('id-ID')}</p>
-            <Button onClick={handleSettlement} disabled={isSettling || (merchantData?.pendingSettlement || 0) <= 0} className="w-full mt-2 gold-gradient text-white rounded-xl h-10 text-[10px] uppercase font-black italic">
-              {isSettling ? "Processing..." : "Withdraw to Account"}
+            <Button onClick={handleCreateInvoice} disabled={isCreatingInvoice} className="rounded-xl gold-gradient text-white font-black h-12 px-6 italic uppercase">
+              {isCreatingInvoice ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />} New Invoice
             </Button>
-          </Card>
-        </div>
-      </main>
-    </div>
+          </header>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-2">
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Gross Revenue</p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/40 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
+                    <p className="text-[10px] font-bold">Total pendapatan kotor dari seluruh penjualan produk Anda di marketplace AliBank.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <p className="text-3xl font-black text-accent italic tracking-tighter">Rp {(merchantData?.totalRevenue || 0).toLocaleString('id-ID')}</p>
+            </Card>
+            <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-2 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-2"><TrendingUp className="text-primary/10 w-16 h-16" /></div>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Pending Settlement</p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/40 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
+                    <p className="text-[10px] font-bold">Dana hasil penjualan yang sudah terkumpul namun belum dicairkan ke saldo utama Anda. Klik tombol di bawah untuk mencairkan.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <p className="text-3xl font-black text-primary italic tracking-tighter">Rp {(merchantData?.pendingSettlement || 0).toLocaleString('id-ID')}</p>
+              <Button onClick={handleSettlement} disabled={isSettling || (merchantData?.pendingSettlement || 0) <= 0} className="w-full mt-2 gold-gradient text-white rounded-xl h-10 text-[10px] uppercase font-black italic">
+                {isSettling ? "Processing..." : "Withdraw to Account"}
+              </Button>
+            </Card>
+          </div>
+        </main>
+      </div>
+    </TooltipProvider>
   );
 }
