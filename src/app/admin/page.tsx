@@ -49,8 +49,8 @@ const CONTRACT_ABI = [
   "function depositTimestamps(address) public view returns (uint256)"
 ];
 
-// Ganti dengan alamat kontrak baru Anda setelah deploy ulang di Remix
-const DEFAULT_CONTRACT = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
+// Alamat kontrak baru Pak Dzulfikar (Ownership & Staking Foundation)
+const DEFAULT_CONTRACT = "0x59B9149D05138c6709D3552783aA3b85f992C79c";
 
 export default function AdminControlPage() {
   const { user, loading: userLoading } = useUser();

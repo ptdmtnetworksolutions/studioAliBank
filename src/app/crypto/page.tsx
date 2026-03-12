@@ -58,7 +58,8 @@ const CONTRACT_ABI = [
   "event Withdrawn(address indexed user, uint256 amount, uint256 timestamp)"
 ];
 
-const DEFAULT_CONTRACT = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd"; 
+// Alamat kontrak baru Pak Dzulfikar (0x59B9...)
+const DEFAULT_CONTRACT = "0x59B9149D05138c6709D3552783aA3b85f992C79c"; 
 
 type Asset = {
   id: string;
