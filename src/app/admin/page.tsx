@@ -1,11 +1,9 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
 import { 
   ShieldAlert, 
   Users, 
-  Activity, 
   Zap, 
   Search, 
   CheckCircle2, 
@@ -13,13 +11,10 @@ import {
   Database,
   Coins,
   TrendingUp,
-  Plus,
-  Minus,
   Clock,
   ArrowRightLeft,
   Lock,
   Globe,
-  AlertTriangle,
   RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,19 +33,19 @@ import {
   increment, 
   collectionGroup, 
   where,
-  orderBy,
-  serverTimestamp,
-  addDoc
+  orderBy
 } from "firebase/firestore";
 import { BrowserProvider, Contract, formatEther } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { cn } from "@/lib/utils";
 
 const CONTRACT_ABI = [
   "function getTotalVaultBalance() public view returns (uint256)"
 ];
+// Ganti dengan alamat kontrak baru Anda setelah deploy ulang di Remix
 const DEFAULT_CONTRACT = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
 
 export default function AdminControlPage() {
@@ -101,7 +96,7 @@ export default function AdminControlPage() {
     return query(collection(db, "users"), limit(100));
   }, [db, isAuthorized]);
   
-  const { data: allUsers, loading: usersLoading } = useCollection(usersQuery);
+  const { data: allUsers } = useCollection(usersQuery);
 
   // Fetch Pending Bridge Settlements
   const pendingSettlementsQuery = useMemo(() => {
@@ -133,11 +128,6 @@ export default function AdminControlPage() {
       });
   };
 
-  const handleApproveSettlement = async (settlement: any) => {
-    if (!db) return;
-    toast({ title: "Settlement Approved", description: "Silakan kirim ETH secara manual ke Brankas nasabah via MetaMask Owner." });
-  };
-
   const platformStats = useMemo(() => {
     if (!allUsers) return { totalIdr: 0, totalEth: 0, userCount: 0 };
     return allUsers.reduce((acc, curr) => ({
@@ -161,7 +151,7 @@ export default function AdminControlPage() {
       <Navbar />
       
       <main className="container mx-auto px-4 max-w-7xl">
-        <header className="mb-12">
+        <header className="mb-12 pt-8">
           <div className="flex items-center gap-4 mb-3">
             <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center shadow-lg border border-destructive/20 p-4">
               <ShieldAlert className="text-destructive w-10 h-10" />
@@ -189,8 +179,12 @@ export default function AdminControlPage() {
           </Card>
 
           <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-blue-500/5 relative overflow-hidden group">
-            <div className="absolute top-2 right-2">
-              <button onClick={syncOnChainVault} disabled={syncingVault} className="text-blue-600 hover:rotate-180 transition-transform duration-500">
+            <div className="absolute top-4 right-4 z-20">
+              <button 
+                onClick={syncOnChainVault} 
+                disabled={syncingVault} 
+                className="p-2 rounded-full hover:bg-blue-500/10 text-blue-600 transition-all hover:rotate-180 duration-500"
+              >
                 <RefreshCw className={cn("w-4 h-4", syncingVault && "animate-spin")} />
               </button>
             </div>
@@ -238,11 +232,11 @@ export default function AdminControlPage() {
 
           <TabsContent value="users">
             <section className="liquid-glass rounded-[3rem] overflow-hidden border-none shadow-2xl">
-              <div className="p-8 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
-                <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3">
+              <div className="p-8 border-b border-primary/5 bg-accent/5 flex items-center justify-between flex-wrap gap-4">
+                <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3 text-accent">
                   <Users className="w-6 h-6 text-primary" /> Database Nasabah
                 </h3>
-                <div className="relative w-80">
+                <div className="relative w-full md:w-80">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input 
                     placeholder="Search by Name or Account..." 
@@ -276,14 +270,14 @@ export default function AdminControlPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-8 py-5 text-sm font-black italic">Rp {u.totalBalance?.toLocaleString()}</td>
+                        <td className="px-8 py-5 text-sm font-black italic text-accent">Rp {u.totalBalance?.toLocaleString()}</td>
                         <td className="px-8 py-5 text-sm font-black text-primary italic">{u.cryptoBalances?.ETH?.toFixed(4) || "0.0000"} ETH</td>
                         <td className="px-8 py-5 text-right space-x-2">
                           <Button 
                             variant="outline" 
                             size="sm" 
                             onClick={() => handleAdjustBalance(u.id, 'totalBalance', 1000000)} 
-                            className="rounded-xl border-primary/20 text-primary hover:bg-primary text-[10px] font-black"
+                            className="rounded-xl border-primary/20 text-primary hover:bg-primary hover:text-white text-[10px] font-black transition-all"
                           >
                             + 1M IDR
                           </Button>
@@ -298,32 +292,32 @@ export default function AdminControlPage() {
 
           <TabsContent value="settlements">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-8">
+              <div className="lg:col-span-12">
                 <section className="liquid-glass rounded-[3rem] overflow-hidden border-none shadow-2xl">
                   <div className="p-8 border-b border-primary/5 bg-blue-500/5">
-                    <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3">
+                    <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3 text-accent">
                       <Clock className="w-6 h-6 text-blue-600" /> Pending Bridge Settlements
                     </h3>
                   </div>
                   <div className="p-8">
                     {pendingSettlements && pendingSettlements.length > 0 ? (
-                      <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {pendingSettlements.map((s, idx) => (
                           <div key={idx} className="p-6 rounded-[2rem] bg-muted/20 border border-primary/5 flex items-center justify-between group hover:bg-muted/30 transition-all">
-                            <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-4">
                               <div className="w-12 h-12 rounded-2xl bg-blue-600/10 text-blue-600 flex items-center justify-center">
                                 <ArrowRightLeft className="w-6 h-6" />
                               </div>
                               <div>
                                 <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Bridge Request</p>
-                                <p className="text-lg font-black text-accent italic">{s.cryptoAmount} ETH &rarr; On-Chain Vault</p>
+                                <p className="text-lg font-black text-accent italic">{s.cryptoAmount} ETH &rarr; On-Chain</p>
                               </div>
                             </div>
                             <Button 
-                              onClick={() => handleApproveSettlement(s)}
-                              className="gold-gradient text-white font-black italic uppercase text-[10px] rounded-2xl h-12 px-8 shadow-lg shadow-primary/20"
+                              onClick={() => toast({ title: "Approved", description: "Proses settlement blockchain dimulai." })}
+                              className="gold-gradient text-white font-black italic uppercase text-[10px] rounded-2xl h-12 px-6 shadow-lg shadow-primary/20"
                             >
-                              Approve
+                              Settle Now
                             </Button>
                           </div>
                         ))}

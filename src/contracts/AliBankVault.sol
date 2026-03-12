@@ -3,18 +3,19 @@ pragma solidity ^0.8.20;
 
 /**
  * @title AliBankVault
- * @dev Brankas Smart Contract untuk penyimpanan aset ETH nasabah AliBank secara on-chain.
+ * @dev Smart Contract untuk Brankas (Vault) AliBank.
+ * Memungkinkan nasabah menyetor dan menarik ETH secara aman di Ethereum Mainnet.
  */
 contract AliBankVault {
-    // Pemetaan saldo individu nasabah
+    // Mapping untuk menyimpan saldo individu nasabah
     mapping(address => uint256) public balances;
 
-    // Event untuk pelacakan transaksi di Etherscan
+    // Event untuk audit log transaksi di blockchain
     event Deposited(address indexed user, uint256 amount);
     event Withdrawn(address indexed user, uint256 amount);
 
     /**
-     * @dev Fungsi untuk menyetor ETH ke dalam brankas.
+     * @dev Fungsi untuk menyetor ETH ke Brankas.
      */
     function deposit() public payable {
         require(msg.value > 0, "Deposit harus lebih dari 0");
@@ -23,13 +24,16 @@ contract AliBankVault {
     }
 
     /**
-     * @dev Fungsi untuk menarik kembali ETH dari brankas ke dompet pribadi.
+     * @dev Fungsi untuk menarik ETH kembali ke dompet pribadi.
+     * @param _amount Jumlah ETH dalam Wei.
      */
     function withdraw(uint256 _amount) public {
         require(balances[msg.sender] >= _amount, "Saldo vault tidak mencukupi");
+        
+        // Update state sebelum transfer untuk mencegah reentrancy attack
         balances[msg.sender] -= _amount;
         
-        // Mengirimkan ETH kembali ke pengirim
+        // Kirim ETH kembali ke nasabah
         (bool success, ) = payable(msg.sender).call{value: _amount}("");
         require(success, "Transfer gagal");
         
@@ -37,8 +41,8 @@ contract AliBankVault {
     }
 
     /**
-     * @dev FUNGSI BARU: Memeriksa total saldo ETH yang tersimpan di dalam seluruh kontrak AliBankVault.
-     * @return uint256 Jumlah total ETH dalam satuan wei.
+     * @dev Fungsi untuk memeriksa total likuiditas ETH di dalam Brankas.
+     * Hanya bisa diakses secara eksternal.
      */
     function getTotalVaultBalance() public view returns (uint256) {
         return address(this).balance;
