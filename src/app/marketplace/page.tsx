@@ -20,12 +20,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, useFirestore } from "@/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { MOCK_MERCHANT } from "@/app/lib/mock-data";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 const products = [
   {
@@ -77,6 +78,11 @@ export default function MarketplacePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const categories = ["All", "Security", "Infrastructure", "Digital Asset"];
 
@@ -95,7 +101,6 @@ export default function MarketplacePage() {
     const invoiceId = `MKT-${Math.floor(100000 + Math.random() * 900000)}`;
     
     try {
-      // Buat Invoice Marketplace di bawah Merchant Mock
       const invoicesColRef = collection(db, "merchants", MOCK_MERCHANT.merchantId, "invoices");
       await addDoc(invoicesColRef, {
         invoiceId,
@@ -109,7 +114,6 @@ export default function MarketplacePage() {
         productName: product.name
       });
 
-      // Redirect ke Gateway Checkout
       router.push(`/checkout/${invoiceId}`);
     } catch (err) {
       console.error("Marketplace Error:", err);
@@ -197,7 +201,9 @@ export default function MarketplacePage() {
                 <div className="flex items-center justify-between pt-4 border-t border-primary/5">
                   <div>
                     <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground mb-1">Price Settlement</p>
-                    <p className="text-xl font-black text-primary italic tracking-tighter">Rp {p.priceIdr.toLocaleString()}</p>
+                    <p className="text-xl font-black text-primary italic tracking-tighter">
+                      Rp {mounted ? p.priceIdr.toLocaleString('id-ID') : '...'}
+                    </p>
                   </div>
                   <Button 
                     onClick={() => handleBuy(p)}
@@ -247,8 +253,4 @@ export default function MarketplacePage() {
       </main>
     </div>
   );
-}
-
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(" ");
 }

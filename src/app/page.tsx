@@ -277,7 +277,7 @@ export default function Dashboard() {
               <ShieldCheck className="w-6 h-6 text-green-500 group-hover:scale-110 transition-transform" />
               <div>
                 <p className="text-[9px] font-black text-muted-foreground uppercase">USDT</p>
-                <p className="text-xs font-black text-accent dark:text-primary">{cryptoBalances.USDT.toLocaleString()}</p>
+                <p className="text-xs font-black text-accent dark:text-primary">{cryptoBalances.USDT.toLocaleString('id-ID')}</p>
               </div>
             </Link>
           </div>
