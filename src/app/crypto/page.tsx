@@ -26,7 +26,8 @@ import {
   HelpCircle,
   ArrowUpDown,
   Wallet2,
-  PieChart
+  PieChart,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -221,6 +222,64 @@ export default function CryptoDeFiPage() {
     } finally { setIsProcessing(false); }
   };
 
+  const handleBridgeOut = async () => {
+    if (!user || !db || !userData || !address || !bridgeAmount) return;
+    const numAmount = parseFloat(bridgeAmount);
+    if (isNaN(numAmount) || numAmount <= 0) return;
+
+    const currentInternalEth = userData.cryptoBalances?.ETH || 0;
+    if (currentInternalEth < numAmount) {
+      toast({ variant: "destructive", title: "Saldo ETH Internal Tidak Cukup", description: "Anda tidak memiliki cukup ETH di saldo AliBank untuk melakukan bridge." });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // 1. Update Firestore: Decrease internal ETH
+      const userRef = doc(db, "users", user.uid);
+      const updatePayload = {
+        "cryptoBalances.ETH": increment(-numAmount)
+      };
+      
+      await updateDoc(userRef, updatePayload).catch(e => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'update',
+          requestResourceData: updatePayload
+        }));
+      });
+
+      // 2. Log Transaction
+      const txData = {
+        date: new Date().toISOString(),
+        description: `Bridge Out: AliBank ke Wallet (${address.slice(0, 6)}...)`,
+        category: "Bridge",
+        cryptoAmount: numAmount,
+        cryptoCurrency: "ETH",
+        type: "expense",
+        status: "processing",
+        timestamp: serverTimestamp()
+      };
+      await addDoc(collection(db, "users", user.uid, "transactions"), txData);
+
+      // 3. Notification
+      await addDoc(collection(db, "users", user.uid, "notifications"), {
+        title: "Permintaan Bridge Out",
+        message: `Pengiriman ${numAmount} ETH ke wallet ${address.slice(0, 8)} sedang diproses oleh V3 Node.`,
+        type: "info",
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
+      toast({ title: "Bridge Diproses", description: "ETH Anda sedang dikirim ke MetaMask melalui antrean V3." });
+      setBridgeAmount("");
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal", description: err.message });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleSwap = async () => {
     if (!user || !db || !userData || !selectedCoin || !swapAmount) return;
     const amount = parseFloat(swapAmount);
@@ -340,7 +399,7 @@ export default function CryptoDeFiPage() {
                   DeFi Central <Globe className="w-6 h-6 animate-pulse text-primary" />
                 </h1>
               </div>
-              <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest pl-1">V3 Mainnet Infrastructure • Staking Foundation • Real-Time Arbitrage</p>
+              <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest pl-1">V3 Mainnet Infrastructure • Bridge Node Active • Multi-Sig Protection</p>
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
@@ -472,8 +531,9 @@ export default function CryptoDeFiPage() {
               </Card>
 
               <Tabs defaultValue="vault" className="w-full">
-                <TabsList className="bg-primary/5 p-1.5 rounded-[2rem] h-16 border border-primary/10 grid grid-cols-3">
+                <TabsList className="bg-primary/5 p-1.5 rounded-[2rem] h-16 border border-primary/10 grid grid-cols-4">
                   <TabsTrigger value="vault" className="rounded-[1.5rem] font-black uppercase text-[10px]">Vault V3</TabsTrigger>
+                  <TabsTrigger value="bridge" className="rounded-[1.5rem] font-black uppercase text-[10px]">Bridge Out</TabsTrigger>
                   <TabsTrigger value="swap" className="rounded-[1.5rem] font-black uppercase text-[10px]">Quick Swap</TabsTrigger>
                   <TabsTrigger value="history" className="rounded-[1.5rem] font-black uppercase text-[10px]">Audit</TabsTrigger>
                 </TabsList>
@@ -484,7 +544,7 @@ export default function CryptoDeFiPage() {
                       <h4 className="text-[10px] font-black uppercase tracking-widest text-primary">V3 Infrastructure Controls</h4>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <HelpCircle className="w-3 h-3 text-primary/40 cursor-help" />
+                          <HelpCircle className="w-3.5 h-3.5 text-primary/40 cursor-help" />
                         </TooltipTrigger>
                         <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
                           <p className="text-[10px] font-bold">Simpan aset ETH Anda di Smart Contract V3 untuk mendapatkan yield pasif harian tanpa kehilangan kepemilikan aset.</p>
@@ -536,6 +596,56 @@ export default function CryptoDeFiPage() {
                   </Card>
                 </TabsContent>
 
+                <TabsContent value="bridge" className="mt-6 animate-in fade-in slide-in-from-bottom-2">
+                  <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-8">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-primary">Mainnet Bridge Out</h4>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-3.5 h-3.5 text-primary/40 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
+                          <p className="text-[10px] font-bold">Kirim saldo ETH internal AliBank Anda langsung ke dompet MetaMask pribadi Anda secara aman melalui V3 Bridge.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="p-6 rounded-[2rem] bg-accent/5 border border-primary/10 space-y-2">
+                        <p className="text-[9px] font-black uppercase text-muted-foreground">AliBank Internal ETH</p>
+                        <p className="text-2xl font-black text-accent italic">{(userData?.cryptoBalances?.ETH || 0).toFixed(4)} ETH</p>
+                      </div>
+                      <div className="p-6 rounded-[2rem] liquid-glass-dark text-white space-y-2 overflow-hidden">
+                        <p className="text-[9px] font-black uppercase text-white/60">Dest: MetaMask Wallet</p>
+                        <p className="text-xs font-black text-primary truncate">{address || "Not Connected"}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-lg font-black text-primary/40">ETH</span>
+                        <Input 
+                          type="number" 
+                          placeholder="0.00" 
+                          value={bridgeAmount} 
+                          onChange={(e) => setBridgeAmount(e.target.value)} 
+                          className="h-16 pl-16 rounded-2xl liquid-glass border-none text-lg font-black italic focus:ring-primary/20" 
+                        />
+                      </div>
+                      <Button 
+                        onClick={handleBridgeOut} 
+                        disabled={isProcessing || !bridgeAmount || !address} 
+                        className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl flex items-center justify-center gap-3 hover:scale-[1.02] transition-all"
+                      >
+                        {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (
+                          <>Kirim ke Wallet <ExternalLink className="w-5 h-5" /></>
+                        )}
+                      </Button>
+                      <p className="text-[9px] text-center text-muted-foreground font-bold uppercase tracking-wider italic">Bridge Out diproses dalam antrean V3 Node. Estimasi penyelesaian: 1-5 menit.</p>
+                    </div>
+                  </Card>
+                </TabsContent>
+
                 <TabsContent value="swap" className="mt-6 animate-in fade-in slide-in-from-bottom-2">
                   <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6">
                     <div className="flex items-center justify-between">
@@ -543,7 +653,7 @@ export default function CryptoDeFiPage() {
                         <h4 className="text-[10px] font-black uppercase tracking-widest text-primary">AliBank Quick Swap</h4>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <HelpCircle className="w-3 h-3 text-primary/40 cursor-help" />
+                            <HelpCircle className="w-3.5 h-3.5 text-primary/40 cursor-help" />
                           </TooltipTrigger>
                           <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
                             <p className="text-[10px] font-bold">Tukar saldo IDR dengan koin pilihan Anda secara instan. Saldo akan langsung terpotong/bertambah di profil AliBank Anda.</p>
@@ -560,7 +670,6 @@ export default function CryptoDeFiPage() {
                       </Button>
                     </div>
 
-                    {/* Balance Summary in Swap Tab */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex flex-col items-center">
                         <p className="text-[8px] font-black uppercase text-muted-foreground mb-1">Saldo IDR</p>
