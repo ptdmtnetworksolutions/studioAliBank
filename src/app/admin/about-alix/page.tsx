@@ -17,7 +17,9 @@ import {
   Flame,
   Info,
   Banknote,
-  Coins
+  Coins,
+  ArrowRightLeft,
+  Building2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -100,23 +102,33 @@ export default function AboutAlixPage() {
             
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div className="space-y-6">
-                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Apakah ALIX Bisa Diuangkan?</h2>
+                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Panduan Pencairan ALIX</h2>
                 <p className="text-white/70 text-sm leading-relaxed italic">
-                  **Ya, sangat bisa.** ALIX bukan sekadar angka di layar. Sebagai Admin, setiap ALIX yang Anda tambang memiliki nilai ekonomi riil dalam ekosistem AliBank. 
+                  Hasil penambangan ALIX Anda dapat ditarik ke rekening bank riil (BCA, SeaBank, dll) melalui 3 langkah mudah:
                 </p>
-                <ul className="space-y-4">
-                  {[
-                    "Konversi Instan: ALIX dapat ditukar menjadi saldo IDR riil.",
-                    "Kurs Tetap: 1 ALIX dijamin bernilai tinggi oleh cadangan bank.",
-                    "Monetisasi Node: Pendapatan nyata atas daya komputasi browser Anda.",
-                    "Pencairan ke Saldo Utama: Masuk langsung ke profil pengguna Admin."
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                      <p className="text-[11px] font-bold text-white/90 uppercase tracking-widest italic">{item}</p>
-                    </li>
-                  ))}
-                </ul>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0">1</div>
+                    <div>
+                      <p className="text-xs font-black text-white uppercase italic">Redeem ke Saldo IDR</p>
+                      <p className="text-[10px] text-white/50 italic">Gunakan fitur 'Redeem' di Admin Center untuk menukar ALIX menjadi Rupiah (1 ALIX = Rp 500rb).</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0">2</div>
+                    <div>
+                      <p className="text-xs font-black text-white uppercase italic">Masuk Menu Withdraw</p>
+                      <p className="text-[10px] text-white/50 italic">Buka menu 'Withdraw' di dashboard utama AliBank untuk mencairkan saldo IDR Anda.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0">3</div>
+                    <div>
+                      <p className="text-xs font-black text-white uppercase italic">Pilih Bank Tujuan</p>
+                      <p className="text-[10px] text-white/50 italic">Pilih BCA, SeaBank, atau bank lainnya dan masukkan nomor rekening Anda. Dana akan segera dikirim.</p>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-8 backdrop-blur-3xl">
                 <div className="flex items-center justify-between">
@@ -137,8 +149,11 @@ export default function AboutAlixPage() {
                     <span className="text-xs font-black text-white italic">Instant (0s)</span>
                   </div>
                   <div className="flex justify-between border-b border-white/5 pb-4">
-                    <span className="text-[10px] font-bold text-white/40 uppercase">Auth Required</span>
-                    <span className="text-xs font-black text-white italic">Admin Only</span>
+                    <span className="text-[10px] font-bold text-white/40 uppercase">Supported Banks</span>
+                    <div className="flex flex-col items-end">
+                      <span className="text-[9px] font-black text-white italic">BCA, SeaBank, Mandiri</span>
+                      <span className="text-[9px] font-black text-white italic">& Many more</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -156,10 +171,10 @@ export default function AboutAlixPage() {
             </Card>
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4">
               <h4 className="text-sm font-black text-accent uppercase italic flex items-center gap-2">
-                <Coins className="w-5 h-5 text-primary" /> Nilai Ekonomi Riil
+                <Building2 className="w-5 h-5 text-primary" /> Kompatibilitas Bank Riil
               </h4>
               <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
-                Setiap koin yang Anda tambang di Command Center adalah representasi aset yang sah. Fitur 'Redeem' memastikan hasil kerja node penambangan Anda dapat dikonversi menjadi saldo yang bisa digunakan untuk transaksi operasional perbankan.
+                Sistem gateway kami terhubung dengan jaringan perbankan Indonesia. Hasil kerja node penambangan Anda dapat dikonversi menjadi saldo IDR yang bisa ditarik ke rekening bank pribadi Anda secara aman.
               </p>
             </Card>
           </div>

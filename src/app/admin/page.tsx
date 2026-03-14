@@ -32,7 +32,8 @@ import {
   Flame,
   ChevronRight,
   BookOpen,
-  Banknote
+  Banknote,
+  ArrowUpRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -241,7 +242,7 @@ export default function AdminControlPage() {
 
       toast({ 
         title: "Redemption Berhasil", 
-        description: `${amountToRedeem} ALIX telah dikonversi menjadi Rp ${totalIdr.toLocaleString()} di saldo utama Anda.` 
+        description: `${amountToRedeem} ALIX telah dikonversi menjadi Rp ${totalIdr.toLocaleString()} di saldo utama Anda. Anda bisa mencairkan dana ini ke bank riil melalui menu Withdraw.` 
       });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Redeem Gagal", description: err.message });
@@ -476,21 +477,25 @@ export default function AdminControlPage() {
               </div>
             </Card>
 
-            <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white space-y-2 shadow-2xl relative overflow-hidden flex flex-col justify-center">
+            <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white space-y-2 shadow-2xl relative overflow-hidden flex flex-col justify-center group">
               <div className="absolute -right-4 -bottom-4 opacity-10"><Sparkles className="w-24 h-24" /></div>
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">V3 Infrastructure</p>
-              <p className="text-2xl font-black italic tracking-tighter uppercase">Monetize Assets</p>
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Withdrawal Gateway</p>
+              <p className="text-2xl font-black italic tracking-tighter uppercase">Cairkan ke Bank</p>
               <div className="flex items-center gap-2 mt-4">
                 <ShieldCheck className="w-3 h-3 text-primary" />
-                <p className="text-[8px] font-bold uppercase tracking-widest text-primary">ALIX dapat diuangkan ke saldo utama Admin kapan saja.</p>
+                <p className="text-[8px] font-bold uppercase tracking-widest text-primary">Saldo hasil redeem bisa ditarik ke BCA & SeaBank.</p>
               </div>
+              <Link href="/withdraw" className="mt-4 flex items-center justify-between bg-white/10 hover:bg-white/20 p-3 rounded-xl transition-all">
+                <span className="text-[10px] font-black uppercase italic">Ke Menu Withdraw</span>
+                <ArrowUpRight className="w-4 h-4 text-primary" />
+              </Link>
             </Card>
           </div>
 
           <Tabs defaultValue="bridge" className="space-y-8">
             <TabsList className="bg-primary/5 p-1.5 rounded-2xl h-14 border border-primary/10">
-              <TabsTrigger value="bridge" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white">Bridge Queue</TabsTrigger>
-              <TabsTrigger value="users" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white">User Management</TabsTrigger>
+              <TabsTrigger value="bridge" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">Bridge Queue</TabsTrigger>
+              <TabsTrigger value="users" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">User Management</TabsTrigger>
             </TabsList>
 
             <TabsContent value="bridge">

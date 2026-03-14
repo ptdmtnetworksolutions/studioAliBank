@@ -39,10 +39,12 @@ import {
 
 const availableBanks = [
   { id: "bca", name: "Bank Central Asia (BCA)" },
+  { id: "seabank", name: "SeaBank Indonesia" },
   { id: "mandiri", name: "Bank Mandiri" },
   { id: "bni", name: "Bank Negara Indonesia (BNI)" },
   { id: "bri", name: "Bank Rakyat Indonesia (BRI)" },
   { id: "cimb", name: "CIMB Niaga" },
+  { id: "jago", name: "Bank Jago" },
 ];
 
 export default function WithdrawPage() {
