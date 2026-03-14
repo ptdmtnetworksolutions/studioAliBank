@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -18,7 +19,8 @@ import {
   ArrowUpRight,
   ArrowRightLeft,
   Check,
-  X
+  X,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -37,16 +39,19 @@ import {
   collectionGroup, 
   addDoc
 } from "firebase/firestore";
-import { BrowserProvider, Contract, formatEther } from "ethers";
+import { BrowserProvider, Contract, formatEther, parseEther } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
 
+// ABI diperbarui untuk menyertakan fungsi rilis dana riil
 const CONTRACT_ABI = [
   "function getTotalVaultBalance() public view returns (uint256)",
-  "function owner() public view returns (address)"
+  "function owner() public view returns (address)",
+  "function releaseFunds(address _to, uint256 _amount) public", // Fungsi Settlement On-Chain
+  "function withdraw(uint256 _amount) public"
 ];
 
 const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
@@ -92,22 +97,18 @@ export default function AdminControlPage() {
     if (isAuthorized) syncOnChainVault();
   }, [isAuthorized, syncOnChainVault]);
 
-  // Query All Users
   const usersQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
     return query(collection(db, "users"), limit(100));
   }, [db, isAuthorized]);
   const { data: allUsers } = useCollection(usersQuery);
 
-  // Query All Marketplace Invoices (Simplified query to avoid missing index errors)
   const allInvoicesQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
-    // We remove the orderBy here to bypass the index requirement for prototypes
     return query(collectionGroup(db, "invoices"), limit(100));
   }, [db, isAuthorized]);
   const { data: rawInvoices } = useCollection(allInvoicesQuery);
 
-  // Client-side sort for invoices
   const globalInvoices = useMemo(() => {
     if (!rawInvoices) return [];
     return [...rawInvoices].sort((a, b) => {
@@ -117,15 +118,12 @@ export default function AdminControlPage() {
     });
   }, [rawInvoices]);
 
-  // Query All Transactions (Simplified to avoid Index issues)
   const txQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
-    // We remove the where filter here to bypass the index requirement
     return query(collectionGroup(db, "transactions"), limit(100));
   }, [db, isAuthorized]);
   const { data: rawTransactions } = useCollection(txQuery);
 
-  // Client-side filter for pending Bridge category
   const pendingBridges = useMemo(() => {
     if (!rawTransactions) return [];
     return rawTransactions.filter(tx => tx.category === "Bridge" && tx.status === "processing");
@@ -149,33 +147,71 @@ export default function AdminControlPage() {
       });
   };
 
+  /**
+   * EKSEKUSI RIIL: Mengirimkan dana dari Smart Contract ke dompet tujuan di Mainnet
+   */
   const handleApproveBridge = async (bridgeTx: any) => {
-    if (!db || !isAuthorized) return;
+    if (!db || !isAuthorized || typeof window.ethereum === 'undefined') {
+      toast({ variant: "destructive", title: "Infrastruktur Tidak Siap", description: "Pastikan MetaMask terhubung." });
+      return;
+    }
+    
     setProcessingBridge(bridgeTx.id);
     
     try {
-      const txRef = doc(db, bridgeTx.path);
-      
-      // 1. Update status to success
-      await updateDoc(txRef, { status: "success", executedAt: new Date().toISOString() });
+      // 1. Ekstrak Alamat Wallet dari Deskripsi
+      const addressMatch = bridgeTx.description.match(/\((0x[a-fA-F0-9]{40})\)/);
+      const destAddress = addressMatch ? addressMatch[1] : null;
 
-      // 2. Notify User
-      const pathParts = bridgeTx.path.split('/');
-      const userId = pathParts[1];
-
-      if (userId) {
-        await addDoc(collection(db, "users", userId, "notifications"), {
-          title: "V3 Settlement Selesai",
-          message: `Permintaan Bridge Out sebesar ${bridgeTx.cryptoAmount} ETH telah berhasil dieksekusi ke wallet tujuan.`,
-          type: "success",
-          read: false,
-          createdAt: new Date().toISOString()
-        });
+      if (!destAddress) {
+        throw new Error("Alamat wallet tujuan tidak valid atau tidak terbaca.");
       }
 
-      toast({ title: "Settlement Berhasil", description: "V3 Bridge telah mengirimkan aset ke Mainnet." });
+      // 2. Interaksi Blockchain Riil
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
+
+      toast({ title: "Menunggu MetaMask", description: "Silakan konfirmasi transaksi pengiriman di wallet Anda." });
+      
+      const amountInWei = parseEther(bridgeTx.cryptoAmount.toString());
+      
+      // Memanggil fungsi rilis dana pada Smart Contract
+      // Jika contract Anda menggunakan nama fungsi berbeda seperti 'withdraw', ganti di sini
+      const tx = await contract.releaseFunds(destAddress, amountInWei);
+      
+      toast({ title: "Transaksi Broadcasted", description: "Menunggu konfirmasi blok Mainnet..." });
+      const receipt = await tx.wait();
+
+      if (receipt.status === 1) {
+        // 3. Update Status di Database AliBank setelah On-Chain Sukses
+        const txRef = doc(db, bridgeTx.path);
+        await updateDoc(txRef, { 
+          status: "success", 
+          executedAt: new Date().toISOString(),
+          txHash: receipt.hash 
+        });
+
+        // 4. Notifikasi ke Nasabah
+        const pathParts = bridgeTx.path.split('/');
+        const userId = pathParts[1];
+
+        if (userId) {
+          await addDoc(collection(db, "users", userId, "notifications"), {
+            title: "V3 Settlement Berhasil",
+            message: `Dana sebesar ${bridgeTx.cryptoAmount} ETH telah dikirim ke wallet Anda. Hash: ${receipt.hash.slice(0,10)}...`,
+            type: "success",
+            read: false,
+            createdAt: new Date().toISOString()
+          });
+        }
+
+        toast({ title: "Settlement Riil Berhasil", description: "Dana telah berpindah dari Vault ke Wallet nasabah." });
+        syncOnChainVault();
+      }
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Settlement Gagal", description: err.message });
+      console.error("Settlement Error:", err);
+      toast({ variant: "destructive", title: "Settlement Gagal", description: err.reason || err.message || "Kesalahan pada interaksi blockchain." });
     } finally {
       setProcessingBridge(null);
     }
