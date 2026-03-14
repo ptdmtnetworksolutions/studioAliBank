@@ -27,7 +27,8 @@ import {
   ArrowUpDown,
   Wallet2,
   PieChart,
-  ExternalLink
+  ExternalLink,
+  ShieldAlert
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -252,26 +253,26 @@ export default function CryptoDeFiPage() {
       // 2. Log Transaction
       const txData = {
         date: new Date().toISOString(),
-        description: `Bridge Out: AliBank ke Wallet (${address.slice(0, 6)}...)`,
+        description: `Bridge Out: AliBank ke Wallet (${address})`,
         category: "Bridge",
         cryptoAmount: numAmount,
         cryptoCurrency: "ETH",
         type: "expense",
-        status: "processing",
+        status: "processing", // Node must approve this
         timestamp: serverTimestamp()
       };
       await addDoc(collection(db, "users", user.uid, "transactions"), txData);
 
       // 3. Notification
       await addDoc(collection(db, "users", user.uid, "notifications"), {
-        title: "Permintaan Bridge Out",
-        message: `Pengiriman ${numAmount} ETH ke wallet ${address.slice(0, 8)} sedang diproses oleh V3 Node.`,
+        title: "V3 Bridge Node Verification",
+        message: `Pengiriman ${numAmount} ETH sedang diverifikasi oleh Node. Aset akan muncul di wallet Anda setelah konfirmasi Owner.`,
         type: "info",
         read: false,
         createdAt: new Date().toISOString()
       });
 
-      toast({ title: "Bridge Diproses", description: "ETH Anda sedang dikirim ke MetaMask melalui antrean V3." });
+      toast({ title: "Bridge Out Dimulai", description: "ETH Anda sedang diproses oleh V3 Node. Silakan tunggu konfirmasi Admin." });
       setBridgeAmount("");
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal", description: err.message });
@@ -622,6 +623,16 @@ export default function CryptoDeFiPage() {
                     </div>
 
                     <div className="space-y-4">
+                      <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary animate-pulse">
+                          <ShieldAlert className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase text-accent leading-tight">Node Verification Active</p>
+                          <p className="text-[9px] text-muted-foreground font-medium italic">Aset akan dipindahkan ke dompet eksternal setelah verifikasi Node V3 selesai.</p>
+                        </div>
+                      </div>
+
                       <div className="relative">
                         <span className="absolute left-6 top-1/2 -translate-y-1/2 text-lg font-black text-primary/40">ETH</span>
                         <Input 
@@ -641,7 +652,7 @@ export default function CryptoDeFiPage() {
                           <>Kirim ke Wallet <ExternalLink className="w-5 h-5" /></>
                         )}
                       </Button>
-                      <p className="text-[9px] text-center text-muted-foreground font-bold uppercase tracking-wider italic">Bridge Out diproses dalam antrean V3 Node. Estimasi penyelesaian: 1-5 menit.</p>
+                      <p className="text-[9px] text-center text-muted-foreground font-bold uppercase tracking-wider italic">Penyelesaian Bridge Out bergantung pada konfirmasi blok Mainnet dan verifikasi Owner.</p>
                     </div>
                   </Card>
                 </TabsContent>
@@ -744,7 +755,10 @@ export default function CryptoDeFiPage() {
                               {tx.category === 'Bridge' ? <ArrowDownCircle className="w-5 h-5" /> : <RefreshCw className="w-5 h-5" />}
                             </div>
                             <div>
-                              <p className="text-xs font-black text-accent uppercase">{tx.description}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs font-black text-accent uppercase">{tx.description}</p>
+                                {tx.status === 'processing' && <Badge className="bg-amber-100 text-amber-600 text-[7px] font-black h-4 px-1">IN NODE QUEUE</Badge>}
+                              </div>
                               <p className="text-[9px] text-muted-foreground font-bold">{new Date(tx.date).toLocaleDateString()}</p>
                             </div>
                           </div>

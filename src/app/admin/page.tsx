@@ -16,7 +16,10 @@ import {
   RefreshCw,
   Activity,
   ShoppingBag,
-  ArrowUpRight
+  ArrowUpRight,
+  ArrowRightLeft,
+  Check,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -33,7 +36,9 @@ import {
   updateDoc, 
   increment, 
   collectionGroup, 
-  orderBy
+  orderBy,
+  where,
+  addDoc
 } from "firebase/firestore";
 import { BrowserProvider, Contract, formatEther } from "ethers";
 import { useToast } from "@/hooks/use-toast";
@@ -58,6 +63,7 @@ export default function AdminControlPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [onChainTotal, setOnChainTotal] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
+  const [processingBridge, setProcessingBridge] = useState<string | null>(null);
 
   const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
@@ -101,7 +107,14 @@ export default function AdminControlPage() {
     if (!db || !isAuthorized) return null;
     return query(collectionGroup(db, "invoices"), orderBy("createdAt", "desc"), limit(50));
   }, [db, isAuthorized]);
-  const { data: globalInvoices, loading: invoicesLoading } = useCollection(allInvoicesQuery);
+  const { data: globalInvoices } = useCollection(allInvoicesQuery);
+
+  // Query Pending Bridge Requests (Global)
+  const bridgeQuery = useMemo(() => {
+    if (!db || !isAuthorized) return null;
+    return query(collectionGroup(db, "transactions"), where("category", "==", "Bridge"), where("status", "==", "processing"), orderBy("timestamp", "desc"));
+  }, [db, isAuthorized]);
+  const { data: pendingBridges } = useCollection(bridgeQuery);
 
   const handleAdjustBalance = (userId: string, asset: string, amount: number) => {
     if (!db) return;
@@ -119,6 +132,41 @@ export default function AdminControlPage() {
           requestResourceData: payload
         }));
       });
+  };
+
+  const handleApproveBridge = async (bridgeTx: any) => {
+    if (!db || !isAuthorized) return;
+    setProcessingBridge(bridgeTx.id);
+    
+    try {
+      // Find the user ID from the path or bridgeTx data
+      // In collectionGroup, we need the actual path to the doc
+      const txRef = doc(db, bridgeTx.path);
+      
+      // 1. Update status to success
+      await updateDoc(txRef, { status: "success", executedAt: new Date().toISOString() });
+
+      // 2. Notify User
+      // Note: We need the userId. In our structure, bridgeTx path usually is users/{uid}/transactions/{id}
+      const pathParts = bridgeTx.path.split('/');
+      const userId = pathParts[1];
+
+      if (userId) {
+        await addDoc(collection(db, "users", userId, "notifications"), {
+          title: "V3 Settlement Selesai",
+          message: `Permintaan Bridge Out sebesar ${bridgeTx.cryptoAmount} ETH telah berhasil dieksekusi ke wallet tujuan.`,
+          type: "success",
+          read: false,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      toast({ title: "Settlement Berhasil", description: "V3 Bridge telah mengirimkan aset ke Mainnet." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Settlement Gagal", description: err.message });
+    } finally {
+      setProcessingBridge(null);
+    }
   };
 
   const platformStats = useMemo(() => {
@@ -216,6 +264,14 @@ export default function AdminControlPage() {
             <TabsTrigger value="users" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
               User Management
             </TabsTrigger>
+            <TabsTrigger value="bridge" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all relative">
+              Bridge Queue
+              {pendingBridges && pendingBridges.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-white text-[8px] flex items-center justify-center rounded-full animate-bounce">
+                  {pendingBridges.length}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="marketplace" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
               Marketplace Audit
             </TabsTrigger>
@@ -275,6 +331,67 @@ export default function AdminControlPage() {
                         </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="bridge">
+            <section className="liquid-glass rounded-[3rem] overflow-hidden border-none shadow-2xl">
+              <div className="p-8 border-b border-primary/5 bg-blue-500/5 flex items-center justify-between">
+                <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3 text-accent">
+                  <ArrowRightLeft className="w-6 h-6 text-blue-600" /> V3 Node Bridge Queue
+                </h3>
+                <Badge variant="outline" className="text-[10px] font-black text-blue-600 border-blue-200">WAITING SETTLEMENT</Badge>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-primary/5 text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                      <th className="px-8 py-6">Timestamp</th>
+                      <th className="px-8 py-6">Asset Amount</th>
+                      <th className="px-8 py-6">Source (AliBank)</th>
+                      <th className="px-8 py-6">Destination Wallet</th>
+                      <th className="px-8 py-6 text-right">Execute</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-primary/5">
+                    {pendingBridges?.map((bridge) => (
+                      <tr key={bridge.id} className="hover:bg-primary/5 transition-colors">
+                        <td className="px-8 py-5 text-[10px] font-bold text-muted-foreground">
+                          {new Date(bridge.date).toLocaleString()}
+                        </td>
+                        <td className="px-8 py-5 font-black text-blue-600 italic">
+                          {bridge.cryptoAmount} {bridge.cryptoCurrency}
+                        </td>
+                        <td className="px-8 py-5 text-xs font-black text-accent">
+                          {bridge.path.split('/')[1].slice(0,8)}...
+                        </td>
+                        <td className="px-8 py-5 text-[10px] font-mono font-medium text-muted-foreground">
+                          {bridge.description.match(/\((0x.*)\)/)?.[1] || "V3 External Wallet"}
+                        </td>
+                        <td className="px-8 py-5 text-right">
+                          <Button 
+                            onClick={() => handleApproveBridge(bridge)}
+                            disabled={processingBridge === bridge.id}
+                            className="h-10 px-6 rounded-xl gold-gradient text-white font-black italic uppercase text-[10px] shadow-lg"
+                          >
+                            {processingBridge === bridge.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4 mr-2" /> Release Funds</>}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {(!pendingBridges || pendingBridges.length === 0) && (
+                      <tr>
+                        <td colSpan={5} className="py-24 text-center">
+                          <div className="flex flex-col items-center opacity-30">
+                            <Activity className="w-12 h-12 mb-4" />
+                            <p className="text-xs font-black uppercase tracking-widest">All Bridge Requests Settled.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
