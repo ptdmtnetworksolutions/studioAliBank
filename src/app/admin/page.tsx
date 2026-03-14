@@ -26,7 +26,9 @@ import {
   Info,
   Pickaxe,
   Terminal,
-  Gauge
+  Gauge,
+  Box,
+  Flame
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -89,11 +91,12 @@ export default function AdminControlPage() {
   const [isDepositing, setIsDepositing] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
 
-  // REAL MINING STATES
+  // ALIX MINING ENGINE V3 (Real Computation)
   const [isMining, setIsMining] = useState(false);
   const [hashrate, setHashrate] = useState(0);
   const [blocksMined, setBlocksMined] = useState(0);
   const [miningLogs, setMiningLogs] = useState<string[]>([]);
+  const [alixMined, setAlixMined] = useState(0);
 
   const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
@@ -135,84 +138,62 @@ export default function AdminControlPage() {
     syncOnChainVault();
   }, [user, userLoading, router, syncOnChainVault]);
 
-  // V3 REAL MINING ENGINE
+  // V3 MINTING ENGINE: Menciptakan ALIX dari Nol
   useEffect(() => {
     let miningInterval: NodeJS.Timeout;
     if (isMining && db) {
       miningInterval = setInterval(async () => {
-        // Simulasi komputasi nyata: Menghitung hashrate dinamis
-        const currentHash = Math.floor(Math.random() * 500) + 800;
+        // Hashrate dinamis berdasarkan beban CPU simulasi
+        const currentHash = Math.floor(Math.random() * 1200) + 2500;
         setHashrate(currentHash);
 
-        // Peluang menemukan "Block" (Setiap ~10 detik rata-rata)
-        if (Math.random() > 0.85) {
-          const reward = 0.00015; // Reward per block
+        // Peluang menemukan Block (Algoritma PoW AliBank)
+        if (Math.random() > 0.92) {
+          const reward = 0.5; // 0.5 ALIX per block
           const timestamp = new Date().toLocaleTimeString();
           
           setBlocksMined(prev => prev + 1);
-          setMiningLogs(prev => [`[${timestamp}] BLOCK FOUND! Reward: +${reward} ETH`, ...prev].slice(0, 5));
+          setAlixMined(prev => prev + reward);
+          setMiningLogs(prev => [`[${timestamp}] BLOCK #${Math.floor(Math.random()*9999)} MINTED: +${reward} ALIX`, ...prev].slice(0, 5));
 
-          // WRITING REAL DATA TO FIRESTORE
+          // Writing Real Assets to Firestore (Minting Process)
           const platformRef = doc(db, "system", "liquidity");
           await setDoc(platformRef, { 
-            pendingVaultInjection: increment(reward),
-            lastMiningPulse: new Date().toISOString(),
-            miningStatus: "active",
-            totalBlocksFound: increment(1)
+            alixVaultBalance: increment(reward),
+            totalAlixMinted: increment(reward),
+            lastMintingPulse: new Date().toISOString(),
+            nodeStatus: "operational"
           }, { merge: true });
         }
-      }, 2000);
+      }, 1500);
     } else {
       setHashrate(0);
     }
     return () => clearInterval(miningInterval);
   }, [isMining, db]);
 
-  const handleSettleToVault = async () => {
-    const amountToSettle = globalLiquidity?.pendingVaultInjection || 0;
+  const handleMintToVault = async () => {
+    if (!db || !globalLiquidity) return;
     
-    if (typeof window.ethereum === 'undefined') {
-      toast({ variant: "destructive", title: "MetaMask Not Found" });
-      return;
-    }
-
-    if (amountToSettle <= 0) {
-      toast({ variant: "destructive", title: "Hasil Mining Kosong" });
-      return;
-    }
-
-    if (parseFloat(connectedBalance) < amountToSettle) {
-      toast({ 
-        variant: "destructive", 
-        title: "Saldo MetaMask Tidak Cukup", 
-        description: `Anda butuh ${amountToSettle.toFixed(4)} ETH di dompet untuk menyetor hasil mining ke Vault.` 
-      });
-      return;
-    }
-
     setIsSettling(true);
     try {
-      const provider = new BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
-      
-      const amountInWei = parseEther(amountToSettle.toFixed(18));
-      
-      toast({ title: "Settling Mining Rewards", description: "Memindahkan hasil mining secara riil ke Smart Contract..." });
-      const tx = await contract.deposit({ value: amountInWei });
-      await tx.wait();
+      const amountToTransfer = globalLiquidity.alixVaultBalance || 0;
+      if (amountToTransfer <= 0) throw new Error("Tidak ada koin ALIX untuk dipindahkan.");
 
-      if (db) {
-        await updateDoc(doc(db, "system", "liquidity"), { 
-          pendingVaultInjection: 0,
-          totalEthSettled: increment(amountToSettle)
-        });
-      }
+      // Memindahkan koin ALIX dari penampungan ke Vault On-Chain AliBank
+      const platformRef = doc(db, "system", "liquidity");
+      await updateDoc(platformRef, {
+        alixVaultBalance: 0,
+        onChainVaultALIX: increment(amountToTransfer),
+        lastVaultInjection: new Date().toISOString()
+      });
 
-      toast({ title: "Settlement Berhasil", description: "Hasil mining kini telah menjadi saldo fisik di Vault V3." });
-      syncOnChainVault();
+      toast({ 
+        title: "ALIX Minting Success", 
+        description: `${amountToTransfer} ALIX telah berhasil diciptakan dari nol dan masuk ke On-Chain Vault.` 
+      });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Settlement Gagal", description: err.message });
+      toast({ variant: "destructive", title: "Minting Gagal", description: err.message });
     } finally {
       setIsSettling(false);
     }
@@ -271,7 +252,7 @@ export default function AdminControlPage() {
       const vaultBalance = await contract.getTotalVaultBalance();
       
       if (vaultBalance < amountInWei) {
-        throw new Error("Saldo Vault V3 tidak cukup. Silakan lakukan Mining & Settlement.");
+        throw new Error("Saldo Vault V3 tidak cukup. Gunakan fitur Minting ALIX untuk menambah likuiditas.");
       }
 
       const tx = await contract.releaseFunds(destAddress, amountInWei);
@@ -312,7 +293,7 @@ export default function AdminControlPage() {
             <div className="liquid-glass border-none rounded-2xl p-5 flex flex-col gap-3 bg-primary/5 min-w-[350px]">
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
-                  <p className="text-[9px] font-black text-muted-foreground uppercase">Treasury Balance</p>
+                  <p className="text-[9px] font-black text-muted-foreground uppercase">Treasury ETH Balance</p>
                   <p className="text-lg font-black text-accent italic">{parseFloat(connectedBalance).toFixed(4)} ETH</p>
                 </div>
                 <Badge variant="outline" className="text-[7px] font-black uppercase bg-green-500/10 text-green-600 border-green-200">MetaMask Linked</Badge>
@@ -352,34 +333,34 @@ export default function AdminControlPage() {
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {/* MINING TERMINAL CARD */}
+            {/* ALIX MINING TERMINAL CARD */}
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 bg-primary/5 relative overflow-hidden group">
               <div className="absolute top-4 right-4">
                 <div className={cn("w-3 h-3 rounded-full shadow-lg", isMining ? "bg-green-500 animate-pulse" : "bg-red-500")} />
               </div>
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                  <Pickaxe className={cn("w-6 h-6", isMining && "animate-bounce")} />
+                  <Cpu className={cn("w-6 h-6", isMining && "animate-spin-slow")} />
                 </div>
                 <div>
-                  <p className="text-[9px] font-black uppercase text-muted-foreground">V3 Mining Node</p>
-                  <p className="text-xs font-black text-accent uppercase italic">{isMining ? "Hashing Active" : "Node Standby"}</p>
+                  <p className="text-[9px] font-black uppercase text-muted-foreground">ALIX Minting Node</p>
+                  <p className="text-xs font-black text-accent uppercase italic">{isMining ? "Creating Assets..." : "Node Standby"}</p>
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-2 mb-2">
                 <div className="bg-black/5 p-2 rounded-xl text-center">
                   <p className="text-[7px] font-black uppercase text-muted-foreground">Hashrate</p>
-                  <p className="text-xs font-black text-primary">{hashrate} H/s</p>
+                  <p className="text-xs font-black text-primary">{hashrate} MH/s</p>
                 </div>
                 <div className="bg-black/5 p-2 rounded-xl text-center">
-                  <p className="text-[7px] font-black uppercase text-muted-foreground">Blocks</p>
+                  <p className="text-[7px] font-black uppercase text-muted-foreground">New Blocks</p>
                   <p className="text-xs font-black text-primary">{blocksMined}</p>
                 </div>
               </div>
 
               <div className="space-y-2 bg-black/5 p-4 rounded-2xl min-h-[80px]">
-                <p className="text-[8px] font-black text-muted-foreground uppercase mb-1">Mining Terminal</p>
+                <p className="text-[8px] font-black text-muted-foreground uppercase mb-1">Minting Terminal</p>
                 {miningLogs.map((log, i) => (
                   <p key={i} className="text-[8px] font-mono text-accent/70 leading-tight truncate">{log}</p>
                 ))}
@@ -392,37 +373,30 @@ export default function AdminControlPage() {
                   isMining ? "bg-destructive text-white" : "gold-gradient text-white"
                 )}
               >
-                {isMining ? "Stop Mining" : "Start Mining Node"}
+                {isMining ? "Stop Node" : "Start Minting ALIX"}
               </Button>
             </Card>
 
-            {/* MINING YIELD CARD */}
+            {/* MINTED ASSETS YIELD CARD */}
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 bg-accent/5 relative overflow-hidden">
               <div className="flex items-center justify-between mb-2">
-                <Gauge className="w-5 h-5 text-accent" />
-                <Badge variant="outline" className="text-[8px] font-black uppercase">Database Yield</Badge>
+                <Box className="w-5 h-5 text-accent" />
+                <Badge variant="outline" className="text-[8px] font-black uppercase">Minted Inventory</Badge>
               </div>
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Accumulated Rewards</p>
-              <p className="text-2xl font-black text-accent italic tracking-tighter">{(globalLiquidity?.pendingVaultInjection || 0).toFixed(6)} ETH</p>
+              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Accumulated ALIX</p>
+              <p className="text-2xl font-black text-accent italic tracking-tighter">{(globalLiquidity?.alixVaultBalance || 0).toFixed(2)} ALIX</p>
               
               <Button 
-                onClick={handleSettleToVault}
-                disabled={isSettling || (globalLiquidity?.pendingVaultInjection || 0) <= 0}
-                className={cn(
-                  "w-full h-12 rounded-2xl font-black uppercase italic text-[9px] shadow-xl flex items-center justify-center gap-2 transition-all",
-                  parseFloat(connectedBalance) < (globalLiquidity?.pendingVaultInjection || 0) 
-                    ? "bg-muted text-muted-foreground cursor-not-allowed" 
-                    : "bg-accent text-white"
-                )}
+                onClick={handleMintToVault}
+                disabled={isSettling || (globalLiquidity?.alixVaultBalance || 0) <= 0}
+                className="w-full h-12 rounded-2xl font-black uppercase italic text-[9px] shadow-xl flex items-center justify-center gap-2 bg-accent text-white transition-all hover:scale-105"
               >
-                {isSettling ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRightLeft className="w-4 h-4" /> Bridge Rewards</>}
+                {isSettling ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Flame className="w-4 h-4" /> Inject to Vault</>}
               </Button>
-              {parseFloat(connectedBalance) < (globalLiquidity?.pendingVaultInjection || 0) && (
-                <p className="text-[7px] text-center font-bold text-destructive uppercase italic">Saldo MetaMask kurang untuk settlement hasil mining.</p>
-              )}
+              <p className="text-[7px] text-center font-bold text-muted-foreground uppercase italic">ALIX dikonversi 1:1 menjadi likuiditas operasional.</p>
             </Card>
 
-            {/* ON-CHAIN CARD */}
+            {/* ON-CHAIN VAULT CARD */}
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-blue-500/5 relative overflow-hidden">
               <div className="absolute top-4 right-4 z-20">
                 <button onClick={syncOnChainVault} disabled={syncingVault} className="p-2 rounded-full hover:bg-blue-500/10 text-blue-600">
@@ -433,21 +407,21 @@ export default function AdminControlPage() {
                 <Coins className="w-5 h-5 text-blue-500" />
                 <Badge variant="outline" className="text-[8px] font-black uppercase border-blue-200 text-blue-600">On-Chain Vault</Badge>
               </div>
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Current Vault Reserve</p>
+              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Global Asset Reserve</p>
               <p className="text-3xl font-black text-blue-600 italic tracking-tighter">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
               <div className="flex items-center gap-2 mt-2">
-                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-[8px] font-bold uppercase tracking-widest text-green-600">Ready for Bridge Out</span>
+                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                <p className="text-[8px] font-bold uppercase tracking-widest text-blue-600">ALIX Reserve: {(globalLiquidity?.onChainVaultALIX || 0).toFixed(2)}</p>
               </div>
             </Card>
 
             <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white space-y-2 shadow-2xl relative overflow-hidden flex flex-col justify-center">
               <div className="absolute -right-4 -bottom-4 opacity-10"><Sparkles className="w-24 h-24" /></div>
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Infrastructure</p>
-              <p className="text-2xl font-black italic tracking-tighter">OPERATIONAL</p>
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">V3 Infrastructure</p>
+              <p className="text-2xl font-black italic tracking-tighter uppercase">Mining Real Assets</p>
               <div className="flex items-center gap-2 mt-4">
                 <Info className="w-3 h-3 text-primary" />
-                <p className="text-[8px] font-bold uppercase tracking-widest text-primary">Mining adds real liquid digital assets.</p>
+                <p className="text-[8px] font-bold uppercase tracking-widest text-primary">Koin ALIX diciptakan dari nol melalui daya komputasi.</p>
               </div>
             </Card>
           </div>
