@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -102,19 +101,28 @@ export default function AdminControlPage() {
   }, [db, isAuthorized]);
   const { data: allUsers } = useCollection(usersQuery);
 
-  // Query All Marketplace Invoices (Global)
+  // Query All Marketplace Invoices
   const allInvoicesQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
     return query(collectionGroup(db, "invoices"), orderBy("createdAt", "desc"), limit(50));
   }, [db, isAuthorized]);
   const { data: globalInvoices } = useCollection(allInvoicesQuery);
 
-  // Query Pending Bridge Requests (Global)
+  // Query Pending Bridge Requests (Simplified to avoid Index issues)
   const bridgeQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
-    return query(collectionGroup(db, "transactions"), where("category", "==", "Bridge"), where("status", "==", "processing"), orderBy("timestamp", "desc"));
+    return query(
+      collectionGroup(db, "transactions"), 
+      where("status", "==", "processing"),
+      limit(50)
+    );
   }, [db, isAuthorized]);
-  const { data: pendingBridges } = useCollection(bridgeQuery);
+  const { data: rawPendingBridges } = useCollection(bridgeQuery);
+
+  // Client-side filter for Bridge category
+  const pendingBridges = useMemo(() => {
+    return rawPendingBridges?.filter(tx => tx.category === "Bridge") || [];
+  }, [rawPendingBridges]);
 
   const handleAdjustBalance = (userId: string, asset: string, amount: number) => {
     if (!db) return;
@@ -139,15 +147,12 @@ export default function AdminControlPage() {
     setProcessingBridge(bridgeTx.id);
     
     try {
-      // Find the user ID from the path or bridgeTx data
-      // In collectionGroup, we need the actual path to the doc
       const txRef = doc(db, bridgeTx.path);
       
       // 1. Update status to success
       await updateDoc(txRef, { status: "success", executedAt: new Date().toISOString() });
 
       // 2. Notify User
-      // Note: We need the userId. In our structure, bridgeTx path usually is users/{uid}/transactions/{id}
       const pathParts = bridgeTx.path.split('/');
       const userId = pathParts[1];
 
@@ -357,16 +362,16 @@ export default function AdminControlPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-primary/5">
-                    {pendingBridges?.map((bridge) => (
+                    {pendingBridges.map((bridge) => (
                       <tr key={bridge.id} className="hover:bg-primary/5 transition-colors">
                         <td className="px-8 py-5 text-[10px] font-bold text-muted-foreground">
-                          {new Date(bridge.date).toLocaleString()}
+                          {bridge.date ? new Date(bridge.date).toLocaleString() : 'Recent'}
                         </td>
                         <td className="px-8 py-5 font-black text-blue-600 italic">
                           {bridge.cryptoAmount} {bridge.cryptoCurrency}
                         </td>
                         <td className="px-8 py-5 text-xs font-black text-accent">
-                          {bridge.path.split('/')[1].slice(0,8)}...
+                          {bridge.path ? bridge.path.split('/')[1].slice(0,8) : '...'}
                         </td>
                         <td className="px-8 py-5 text-[10px] font-mono font-medium text-muted-foreground">
                           {bridge.description.match(/\((0x.*)\)/)?.[1] || "V3 External Wallet"}

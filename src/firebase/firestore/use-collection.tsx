@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Query, onSnapshot, DocumentData, QuerySnapshot } from 'firebase/firestore';
 
 export function useCollection<T = DocumentData>(query: Query<T> | null) {
-  const [data, setData] = useState<(T & { id: string })[]>([]);
+  const [data, setData] = useState<(T & { id: string; path: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -20,11 +20,13 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
         const docs = snapshot.docs.map((doc) => ({
           ...(doc.data() as T),
           id: doc.id,
+          path: doc.ref.path,
         }));
         setData(docs);
         setLoading(false);
       },
       (err) => {
+        console.error("Firestore useCollection Error:", err);
         setError(err);
         setLoading(false);
       }
