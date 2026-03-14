@@ -19,9 +19,12 @@ export function useDoc<T = DocumentData>(docRef: DocumentReference<T> | null) {
       (snapshot) => {
         setData(snapshot.exists() ? { ...(snapshot.data() as T), id: snapshot.id, path: snapshot.ref.path } : null);
         setLoading(false);
+        setError(null);
       },
       (err) => {
-        console.error("Firestore useDoc Error:", err);
+        if (err.code !== 'unavailable') {
+          console.error("Firestore useDoc Error:", err);
+        }
         setError(err);
         setLoading(false);
       }

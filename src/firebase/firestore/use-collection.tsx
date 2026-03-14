@@ -24,9 +24,13 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
         }));
         setData(docs);
         setLoading(false);
+        setError(null);
       },
       (err) => {
-        console.error("Firestore useCollection Error:", err);
+        // Jangan log error 'unavailable' sebagai error fatal karena Firestore akan mencoba menyambung kembali
+        if (err.code !== 'unavailable') {
+          console.error("Firestore useCollection Error:", err);
+        }
         setError(err);
         setLoading(false);
       }
