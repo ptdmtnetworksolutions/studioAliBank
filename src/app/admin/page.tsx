@@ -61,8 +61,6 @@ import { BrowserProvider, Contract, formatEther, parseEther } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -202,6 +200,8 @@ export default function AdminControlPage() {
     setIsSettling(true);
 
     try {
+      // PROSES OTONOM: Hanya update internal database untuk mengisi kas bank sintetis
+      // Tanpa pemicuan MetaMask pada tahap ini (sesuai permintaan user)
       await updateDoc(doc(db, "system", "liquidity"), {
         onChainVaultALIX: 0, 
         syntheticEthReserve: increment(ethEquivalent),
