@@ -22,7 +22,8 @@ import {
   X,
   ExternalLink,
   AlertTriangle,
-  Plus
+  Plus,
+  Wallet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -70,6 +71,7 @@ export default function AdminControlPage() {
   const [processingBridge, setProcessingBridge] = useState<string | null>(null);
   const [contractOwner, setContractOwner] = useState<string | null>(null);
   const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
+  const [connectedBalance, setConnectedBalance] = useState<string>("0");
   const [depositAmount, setDepositAmount] = useState("");
   const [isDepositing, setIsDepositing] = useState(false);
 
@@ -90,7 +92,13 @@ export default function AdminControlPage() {
     try {
       const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.listAccounts();
-      if (accounts.length > 0) setConnectedAddress(accounts[0].address.toLowerCase());
+      
+      if (accounts.length > 0) {
+        const addr = accounts[0].address.toLowerCase();
+        setConnectedAddress(addr);
+        const bal = await provider.getBalance(addr);
+        setConnectedBalance(formatEther(bal));
+      }
 
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
       
@@ -170,13 +178,24 @@ export default function AdminControlPage() {
 
   const handleDepositToVault = async () => {
     if (!depositAmount || isNaN(parseFloat(depositAmount)) || typeof window.ethereum === 'undefined') return;
+    
     setIsDepositing(true);
     try {
       const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
+      
+      // Validasi Saldo Wallet Pribadi sebelum kirim
+      const myAddress = await signer.getAddress();
+      const myBalance = await provider.getBalance(myAddress);
+      const amountToDeposit = parseEther(depositAmount);
+
+      if (myBalance < amountToDeposit) {
+        throw new Error(`Saldo dompet MetaMask Anda tidak cukup. Anda memiliki ${formatEther(myBalance)} ETH, ingin deposit ${depositAmount} ETH.`);
+      }
+
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
       
-      const tx = await contract.deposit({ value: parseEther(depositAmount) });
+      const tx = await contract.deposit({ value: amountToDeposit });
       toast({ title: "Top Up Diproses", description: "Menunggu konfirmasi blockchain..." });
       await tx.wait();
       
@@ -184,7 +203,12 @@ export default function AdminControlPage() {
       setDepositAmount("");
       syncOnChainVault();
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Top Up Gagal", description: err.message });
+      console.error("Deposit Error:", err);
+      let errMsg = err.reason || err.message || "Gagal melakukan Top Up.";
+      if (err.code === 'INSUFFICIENT_FUNDS') {
+        errMsg = "Saldo ETH di MetaMask Anda tidak cukup untuk membayar jumlah ini + Gas Fee.";
+      }
+      toast({ variant: "destructive", title: "Top Up Gagal", description: errMsg });
     } finally {
       setIsDepositing(false);
     }
@@ -318,33 +342,40 @@ export default function AdminControlPage() {
 
           <div className="flex flex-col gap-4">
             {contractOwner && connectedAddress && connectedAddress !== contractOwner && (
-              <div className="bg-amber-100 border border-amber-200 p-4 rounded-2xl flex items-center gap-4 animate-in fade-in slide-in-from-right-4">
-                <AlertTriangle className="text-amber-600 w-6 h-6" />
+              <div className="bg-amber-100 border border-amber-200 p-4 rounded-2xl flex items-center gap-4 animate-in fade-in slide-in-from-right-4 max-w-md">
+                <AlertTriangle className="text-amber-600 w-6 h-6 shrink-0" />
                 <div>
                   <p className="text-[10px] font-black uppercase text-amber-800">Wallet Warning</p>
-                  <p className="text-[11px] font-bold text-amber-700 leading-tight">Ganti Wallet MetaMask Anda ke alamat Owner ({contractOwner.slice(0,10)}...) untuk mengeksekusi Bridge.</p>
+                  <p className="text-[11px] font-bold text-amber-700 leading-tight">Ganti MetaMask ke alamat Owner ({contractOwner.slice(0,10)}...) untuk eksekusi Bridge.</p>
                 </div>
               </div>
             )}
             
-            <div className="liquid-glass border-none rounded-2xl p-4 flex items-center gap-3 bg-primary/5">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary/40">ETH</span>
-                <Input 
-                  placeholder="0.00" 
-                  type="number"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  className="h-10 pl-10 w-32 rounded-xl bg-white/50 border-none text-xs font-black italic"
-                />
+            <div className="liquid-glass border-none rounded-2xl p-4 flex flex-col gap-2 bg-primary/5">
+              <div className="flex items-center justify-between px-1">
+                <p className="text-[9px] font-black text-muted-foreground uppercase flex items-center gap-1">
+                  <Wallet className="w-3 h-3" /> My MetaMask: <span className="text-accent">{parseFloat(connectedBalance).toFixed(4)} ETH</span>
+                </p>
               </div>
-              <Button 
-                onClick={handleDepositToVault} 
-                disabled={isDepositing || !depositAmount}
-                className="h-10 px-4 gold-gradient text-white rounded-xl text-[10px] font-black uppercase italic"
-              >
-                {isDepositing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-1" /> Refill Vault</>}
-              </Button>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary/40">ETH</span>
+                  <Input 
+                    placeholder="0.00" 
+                    type="number"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    className="h-10 pl-10 w-32 rounded-xl bg-white/50 border-none text-xs font-black italic"
+                  />
+                </div>
+                <Button 
+                  onClick={handleDepositToVault} 
+                  disabled={isDepositing || !depositAmount}
+                  className="h-10 px-4 gold-gradient text-white rounded-xl text-[10px] font-black uppercase italic"
+                >
+                  {isDepositing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-1" /> Refill Vault</>}
+                </Button>
+              </div>
             </div>
           </div>
         </header>
