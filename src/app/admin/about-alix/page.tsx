@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -102,58 +101,55 @@ export default function AboutAlixPage() {
             
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div className="space-y-6">
-                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Panduan Pencairan ALIX</h2>
+                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">V3 Liquidity Bridge</h2>
                 <p className="text-white/70 text-sm leading-relaxed italic">
-                  Hasil penambangan ALIX Anda dapat ditarik ke rekening bank riil (BCA, SeaBank, dll) melalui 3 langkah mudah:
+                  ALIX yang Anda tambang dapat dikonversi menjadi cadangan **ETH riil** di Smart Contract Vault untuk menumbuhkan aset bank:
                 </p>
                 <div className="space-y-4">
                   <div className="flex items-start gap-4">
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0">1</div>
                     <div>
-                      <p className="text-xs font-black text-white uppercase italic">Redeem ke Saldo IDR</p>
-                      <p className="text-[10px] text-white/50 italic">Gunakan fitur 'Redeem' di Admin Center untuk menukar ALIX menjadi Rupiah (1 ALIX = Rp 500rb).</p>
+                      <p className="text-xs font-black text-white uppercase italic">Minting Block</p>
+                      <p className="text-[10px] text-white/50 italic">Aktifkan Mining Node untuk menghasilkan koin ALIX baru dari daya komputasi browser Anda.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0">2</div>
                     <div>
-                      <p className="text-xs font-black text-white uppercase italic">Masuk Menu Withdraw</p>
-                      <p className="text-[10px] text-white/50 italic">Buka menu 'Withdraw' di dashboard utama AliBank untuk mencairkan saldo IDR Anda.</p>
+                      <p className="text-xs font-black text-white uppercase italic">Convert to ETH Bridge</p>
+                      <p className="text-[10px] text-white/50 italic">Gunakan fitur 'Convert ALIX to ETH Vault'. Sistem akan menghitung nilai ETH yang setara dengan akumulasi ALIX Anda.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0">3</div>
                     <div>
-                      <p className="text-xs font-black text-white uppercase italic">Pilih Bank Tujuan</p>
-                      <p className="text-[10px] text-white/50 italic">Pilih BCA, SeaBank, atau bank lainnya dan masukkan nomor rekening Anda. Dana akan segera dikirim.</p>
+                      <p className="text-xs font-black text-white uppercase italic">On-Chain Settlement</p>
+                      <p className="text-[10px] text-white/50 italic">Selesaikan transaksi melalui MetaMask. ETH akan disuntikkan secara fisik ke dalam Smart Contract Vault AliBank.</p>
                     </div>
                   </div>
                 </div>
               </div>
               <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-8 backdrop-blur-3xl">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Monetization Specs</p>
-                  <Banknote className="w-4 h-4 text-primary animate-pulse" />
+                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Liquidity Specs</p>
+                  <Coins className="w-4 h-4 text-primary animate-pulse" />
                 </div>
                 <div className="space-y-6">
                   <div className="flex justify-between border-b border-white/5 pb-4">
-                    <span className="text-[10px] font-bold text-white/40 uppercase">Conversion Target</span>
-                    <span className="text-xs font-black text-white italic">IDR Liquidity</span>
+                    <span className="text-[10px] font-bold text-white/40 uppercase">Conversion Logic</span>
+                    <span className="text-xs font-black text-white italic">ALIX ➔ Mainnet ETH</span>
                   </div>
                   <div className="flex justify-between border-b border-white/5 pb-4">
-                    <span className="text-[10px] font-bold text-white/40 uppercase">Redeem Rate</span>
-                    <span className="text-xs font-black text-green-400 italic">Rp 500.000 / ALIX</span>
+                    <span className="text-[10px] font-bold text-white/40 uppercase">Exchange Rate</span>
+                    <span className="text-xs font-black text-blue-400 italic">1 ALIX = 0.0002 ETH</span>
                   </div>
                   <div className="flex justify-between border-b border-white/5 pb-4">
-                    <span className="text-[10px] font-bold text-white/40 uppercase">Settlement Time</span>
-                    <span className="text-xs font-black text-white italic">Instant (0s)</span>
+                    <span className="text-[10px] font-bold text-white/40 uppercase">Vault Destination</span>
+                    <span className="text-xs font-black text-white italic">AliBank V3 Contract</span>
                   </div>
                   <div className="flex justify-between border-b border-white/5 pb-4">
-                    <span className="text-[10px] font-bold text-white/40 uppercase">Supported Banks</span>
-                    <div className="flex flex-col items-end">
-                      <span className="text-[9px] font-black text-white italic">BCA, SeaBank, Mandiri</span>
-                      <span className="text-[9px] font-black text-white italic">& Many more</span>
-                    </div>
+                    <span className="text-[10px] font-bold text-white/40 uppercase">Benefit</span>
+                    <span className="text-xs font-black text-green-400 italic">Grows Bank Liquidity</span>
                   </div>
                 </div>
               </div>
@@ -163,18 +159,18 @@ export default function AboutAlixPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4">
               <h4 className="text-sm font-black text-accent uppercase italic flex items-center gap-2">
-                <Zap className="w-5 h-5 text-primary" /> Efisiensi Tanpa Batas
+                <Zap className="w-5 h-5 text-primary" /> Pertumbuhan Kas Otonom
               </h4>
               <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
-                Dengan ALIX, AliBank tidak perlu menunggu setoran tunai atau deposit ETH eksternal untuk memiliki daya beli di sistem Bridge. Admin bisa menciptakan likuiditas kapan saja saat dibutuhkan melalui aktivitas penambangan.
+                Dengan ALIX, bank dapat menumbuhkan aset ETH-nya tanpa harus mengandalkan setoran nasabah eksternal. Admin bertindak sebagai penyedia likuiditas pertama (Genesis Provider) melalui aktivitas penambangan.
               </p>
             </Card>
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4">
               <h4 className="text-sm font-black text-accent uppercase italic flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-primary" /> Kompatibilitas Bank Riil
+                <ShieldCheck className="w-5 h-5 text-primary" /> Keamanan Berbasis Aset
               </h4>
               <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
-                Sistem gateway kami terhubung dengan jaringan perbankan Indonesia. Hasil kerja node penambangan Anda dapat dikonversi menjadi saldo IDR yang bisa ditarik ke rekening bank pribadi Anda secara aman.
+                Setiap ETH yang masuk ke Vault melalui jembatan ALIX dilindungi oleh Smart Contract V3. Ini memastikan bank selalu memiliki cadangan aset yang cukup untuk memproses permintaan penarikan atau Bridge Out nasabah.
               </p>
             </Card>
           </div>
@@ -188,7 +184,7 @@ export default function AboutAlixPage() {
             <p className="text-sm font-black text-accent italic uppercase tracking-tighter">AliBank V3 Infrastructure</p>
           </div>
           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest max-w-lg mx-auto leading-relaxed">
-            Koin ALIX diciptakan secara eksklusif untuk operasional bank riil AliBank. Penggunaan aset ini dilindungi oleh algoritma enkripsi V3 dan audit Smart Contract berkelanjutan.
+            Konversi ALIX ke ETH memerlukan otoritas penandatanganan MetaMask Admin. Seluruh aset ETH yang dikonversi akan tersimpan secara permanen di blockchain publik.
           </p>
         </footer>
       </main>

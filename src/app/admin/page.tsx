@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -106,6 +105,9 @@ export default function AdminControlPage() {
   const [blocksMined, setBlocksMined] = useState(0);
   const [miningLogs, setMiningLogs] = useState<string[]>([]);
 
+  // ALIX -> ETH Conversion Rate: 1 ALIX = 0.0002 ETH
+  const ALIX_TO_ETH_RATE = 0.0002;
+
   const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
   const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
@@ -182,10 +184,47 @@ export default function AdminControlPage() {
         alixVaultBalance: 0,
         onChainVaultALIX: increment(amountToTransfer)
       });
-      toast({ title: "ALIX Minted to Vault" });
+      toast({ title: "ALIX Minted to Inventory" });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal", description: err.message });
     } finally { setIsSettling(false); }
+  };
+
+  const handleConvertAlixToEthVault = async () => {
+    if (!db || !globalLiquidity || typeof window.ethereum === 'undefined') return;
+    const alixAmount = globalLiquidity.onChainVaultALIX || 0;
+    if (alixAmount <= 0) {
+      toast({ variant: "destructive", title: "ALIX Inventory Kosong" });
+      return;
+    }
+
+    const ethEquivalent = alixAmount * ALIX_TO_ETH_RATE;
+    setIsSettling(true);
+
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
+
+      // Konversi ALIX ke ETH dan Deposit ke Smart Contract
+      const tx = await contract.deposit({ value: parseEther(ethEquivalent.toFixed(18)) });
+      toast({ title: "Bridge Initiated", description: `Converting ${alixAmount} ALIX to ${ethEquivalent.toFixed(4)} ETH...` });
+      
+      await tx.wait();
+
+      // Update Database setelah konfirmasi Blockchain
+      await updateDoc(doc(db, "system", "liquidity"), {
+        onChainVaultALIX: 0, // Reset inventory ALIX karena sudah jadi ETH
+        totalEthInjectedFromAlix: increment(ethEquivalent)
+      });
+
+      toast({ title: "Liquidity Conversion Success", description: `${ethEquivalent.toFixed(4)} ETH has been added to the On-Chain Vault.` });
+      syncOnChainVault();
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Bridge Failed", description: err.message });
+    } finally {
+      setIsSettling(false);
+    }
   };
 
   const handleRedeemAlix = async () => {
@@ -231,9 +270,7 @@ export default function AdminControlPage() {
     if (!db) return;
     setProcessingId(tx.id);
     try {
-      // Simulasi Integrasi Gateway API
       await updateDoc(doc(db, tx.path), { status: "success", settledAt: new Date().toISOString() });
-      
       const userId = tx.path.split('/')[1];
       await addDoc(collection(db, "users", userId, "notifications"), {
         title: "Pencairan Berhasil",
@@ -242,8 +279,7 @@ export default function AdminControlPage() {
         read: false,
         createdAt: new Date().toISOString()
       });
-
-      toast({ title: "Settlement Berhasil", description: "Dana telah dikonfirmasi terkirim ke bank nasabah." });
+      toast({ title: "Settlement Berhasil" });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message });
     } finally { setProcessingId(null); }
@@ -340,27 +376,37 @@ export default function AdminControlPage() {
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Accumulated ALIX</p>
               <p className="text-2xl font-black text-accent italic">{(globalLiquidity?.alixVaultBalance || 0).toFixed(2)} ALIX</p>
               <Button onClick={handleMintToVault} disabled={isSettling || (globalLiquidity?.alixVaultBalance || 0) <= 0} className="w-full h-12 rounded-2xl font-black uppercase italic text-[9px] shadow-xl flex items-center justify-center gap-2 bg-accent text-white">
-                {isSettling ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Flame className="w-4 h-4" /> Inject to Vault</>}
+                {isSettling ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Flame className="w-4 h-4" /> Move to Inventory</>}
               </Button>
             </Card>
 
-            <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-blue-500/5 relative overflow-hidden">
+            <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-blue-500/5 relative overflow-hidden group">
               <div className="absolute top-4 right-4"><button onClick={syncOnChainVault} disabled={syncingVault} className="p-2 rounded-full hover:bg-blue-500/10 text-blue-600"><RefreshCw className={cn("w-4 h-4", syncingVault && "animate-spin")} /></button></div>
               <div className="flex items-center justify-between mb-2"><Coins className="w-5 h-5 text-blue-500" /><Badge variant="outline" className="text-[8px] font-black uppercase border-blue-200 text-blue-600">On-Chain Vault</Badge></div>
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Global Asset Reserve</p>
+              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">ETH Reserve</p>
               <p className="text-3xl font-black text-blue-600 italic">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
-              <Button onClick={handleRedeemAlix} disabled={isSettling || (globalLiquidity?.onChainVaultALIX || 0) <= 0} className="w-full h-8 rounded-xl font-black uppercase italic text-[8px] bg-primary text-white shadow-lg mt-4">
-                Convert ALIX to IDR
-              </Button>
+              
+              <div className="pt-4 space-y-2">
+                <div className="flex justify-between items-center bg-white/40 p-2 rounded-lg">
+                  <span className="text-[8px] font-black text-muted-foreground uppercase">Inventory</span>
+                  <span className="text-[10px] font-black text-accent">{(globalLiquidity?.onChainVaultALIX || 0).toFixed(2)} ALIX</span>
+                </div>
+                <Button 
+                  onClick={handleConvertAlixToEthVault} 
+                  disabled={isSettling || (globalLiquidity?.onChainVaultALIX || 0) <= 0} 
+                  className="w-full h-10 rounded-xl font-black uppercase italic text-[8px] bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                >
+                  {isSettling ? <Loader2 className="w-3 h-3 animate-spin" /> : <><ArrowRightLeft className="w-3 h-3" /> Convert ALIX to ETH Vault</>}
+                </Button>
+              </div>
             </Card>
 
             <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white space-y-2 shadow-2xl relative overflow-hidden group flex flex-col justify-center">
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Gateway Control</p>
-              <p className="text-2xl font-black italic tracking-tighter uppercase">Disburse Engine</p>
-              <div className="flex items-center gap-2 mt-4">
-                <ShieldCheck className="w-3 h-3 text-primary" />
-                <p className="text-[8px] font-bold uppercase tracking-widest text-primary">Settlement status: Connected to V3 Node</p>
-              </div>
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Admin Quick Cash</p>
+              <p className="text-2xl font-black italic tracking-tighter uppercase">Redeem ALIX</p>
+              <Button onClick={handleRedeemAlix} disabled={isSettling || (globalLiquidity?.onChainVaultALIX || 0) <= 0} className="w-full h-10 rounded-xl font-black uppercase italic text-[9px] gold-gradient text-white shadow-xl mt-4">
+                Redeem to IDR Balance
+              </Button>
             </Card>
           </div>
 
