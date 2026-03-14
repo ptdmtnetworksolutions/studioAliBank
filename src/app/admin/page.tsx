@@ -20,7 +20,8 @@ import {
   ArrowRightLeft,
   Check,
   X,
-  ExternalLink
+  ExternalLink,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -46,11 +47,10 @@ import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
 
-// ABI diperbarui untuk menyertakan fungsi rilis dana riil
 const CONTRACT_ABI = [
   "function getTotalVaultBalance() public view returns (uint256)",
   "function owner() public view returns (address)",
-  "function releaseFunds(address _to, uint256 _amount) public", // Fungsi Settlement On-Chain
+  "function releaseFunds(address _to, uint256 _amount) public",
   "function withdraw(uint256 _amount) public"
 ];
 
@@ -66,6 +66,8 @@ export default function AdminControlPage() {
   const [onChainTotal, setOnChainTotal] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
   const [processingBridge, setProcessingBridge] = useState<string | null>(null);
+  const [contractOwner, setContractOwner] = useState<string | null>(null);
+  const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
 
   const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
@@ -83,9 +85,18 @@ export default function AdminControlPage() {
     setSyncingVault(true);
     try {
       const provider = new BrowserProvider(window.ethereum);
+      const accounts = await provider.listAccounts();
+      if (accounts.length > 0) setConnectedAddress(accounts[0].address.toLowerCase());
+
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
-      const balance = await contract.getTotalVaultBalance();
+      
+      const [balance, ownerAddr] = await Promise.all([
+        contract.getTotalVaultBalance(),
+        contract.owner()
+      ]);
+
       setOnChainTotal(formatEther(balance));
+      setContractOwner(ownerAddr.toLowerCase());
     } catch (err) {
       console.error("Vault Sync Error:", err);
     } finally {
@@ -103,7 +114,6 @@ export default function AdminControlPage() {
   }, [db, isAuthorized]);
   const { data: allUsers } = useCollection(usersQuery);
 
-  // Simplified query to avoid index errors
   const allInvoicesQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
     return query(collectionGroup(db, "invoices"), limit(200));
@@ -119,7 +129,6 @@ export default function AdminControlPage() {
     });
   }, [rawInvoices]);
 
-  // Simplified query to avoid index errors
   const txQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
     return query(collectionGroup(db, "transactions"), limit(200));
@@ -155,9 +164,6 @@ export default function AdminControlPage() {
       });
   };
 
-  /**
-   * EKSEKUSI RIIL: Mengirimkan dana dari Smart Contract ke dompet tujuan di Mainnet
-   */
   const handleApproveBridge = async (bridgeTx: any) => {
     if (!db || !isAuthorized || typeof window.ethereum === 'undefined') {
       toast({ variant: "destructive", title: "Infrastruktur Tidak Siap", description: "Pastikan MetaMask terhubung." });
@@ -167,43 +173,48 @@ export default function AdminControlPage() {
     setProcessingBridge(bridgeTx.id);
     
     try {
-      // 1. Ekstrak Alamat Wallet - Strategi Berlapis
+      // 1. Ekstrak Alamat Wallet
       const description = bridgeTx.description || "";
       const addressMatch = description.match(/0x[a-fA-F0-9]{40,}/i);
-      
       let destAddress = bridgeTx.toAddress || (addressMatch ? addressMatch[0] : null);
 
-      // Fallback ke User Profile jika tidak ada di record transaksi
       if (!destAddress && bridgeTx.path) {
         const pathParts = bridgeTx.path.split('/');
         const userIdFromPath = pathParts[1];
         const userProfile = allUsers?.find(u => u.id === userIdFromPath);
-        if (userProfile?.walletAddress) {
-          destAddress = userProfile.walletAddress;
-        }
+        if (userProfile?.walletAddress) destAddress = userProfile.walletAddress;
       }
 
-      if (!destAddress) {
-        throw new Error("Alamat wallet tujuan tidak ditemukan pada record transaksi maupun profil nasabah.");
-      }
+      if (!destAddress) throw new Error("Alamat wallet tujuan tidak ditemukan.");
 
-      // 2. Interaksi Blockchain Riil
+      // 2. Verifikasi Otoritas Wallet yang Terhubung
       const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
-
-      toast({ title: "Menunggu MetaMask", description: "Silakan konfirmasi transaksi pengiriman di wallet Anda." });
+      const currentWallet = (await signer.getAddress()).toLowerCase();
       
+      if (contractOwner && currentWallet !== contractOwner) {
+        throw new Error(`Wallet yang terhubung (${currentWallet.slice(0,6)}) bukan pemilik Smart Contract. Harap gunakan wallet Owner (${contractOwner.slice(0,6)}) di MetaMask.`);
+      }
+
+      // 3. Interaksi Blockchain
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
       const amountInWei = parseEther(bridgeTx.cryptoAmount.toString());
       
-      // Memanggil fungsi rilis dana pada Smart Contract
-      const tx = await contract.releaseFunds(destAddress, amountInWei);
+      // Cek Saldo Vault sebelum kirim
+      const vaultBalance = await contract.getTotalVaultBalance();
+      if (vaultBalance < amountInWei) {
+        throw new Error("Saldo ETH di Smart Contract (Vault) tidak mencukupi untuk penarikan ini.");
+      }
+
+      toast({ title: "Menunggu Konfirmasi", description: "Silakan setujui pengiriman dana di MetaMask Anda." });
       
-      toast({ title: "Transaksi Broadcasted", description: "Menunggu konfirmasi blok Mainnet..." });
+      const tx = await contract.releaseFunds(destAddress, amountInWei);
+      toast({ title: "Transaksi Diproses", description: "Menunggu konfirmasi blok Mainnet..." });
+      
       const receipt = await tx.wait();
 
       if (receipt.status === 1) {
-        // 3. Update Status di Database AliBank setelah On-Chain Sukses
+        // 4. Update Database
         const txRef = doc(db, bridgeTx.path);
         await updateDoc(txRef, { 
           status: "success", 
@@ -211,26 +222,27 @@ export default function AdminControlPage() {
           txHash: receipt.hash 
         });
 
-        // 4. Notifikasi ke Nasabah
-        const pathParts = bridgeTx.path.split('/');
-        const userId = pathParts[1];
-
+        const userId = bridgeTx.path.split('/')[1];
         if (userId) {
           await addDoc(collection(db, "users", userId, "notifications"), {
-            title: "V3 Settlement Berhasil",
-            message: `Dana sebesar ${bridgeTx.cryptoAmount} ETH telah dikirim ke wallet Anda. Hash: ${receipt.hash.slice(0,10)}...`,
+            title: "Settlement Berhasil",
+            message: `Dana ${bridgeTx.cryptoAmount} ETH telah terkirim ke wallet Anda.`,
             type: "success",
             read: false,
             createdAt: new Date().toISOString()
           });
         }
 
-        toast({ title: "Settlement Riil Berhasil", description: "Dana telah berpindah dari Vault ke Wallet nasabah." });
+        toast({ title: "Settlement Sukses", description: "Dana telah berpindah secara fisik ke dompet nasabah." });
         syncOnChainVault();
       }
     } catch (err: any) {
       console.error("Settlement Error:", err);
-      toast({ variant: "destructive", title: "Settlement Gagal", description: err.reason || err.message || "Kesalahan pada interaksi blockchain." });
+      let errMsg = err.reason || err.message || "Gagal melakukan interaksi blockchain.";
+      if (errMsg.includes("execution reverted")) {
+        errMsg = "Eksekusi ditolak Smart Contract. Pastikan Anda adalah OWNER dan saldo Vault mencukupi.";
+      }
+      toast({ variant: "destructive", title: "Settlement Gagal", description: errMsg });
     } finally {
       setProcessingBridge(null);
     }
@@ -252,7 +264,7 @@ export default function AdminControlPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background">
         <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground animate-pulse">Verifying Ownership Credentials...</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground animate-pulse">Verifying Ownership...</p>
       </div>
     );
   }
@@ -262,21 +274,31 @@ export default function AdminControlPage() {
       <Navbar />
       
       <main className="container mx-auto px-4 max-w-7xl">
-        <header className="mb-12 pt-8">
-          <div className="flex items-center gap-4 mb-3">
+        <header className="mb-12 pt-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center shadow-lg border border-destructive/20 p-4">
               <ShieldAlert className="text-destructive w-10 h-10" />
             </div>
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <h1 className="text-4xl font-black text-accent uppercase italic tracking-tighter">Owner Command Center</h1>
-                <Badge variant="destructive" className="animate-pulse px-3 py-1 rounded-full text-[10px] font-black">SUPER ADMIN</Badge>
+                <Badge variant="destructive" className="px-3 py-1 rounded-full text-[10px] font-black">SUPER ADMIN</Badge>
               </div>
               <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                 <Lock className="w-3 h-3" /> Encrypted Access: {OWNER_EMAIL}
               </p>
             </div>
           </div>
+
+          {contractOwner && connectedAddress && connectedAddress !== contractOwner && (
+            <div className="bg-amber-100 border border-amber-200 p-4 rounded-2xl flex items-center gap-4 animate-in fade-in slide-in-from-right-4">
+              <AlertTriangle className="text-amber-600 w-6 h-6" />
+              <div>
+                <p className="text-[10px] font-black uppercase text-amber-800">Wallet Warning</p>
+                <p className="text-[11px] font-bold text-amber-700 leading-tight">Ganti Wallet MetaMask Anda ke alamat Owner ({contractOwner.slice(0,10)}...) untuk mengeksekusi Bridge.</p>
+              </div>
+            </div>
+          )}
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
@@ -407,9 +429,15 @@ export default function AdminControlPage() {
           <TabsContent value="bridge">
             <section className="liquid-glass rounded-[3rem] overflow-hidden border-none shadow-2xl">
               <div className="p-8 border-b border-primary/5 bg-blue-500/5 flex items-center justify-between">
-                <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3 text-accent">
-                  <ArrowRightLeft className="w-6 h-6 text-blue-600" /> V3 Node Bridge Queue
-                </h3>
+                <div className="flex items-center gap-3">
+                  <ArrowRightLeft className="w-6 h-6 text-blue-600" />
+                  <div>
+                    <h3 className="text-xl font-black italic uppercase tracking-tighter text-accent">V3 Node Bridge Queue</h3>
+                    {contractOwner && (
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase">Requester: Wallet {contractOwner.slice(0,10)}...</p>
+                    )}
+                  </div>
+                </div>
                 <Badge variant="outline" className="text-[10px] font-black text-blue-600 border-blue-200">WAITING SETTLEMENT</Badge>
               </div>
               <div className="overflow-x-auto">
@@ -442,7 +470,10 @@ export default function AdminControlPage() {
                           <Button 
                             onClick={() => handleApproveBridge(bridge)}
                             disabled={processingBridge === bridge.id}
-                            className="h-10 px-6 rounded-xl gold-gradient text-white font-black italic uppercase text-[10px] shadow-lg"
+                            className={cn(
+                              "h-10 px-6 rounded-xl text-white font-black italic uppercase text-[10px] shadow-lg",
+                              connectedAddress === contractOwner ? "gold-gradient" : "bg-muted text-muted-foreground"
+                            )}
                           >
                             {processingBridge === bridge.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4 mr-2" /> Release Funds</>}
                           </Button>
