@@ -190,8 +190,13 @@ export default function AdminControlPage() {
     } finally { setIsSettling(false); }
   };
 
+  /**
+   * MEMPERBAIKI MEKANISME KONVERSI:
+   * Sekarang konversi ALIX ke ETH bersifat otonom (Synthetic Injection).
+   * Nilai ALIX dipindahkan langsung ke saldo ETH Vault di database tanpa memotong MetaMask.
+   */
   const handleConvertAlixToEthVault = async () => {
-    if (!db || !globalLiquidity || typeof window.ethereum === 'undefined') return;
+    if (!db || !globalLiquidity) return;
     const alixAmount = globalLiquidity.onChainVaultALIX || 0;
     if (alixAmount <= 0) {
       toast({ variant: "destructive", title: "ALIX Inventory Kosong" });
@@ -202,26 +207,22 @@ export default function AdminControlPage() {
     setIsSettling(true);
 
     try {
-      const provider = new BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
-
-      // Konversi ALIX ke ETH dan Deposit ke Smart Contract
-      const tx = await contract.deposit({ value: parseEther(ethEquivalent.toFixed(18)) });
-      toast({ title: "Bridge Initiated", description: `Converting ${alixAmount} ALIX to ${ethEquivalent.toFixed(4)} ETH...` });
-      
-      await tx.wait();
-
-      // Update Database setelah konfirmasi Blockchain
+      // Injeksi Likuiditas Sintetis: Memindahkan nilai ALIX menjadi saldo ETH Vault di database
+      // Ini tidak memanggil MetaMask karena ALIX adalah aset yang "diciptakan" oleh bank itu sendiri.
       await updateDoc(doc(db, "system", "liquidity"), {
-        onChainVaultALIX: 0, // Reset inventory ALIX karena sudah jadi ETH
+        onChainVaultALIX: 0, 
+        syntheticEthReserve: increment(ethEquivalent),
         totalEthInjectedFromAlix: increment(ethEquivalent)
       });
 
-      toast({ title: "Liquidity Conversion Success", description: `${ethEquivalent.toFixed(4)} ETH has been added to the On-Chain Vault.` });
+      toast({ 
+        title: "Synthetic Injection Success", 
+        description: `${ethEquivalent.toFixed(4)} ETH baru telah diciptakan dari hasil mining ALIX.` 
+      });
+      
       syncOnChainVault();
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Bridge Failed", description: err.message });
+      toast({ variant: "destructive", title: "Injection Failed", description: err.message });
     } finally {
       setIsSettling(false);
     }
@@ -383,8 +384,10 @@ export default function AdminControlPage() {
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-blue-500/5 relative overflow-hidden group">
               <div className="absolute top-4 right-4"><button onClick={syncOnChainVault} disabled={syncingVault} className="p-2 rounded-full hover:bg-blue-500/10 text-blue-600"><RefreshCw className={cn("w-4 h-4", syncingVault && "animate-spin")} /></button></div>
               <div className="flex items-center justify-between mb-2"><Coins className="w-5 h-5 text-blue-500" /><Badge variant="outline" className="text-[8px] font-black uppercase border-blue-200 text-blue-600">On-Chain Vault</Badge></div>
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">ETH Reserve</p>
-              <p className="text-3xl font-black text-blue-600 italic">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
+              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Bank Capacity</p>
+              <p className="text-3xl font-black text-blue-600 italic">
+                {(parseFloat(onChainTotal) + (globalLiquidity?.syntheticEthReserve || 0)).toFixed(4)} ETH
+              </p>
               
               <div className="pt-4 space-y-2">
                 <div className="flex justify-between items-center bg-white/40 p-2 rounded-lg">
@@ -396,7 +399,7 @@ export default function AdminControlPage() {
                   disabled={isSettling || (globalLiquidity?.onChainVaultALIX || 0) <= 0} 
                   className="w-full h-10 rounded-xl font-black uppercase italic text-[8px] bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
                 >
-                  {isSettling ? <Loader2 className="w-3 h-3 animate-spin" /> : <><ArrowRightLeft className="w-3 h-3" /> Convert ALIX to ETH Vault</>}
+                  {isSettling ? <Loader2 className="w-3 h-3 animate-spin" /> : <><ArrowRightLeft className="w-3 h-3" /> Inject ALIX as ETH Reserve</>}
                 </Button>
               </div>
             </Card>
