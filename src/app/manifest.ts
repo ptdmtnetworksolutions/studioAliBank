@@ -7,6 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Pendamping perbankan cerdas, elegan, dan terintegrasi kripto.',
     start_url: '/',
     display: 'standalone',
+    orientation: 'portrait',
     background_color: '#F5F5DC',
     theme_color: '#B8860B',
     icons: [

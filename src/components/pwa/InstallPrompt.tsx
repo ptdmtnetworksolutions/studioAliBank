@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Download, PlusSquare, Sparkles } from "lucide-react";
+import { X, Download, PlusSquare, Sparkles, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogoIcon } from "@/components/ui/logo";
 
@@ -13,6 +13,8 @@ export function InstallPrompt() {
 
   useEffect(() => {
     setMounted(true);
+    
+    // Jangan munculkan prompt jika sudah terinstal
     if (window.matchMedia('(display-mode: standalone)').matches) return;
 
     const handleBeforeInstallPrompt = (e: any) => {
@@ -67,13 +69,16 @@ export function InstallPrompt() {
           </div>
           
           <div className="flex-1">
-            <h3 className="text-sm font-black text-white uppercase tracking-tighter italic flex items-center gap-2">
-              Pasang AliBank <Sparkles className="w-3 h-3 text-primary" />
-            </h3>
-            <p className="text-[10px] text-white/70 font-medium leading-tight mt-1">
+            <div className="flex items-center gap-2 mb-1">
+              <Badge className="bg-primary text-white text-[7px] font-black h-4 px-1">NATIVE EXP</Badge>
+              <h3 className="text-sm font-black text-white uppercase tracking-tighter italic flex items-center gap-2">
+                Install AliBank <Sparkles className="w-3 h-3 text-primary" />
+              </h3>
+            </div>
+            <p className="text-[10px] text-white/70 font-medium leading-tight">
               {isIOS 
-                ? "Tap ikon 'Bagikan' lalu 'Tambah ke Layar Utama' untuk pengalaman perbankan elit." 
-                : "Akses portofolio dan asisten AI Anda lebih cepat langsung dari layar utama."}
+                ? "Tap ikon 'Bagikan' lalu 'Tambah ke Layar Utama' untuk memasang aplikasi iOS." 
+                : "Pasang AliBank ke Android Anda untuk akses cepat tanpa browser."}
             </p>
           </div>
 
@@ -86,8 +91,8 @@ export function InstallPrompt() {
               PASANG <Download className="w-3 h-3 ml-2" />
             </Button>
           ) : (
-            <div className="flex items-center gap-2 p-3 rounded-2xl bg-white/10 border border-white/10">
-              <PlusSquare className="w-5 h-5 text-primary" />
+            <div className="flex items-center gap-2 p-3 rounded-2xl bg-white/10 border border-white/10 text-primary">
+              <Smartphone className="w-5 h-5 animate-bounce" />
             </div>
           )}
         </div>
@@ -95,3 +100,5 @@ export function InstallPrompt() {
     </div>
   );
 }
+
+import { Badge } from "../ui/badge";
