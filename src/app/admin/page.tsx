@@ -159,13 +159,27 @@ export default function AdminControlPage() {
     setProcessingBridge(bridgeTx.id);
     
     try {
-      // 1. Ekstrak Alamat Wallet - Prioritas field toAddress, Fallback regex (lebih fleksibel tanpa kurung)
+      // 1. Ekstrak Alamat Wallet - Strategi Berlapis
+      // A. Cek field toAddress (Data terstruktur baru)
+      // B. Cek regex dari deskripsi (Data lama)
+      // C. Cek dari User Profile (Sinkronisasi akun)
       const description = bridgeTx.description || "";
-      const addressMatch = description.match(/(0x[a-fA-F0-9]{40,})/i);
-      const destAddress = bridgeTx.toAddress || (addressMatch ? addressMatch[1] : null);
+      const addressMatch = description.match(/0x[a-fA-F0-9]{40,}/i);
+      
+      let destAddress = bridgeTx.toAddress || (addressMatch ? addressMatch[0] : null);
+
+      // Fallback ke User Profile jika tidak ada di record transaksi
+      if (!destAddress && bridgeTx.path) {
+        const pathParts = bridgeTx.path.split('/');
+        const userIdFromPath = pathParts[1];
+        const userProfile = allUsers?.find(u => u.id === userIdFromPath);
+        if (userProfile?.walletAddress) {
+          destAddress = userProfile.walletAddress;
+        }
+      }
 
       if (!destAddress) {
-        throw new Error("Alamat wallet tujuan tidak ditemukan pada record transaksi.");
+        throw new Error("Alamat wallet tujuan tidak ditemukan pada record transaksi maupun profil nasabah.");
       }
 
       // 2. Interaksi Blockchain Riil
@@ -417,7 +431,7 @@ export default function AdminControlPage() {
                           {bridge.path ? bridge.path.split('/')[1].slice(0,8) : '...'}
                         </td>
                         <td className="px-8 py-5 text-[10px] font-mono font-medium text-muted-foreground">
-                          {bridge.toAddress || bridge.description.match(/(0x[a-fA-F0-9]{40,})/i)?.[1] || "V3 External Wallet"}
+                          {bridge.toAddress || bridge.description.match(/0x[a-fA-F0-9]{40,}/i)?.[0] || "V3 External Wallet"}
                         </td>
                         <td className="px-8 py-5 text-right">
                           <Button 
