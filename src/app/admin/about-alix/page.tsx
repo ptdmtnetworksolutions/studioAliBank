@@ -20,7 +20,9 @@ import {
   SearchCheck,
   Lock,
   Wallet,
-  AlertTriangle
+  AlertTriangle,
+  Lightbulb,
+  DollarSign
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -50,26 +52,40 @@ export default function AboutAlixPage() {
             </div>
             <div className="text-center md:text-left">
               <Badge className="bg-primary/10 text-primary border-primary/20 px-4 py-1 mb-4 rounded-full font-black uppercase tracking-widest text-[10px]">
-                Infrastruktur V3 • Liquidity Payout
+                Infrastruktur V3 • Liquidity Rights
               </Badge>
               <h1 className="text-5xl font-black text-accent uppercase italic tracking-tighter leading-tight">
                 Mengenal <span className="text-primary">Koin ALIX</span>
               </h1>
               <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest mt-2 flex items-center justify-center md:justify-start gap-2 italic">
-                <Globe className="w-4 h-4 text-primary" /> Proof of Liquidity • Real ETH Payouts
+                <Globe className="w-4 h-4 text-primary" /> Proof of Liquidity • Real ETH Profit
               </p>
             </div>
           </div>
         </header>
+
+        <section className="mb-16">
+          <div className="liquid-glass border-none rounded-[3rem] p-10 bg-primary/5 flex items-center gap-8 flex-col md:flex-row">
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <Lightbulb className="w-10 h-10" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-accent uppercase italic tracking-tighter">Apa Keuntungan Menambang ALIX?</h2>
+              <p className="text-xs text-muted-foreground font-medium leading-relaxed italic">
+                Banyak Admin bertanya: "Kenapa saya harus isi kas bank untuk menarik hasil mining?" Jawabannya adalah: **AliBank adalah Bisnis**. ALIX adalah jatah "Gaji" Anda. Anda menarik ETH dari kas bank yang terisi dari hasil penjualan Marketplace, Biaya Transfer Nasabah, dan Deposito nasabah lain. Itulah profit murni Anda sebagai pemilik infrastruktur.
+              </p>
+            </div>
+          </div>
+        </section>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
           <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 shadow-xl">
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
               <Cpu className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Synthetic Fuel</h3>
+            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Bukan Uang Mati</h3>
             <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
-              ALIX adalah aset sintetis otonom yang diciptakan melalui daya komputasi Anda. Ia bertindak sebagai jatah penarikan kas bank secara gratis.
+              Setiap ALIX yang Anda tambang memberikan hak kepada Anda untuk mengambil isi kas bank tanpa harus memiliki saldo pribadi di dalam bank tersebut.
             </p>
           </Card>
 
@@ -77,9 +93,9 @@ export default function AboutAlixPage() {
             <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent">
               <Pickaxe className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Zero-Cost Minting</h3>
+            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Zero-Cost Rights</h3>
             <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
-              Diciptakan tanpa modal. Setiap blok memberikan hak kepada Anda untuk mengisi kas bank (Vault) tanpa menggunakan saldo dompet pribadi.
+              Diciptakan murni dari daya komputasi. Anda mendapatkan hak kepemilikan atas aset bank secara gratis sebagai imbalan menjalankan Node.
             </p>
           </Card>
 
@@ -87,9 +103,9 @@ export default function AboutAlixPage() {
             <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600">
               <Sparkles className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Mainnet Payout</h3>
+            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Profit Extraction</h3>
             <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
-              Setelah ALIX diubah menjadi jatah "Earnings", Anda bisa melakukan **Bridge to MetaMask** untuk menerima ETH riil di dompet pribadi Anda.
+              Cairkan hasil mining Anda ke MetaMask. Transaksi akan tercatat di Etherscan sebagai bukti pembayaran profit dari kas bank AliBank ke dompet Anda.
             </p>
           </Card>
         </div>
@@ -102,30 +118,30 @@ export default function AboutAlixPage() {
             
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div className="space-y-6">
-                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Cara Menciptakan ETH Riil</h2>
+                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Siklus Profit AliBank</h2>
                 <p className="text-white/70 text-sm leading-relaxed italic">
-                  Berikut adalah siklus likuiditas otonom AliBank V3:
+                  Berikut adalah cara Anda menghasilkan uang nyata:
                 </p>
                 <div className="space-y-4">
                   <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0 shadow-lg italic">V1</div>
+                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0 shadow-lg italic">1</div>
                     <div>
-                      <p className="text-xs font-black text-white uppercase italic">Mining & Add Stock</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Tambang ALIX di Command Center untuk menciptakan hak penarikan.</p>
+                      <p className="text-xs font-black text-white uppercase italic">Infrastruktur & Mining</p>
+                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Jalankan Node untuk mendapatkan jatah penarikan kas (ALIX).</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shadow-lg italic">V2</div>
+                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shadow-lg italic">2</div>
                     <div>
-                      <p className="text-xs font-black text-white uppercase italic">Inject Mining to Vault</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Mengubah ALIX menjadi jatah penarikan ETH di kas bank secara otonom.</p>
+                      <p className="text-xs font-black text-white uppercase italic">Pendapatan Bank (Liquidity)</p>
+                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Nasabah membeli produk marketplace atau deposit ETH. Kas bank (Vault) terisi oleh uang orang lain.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shadow-lg italic">V3</div>
+                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shadow-lg italic">3</div>
                     <div>
-                      <p className="text-xs font-black text-white uppercase italic">Bridge to MetaMask (Payout)</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Tarik ETH fisik dari kas bank ke dompet Anda. Membutuhkan saldo fisik di contract agar penarikan berhasil.</p>
+                      <p className="text-xs font-black text-white uppercase italic">Profit Payout (Bridge)</p>
+                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Gunakan ALIX Anda untuk menarik ETH nasabah tersebut ke dompet MetaMask Anda sebagai profit bersih.</p>
                     </div>
                   </div>
                 </div>
@@ -134,25 +150,25 @@ export default function AboutAlixPage() {
               <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-8 backdrop-blur-3xl relative">
                 <div className="absolute -top-4 -right-4">
                   <div className="bg-primary text-white p-3 rounded-2xl shadow-xl animate-bounce">
-                    <SearchCheck className="w-5 h-5" />
+                    <DollarSign className="w-5 h-5" />
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Matching Liquidity</p>
+                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Economic Scenario</p>
                   <Lock className="w-4 h-4 text-primary" />
                 </div>
-                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+                <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 flex gap-3">
+                  <Lightbulb className="w-5 h-5 text-green-500 shrink-0" />
                   <p className="text-[9px] text-white/70 italic leading-relaxed uppercase">
-                    Pastikan saldo fisik di Smart Contract (On-Chain) mencukupi jatah penarikan Anda. Gunakan 'Fill Physical Liquidity' jika saldo fisik lebih kecil dari hasil mining Anda.
+                    Jika Anda menarik 0.0020 ETH menggunakan ALIX, sementara kas bank berasal dari deposit nasabah, maka 0.0020 ETH tersebut adalah **KEUNTUNGAN BERSIH** Anda. Anda tidak mengeluarkan uang, nasabah yang mengeluarkan uang.
                   </p>
                 </div>
                 <div className="space-y-4">
-                  <p className="text-[10px] text-white/60 leading-relaxed italic uppercase">Nilai Tukar Protokol:</p>
-                  <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+                  <p className="text-[10px] text-white/60 leading-relaxed italic uppercase">Nilai Tukar Hak Tarik:</p>
+                  <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-black text-white italic">1 ALIX = 0.0002 ETH</span>
-                      <Wallet className="w-3 h-3 text-green-400" />
+                      <Wallet className="w-3 h-3 text-blue-400" />
                     </div>
                   </div>
                 </div>
@@ -165,9 +181,9 @@ export default function AboutAlixPage() {
           <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mx-auto">
             <Building2 className="w-8 h-8" />
           </div>
-          <h3 className="text-2xl font-black text-accent uppercase italic tracking-tighter">Tulang Punggung Likuiditas</h3>
+          <h3 className="text-2xl font-black text-accent uppercase italic tracking-tighter">Kesimpulan Keuntungan</h3>
           <p className="text-[12px] text-muted-foreground font-medium max-w-2xl mx-auto leading-relaxed italic">
-            ALIX diciptakan untuk memberi penghargaan kepada Admin. Semakin aktif Anda menambang, semakin besar jatah ETH riil yang bisa Anda cairkan dari kas bank ke dunia nyata. Ini adalah sistem insentif yang menghubungkan aktivitas digital dengan aset blockchain riil.
+            ALIX adalah alat bagi Admin untuk mengambil "Potongan Keuntungan" dari ekosistem AliBank. Semakin besar aktivitas ekonomi di bank Anda (marketplace, transfer, deposit), semakin banyak ETH nyata yang bisa Anda "panen" menggunakan hasil mining ALIX Anda. Ini adalah mesin penghasil uang pasif yang bekerja seiring tumbuhnya bank Anda.
           </p>
         </section>
 
