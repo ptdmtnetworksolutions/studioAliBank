@@ -21,7 +21,8 @@ import {
   Check,
   X,
   ExternalLink,
-  AlertTriangle
+  AlertTriangle,
+  Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -51,7 +52,8 @@ const CONTRACT_ABI = [
   "function getTotalVaultBalance() public view returns (uint256)",
   "function owner() public view returns (address)",
   "function releaseFunds(address _to, uint256 _amount) public",
-  "function withdraw(uint256 _amount) public"
+  "function withdraw(uint256 _amount) public",
+  "function deposit() public payable"
 ];
 
 const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
@@ -68,6 +70,8 @@ export default function AdminControlPage() {
   const [processingBridge, setProcessingBridge] = useState<string | null>(null);
   const [contractOwner, setContractOwner] = useState<string | null>(null);
   const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [isDepositing, setIsDepositing] = useState(false);
 
   const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
@@ -164,6 +168,28 @@ export default function AdminControlPage() {
       });
   };
 
+  const handleDepositToVault = async () => {
+    if (!depositAmount || isNaN(parseFloat(depositAmount)) || typeof window.ethereum === 'undefined') return;
+    setIsDepositing(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
+      
+      const tx = await contract.deposit({ value: parseEther(depositAmount) });
+      toast({ title: "Top Up Diproses", description: "Menunggu konfirmasi blockchain..." });
+      await tx.wait();
+      
+      toast({ title: "Likuiditas Ditambahkan", description: `${depositAmount} ETH telah masuk ke Vault V3.` });
+      setDepositAmount("");
+      syncOnChainVault();
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Top Up Gagal", description: err.message });
+    } finally {
+      setIsDepositing(false);
+    }
+  };
+
   const handleApproveBridge = async (bridgeTx: any) => {
     if (!db || !isAuthorized || typeof window.ethereum === 'undefined') {
       toast({ variant: "destructive", title: "Infrastruktur Tidak Siap", description: "Pastikan MetaMask terhubung." });
@@ -203,7 +229,7 @@ export default function AdminControlPage() {
       // Cek Saldo Vault sebelum kirim
       const vaultBalance = await contract.getTotalVaultBalance();
       if (vaultBalance < amountInWei) {
-        throw new Error("Saldo ETH di Smart Contract (Vault) tidak mencukupi untuk penarikan ini.");
+        throw new Error(`Saldo ETH di Smart Contract (Vault) tidak mencukupi. Tersedia: ${formatEther(vaultBalance)} ETH, Dibutuhkan: ${bridgeTx.cryptoAmount} ETH.`);
       }
 
       toast({ title: "Menunggu Konfirmasi", description: "Silakan setujui pengiriman dana di MetaMask Anda." });
@@ -290,15 +316,37 @@ export default function AdminControlPage() {
             </div>
           </div>
 
-          {contractOwner && connectedAddress && connectedAddress !== contractOwner && (
-            <div className="bg-amber-100 border border-amber-200 p-4 rounded-2xl flex items-center gap-4 animate-in fade-in slide-in-from-right-4">
-              <AlertTriangle className="text-amber-600 w-6 h-6" />
-              <div>
-                <p className="text-[10px] font-black uppercase text-amber-800">Wallet Warning</p>
-                <p className="text-[11px] font-bold text-amber-700 leading-tight">Ganti Wallet MetaMask Anda ke alamat Owner ({contractOwner.slice(0,10)}...) untuk mengeksekusi Bridge.</p>
+          <div className="flex flex-col gap-4">
+            {contractOwner && connectedAddress && connectedAddress !== contractOwner && (
+              <div className="bg-amber-100 border border-amber-200 p-4 rounded-2xl flex items-center gap-4 animate-in fade-in slide-in-from-right-4">
+                <AlertTriangle className="text-amber-600 w-6 h-6" />
+                <div>
+                  <p className="text-[10px] font-black uppercase text-amber-800">Wallet Warning</p>
+                  <p className="text-[11px] font-bold text-amber-700 leading-tight">Ganti Wallet MetaMask Anda ke alamat Owner ({contractOwner.slice(0,10)}...) untuk mengeksekusi Bridge.</p>
+                </div>
               </div>
+            )}
+            
+            <div className="liquid-glass border-none rounded-2xl p-4 flex items-center gap-3 bg-primary/5">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary/40">ETH</span>
+                <Input 
+                  placeholder="0.00" 
+                  type="number"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  className="h-10 pl-10 w-32 rounded-xl bg-white/50 border-none text-xs font-black italic"
+                />
+              </div>
+              <Button 
+                onClick={handleDepositToVault} 
+                disabled={isDepositing || !depositAmount}
+                className="h-10 px-4 gold-gradient text-white rounded-xl text-[10px] font-black uppercase italic"
+              >
+                {isDepositing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-1" /> Refill Vault</>}
+              </Button>
             </div>
-          )}
+          </div>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
@@ -438,7 +486,15 @@ export default function AdminControlPage() {
                     )}
                   </div>
                 </div>
-                <Badge variant="outline" className="text-[10px] font-black text-blue-600 border-blue-200">WAITING SETTLEMENT</Badge>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="text-[8px] font-black text-muted-foreground uppercase">Current Vault Reserve</p>
+                    <p className={cn("text-xs font-black italic", parseFloat(onChainTotal) < 0.1 ? "text-destructive" : "text-blue-600")}>
+                      {parseFloat(onChainTotal).toFixed(4)} ETH
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-black text-blue-600 border-blue-200">WAITING SETTLEMENT</Badge>
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
@@ -452,34 +508,40 @@ export default function AdminControlPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-primary/5">
-                    {pendingBridges.map((bridge) => (
-                      <tr key={bridge.id} className="hover:bg-primary/5 transition-colors">
-                        <td className="px-8 py-5 text-[10px] font-bold text-muted-foreground">
-                          {bridge.date ? new Date(bridge.date).toLocaleString() : 'Recent'}
-                        </td>
-                        <td className="px-8 py-5 font-black text-blue-600 italic">
-                          {bridge.cryptoAmount} {bridge.cryptoCurrency}
-                        </td>
-                        <td className="px-8 py-5 text-xs font-black text-accent">
-                          {bridge.path ? bridge.path.split('/')[1].slice(0,8) : '...'}
-                        </td>
-                        <td className="px-8 py-5 text-[10px] font-mono font-medium text-muted-foreground">
-                          {bridge.toAddress || bridge.description.match(/0x[a-fA-F0-9]{40,}/i)?.[0] || "V3 External Wallet"}
-                        </td>
-                        <td className="px-8 py-5 text-right">
-                          <Button 
-                            onClick={() => handleApproveBridge(bridge)}
-                            disabled={processingBridge === bridge.id}
-                            className={cn(
-                              "h-10 px-6 rounded-xl text-white font-black italic uppercase text-[10px] shadow-lg",
-                              connectedAddress === contractOwner ? "gold-gradient" : "bg-muted text-muted-foreground"
-                            )}
-                          >
-                            {processingBridge === bridge.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4 mr-2" /> Release Funds</>}
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                    {pendingBridges.map((bridge) => {
+                      const isInsufficient = bridge.cryptoAmount > parseFloat(onChainTotal);
+                      return (
+                        <tr key={bridge.id} className={cn("hover:bg-primary/5 transition-colors", isInsufficient && "bg-destructive/5")}>
+                          <td className="px-8 py-5 text-[10px] font-bold text-muted-foreground">
+                            {bridge.date ? new Date(bridge.date).toLocaleString() : 'Recent'}
+                          </td>
+                          <td className="px-8 py-5 font-black italic">
+                            <span className={cn(isInsufficient ? "text-destructive" : "text-blue-600")}>
+                              {bridge.cryptoAmount} {bridge.cryptoCurrency}
+                            </span>
+                            {isInsufficient && <Badge className="ml-2 bg-destructive/10 text-destructive border-none text-[7px]">LOW VAULT</Badge>}
+                          </td>
+                          <td className="px-8 py-5 text-xs font-black text-accent">
+                            {bridge.path ? bridge.path.split('/')[1].slice(0,8) : '...'}
+                          </td>
+                          <td className="px-8 py-5 text-[10px] font-mono font-medium text-muted-foreground">
+                            {bridge.toAddress || bridge.description.match(/0x[a-fA-F0-9]{40,}/i)?.[0] || "V3 External Wallet"}
+                          </td>
+                          <td className="px-8 py-5 text-right">
+                            <Button 
+                              onClick={() => handleApproveBridge(bridge)}
+                              disabled={processingBridge === bridge.id || isInsufficient}
+                              className={cn(
+                                "h-10 px-6 rounded-xl text-white font-black italic uppercase text-[10px] shadow-lg",
+                                connectedAddress === contractOwner && !isInsufficient ? "gold-gradient" : "bg-muted text-muted-foreground"
+                              )}
+                            >
+                              {processingBridge === bridge.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4 mr-2" /> Release Funds</>}
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {(!pendingBridges || pendingBridges.length === 0) && (
                       <tr>
                         <td colSpan={5} className="py-24 text-center">
