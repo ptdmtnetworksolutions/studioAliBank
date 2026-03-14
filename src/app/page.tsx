@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useDoc, useFirestore } from "@/firebase";
@@ -27,7 +26,8 @@ import {
   TrendingUp,
   Activity,
   ShieldAlert,
-  HelpCircle
+  HelpCircle,
+  Languages
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,23 +42,19 @@ import { useAuth } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { BrowserProvider, formatEther } from "ethers";
+import { useLanguage } from "@/context/LanguageContext";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-const mainServices = [
-  { name: "Transfer", icon: Send, color: "bg-blue-50 text-blue-600", href: "/transfer" },
-  { name: "Top Up", icon: Plus, color: "bg-green-50 text-green-600", href: "/topup" },
-  { name: "Crypto Bridge", icon: Bitcoin, color: "bg-orange-50 text-orange-600", href: "/crypto", badge: "Live" },
-  { name: "Marketplace", icon: ShoppingBag, color: "bg-amber-50 text-amber-700", href: "/marketplace" },
-  { name: "Elite Deposits", icon: PiggyBank, color: "bg-emerald-50 text-emerald-600", href: "/deposits" },
-  { name: "Withdraw", icon: ArrowDownToLine, color: "bg-indigo-50 text-indigo-600", href: "/withdraw" },
-  { name: "Pay QRIS", icon: QrCode, color: "bg-teal-50 text-teal-600", href: "/topup" },
-  { name: "AI Insight", icon: Sparkles, color: "bg-purple-50 text-purple-600", href: "/ai-assistant" },
-];
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function Dashboard() {
   const { user, loading: userLoading } = useUser();
@@ -66,9 +62,22 @@ export default function Dashboard() {
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const { t, language, setLanguage } = useLanguage();
+  
   const [mounted, setMounted] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
   const [mainnetEthBalance, setMainnetEthBalance] = useState<string>("0");
+
+  const mainServices = [
+    { name: t('transfer'), icon: Send, color: "bg-blue-50 text-blue-600", href: "/transfer" },
+    { name: "Top Up", icon: Plus, color: "bg-green-50 text-green-600", href: "/topup" },
+    { name: "Crypto Bridge", icon: Bitcoin, color: "bg-orange-50 text-orange-600", href: "/crypto", badge: "Live" },
+    { name: t('marketplace'), icon: ShoppingBag, color: "bg-amber-50 text-amber-700", href: "/marketplace" },
+    { name: "Elite Deposits", icon: PiggyBank, color: "bg-emerald-50 text-emerald-600", href: "/deposits" },
+    { name: "Withdraw", icon: ArrowDownToLine, color: "bg-indigo-50 text-indigo-600", href: "/withdraw" },
+    { name: "Pay QRIS", icon: QrCode, color: "bg-teal-50 text-teal-600", href: "/topup" },
+    { name: t('ai_assistant'), icon: Sparkles, color: "bg-purple-50 text-purple-600", href: "/ai-assistant" },
+  ];
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -120,7 +129,7 @@ export default function Dashboard() {
     if (userData?.accountNumber) {
       const num = userData.accountNumber;
       navigator.clipboard.writeText(num);
-      toast({ title: "Account Copied", description: "Nomor rekening berhasil disalin." });
+      toast({ title: t('copied'), description: t('account_copied_msg') });
     }
   };
 
@@ -160,7 +169,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-[9px] md:text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1">
-                  Platinum Private <Globe className="w-3 h-3 animate-spin-slow" />
+                  {t('platinum_private')} <Globe className="w-3 h-3 animate-spin-slow" />
                 </p>
                 <h2 className="font-black text-accent leading-tight text-lg md:text-2xl italic uppercase tracking-tighter dark:text-primary">
                   {userData?.name || "Client"}
@@ -170,9 +179,26 @@ export default function Dashboard() {
             
             <div className="flex items-center gap-3">
               <div className="hidden md:flex flex-col items-end mr-4">
-                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">System Status</p>
-                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-600/20 text-[9px] font-black uppercase">Mainnet Online</Badge>
+                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{t('system_status')}</p>
+                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-600/20 text-[9px] font-black uppercase">{t('mainnet_online')}</Badge>
               </div>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-2xl bg-white/50 border border-primary/5 shadow-sm dark:bg-white/5">
+                    <Languages className="w-5 h-5 text-accent dark:text-primary" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-2xl liquid-glass border-primary/10 p-2">
+                  <DropdownMenuItem onClick={() => setLanguage('id')} className="rounded-xl flex justify-between gap-4 font-bold text-xs">
+                    Indonesia {language === 'id' && <Check className="w-3 h-3 text-primary" />}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLanguage('en')} className="rounded-xl flex justify-between gap-4 font-bold text-xs">
+                    English {language === 'en' && <Check className="w-3 h-3 text-primary" />}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <NotificationCenter />
               <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-2xl bg-white/50 border border-primary/5 shadow-sm dark:bg-white/5 hover:bg-destructive/10 hover:text-destructive transition-colors">
                 <LogOut className="w-5 h-5" />
@@ -191,7 +217,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] md:text-[11px] font-black text-white/80 uppercase tracking-widest italic">Current Liquidity Assets</span>
+                      <span className="text-[10px] md:text-[11px] font-black text-white/80 uppercase tracking-widest italic">{t('current_liquidity')}</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <HelpCircle className="w-4 h-4 text-white/40 cursor-help hover:text-white transition-colors" />
@@ -216,19 +242,19 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-white/20">
                   <Link href="/savings" className="space-y-1 group/savings transition-transform active:scale-95">
                     <div className="flex items-center gap-2">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 group-hover/savings:text-white transition-colors">Savings Portfolio</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 group-hover/savings:text-white transition-colors">{t('savings_portfolio')}</p>
                       <ChevronRight className="w-3 h-3 text-white/40 group-hover/savings:text-white group-hover/savings:translate-x-1 transition-all" />
                     </div>
                     <p className="text-xl font-black italic">Rp {savings.toLocaleString('id-ID')}</p>
                   </Link>
                   <div className="space-y-1">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Yield Realized</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">{t('yield_realized')}</p>
                     <p className="text-xl font-black italic text-green-300">+ 4.85%</p>
                   </div>
                   <div className="flex items-center">
                     <button onClick={copyAccountNumber} className="flex flex-col items-start group">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 flex items-center gap-1 group-hover:text-white transition-colors">
-                        Account Number <Copy className="w-3 h-3" />
+                        {t('account_number')} <Copy className="w-3 h-3" />
                       </p>
                       <p className="text-sm font-black tracking-widest group-hover:text-primary transition-colors">{accountNumber}</p>
                     </button>
@@ -241,16 +267,8 @@ export default function Dashboard() {
               <div className="flex justify-between items-center px-2">
                 <div className="flex items-center gap-2">
                   <h3 className="text-xs font-black uppercase tracking-widest text-accent flex items-center gap-2 italic">
-                    <Grid2X2 className="w-4 h-4 text-primary" /> Premium Services
+                    <Grid2X2 className="w-4 h-4 text-primary" /> {t('premium_services')}
                   </h3>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="w-4 h-4 text-muted-foreground/40 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
-                      <p className="text-[10px] font-bold">Akses cepat ke seluruh fitur perbankan utama AliBank, termasuk transfer antar nasabah dan bridge aset kripto.</p>
-                    </TooltipContent>
-                  </Tooltip>
                 </div>
               </div>
               <div className="liquid-glass rounded-[3rem] p-8 grid grid-cols-2 md:grid-cols-4 gap-6 border-primary/10 shadow-xl">
@@ -282,16 +300,8 @@ export default function Dashboard() {
               <div className="flex justify-between items-center px-2">
                 <div className="flex items-center gap-2">
                   <h3 className="text-xs font-black uppercase tracking-widest text-accent italic flex items-center gap-2">
-                    <Bitcoin className="w-4 h-4 text-primary" /> Multi-Chain Portfolio
+                    <Bitcoin className="w-4 h-4 text-primary" /> {t('multi_chain_portfolio')}
                   </h3>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="w-4 h-4 text-muted-foreground/40 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
-                      <p className="text-[10px] font-bold">Daftar aset kripto riil Anda yang terhubung langsung ke jaringan blockchain global melalui Mainnet Bridge V3.</p>
-                    </TooltipContent>
-                  </Tooltip>
                 </div>
                 <Link href="/crypto" className="text-[10px] font-black text-primary uppercase hover:underline flex items-center gap-1">
                   Analysis <ChevronRight className="w-3 h-3" />
@@ -361,14 +371,6 @@ export default function Dashboard() {
                 <h4 className="text-sm font-black uppercase italic tracking-widest flex items-center gap-2">
                   <LogoIcon className="w-5 h-5 text-primary" /> AliBank Intelligence
                 </h4>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="w-4 h-4 text-white/40 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
-                    <p className="text-[10px] font-bold">Wawasan cerdas berbasis AI yang menganalisis pola transaksi Anda untuk memberikan saran investasi dan penghematan.</p>
-                  </TooltipContent>
-                </Tooltip>
               </div>
               <div className="space-y-6">
                 <p className="text-sm font-bold italic leading-relaxed text-white/80">
@@ -383,16 +385,8 @@ export default function Dashboard() {
             <section className="liquid-glass rounded-[2rem] p-8 space-y-6 border-primary/10">
               <div className="flex items-center gap-2">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-accent flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 text-primary" /> Security Layer V3
+                  <ShieldAlert className="w-4 h-4 text-primary" /> {t('security_layer')}
                 </h4>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="w-4 h-4 text-muted-foreground/40 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
-                    <p className="text-[10px] font-bold">Status keamanan infrastruktur perbankan Anda yang dipantau 24/7 menggunakan enkripsi militer dan audit smart contract.</p>
-                  </TooltipContent>
-                </Tooltip>
               </div>
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
@@ -420,10 +414,10 @@ export default function Dashboard() {
               <p className="text-[10px] font-black uppercase text-accent/40 tracking-[0.2em] mb-4">Official Infrastructure</p>
               <div className="flex flex-col gap-3">
                 <Link href="/merchant" className="text-xs font-bold text-accent/60 hover:text-primary transition-colors flex items-center justify-between group">
-                  Business Console <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                  {t('merchant_console')} <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link href="/admin" className="text-xs font-bold text-accent/60 hover:text-primary transition-colors flex items-center justify-between group">
-                  Command Center <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                  {t('command_center')} <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <div className="pt-4 border-t border-primary/5 mt-2">
                   <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest text-center">

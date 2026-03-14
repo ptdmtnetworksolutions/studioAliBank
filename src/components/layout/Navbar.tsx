@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -14,7 +13,9 @@ import {
   Bitcoin,
   Sparkles,
   Store,
-  ShoppingBag
+  ShoppingBag,
+  Languages,
+  Check
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -22,25 +23,33 @@ import { Button } from "@/components/ui/button";
 import { LogoIcon } from "@/components/ui/logo";
 import { useUser } from "@/firebase";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
-
-const personalItems = [
-  { name: "Beranda", href: "/", icon: LayoutDashboard },
-  { name: "Transaksi", href: "/transactions", icon: History },
-  { name: "Transfer", href: "/transfer", icon: Send },
-  { name: "Marketplace", href: "/marketplace", icon: ShoppingBag },
-  { name: "Deposito", href: "/deposits", icon: PiggyBank },
-  { name: "Kripto", href: "/crypto", icon: Bitcoin },
-  { name: "AI Insight", href: "/ai-assistant", icon: Sparkles },
-];
-
-const businessItems = [
-  { name: "Merchant Console", href: "/merchant", icon: Store },
-];
+import { useLanguage } from "@/context/LanguageContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Navbar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useUser();
+  const { language, setLanguage, t } = useLanguage();
+
+  const personalItems = [
+    { name: t('dashboard'), href: "/", icon: LayoutDashboard },
+    { name: t('transactions'), href: "/transactions", icon: History },
+    { name: t('transfer'), href: "/transfer", icon: Send },
+    { name: t('marketplace'), href: "/marketplace", icon: ShoppingBag },
+    { name: t('deposits'), href: "/deposits", icon: PiggyBank },
+    { name: t('crypto'), href: "/crypto", icon: Bitcoin },
+    { name: t('ai_assistant'), href: "/ai-assistant", icon: Sparkles },
+  ];
+
+  const businessItems = [
+    { name: t('merchant_console'), href: "/merchant", icon: Store },
+  ];
 
   if (pathname === "/") return null;
 
@@ -55,7 +64,7 @@ export function Navbar() {
             <span className="font-bold text-xl tracking-tighter italic text-accent dark:text-primary uppercase">AliBank</span>
           </Link>
 
-          {/* Desktop Nav - Public Items Only */}
+          {/* Desktop Nav */}
           <div className="hidden lg:flex items-center gap-1">
             <div className="flex items-center gap-1 pr-4 border-r border-primary/10">
               {personalItems.map((item) => {
@@ -98,12 +107,45 @@ export function Navbar() {
                   </Link>
                 );
               })}
+              
               <div className="w-px h-6 bg-primary/10 mx-2" />
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-2xl bg-white/50 border border-primary/5 shadow-sm">
+                    <Languages className="w-4 h-4 text-accent" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-2xl liquid-glass border-primary/10 p-2">
+                  <DropdownMenuItem onClick={() => setLanguage('id')} className="rounded-xl flex justify-between gap-4 font-bold text-xs">
+                    ID (Indonesia) {language === 'id' && <Check className="w-3 h-3 text-primary" />}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLanguage('en')} className="rounded-xl flex justify-between gap-4 font-bold text-xs">
+                    EN (English) {language === 'en' && <Check className="w-3 h-3 text-primary" />}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <NotificationCenter />
             </div>
           </div>
 
           <div className="flex items-center gap-2 lg:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-2xl bg-white/50 border border-primary/5 shadow-sm">
+                  <Languages className="w-4 h-4 text-accent" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-2xl liquid-glass border-primary/10 p-2">
+                <DropdownMenuItem onClick={() => setLanguage('id')} className="rounded-xl flex justify-between gap-4 font-bold text-xs">
+                  Indonesia {language === 'id' && <Check className="w-3 h-3 text-primary" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLanguage('en')} className="rounded-xl flex justify-between gap-4 font-bold text-xs">
+                  English {language === 'en' && <Check className="w-3 h-3 text-primary" />}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <NotificationCenter />
             <Button 
               variant="ghost" 
