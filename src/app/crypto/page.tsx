@@ -102,6 +102,7 @@ export default function CryptoDeFiPage() {
   const [isWrongNetwork, setIsWrongNetwork] = useState(false);
   const [bridgeAmount, setBridgeAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // Swap states
   const [swapAmount, setSwapAmount] = useState("");
@@ -149,7 +150,6 @@ export default function CryptoDeFiPage() {
   const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  // Simplified query to avoid index errors, using client-side sorting and filtering
   const transactionsQuery = useMemo(() => (!db || !user) ? null : query(
     collection(db, "users", user.uid, "transactions"),
     limit(50)
@@ -172,7 +172,12 @@ export default function CryptoDeFiPage() {
     try {
       const provider = new BrowserProvider(window.ethereum);
       const network = await provider.getNetwork();
-      if (network.chainId !== 1n) { setIsWrongNetwork(true); } else { setIsWrongNetwork(false); }
+      // 1n is Mainnet, 11155111n is Sepolia
+      if (network.chainId !== 1n && network.chainId !== 11155111n) { 
+        setIsWrongNetwork(true); 
+      } else { 
+        setIsWrongNetwork(false); 
+      }
       
       const ethBalance = await provider.getBalance(walletAddr);
       setWalletBalance(formatEther(ethBalance));
@@ -185,6 +190,43 @@ export default function CryptoDeFiPage() {
     }
   }, []);
 
+  const handleConnectWallet = async () => {
+    if (typeof window.ethereum === 'undefined') {
+      toast({
+        variant: "destructive",
+        title: "Wallet Not Found",
+        description: "Silakan buka aplikasi AliBank melalui in-app browser MetaMask atau install ekstensi MetaMask."
+      });
+      // deep link for mobile
+      if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        window.location.href = `https://metamask.app.link/dapp/${window.location.host}/crypto`;
+      }
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const accounts = await provider.send("eth_requestAccounts", []);
+      if (accounts.length > 0) {
+        setAddress(accounts[0]);
+        await checkBalances(accounts[0]);
+        toast({
+          title: "Wallet Connected",
+          description: `Terhubung ke: ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`
+        });
+      }
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Connection Failed",
+        description: err.message || "Gagal menghubungkan wallet."
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   useEffect(() => {
     if (mounted && user && typeof window.ethereum !== 'undefined') {
       window.ethereum.request({ method: 'eth_accounts' }).then(accounts => {
@@ -193,14 +235,34 @@ export default function CryptoDeFiPage() {
           checkBalances(accounts[0]);
         }
       });
+
+      // Handle account changes
+      const handleAccountsChanged = (accounts: string[]) => {
+        if (accounts.length > 0) {
+          setAddress(accounts[0]);
+          checkBalances(accounts[0]);
+        } else {
+          setAddress(null);
+        }
+      };
+
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      return () => {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      };
     }
   }, [mounted, user, checkBalances]);
 
   const handleVaultAction = async (action: 'deposit' | 'withdraw') => {
-    if (!address || !bridgeAmount || !user || !db) return;
+    if (!address) {
+      await handleConnectWallet();
+      return;
+    }
+    if (!bridgeAmount) return;
+    
     setIsProcessing(true);
     try {
-      const provider = new BrowserProvider(window.ethereum);
+      const provider = new BrowserProvider(window.ethereum!);
       const signer = await provider.getSigner();
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
       
@@ -211,7 +273,7 @@ export default function CryptoDeFiPage() {
       toast({ title: "Transaksi Terkirim", description: "Menunggu konfirmasi blockchain..." });
       await tx.wait();
       
-      const txRef = collection(db, "users", user.uid, "transactions");
+      const txRef = collection(db!, "users", user!.uid, "transactions");
       const logPayload = {
         date: new Date().toISOString(),
         description: `${action === 'deposit' ? 'Staking' : 'Penarikan'} Vault V3`,
@@ -383,8 +445,8 @@ export default function CryptoDeFiPage() {
 
     const ethCoin = coins.find(c => c.symbol.toUpperCase() === 'ETH');
     if (ethCoin) {
-      cryptoValue += parseFloat(walletBalance) * ethCoin.current_price;
-      cryptoValue += parseFloat(vaultBalance) * ethCoin.current_price;
+      cryptoValue += (parseFloat(walletBalance) || 0) * ethCoin.current_price;
+      cryptoValue += (parseFloat(vaultBalance) || 0) * ethCoin.current_price;
     }
 
     return (userData.totalBalance || 0) + cryptoValue;
@@ -420,8 +482,13 @@ export default function CryptoDeFiPage() {
                   {isWrongNetwork ? "Switch to Mainnet" : `${address.slice(0, 6)}...${address.slice(-4)}`}
                 </Badge>
               ) : (
-                <Button className="h-12 px-8 rounded-2xl gold-gradient text-white font-black uppercase italic shadow-xl hover:scale-105 transition-all">
-                  <Wallet className="w-4 h-4 mr-2" /> Connect Wallet
+                <Button 
+                  onClick={handleConnectWallet}
+                  disabled={isConnecting}
+                  className="h-12 px-8 rounded-2xl gold-gradient text-white font-black uppercase italic shadow-xl hover:scale-105 transition-all"
+                >
+                  {isConnecting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wallet className="w-4 h-4 mr-2" />}
+                  Connect Wallet
                 </Button>
               )}
             </div>
@@ -827,7 +894,7 @@ export default function CryptoDeFiPage() {
                         <span className="text-[10px] font-bold text-white/60 uppercase">Ethereum (ETH)</span>
                       </div>
                       <span className="text-xs font-black italic">
-                        {( (userData?.cryptoBalances?.ETH || 0) + parseFloat(walletBalance) + parseFloat(vaultBalance) ).toFixed(4)} ETH
+                        {( (userData?.cryptoBalances?.ETH || 0) + (parseFloat(walletBalance) || 0) + (parseFloat(vaultBalance) || 0) ).toFixed(4)} ETH
                       </span>
                     </div>
 
