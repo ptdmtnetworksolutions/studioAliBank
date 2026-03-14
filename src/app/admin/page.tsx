@@ -4,6 +4,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { 
   ShieldAlert, 
+  ShieldCheck,
   Users, 
   Search, 
   Loader2,
