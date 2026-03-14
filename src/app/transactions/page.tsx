@@ -2,7 +2,7 @@
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
-import { Search, Filter, ArrowUpRight, ArrowDownLeft, Download, Loader2, Clock } from "lucide-react";
+import { Search, Filter, ArrowUpRight, ArrowDownLeft, Download, Loader2, Clock, Bitcoin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -26,8 +26,8 @@ export default function TransactionsPage() {
   const { data: transactions, loading } = useCollection(transactionsQuery);
 
   const filtered = transactions?.filter(t => 
-    t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.category.toLowerCase().includes(searchTerm.toLowerCase())
+    (t.description?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+    (t.category?.toLowerCase() || "").includes(searchTerm.toLowerCase())
   ) || [];
 
   return (
@@ -78,7 +78,7 @@ export default function TransactionsPage() {
                     "w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm",
                     tx.type === "income" ? "bg-green-100 text-green-600" : "bg-accent/10 text-accent"
                   )}>
-                    {tx.type === "income" ? <ArrowDownLeft className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
+                    {tx.cryptoAmount ? <Bitcoin className="w-6 h-6" /> : (tx.type === "income" ? <ArrowDownLeft className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />)}
                   </div>
                   <div>
                     <p className="font-bold text-base text-accent">{tx.description}</p>
@@ -96,9 +96,16 @@ export default function TransactionsPage() {
                     "font-bold text-lg",
                     tx.type === "income" ? "text-green-600" : "text-accent"
                   )}>
-                    {tx.type === "income" ? "+" : "-"}Rp {tx.amount.toLocaleString('id-ID')}
+                    {tx.type === "income" ? "+" : "-"}
+                    {tx.amount !== undefined 
+                      ? `Rp ${tx.amount.toLocaleString('id-ID')}` 
+                      : tx.cryptoAmount !== undefined 
+                        ? `${tx.cryptoAmount} ${tx.cryptoCurrency || 'ETH'}` 
+                        : '---'}
                   </p>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-black">Berhasil</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-black">
+                    {tx.status || "Berhasil"}
+                  </p>
                 </div>
               </div>
             ))
