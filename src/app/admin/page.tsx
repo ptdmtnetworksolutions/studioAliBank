@@ -35,8 +35,6 @@ import {
   updateDoc, 
   increment, 
   collectionGroup, 
-  orderBy,
-  where,
   addDoc
 } from "firebase/firestore";
 import { BrowserProvider, Contract, formatEther } from "ethers";
@@ -101,28 +99,37 @@ export default function AdminControlPage() {
   }, [db, isAuthorized]);
   const { data: allUsers } = useCollection(usersQuery);
 
-  // Query All Marketplace Invoices
+  // Query All Marketplace Invoices (Simplified query to avoid missing index errors)
   const allInvoicesQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
-    return query(collectionGroup(db, "invoices"), orderBy("createdAt", "desc"), limit(50));
+    // We remove the orderBy here to bypass the index requirement for prototypes
+    return query(collectionGroup(db, "invoices"), limit(100));
   }, [db, isAuthorized]);
-  const { data: globalInvoices } = useCollection(allInvoicesQuery);
+  const { data: rawInvoices } = useCollection(allInvoicesQuery);
 
-  // Query Pending Bridge Requests (Simplified to avoid Index issues)
-  const bridgeQuery = useMemo(() => {
+  // Client-side sort for invoices
+  const globalInvoices = useMemo(() => {
+    if (!rawInvoices) return [];
+    return [...rawInvoices].sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [rawInvoices]);
+
+  // Query All Transactions (Simplified to avoid Index issues)
+  const txQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
-    return query(
-      collectionGroup(db, "transactions"), 
-      where("status", "==", "processing"),
-      limit(50)
-    );
+    // We remove the where filter here to bypass the index requirement
+    return query(collectionGroup(db, "transactions"), limit(100));
   }, [db, isAuthorized]);
-  const { data: rawPendingBridges } = useCollection(bridgeQuery);
+  const { data: rawTransactions } = useCollection(txQuery);
 
-  // Client-side filter for Bridge category
+  // Client-side filter for pending Bridge category
   const pendingBridges = useMemo(() => {
-    return rawPendingBridges?.filter(tx => tx.category === "Bridge") || [];
-  }, [rawPendingBridges]);
+    if (!rawTransactions) return [];
+    return rawTransactions.filter(tx => tx.category === "Bridge" && tx.status === "processing");
+  }, [rawTransactions]);
 
   const handleAdjustBalance = (userId: string, asset: string, amount: number) => {
     if (!db) return;

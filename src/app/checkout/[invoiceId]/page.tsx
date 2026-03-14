@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -20,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useUser } from "@/firebase";
-import { collection, query, where, getDocs, doc, setDoc, increment, addDoc, serverTimestamp, collectionGroup } from "firebase/firestore";
+import { collection, query, getDocs, doc, setDoc, increment, addDoc, serverTimestamp, collectionGroup } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -62,17 +61,18 @@ export default function CheckoutPage() {
       if (!db || !invoiceId) return;
       
       try {
-        const q = query(
-          collectionGroup(db, "invoices"),
-          where("invoiceId", "==", invoiceId)
-        );
+        // Simplified query to avoid missing index errors on collectionGroup
+        const q = query(collectionGroup(db, "invoices"));
         const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          const docRef = snapshot.docs[0];
-          setInvoice({ ...docRef.data(), id: docRef.id, path: docRef.ref.path });
+        
+        // Client-side find
+        const found = snapshot.docs.find(doc => doc.data().invoiceId === invoiceId);
+        
+        if (found) {
+          setInvoice({ ...found.data(), id: found.id, path: found.ref.path });
         }
       } catch (err) {
-        console.error(err);
+        console.error("Fetch invoice error:", err);
       } finally {
         setLoading(false);
       }
@@ -195,8 +195,6 @@ export default function CheckoutPage() {
       </Button>
     </div>
   );
-
-  const cryptoEquiv = invoice.amountIdr * (cryptoRates[invoice.cryptoCurrency || 'ETH'] || 0);
 
   return (
     <div className="min-h-screen bg-background pb-20 relative overflow-hidden">
