@@ -130,6 +130,7 @@ export default function AdminControlPage() {
       }
 
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
+      // Mendapatkan saldo riil dari blockchain
       const balance = await contract.getTotalVaultBalance().catch(() => 0n);
       setOnChainTotal(formatEther(balance));
     } catch (err) {
@@ -204,7 +205,6 @@ export default function AdminControlPage() {
     setIsSettling(true);
 
     try {
-      // INJEKSI SINTETIS (Database Only): Cepat & Gratis Gas
       await updateDoc(doc(db, "system", "liquidity"), {
         onChainVaultALIX: 0, 
         syntheticEthReserve: increment(ethEquivalent),
@@ -213,7 +213,7 @@ export default function AdminControlPage() {
 
       toast({ 
         title: "Synthetic Injection Success", 
-        description: `${ethEquivalent.toFixed(4)} ETH baru telah ditambahkan ke kapasitas bank (Internal). Transaksi ini tidak muncul di Etherscan karena bersifat sintetis.` 
+        description: `${ethEquivalent.toFixed(4)} ETH ditambahkan ke Database Kas Bank.` 
       });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Injection Failed", description: err.message });
@@ -235,7 +235,7 @@ export default function AdminControlPage() {
       toast({ 
         variant: "destructive", 
         title: "Vault On-Chain Kosong", 
-        description: `Etherscan menunjukkan saldo Vault 0 ETH. Anda harus melakukan 'Refill Vault' terlebih dahulu sebelum bisa menarik dana sintetis ke MetaMask.` 
+        description: `Saldo Vault On-Chain Anda adalah ${onChainBal} ETH. Harap lakukan 'Refill Vault' terlebih dahulu untuk menyediakan likuiditas fisik.` 
       });
       return;
     }
@@ -367,7 +367,9 @@ export default function AdminControlPage() {
                   <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest italic truncate max-w-[300px]">NODE: {ADMIN_WALLET}</p>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button onClick={() => window.open(`https://etherscan.io/address/${DEFAULT_CONTRACT}`, '_blank')} className="text-primary hover:text-primary/80"><ExternalLink className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => window.open(`https://etherscan.io/address/${DEFAULT_CONTRACT}`, '_blank')} className="text-primary hover:text-primary/80 flex items-center gap-1 font-black text-[10px] uppercase">
+                        View On Etherscan <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
                     </TooltipTrigger>
                     <TooltipContent>Lihat Smart Contract di Etherscan</TooltipContent>
                   </Tooltip>
@@ -403,6 +405,7 @@ export default function AdminControlPage() {
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            {/* MINING NODE */}
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 bg-primary/5 relative overflow-hidden group">
               <div className="absolute top-4 right-4"><div className={cn("w-3 h-3 rounded-full shadow-lg", isMining ? "bg-green-500 animate-pulse" : "bg-red-500")} /></div>
               <div className="flex items-center gap-3 mb-2">
@@ -418,6 +421,7 @@ export default function AdminControlPage() {
               </Button>
             </Card>
 
+            {/* MINTED INVENTORY */}
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 bg-accent/5 relative overflow-hidden">
               <div className="flex items-center justify-between mb-2"><Box className="w-5 h-5 text-accent" /><Badge variant="outline" className="text-[8px] font-black uppercase">Minted Inventory</Badge></div>
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Available ALIX</p>
@@ -432,16 +436,19 @@ export default function AdminControlPage() {
               </div>
             </Card>
 
+            {/* BANK ETH RESERVE - SHOWING ON-CHAIN VS SYNTHETIC */}
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-blue-500/5 relative overflow-hidden group">
               <div className="absolute top-4 right-4"><button onClick={syncOnChainVault} disabled={syncingVault} className="p-2 rounded-full hover:bg-blue-500/10 text-blue-600"><RefreshCw className={cn("w-4 h-4", syncingVault && "animate-spin")} /></button></div>
               <div className="flex items-center justify-between mb-2">
                 <Coins className="w-5 h-5 text-blue-500" />
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Badge variant="outline" className="text-[8px] font-black uppercase border-blue-200 text-blue-600 cursor-help">Total Capacity</Badge>
+                    <Badge variant="outline" className="text-[8px] font-black uppercase border-blue-200 text-blue-600 cursor-help flex items-center gap-1">
+                      <ShieldCheck className="w-2 h-2" /> Live Reserve
+                    </Badge>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs p-3 rounded-xl bg-accent text-white">
-                    <p className="text-[10px] font-bold">Total Likuiditas = Riil (Etherscan) + Sintetis (Mining ALIX). Etherscan hanya melacak saldo On-Chain.</p>
+                    <p className="text-[10px] font-bold">Saldo On-Chain ditarik langsung dari Smart Contract di blockchain (Verified by Etherscan).</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -451,6 +458,10 @@ export default function AdminControlPage() {
               </p>
               
               <div className="pt-4 space-y-2">
+                <div className="flex justify-between items-center bg-white/40 p-2 rounded-lg">
+                  <span className="text-[8px] font-black text-muted-foreground uppercase">On-Chain (Riil)</span>
+                  <span className="text-[10px] font-black text-blue-600">{onChainTotal} ETH</span>
+                </div>
                 <div className="flex justify-between items-center bg-white/40 p-2 rounded-lg">
                   <span className="text-[8px] font-black text-muted-foreground uppercase">Synthetic (Internal)</span>
                   <span className="text-[10px] font-black text-accent">{(globalLiquidity?.syntheticEthReserve || 0).toFixed(4)} ETH</span>
@@ -465,6 +476,7 @@ export default function AdminControlPage() {
               </div>
             </Card>
 
+            {/* MAINNET BRIDGE */}
             <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white space-y-2 shadow-2xl relative overflow-hidden group flex flex-col justify-center">
               <div className="absolute top-4 right-4 animate-pulse"><Zap className="w-4 h-4 text-primary" /></div>
               <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Mainnet Bridge</p>
