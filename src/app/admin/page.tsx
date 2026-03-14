@@ -159,8 +159,10 @@ export default function AdminControlPage() {
     setProcessingBridge(bridgeTx.id);
     
     try {
-      // 1. Ekstrak Alamat Wallet - Prioritas field toAddress, Fallback regex
-      const destAddress = bridgeTx.toAddress || (bridgeTx.description.match(/\((0x[a-fA-F0-9]{40,})\)/i)?.[1]);
+      // 1. Ekstrak Alamat Wallet - Prioritas field toAddress, Fallback regex (lebih fleksibel tanpa kurung)
+      const description = bridgeTx.description || "";
+      const addressMatch = description.match(/(0x[a-fA-F0-9]{40,})/i);
+      const destAddress = bridgeTx.toAddress || (addressMatch ? addressMatch[1] : null);
 
       if (!destAddress) {
         throw new Error("Alamat wallet tujuan tidak ditemukan pada record transaksi.");
@@ -415,7 +417,7 @@ export default function AdminControlPage() {
                           {bridge.path ? bridge.path.split('/')[1].slice(0,8) : '...'}
                         </td>
                         <td className="px-8 py-5 text-[10px] font-mono font-medium text-muted-foreground">
-                          {bridge.toAddress || bridge.description.match(/\((0x.*)\)/)?.[1] || "V3 External Wallet"}
+                          {bridge.toAddress || bridge.description.match(/(0x[a-fA-F0-9]{40,})/i)?.[1] || "V3 External Wallet"}
                         </td>
                         <td className="px-8 py-5 text-right">
                           <Button 
