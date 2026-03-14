@@ -28,7 +28,9 @@ import {
   Terminal,
   Gauge,
   Box,
-  Flame
+  Flame,
+  ChevronRight,
+  BookOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -53,6 +55,7 @@ import {
 import { BrowserProvider, Contract, formatEther, parseEther } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
@@ -62,6 +65,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { LogoIcon } from "@/components/ui/logo";
 
 const CONTRACT_ABI = [
   "function getTotalVaultBalance() public view returns (uint256)",
@@ -540,6 +544,32 @@ export default function AdminControlPage() {
               </section>
             </TabsContent>
           </Tabs>
+
+          <footer className="mt-20 pt-12 border-t border-primary/10 flex flex-col items-center gap-8 text-center">
+            <div className="flex items-center gap-12">
+              <Link href="/admin/about-alix" className="group flex flex-col items-center gap-2">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:gold-gradient group-hover:text-white transition-all shadow-lg">
+                  <BookOpen className="w-6 h-6" />
+                </div>
+                <span className="text-[10px] font-black uppercase text-accent group-hover:text-primary transition-colors tracking-widest italic">Tentang Koin ALIX</span>
+              </Link>
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent shadow-lg">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <span className="text-[10px] font-black uppercase text-accent tracking-widest italic">Secure Audit v3.0</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-6 h-6 p-1 rounded-lg gold-gradient flex items-center justify-center">
+                  <LogoIcon className="text-white" />
+                </div>
+                <p className="text-xs font-black text-accent italic uppercase tracking-tighter">AliBank Command Center</p>
+              </div>
+              <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.3em]">Authorized Personnel Only • Infrastructure Operational</p>
+            </div>
+          </footer>
         </main>
       </div>
     </TooltipProvider>
