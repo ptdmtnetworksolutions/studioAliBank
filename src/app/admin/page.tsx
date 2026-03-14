@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -80,6 +81,7 @@ const CONTRACT_ABI = [
 ];
 
 const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
+const ADMIN_WALLET = "0xc7D06CA4a4B00b19fFa1a4EFCB3cB3e12c24d777";
 
 export default function AdminControlPage() {
   const { user, loading: userLoading } = useUser();
@@ -174,7 +176,7 @@ export default function AdminControlPage() {
     return () => clearInterval(miningInterval);
   }, [isMining, db]);
 
-  const handleMintToVault = async () => {
+  const handleMintToInventory = async () => {
     if (!db || !globalLiquidity) return;
     setIsSettling(true);
     try {
@@ -190,12 +192,7 @@ export default function AdminControlPage() {
     } finally { setIsSettling(false); }
   };
 
-  /**
-   * MEMPERBAIKI MEKANISME KONVERSI:
-   * Sekarang konversi ALIX ke ETH bersifat otonom (Synthetic Injection).
-   * Nilai ALIX dipindahkan langsung ke saldo ETH Vault di database tanpa memotong MetaMask.
-   */
-  const handleConvertAlixToEthVault = async () => {
+  const handleSyntheticInjection = async () => {
     if (!db || !globalLiquidity) return;
     const alixAmount = globalLiquidity.onChainVaultALIX || 0;
     if (alixAmount <= 0) {
@@ -207,8 +204,7 @@ export default function AdminControlPage() {
     setIsSettling(true);
 
     try {
-      // Injeksi Likuiditas Sintetis: Memindahkan nilai ALIX menjadi saldo ETH Vault di database
-      // Ini tidak memanggil MetaMask karena ALIX adalah aset yang "diciptakan" oleh bank itu sendiri.
+      // INJEKSI SINTETIS (Database Only): Cepat & Gratis Gas
       await updateDoc(doc(db, "system", "liquidity"), {
         onChainVaultALIX: 0, 
         syntheticEthReserve: increment(ethEquivalent),
@@ -217,10 +213,8 @@ export default function AdminControlPage() {
 
       toast({ 
         title: "Synthetic Injection Success", 
-        description: `${ethEquivalent.toFixed(4)} ETH baru telah diciptakan dari hasil mining ALIX.` 
+        description: `${ethEquivalent.toFixed(4)} ETH baru telah ditambahkan ke kapasitas bank (Internal). Transaksi ini tidak muncul di Etherscan karena bersifat sintetis.` 
       });
-      
-      syncOnChainVault();
     } catch (err: any) {
       toast({ variant: "destructive", title: "Injection Failed", description: err.message });
     } finally {
@@ -228,12 +222,56 @@ export default function AdminControlPage() {
     }
   };
 
-  const handleRedeemAlix = async () => {
+  const handleRealWorldBridge = async () => {
+    if (!db || !globalLiquidity || typeof window.ethereum === 'undefined') return;
+    const reserveAmount = globalLiquidity.syntheticEthReserve || 0;
+    if (reserveAmount <= 0) {
+      toast({ variant: "destructive", title: "Gagal", description: "Tidak ada cadangan sintetis untuk dicairkan." });
+      return;
+    }
+
+    const onChainBal = parseFloat(onChainTotal);
+    if (onChainBal < reserveAmount) {
+      toast({ 
+        variant: "destructive", 
+        title: "Vault On-Chain Kosong", 
+        description: `Etherscan menunjukkan saldo Vault 0 ETH. Anda harus melakukan 'Refill Vault' terlebih dahulu sebelum bisa menarik dana sintetis ke MetaMask.` 
+      });
+      return;
+    }
+
+    setIsSettling(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
+      
+      const amountInWei = parseEther(reserveAmount.toFixed(18));
+      const tx = await contract.releaseFunds(ADMIN_WALLET, amountInWei);
+      
+      toast({ title: "Memicu Blockchain...", description: "Menunggu konfirmasi jaringan riil." });
+      const receipt = await tx.wait();
+
+      if (receipt.status === 1) {
+        await updateDoc(doc(db, "system", "liquidity"), {
+          syntheticEthReserve: 0
+        });
+        toast({ title: "Bridge Berhasil!", description: `${reserveAmount.toFixed(4)} ETH telah terkirim ke dompet Anda. Cek Etherscan sekarang!` });
+        syncOnChainVault();
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Blockchain Error", description: err.message });
+    } finally {
+      setIsSettling(false);
+    }
+  };
+
+  const handleRedeemAlixToIdr = async () => {
     if (!db || !user || !globalLiquidity) return;
     setIsSettling(true);
     try {
       const amountToRedeem = globalLiquidity.onChainVaultALIX || 0;
-      if (amountToRedeem <= 0) throw new Error("Kosong.");
+      if (amountToRedeem <= 0) throw new Error("Inventory Kosong.");
       const totalIdr = amountToRedeem * 500000;
       await updateDoc(doc(db, "system", "liquidity"), { onChainVaultALIX: 0 });
       await updateDoc(doc(db, "users", user.uid), { totalBalance: increment(totalIdr) });
@@ -325,14 +363,22 @@ export default function AdminControlPage() {
               </div>
               <div>
                 <h1 className="text-4xl font-black text-accent uppercase italic tracking-tighter">Command Center</h1>
-                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest italic">V3 NODE OPERATOR: {OWNER_EMAIL}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest italic truncate max-w-[300px]">NODE: {ADMIN_WALLET}</p>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button onClick={() => window.open(`https://etherscan.io/address/${DEFAULT_CONTRACT}`, '_blank')} className="text-primary hover:text-primary/80"><ExternalLink className="w-3.5 h-3.5" /></button>
+                    </TooltipTrigger>
+                    <TooltipContent>Lihat Smart Contract di Etherscan</TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
             </div>
 
             <div className="liquid-glass border-none rounded-2xl p-5 flex flex-col gap-3 bg-primary/5 min-w-[350px]">
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
-                  <p className="text-[9px] font-black text-muted-foreground uppercase">Treasury ETH Balance</p>
+                  <p className="text-[9px] font-black text-muted-foreground uppercase">Treasury Wallet Balance</p>
                   <p className="text-lg font-black text-accent italic">{parseFloat(connectedBalance).toFixed(4)} ETH</p>
                 </div>
                 <Badge variant="outline" className="text-[7px] font-black uppercase bg-green-500/10 text-green-600 border-green-200">MetaMask Linked</Badge>
@@ -360,55 +406,76 @@ export default function AdminControlPage() {
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 bg-primary/5 relative overflow-hidden group">
               <div className="absolute top-4 right-4"><div className={cn("w-3 h-3 rounded-full shadow-lg", isMining ? "bg-green-500 animate-pulse" : "bg-red-500")} /></div>
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-xl bg-primary/10 text-primary"><Cpu className={cn("w-6 h-6", isMining && "animate-spin-slow")} /></div>
-                <div><p className="text-[9px] font-black uppercase text-muted-foreground">ALIX Minting Node</p></div>
+                <div className="p-2 rounded-xl bg-primary/10 text-primary"><Pickaxe className={cn("w-6 h-6", isMining && "animate-bounce")} /></div>
+                <div><p className="text-[9px] font-black uppercase text-muted-foreground">ALIX Mining Node</p></div>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-2">
                 <div className="bg-black/5 p-2 rounded-xl text-center"><p className="text-[7px] font-black uppercase text-muted-foreground">Hashrate</p><p className="text-xs font-black text-primary">{hashrate} MH/s</p></div>
-                <div className="bg-black/5 p-2 rounded-xl text-center"><p className="text-[7px] font-black uppercase text-muted-foreground">Blocks</p><p className="text-xs font-black text-primary">{blocksMined}</p></div>
+                <div className="bg-black/5 p-2 rounded-xl text-center"><p className="text-[7px] font-black uppercase text-muted-foreground">Yield</p><p className="text-xs font-black text-primary">{(globalLiquidity?.alixVaultBalance || 0).toFixed(2)}</p></div>
               </div>
               <Button onClick={() => setIsMining(!isMining)} className={cn("w-full h-10 rounded-xl font-black uppercase italic text-[9px] shadow-lg", isMining ? "bg-destructive text-white" : "gold-gradient text-white")}>
-                {isMining ? "Stop Node" : "Start Minting ALIX"}
+                {isMining ? "Stop Mining" : "Start Mining ALIX"}
               </Button>
             </Card>
 
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 bg-accent/5 relative overflow-hidden">
               <div className="flex items-center justify-between mb-2"><Box className="w-5 h-5 text-accent" /><Badge variant="outline" className="text-[8px] font-black uppercase">Minted Inventory</Badge></div>
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Accumulated ALIX</p>
-              <p className="text-2xl font-black text-accent italic">{(globalLiquidity?.alixVaultBalance || 0).toFixed(2)} ALIX</p>
-              <Button onClick={handleMintToVault} disabled={isSettling || (globalLiquidity?.alixVaultBalance || 0) <= 0} className="w-full h-12 rounded-2xl font-black uppercase italic text-[9px] shadow-xl flex items-center justify-center gap-2 bg-accent text-white">
-                {isSettling ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Flame className="w-4 h-4" /> Move to Inventory</>}
-              </Button>
+              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Available ALIX</p>
+              <p className="text-2xl font-black text-accent italic">{(globalLiquidity?.onChainVaultALIX || 0).toFixed(2)} ALIX</p>
+              <div className="flex gap-2">
+                <Button onClick={handleMintToInventory} disabled={isSettling || (globalLiquidity?.alixVaultBalance || 0) <= 0} className="flex-1 h-10 rounded-xl font-black uppercase italic text-[8px] bg-accent text-white">
+                  Add Stock
+                </Button>
+                <Button onClick={handleRedeemAlixToIdr} disabled={isSettling || (globalLiquidity?.onChainVaultALIX || 0) <= 0} className="flex-1 h-10 rounded-xl font-black uppercase italic text-[8px] gold-gradient text-white">
+                  Redeem IDR
+                </Button>
+              </div>
             </Card>
 
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-blue-500/5 relative overflow-hidden group">
               <div className="absolute top-4 right-4"><button onClick={syncOnChainVault} disabled={syncingVault} className="p-2 rounded-full hover:bg-blue-500/10 text-blue-600"><RefreshCw className={cn("w-4 h-4", syncingVault && "animate-spin")} /></button></div>
-              <div className="flex items-center justify-between mb-2"><Coins className="w-5 h-5 text-blue-500" /><Badge variant="outline" className="text-[8px] font-black uppercase border-blue-200 text-blue-600">On-Chain Vault</Badge></div>
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Bank Capacity</p>
+              <div className="flex items-center justify-between mb-2">
+                <Coins className="w-5 h-5 text-blue-500" />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="text-[8px] font-black uppercase border-blue-200 text-blue-600 cursor-help">Total Capacity</Badge>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs p-3 rounded-xl bg-accent text-white">
+                    <p className="text-[10px] font-bold">Total Likuiditas = Riil (Etherscan) + Sintetis (Mining ALIX). Etherscan hanya melacak saldo On-Chain.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Bank ETH Reserve</p>
               <p className="text-3xl font-black text-blue-600 italic">
                 {(parseFloat(onChainTotal) + (globalLiquidity?.syntheticEthReserve || 0)).toFixed(4)} ETH
               </p>
               
               <div className="pt-4 space-y-2">
                 <div className="flex justify-between items-center bg-white/40 p-2 rounded-lg">
-                  <span className="text-[8px] font-black text-muted-foreground uppercase">Inventory</span>
-                  <span className="text-[10px] font-black text-accent">{(globalLiquidity?.onChainVaultALIX || 0).toFixed(2)} ALIX</span>
+                  <span className="text-[8px] font-black text-muted-foreground uppercase">Synthetic (Internal)</span>
+                  <span className="text-[10px] font-black text-accent">{(globalLiquidity?.syntheticEthReserve || 0).toFixed(4)} ETH</span>
                 </div>
                 <Button 
-                  onClick={handleConvertAlixToEthVault} 
+                  onClick={handleSyntheticInjection} 
                   disabled={isSettling || (globalLiquidity?.onChainVaultALIX || 0) <= 0} 
-                  className="w-full h-10 rounded-xl font-black uppercase italic text-[8px] bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                  className="w-full h-10 rounded-xl font-black uppercase italic text-[8px] bg-blue-600 text-white shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2"
                 >
-                  {isSettling ? <Loader2 className="w-3 h-3 animate-spin" /> : <><ArrowRightLeft className="w-3 h-3" /> Inject ALIX as ETH Reserve</>}
+                  {isSettling ? <Loader2 className="w-3 h-3 animate-spin" /> : "Inject ALIX (Internal)"}
                 </Button>
               </div>
             </Card>
 
             <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white space-y-2 shadow-2xl relative overflow-hidden group flex flex-col justify-center">
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Admin Quick Cash</p>
-              <p className="text-2xl font-black italic tracking-tighter uppercase">Redeem ALIX</p>
-              <Button onClick={handleRedeemAlix} disabled={isSettling || (globalLiquidity?.onChainVaultALIX || 0) <= 0} className="w-full h-10 rounded-xl font-black uppercase italic text-[9px] gold-gradient text-white shadow-xl mt-4">
-                Redeem to IDR Balance
+              <div className="absolute top-4 right-4 animate-pulse"><Zap className="w-4 h-4 text-primary" /></div>
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Mainnet Bridge</p>
+              <p className="text-2xl font-black italic tracking-tighter uppercase">Redeem to Wallet</p>
+              <p className="text-[8px] font-medium opacity-50 uppercase tracking-widest leading-tight">Cairkan saldo sintetis bank Anda menjadi ETH riil di dompet MetaMask.</p>
+              <Button 
+                onClick={handleRealWorldBridge} 
+                disabled={isSettling || (globalLiquidity?.syntheticEthReserve || 0) <= 0} 
+                className="w-full h-10 rounded-xl font-black uppercase italic text-[9px] gold-gradient text-white shadow-xl mt-4"
+              >
+                {isSettling ? <Loader2 className="w-3 h-3 animate-spin" /> : "Bridge to MetaMask (On-Chain)"}
               </Button>
             </Card>
           </div>

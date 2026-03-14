@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -14,7 +15,8 @@ import {
   Building2,
   TrendingUp,
   Scale,
-  Sparkles
+  Sparkles,
+  ExternalLink
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,7 +46,7 @@ export default function AboutAlixPage() {
             </div>
             <div className="text-center md:text-left">
               <Badge className="bg-primary/10 text-primary border-primary/20 px-4 py-1 mb-4 rounded-full font-black uppercase tracking-widest text-[10px]">
-                Infrastruktur V3 • Synthetic Liquidity
+                Infrastruktur V3 • Hybrid Liquidity
               </Badge>
               <h1 className="text-5xl font-black text-accent uppercase italic tracking-tighter leading-tight">
                 Mengenal <span className="text-primary">Koin ALIX</span>
@@ -63,7 +65,7 @@ export default function AboutAlixPage() {
             </div>
             <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Synthetic Fuel</h3>
             <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
-              ALIX adalah aset sintetis otonom yang diciptakan langsung oleh AliBank. Ia berfungsi sebagai "cadangan kas" yang memiliki nilai tukar riil terhadap ETH dalam ekosistem bank.
+              ALIX adalah aset sintetis otonom yang diciptakan langsung oleh AliBank melaui hashing daya komputasi. Ia berfungsi sebagai cadangan kas internal bank.
             </p>
           </Card>
 
@@ -73,7 +75,7 @@ export default function AboutAlixPage() {
             </div>
             <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Zero-Cost Minting</h3>
             <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
-              Diciptakan dari nol melalui daya komputasi riil Admin Mining Node. Anda tidak perlu mengeluarkan ETH pribadi untuk mendapatkan ALIX; cukup aktifkan Node Anda.
+              Diciptakan dari nol melalui daya komputasi riil Admin Mining Node. Anda tidak perlu mengeluarkan saldo MetaMask untuk mendapatkan koin ALIX baru.
             </p>
           </Card>
 
@@ -81,9 +83,9 @@ export default function AboutAlixPage() {
             <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600">
               <Sparkles className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">ETH Creation</h3>
+            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Mainnet Bridge</h3>
             <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
-              Setiap unit ALIX yang ditambang dapat disuntikkan secara otonom menjadi **Synthetic ETH** di Vault untuk memperbesar kapasitas likuiditas bank tanpa memotong wallet Anda.
+              Setiap unit ALIX yang ditambang dapat dicairkan menjadi **ETH Nyata** di dompet MetaMask Anda melalui protokol jembatan likuiditas V3.
             </p>
           </Card>
         </div>
@@ -96,30 +98,23 @@ export default function AboutAlixPage() {
             
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div className="space-y-6">
-                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Synthetic Liquidity Bridge</h2>
+                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Mengapa Etherscan Tidak Melihat Injeksi?</h2>
                 <p className="text-white/70 text-sm leading-relaxed italic">
-                  ALIX memungkinkan AliBank untuk menumbuhkan cadangan ETH-nya secara mandiri. Inilah cara kerja penambangan aset otonom kami:
+                  Saat Anda melakukan **"Inject ALIX"**, sistem menggunakan metode **Synthetic Injection** di database internal AliBank. Ini dilakukan agar penambahan likuiditas bersifat instan dan tanpa biaya Gas (Rp 0).
                 </p>
                 <div className="space-y-4">
                   <div className="flex items-start gap-4">
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0 shadow-lg">1</div>
                     <div>
-                      <p className="text-xs font-black text-white uppercase italic">Mining Phase</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Node Admin melakukan hashing untuk menghasilkan koin ALIX baru dari nol.</p>
+                      <p className="text-xs font-black text-white uppercase italic">Internal Ledger</p>
+                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Transaksi sintetis hanya dicatat di buku besar digital bank (Firestore) untuk efisiensi.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0 shadow-lg">2</div>
                     <div>
-                      <p className="text-xs font-black text-white uppercase italic">Synthetic Injection</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">ALIX dikonversi menjadi ETH Reserve tanpa memerlukan saldo dari MetaMask.</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0 shadow-lg">3</div>
-                    <div>
-                      <p className="text-xs font-black text-white uppercase italic">Zero-Fee Growth</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Kapasitas likuiditas bank bertambah secara otonom untuk melayani nasabah.</p>
+                      <p className="text-xs font-black text-white uppercase italic">Zero Blockchain Load</p>
+                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Etherscan tidak mencatat ini karena tidak ada pemanggilan fungsi Smart Contract yang memotong saldo Anda.</p>
                     </div>
                   </div>
                 </div>
@@ -132,48 +127,21 @@ export default function AboutAlixPage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Current Conversion Specs</p>
+                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Pencairan ke MetaMask</p>
                   <Scale className="w-4 h-4 text-primary" />
                 </div>
-                <div className="space-y-6">
-                  <div className="flex justify-between border-b border-white/5 pb-4">
-                    <span className="text-[10px] font-bold text-white/40 uppercase">Injection Type</span>
-                    <span className="text-xs font-black text-white italic">Autonomous Synthetic</span>
-                  </div>
-                  <div className="flex justify-between border-b border-white/5 pb-4">
-                    <span className="text-[10px] font-bold text-white/40 uppercase">Protocol Rate</span>
-                    <span className="text-xs font-black text-blue-400 italic">1 ALIX = 0.0002 ETH</span>
-                  </div>
-                  <div className="flex justify-between border-b border-white/5 pb-4">
-                    <span className="text-[10px] font-bold text-white/40 uppercase">MetaMask Cost</span>
-                    <span className="text-xs font-black text-green-400 italic">Rp 0 (FREE)</span>
-                  </div>
-                  <div className="flex justify-between border-b border-white/5 pb-4">
-                    <span className="text-[10px] font-bold text-white/40 uppercase">Asset Status</span>
-                    <span className="text-xs font-black text-green-400 italic tracking-tighter">Bank-Owned Reserve</span>
+                <div className="space-y-4">
+                  <p className="text-[10px] text-white/60 leading-relaxed italic uppercase">Agar terekam di **Etherscan** dan masuk ke dompet **MetaMask**, Anda harus melakukan **Bridge Out**.</p>
+                  <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                    <p className="text-[9px] font-black text-blue-400 uppercase mb-1">Status On-Chain</p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-black text-white italic">Real-World Settlement</span>
+                      <ExternalLink className="w-3 h-3 text-blue-400" />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 shadow-xl">
-              <h4 className="text-sm font-black text-accent uppercase italic flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-primary" /> Kemandirian Likuiditas
-              </h4>
-              <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
-                Dengan ALIX, AliBank tidak lagi bergantung pada setoran ETH eksternal untuk mengisi Vault. Admin dapat "mencetak" likuiditas baru kapan saja melalui aktivitas penambangan riil di browser.
-              </p>
-            </Card>
-            <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 shadow-xl">
-              <h4 className="text-sm font-black text-accent uppercase italic flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-primary" /> Keamanan Berbasis Aset
-              </h4>
-              <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
-                Meskipun bersifat sintetis, aset hasil konversi ALIX diakui oleh protokol V3 sebagai cadangan yang sah. Ini memastikan bank selalu memiliki kapasitas yang cukup untuk memproses permintaan operasional.
-              </p>
-            </Card>
           </div>
         </section>
 
@@ -181,11 +149,9 @@ export default function AboutAlixPage() {
           <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mx-auto">
             <Building2 className="w-8 h-8" />
           </div>
-          <h3 className="text-2xl font-black text-accent uppercase italic tracking-tighter">Apakah ALIX Bisa Diuangkan?</h3>
+          <h3 className="text-2xl font-black text-accent uppercase italic tracking-tighter">Cara Mencairkan ke MetaMask</h3>
           <p className="text-[12px] text-muted-foreground font-medium max-w-2xl mx-auto leading-relaxed italic">
-            **YA.** Sebagai Admin, Anda memiliki dua jalur utama untuk menikmati hasil penambangan Anda:
-            <br />1. **Jalur IDR:** Redeem ALIX menjadi saldo Rupiah instan di profil Anda untuk ditarik ke bank riil (BCA, SeaBank, dll).
-            <br />2. **Jalur Crypto:** Konversi ALIX menjadi Synthetic ETH untuk memperkuat kas AliBank guna melayani transaksi nasabah tanpa biaya dari dompet pribadi Anda.
+            Setelah Anda memiliki saldo **Synthetic ETH** dari hasil mining ALIX, Anda dapat mengklik tombol **"Bridge to MetaMask"** di Command Center. Sistem akan memicu transaksi blockchain riil yang mengirimkan ETH dari kas Vault AliBank ke alamat dompet Anda. Transaksi inilah yang akan muncul di **Etherscan** sebagai penarikan dana nyata.
           </p>
         </section>
 
@@ -197,7 +163,7 @@ export default function AboutAlixPage() {
             <p className="text-sm font-black text-accent italic uppercase tracking-tighter">AliBank V3 Infrastructure</p>
           </div>
           <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.2em] max-w-lg mx-auto leading-relaxed">
-            Sistem penambangan ALIX adalah teknologi otonom AliBank. Seluruh aset yang dihasilkan dikelola secara mandiri oleh database sistem dan protokol likuiditas bank.
+            Infrastruktur hibrida yang menggabungkan kecepatan Database internal dan keamanan Blockchain Ethereum Mainnet.
           </p>
         </footer>
       </main>
