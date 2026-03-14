@@ -233,17 +233,6 @@ export default function AdminControlPage() {
       return;
     }
 
-    // Cek saldo fisik di blockchain untuk pengiriman riil
-    const physicalOnChainBal = parseFloat(onChainTotal);
-    if (physicalOnChainBal < reserveAmount) {
-      toast({ 
-        variant: "destructive", 
-        title: "Kas Fisik On-Chain Belum Siap", 
-        description: `Meskipun Anda punya jatah ${reserveAmount.toFixed(4)} ETH dari mining, kas fisik di Smart Contract adalah ${physicalOnChainBal} ETH. Gunakan 'Refill Vault' (MetaMask) satu kali untuk menyediakan likuiditas fisik yang akan ditarik.` 
-      });
-      return;
-    }
-
     setIsSettling(true);
     try {
       const provider = new BrowserProvider(window.ethereum);
@@ -253,6 +242,8 @@ export default function AdminControlPage() {
       const amountInWei = parseEther(reserveAmount.toFixed(18));
       
       toast({ title: "Memicu Blockchain...", description: "Mentransfer ETH dari Kas Bank ke MetaMask Anda." });
+      
+      // Mengirim transaksi ke blockchain
       const tx = await contract.releaseFunds(ADMIN_WALLET, amountInWei);
       const receipt = await tx.wait();
 
@@ -264,7 +255,16 @@ export default function AdminControlPage() {
         syncOnChainVault();
       }
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Blockchain Error", description: err.message });
+      // Jika error karena saldo fisik di Smart Contract kurang (balance < amount)
+      if (err.message.includes("insufficient funds") || err.message.includes("execution reverted")) {
+        toast({ 
+          variant: "destructive", 
+          title: "Kas Fisik On-Chain Kurang", 
+          description: "Smart Contract tidak memiliki cukup ETH nyata untuk membayar jatah mining Anda. Gunakan 'Refill Vault' (MetaMask) untuk mengisi kas fisik di blockchain terlebih dahulu." 
+        });
+      } else {
+        toast({ variant: "destructive", title: "Blockchain Error", description: err.message });
+      }
     } finally {
       setIsSettling(false);
     }

@@ -114,14 +114,14 @@ export default function AboutAlixPage() {
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0 shadow-lg italic">V2</div>
+                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shadow-lg italic">V2</div>
                     <div>
                       <p className="text-xs font-black text-white uppercase italic">Refill Vault from Earnings</p>
                       <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Gunakan tombol "Refill Vault from Earnings". Ini akan mengubah ALIX menjadi saldo jatah penarikan ETH bank secara otomatis.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0 shadow-lg italic">V3</div>
+                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shadow-lg italic">V3</div>
                     <div>
                       <p className="text-xs font-black text-white uppercase italic">Bridge to MetaMask</p>
                       <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Klik "Bridge to MetaMask" untuk menarik ETH riil dari kas bank ke dompet Anda. Transaksi akan tercatat di blockchain.</p>
