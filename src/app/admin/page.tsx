@@ -31,7 +31,8 @@ import {
   Box,
   Flame,
   ChevronRight,
-  BookOpen
+  BookOpen,
+  Banknote
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -199,6 +200,51 @@ export default function AdminControlPage() {
       });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Minting Gagal", description: err.message });
+    } finally {
+      setIsSettling(false);
+    }
+  };
+
+  const handleRedeemAlix = async () => {
+    if (!db || !user || !globalLiquidity) return;
+    
+    setIsSettling(true);
+    try {
+      const amountToRedeem = globalLiquidity.onChainVaultALIX || 0;
+      if (amountToRedeem <= 0) throw new Error("Tidak ada koin ALIX di Vault untuk diuangkan.");
+
+      const rate = 500000; // Kurs: 1 ALIX = Rp 500.000
+      const totalIdr = amountToRedeem * rate;
+
+      // 1. Kosongkan ALIX di Vault
+      const platformRef = doc(db, "system", "liquidity");
+      await updateDoc(platformRef, {
+        onChainVaultALIX: 0
+      });
+
+      // 2. Tambahkan Saldo IDR ke Profil Admin
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        totalBalance: increment(totalIdr)
+      });
+
+      // 3. Log Transaksi
+      const txRef = collection(db, "users", user.uid, "transactions");
+      await addDoc(txRef, {
+        date: new Date().toISOString(),
+        description: `ALIX Redemption: ${amountToRedeem} ALIX to IDR`,
+        category: "Income",
+        amount: totalIdr,
+        type: "income",
+        timestamp: serverTimestamp()
+      });
+
+      toast({ 
+        title: "Redemption Berhasil", 
+        description: `${amountToRedeem} ALIX telah dikonversi menjadi Rp ${totalIdr.toLocaleString()} di saldo utama Anda.` 
+      });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Redeem Gagal", description: err.message });
     } finally {
       setIsSettling(false);
     }
@@ -401,7 +447,7 @@ export default function AdminControlPage() {
               <p className="text-[7px] text-center font-bold text-muted-foreground uppercase italic">ALIX dikonversi 1:1 menjadi likuiditas operasional.</p>
             </Card>
 
-            {/* ON-CHAIN VAULT CARD */}
+            {/* ON-CHAIN VAULT CARD + REDEMPTION */}
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-blue-500/5 relative overflow-hidden">
               <div className="absolute top-4 right-4 z-20">
                 <button onClick={syncOnChainVault} disabled={syncingVault} className="p-2 rounded-full hover:bg-blue-500/10 text-blue-600">
@@ -414,19 +460,29 @@ export default function AdminControlPage() {
               </div>
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Global Asset Reserve</p>
               <p className="text-3xl font-black text-blue-600 italic tracking-tighter">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
-              <div className="flex items-center gap-2 mt-2">
-                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                <p className="text-[8px] font-bold uppercase tracking-widest text-blue-600">ALIX Reserve: {(globalLiquidity?.onChainVaultALIX || 0).toFixed(2)}</p>
+              
+              <div className="mt-4 p-3 rounded-2xl bg-primary/10 border border-primary/20 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-[8px] font-bold uppercase tracking-widest text-primary">ALIX Reserve</p>
+                  <p className="text-xs font-black text-primary italic">{(globalLiquidity?.onChainVaultALIX || 0).toFixed(2)} ALIX</p>
+                </div>
+                <Button 
+                  onClick={handleRedeemAlix}
+                  disabled={isSettling || (globalLiquidity?.onChainVaultALIX || 0) <= 0}
+                  className="w-full h-8 rounded-xl font-black uppercase italic text-[8px] bg-primary text-white shadow-lg flex items-center justify-center gap-2"
+                >
+                  {isSettling ? <Loader2 className="w-3 h-3 animate-spin" /> : <><Banknote className="w-3 h-3" /> Convert to IDR Balance</>}
+                </Button>
               </div>
             </Card>
 
             <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white space-y-2 shadow-2xl relative overflow-hidden flex flex-col justify-center">
               <div className="absolute -right-4 -bottom-4 opacity-10"><Sparkles className="w-24 h-24" /></div>
               <p className="text-[10px] font-black uppercase tracking-widest opacity-70">V3 Infrastructure</p>
-              <p className="text-2xl font-black italic tracking-tighter uppercase">Mining Real Assets</p>
+              <p className="text-2xl font-black italic tracking-tighter uppercase">Monetize Assets</p>
               <div className="flex items-center gap-2 mt-4">
-                <Info className="w-3 h-3 text-primary" />
-                <p className="text-[8px] font-bold uppercase tracking-widest text-primary">Koin ALIX diciptakan dari nol melalui daya komputasi.</p>
+                <ShieldCheck className="w-3 h-3 text-primary" />
+                <p className="text-[8px] font-bold uppercase tracking-widest text-primary">ALIX dapat diuangkan ke saldo utama Admin kapan saja.</p>
               </div>
             </Card>
           </div>

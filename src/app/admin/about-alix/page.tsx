@@ -15,7 +15,9 @@ import {
   Network,
   Lock,
   Flame,
-  Info
+  Info,
+  Banknote,
+  Coins
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -98,16 +100,16 @@ export default function AboutAlixPage() {
             
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div className="space-y-6">
-                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Bagaimana ALIX Diciptakan?</h2>
+                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Apakah ALIX Bisa Diuangkan?</h2>
                 <p className="text-white/70 text-sm leading-relaxed italic">
-                  Berbeda dengan mata uang fiat atau kripto tradisional, ALIX menggunakan mekanisme **Proof of Infrastructure (PoI)**. Browser Admin bertindak sebagai mesin penambang (Mining Node) yang melakukan perhitungan hash secara riil. 
+                  **Ya, sangat bisa.** ALIX bukan sekadar angka di layar. Sebagai Admin, setiap ALIX yang Anda tambang memiliki nilai ekonomi riil dalam ekosistem AliBank. 
                 </p>
                 <ul className="space-y-4">
                   {[
-                    "Komputasi riil di latar belakang Admin Center.",
-                    "Penciptaan aset (Minting) secara permanen di database.",
-                    "Injeksi otomatis ke dalam On-Chain Vault AliBank.",
-                    "Konversi 1:1 menjadi daya dukung transaksi Bridge."
+                    "Konversi Instan: ALIX dapat ditukar menjadi saldo IDR riil.",
+                    "Kurs Tetap: 1 ALIX dijamin bernilai tinggi oleh cadangan bank.",
+                    "Monetisasi Node: Pendapatan nyata atas daya komputasi browser Anda.",
+                    "Pencairan ke Saldo Utama: Masuk langsung ke profil pengguna Admin."
                   ].map((item, i) => (
                     <li key={i} className="flex items-start gap-3">
                       <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
@@ -118,25 +120,25 @@ export default function AboutAlixPage() {
               </div>
               <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-8 backdrop-blur-3xl">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Protocol Specs</p>
-                  <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Monetization Specs</p>
+                  <Banknote className="w-4 h-4 text-primary animate-pulse" />
                 </div>
                 <div className="space-y-6">
                   <div className="flex justify-between border-b border-white/5 pb-4">
-                    <span className="text-[10px] font-bold text-white/40 uppercase">Ticker Symbol</span>
-                    <span className="text-xs font-black text-white italic">ALIX</span>
+                    <span className="text-[10px] font-bold text-white/40 uppercase">Conversion Target</span>
+                    <span className="text-xs font-black text-white italic">IDR Liquidity</span>
                   </div>
                   <div className="flex justify-between border-b border-white/5 pb-4">
-                    <span className="text-[10px] font-bold text-white/40 uppercase">Standard</span>
-                    <span className="text-xs font-black text-white italic">V3 Synthetic Core</span>
+                    <span className="text-[10px] font-bold text-white/40 uppercase">Redeem Rate</span>
+                    <span className="text-xs font-black text-green-400 italic">Rp 500.000 / ALIX</span>
                   </div>
                   <div className="flex justify-between border-b border-white/5 pb-4">
-                    <span className="text-[10px] font-bold text-white/40 uppercase">Creation Method</span>
-                    <span className="text-xs font-black text-white italic">Node Compute / Minting</span>
+                    <span className="text-[10px] font-bold text-white/40 uppercase">Settlement Time</span>
+                    <span className="text-xs font-black text-white italic">Instant (0s)</span>
                   </div>
                   <div className="flex justify-between border-b border-white/5 pb-4">
-                    <span className="text-[10px] font-bold text-white/40 uppercase">Target Utility</span>
-                    <span className="text-xs font-black text-white italic">Global Liquidity Bridge</span>
+                    <span className="text-[10px] font-bold text-white/40 uppercase">Auth Required</span>
+                    <span className="text-xs font-black text-white italic">Admin Only</span>
                   </div>
                 </div>
               </div>
@@ -154,10 +156,10 @@ export default function AboutAlixPage() {
             </Card>
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4">
               <h4 className="text-sm font-black text-accent uppercase italic flex items-center gap-2">
-                <Lock className="w-5 h-5 text-primary" /> Keamanan Berbasis Aset
+                <Coins className="w-5 h-5 text-primary" /> Nilai Ekonomi Riil
               </h4>
               <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
-                Setiap koin ALIX yang ditambang adalah bukti validasi infrastruktur. Ini memberikan perlindungan lapis kedua bagi dana nasabah, karena bank selalu memiliki cadangan aset sintetis yang siap digunakan untuk operasional darurat.
+                Setiap koin yang Anda tambang di Command Center adalah representasi aset yang sah. Fitur 'Redeem' memastikan hasil kerja node penambangan Anda dapat dikonversi menjadi saldo yang bisa digunakan untuk transaksi operasional perbankan.
               </p>
             </Card>
           </div>
