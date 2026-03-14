@@ -228,8 +228,20 @@ export default function AdminControlPage() {
   const handleRealWorldBridge = async () => {
     if (!db || !globalLiquidity || typeof window.ethereum === 'undefined') return;
     const reserveAmount = globalLiquidity.syntheticEthReserve || 0;
+    const physicalAmount = parseFloat(onChainTotal) || 0;
+
     if (reserveAmount <= 0) {
       toast({ variant: "destructive", title: "Gagal", description: "Tidak ada jatah penarikan dari hasil mining." });
+      return;
+    }
+
+    // Jika ingin tarik 0.0020 tapi fisik cuma 0.0003, kita beri peringatan keras
+    if (reserveAmount > physicalAmount) {
+      toast({ 
+        variant: "destructive", 
+        title: "Kas Fisik Kurang", 
+        description: `Anda ingin menarik ${reserveAmount.toFixed(4)} ETH, tapi kas fisik Smart Contract baru memiliki ${physicalAmount.toFixed(4)} ETH. Silakan 'Fill Physical Liquidity' terlebih dahulu agar sesuai dengan jatah mining Anda.` 
+      });
       return;
     }
 
@@ -243,7 +255,6 @@ export default function AdminControlPage() {
       
       toast({ title: "Memicu Blockchain...", description: "Mentransfer ETH dari Kas Bank ke MetaMask Anda." });
       
-      // Mengirim transaksi ke blockchain
       const tx = await contract.releaseFunds(ADMIN_WALLET, amountInWei);
       const receipt = await tx.wait();
 
@@ -251,20 +262,11 @@ export default function AdminControlPage() {
         await updateDoc(doc(db, "system", "liquidity"), {
           syntheticEthReserve: 0
         });
-        toast({ title: "Bridge Berhasil!", description: `${reserveAmount.toFixed(4)} ETH telah terkirim ke MetaMask dari Kas Bank.` });
+        toast({ title: "Bridge Berhasil!", description: `${reserveAmount.toFixed(4)} ETH telah terkirim ke MetaMask.` });
         syncOnChainVault();
       }
     } catch (err: any) {
-      // Jika error karena saldo fisik di Smart Contract kurang (balance < amount)
-      if (err.message.includes("insufficient funds") || err.message.includes("execution reverted")) {
-        toast({ 
-          variant: "destructive", 
-          title: "Kas Fisik On-Chain Kurang", 
-          description: "Smart Contract tidak memiliki cukup ETH nyata untuk membayar jatah mining Anda. Gunakan 'Refill Vault' (MetaMask) untuk mengisi kas fisik di blockchain terlebih dahulu." 
-        });
-      } else {
-        toast({ variant: "destructive", title: "Blockchain Error", description: err.message });
-      }
+      toast({ variant: "destructive", title: "Blockchain Error", description: err.message });
     } finally {
       setIsSettling(false);
     }
@@ -636,6 +638,12 @@ export default function AdminControlPage() {
                 <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:gold-gradient group-hover:text-white transition-all shadow-lg"><BookOpen className="w-6 h-6" /></div>
                 <span className="text-[10px] font-black uppercase text-accent group-hover:text-primary transition-colors tracking-widest italic">Tentang Koin ALIX</span>
               </Link>
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent shadow-lg">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <span className="text-[10px] font-black uppercase text-accent tracking-widest italic">Secure Audit v3.0</span>
+              </div>
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-center gap-2">
