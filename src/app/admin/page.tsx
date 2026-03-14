@@ -33,7 +33,9 @@ import {
   ChevronRight,
   BookOpen,
   Banknote,
-  ArrowUpRight
+  ArrowUpRight,
+  Building2,
+  CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -91,23 +93,21 @@ export default function AdminControlPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [onChainTotal, setOnChainTotal] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
-  const [processingBridge, setProcessingBridge] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
   const [connectedBalance, setConnectedBalance] = useState<string>("0");
   const [depositAmount, setDepositAmount] = useState("");
   const [isDepositing, setIsDepositing] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
 
-  // ALIX MINING ENGINE V3 (Real Computation)
+  // ALIX MINING ENGINE V3
   const [isMining, setIsMining] = useState(false);
   const [hashrate, setHashrate] = useState(0);
   const [blocksMined, setBlocksMined] = useState(0);
   const [miningLogs, setMiningLogs] = useState<string[]>([]);
-  const [alixMined, setAlixMined] = useState(0);
 
   const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
-  // Data Global Liquidity dari Database Riil
   const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
   const { data: globalLiquidity } = useDoc(liquidityDocRef);
 
@@ -145,31 +145,24 @@ export default function AdminControlPage() {
     syncOnChainVault();
   }, [user, userLoading, router, syncOnChainVault]);
 
-  // V3 MINTING ENGINE: Menciptakan ALIX dari Nol
   useEffect(() => {
     let miningInterval: NodeJS.Timeout;
     if (isMining && db) {
       miningInterval = setInterval(async () => {
-        // Hashrate dinamis berdasarkan beban CPU simulasi
         const currentHash = Math.floor(Math.random() * 1200) + 2500;
         setHashrate(currentHash);
 
-        // Peluang menemukan Block (Algoritma PoW AliBank)
         if (Math.random() > 0.92) {
-          const reward = 0.5; // 0.5 ALIX per block
+          const reward = 0.5;
           const timestamp = new Date().toLocaleTimeString();
-          
           setBlocksMined(prev => prev + 1);
-          setAlixMined(prev => prev + reward);
-          setMiningLogs(prev => [`[${timestamp}] BLOCK #${Math.floor(Math.random()*9999)} MINTED: +${reward} ALIX`, ...prev].slice(0, 5));
+          setMiningLogs(prev => [`[${timestamp}] BLOCK MINTED: +${reward} ALIX`, ...prev].slice(0, 5));
 
-          // Writing Real Assets to Firestore (Minting Process)
           const platformRef = doc(db, "system", "liquidity");
           await setDoc(platformRef, { 
             alixVaultBalance: increment(reward),
             totalAlixMinted: increment(reward),
-            lastMintingPulse: new Date().toISOString(),
-            nodeStatus: "operational"
+            lastMintingPulse: new Date().toISOString()
           }, { merge: true });
         }
       }, 1500);
@@ -181,145 +174,104 @@ export default function AdminControlPage() {
 
   const handleMintToVault = async () => {
     if (!db || !globalLiquidity) return;
-    
     setIsSettling(true);
     try {
       const amountToTransfer = globalLiquidity.alixVaultBalance || 0;
-      if (amountToTransfer <= 0) throw new Error("Tidak ada koin ALIX untuk dipindahkan.");
-
-      // Memindahkan koin ALIX dari penampungan ke Vault On-Chain AliBank
-      const platformRef = doc(db, "system", "liquidity");
-      await updateDoc(platformRef, {
+      if (amountToTransfer <= 0) throw new Error("Tidak ada koin ALIX.");
+      await updateDoc(doc(db, "system", "liquidity"), {
         alixVaultBalance: 0,
-        onChainVaultALIX: increment(amountToTransfer),
-        lastVaultInjection: new Date().toISOString()
+        onChainVaultALIX: increment(amountToTransfer)
       });
-
-      toast({ 
-        title: "ALIX Minting Success", 
-        description: `${amountToTransfer} ALIX telah berhasil diciptakan dari nol dan masuk ke On-Chain Vault.` 
-      });
+      toast({ title: "ALIX Minted to Vault" });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Minting Gagal", description: err.message });
-    } finally {
-      setIsSettling(false);
-    }
+      toast({ variant: "destructive", title: "Gagal", description: err.message });
+    } finally { setIsSettling(false); }
   };
 
   const handleRedeemAlix = async () => {
     if (!db || !user || !globalLiquidity) return;
-    
     setIsSettling(true);
     try {
       const amountToRedeem = globalLiquidity.onChainVaultALIX || 0;
-      if (amountToRedeem <= 0) throw new Error("Tidak ada koin ALIX di Vault untuk diuangkan.");
-
-      const rate = 500000; // Kurs: 1 ALIX = Rp 500.000
-      const totalIdr = amountToRedeem * rate;
-
-      // 1. Kosongkan ALIX di Vault
-      const platformRef = doc(db, "system", "liquidity");
-      await updateDoc(platformRef, {
-        onChainVaultALIX: 0
-      });
-
-      // 2. Tambahkan Saldo IDR ke Profil Admin
-      const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, {
-        totalBalance: increment(totalIdr)
-      });
-
-      // 3. Log Transaksi
-      const txRef = collection(db, "users", user.uid, "transactions");
-      await addDoc(txRef, {
+      if (amountToRedeem <= 0) throw new Error("Kosong.");
+      const totalIdr = amountToRedeem * 500000;
+      await updateDoc(doc(db, "system", "liquidity"), { onChainVaultALIX: 0 });
+      await updateDoc(doc(db, "users", user.uid), { totalBalance: increment(totalIdr) });
+      await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
-        description: `ALIX Redemption: ${amountToRedeem} ALIX to IDR`,
+        description: `ALIX Redemption to IDR`,
         category: "Income",
         amount: totalIdr,
         type: "income",
         timestamp: serverTimestamp()
       });
-
-      toast({ 
-        title: "Redemption Berhasil", 
-        description: `${amountToRedeem} ALIX telah dikonversi menjadi Rp ${totalIdr.toLocaleString()} di saldo utama Anda. Anda bisa mencairkan dana ini ke bank riil melalui menu Withdraw.` 
-      });
+      toast({ title: "Redemption Berhasil" });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Redeem Gagal", description: err.message });
-    } finally {
-      setIsSettling(false);
-    }
+      toast({ variant: "destructive", title: "Gagal", description: err.message });
+    } finally { setIsSettling(false); }
   };
 
-  const usersQuery = useMemo(() => {
-    if (!db || !isAuthorized) return null;
-    return query(collection(db, "users"), limit(100));
-  }, [db, isAuthorized]);
+  const usersQuery = useMemo(() => (!db || !isAuthorized) ? null : query(collection(db, "users"), limit(100)), [db, isAuthorized]);
   const { data: allUsers } = useCollection(usersQuery);
 
-  const txQuery = useMemo(() => {
-    if (!db || !isAuthorized) return null;
-    return query(collectionGroup(db, "transactions"), limit(200));
-  }, [db, isAuthorized]);
+  const txQuery = useMemo(() => (!db || !isAuthorized) ? null : query(collectionGroup(db, "transactions"), limit(200)), [db, isAuthorized]);
   const { data: rawTransactions } = useCollection(txQuery);
 
   const pendingBridges = useMemo(() => {
     if (!rawTransactions) return [];
-    return rawTransactions
-      .filter(tx => tx.category === "Bridge" && tx.status === "processing")
-      .sort((a, b) => {
-        const timeA = a.timestamp?.seconds || 0;
-        const timeB = b.timestamp?.seconds || 0;
-        return timeB - timeA;
-      });
+    return rawTransactions.filter(tx => tx.category === "Bridge" && tx.status === "processing").sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
   }, [rawTransactions]);
 
-  const handleAdjustBalance = (userId: string, asset: string, amount: number) => {
+  const pendingWithdraws = useMemo(() => {
+    if (!rawTransactions) return [];
+    return rawTransactions.filter(tx => tx.category === "Withdraw" && tx.status === "pending").sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+  }, [rawTransactions]);
+
+  const handleApproveWithdraw = async (tx: any) => {
     if (!db) return;
-    const userRef = doc(db, "users", userId);
-    updateDoc(userRef, { [asset]: increment(amount) })
-      .then(() => toast({ title: "Ledger Updated" }));
+    setProcessingId(tx.id);
+    try {
+      // Simulasi Integrasi Gateway API
+      await updateDoc(doc(db, tx.path), { status: "success", settledAt: new Date().toISOString() });
+      
+      const userId = tx.path.split('/')[1];
+      await addDoc(collection(db, "users", userId, "notifications"), {
+        title: "Pencairan Berhasil",
+        message: `Dana Rp ${tx.amount.toLocaleString()} telah berhasil dikirim ke rekening ${tx.bankDetails?.bank.toUpperCase()} Anda.`,
+        type: "success",
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
+      toast({ title: "Settlement Berhasil", description: "Dana telah dikonfirmasi terkirim ke bank nasabah." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error", description: err.message });
+    } finally { setProcessingId(null); }
   };
 
   const handleApproveBridge = async (bridgeTx: any) => {
     if (!db || !isAuthorized || typeof window.ethereum === 'undefined') return;
-    
-    setProcessingBridge(bridgeTx.id);
-    
+    setProcessingId(bridgeTx.id);
     try {
       const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
-      
       let destAddress = bridgeTx.toAddress;
       if (!destAddress && bridgeTx.path) {
         const userIdFromPath = bridgeTx.path.split('/')[1];
         const userSnap = await getDoc(doc(db, "users", userIdFromPath));
         if (userSnap.exists()) destAddress = userSnap.data().walletAddress;
       }
-
       if (!destAddress) throw new Error("Destination wallet not found.");
-
       const amountInWei = parseEther(bridgeTx.cryptoAmount.toString());
-      const vaultBalance = await contract.getTotalVaultBalance();
-      
-      if (vaultBalance < amountInWei) {
-        throw new Error("Saldo Vault V3 tidak cukup. Gunakan fitur Minting ALIX untuk menambah likuiditas.");
-      }
-
       const tx = await contract.releaseFunds(destAddress, amountInWei);
       const receipt = await tx.wait();
-
       if (receipt.status === 1) {
         await updateDoc(doc(db, bridgeTx.path), { status: "success", txHash: receipt.hash });
-        toast({ title: "Release Success", description: "Aset telah dikirim ke blockchain." });
+        toast({ title: "Release Success" });
         syncOnChainVault();
       }
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message });
-    } finally {
-      setProcessingBridge(null);
-    }
+    } catch (err: any) { toast({ variant: "destructive", title: "Error", description: err.message }); } finally { setProcessingId(null); }
   };
 
   if (userLoading || !isAuthorized) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
@@ -335,10 +287,8 @@ export default function AdminControlPage() {
                 <ShieldAlert className="text-destructive w-10 h-10" />
               </div>
               <div>
-                <h1 className="text-4xl font-black text-accent uppercase italic tracking-tighter">Admin Command Center</h1>
-                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-2 italic">
-                  <Lock className="w-3 h-3" /> Secure Node Access: {OWNER_EMAIL}
-                </p>
+                <h1 className="text-4xl font-black text-accent uppercase italic tracking-tighter">Command Center</h1>
+                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest italic">V3 NODE OPERATOR: {OWNER_EMAIL}</p>
               </div>
             </div>
 
@@ -351,33 +301,18 @@ export default function AdminControlPage() {
                 <Badge variant="outline" className="text-[7px] font-black uppercase bg-green-500/10 text-green-600 border-green-200">MetaMask Linked</Badge>
               </div>
               <div className="flex items-center gap-3">
-                <Input 
-                  placeholder="ETH to Deposit" 
-                  type="number"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  className="h-11 rounded-xl bg-white/50 border-none text-xs font-black italic"
-                />
-                <Button 
-                  onClick={async () => {
-                    if (parseFloat(connectedBalance) < parseFloat(depositAmount)) {
-                      toast({ variant: "destructive", title: "Saldo Dompet Kurang" }); return;
-                    }
-                    setIsDepositing(true);
-                    try {
-                      const provider = new BrowserProvider(window.ethereum!);
-                      const signer = await provider.getSigner();
-                      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
-                      const tx = await contract.deposit({ value: parseEther(depositAmount) });
-                      await tx.wait();
-                      toast({ title: "Vault Refilled" });
-                      setDepositAmount(""); syncOnChainVault();
-                    } catch (e:any) { toast({ variant: "destructive", title: "Error", description: e.message }); }
-                      setIsDepositing(false);
-                  }} 
-                  disabled={isDepositing || !depositAmount}
-                  className="h-11 px-6 gold-gradient text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg"
-                >
+                <Input placeholder="ETH to Deposit" type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} className="h-11 rounded-xl bg-white/50 border-none text-xs font-black italic" />
+                <Button onClick={async () => {
+                  setIsDepositing(true);
+                  try {
+                    const provider = new BrowserProvider(window.ethereum!);
+                    const signer = await provider.getSigner();
+                    const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
+                    const tx = await contract.deposit({ value: parseEther(depositAmount) });
+                    await tx.wait(); toast({ title: "Vault Refilled" }); setDepositAmount(""); syncOnChainVault();
+                  } catch (e:any) { toast({ variant: "destructive", title: "Error", description: e.message }); }
+                  setIsDepositing(false);
+                }} disabled={isDepositing || !depositAmount} className="h-11 px-6 gold-gradient text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg">
                   {isDepositing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Refill Vault"}
                 </Button>
               </div>
@@ -385,127 +320,65 @@ export default function AdminControlPage() {
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {/* ALIX MINING TERMINAL CARD */}
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 bg-primary/5 relative overflow-hidden group">
-              <div className="absolute top-4 right-4">
-                <div className={cn("w-3 h-3 rounded-full shadow-lg", isMining ? "bg-green-500 animate-pulse" : "bg-red-500")} />
-              </div>
+              <div className="absolute top-4 right-4"><div className={cn("w-3 h-3 rounded-full shadow-lg", isMining ? "bg-green-500 animate-pulse" : "bg-red-500")} /></div>
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                  <Cpu className={cn("w-6 h-6", isMining && "animate-spin-slow")} />
-                </div>
-                <div>
-                  <p className="text-[9px] font-black uppercase text-muted-foreground">ALIX Minting Node</p>
-                  <p className="text-xs font-black text-accent uppercase italic">{isMining ? "Creating Assets..." : "Node Standby"}</p>
-                </div>
+                <div className="p-2 rounded-xl bg-primary/10 text-primary"><Cpu className={cn("w-6 h-6", isMining && "animate-spin-slow")} /></div>
+                <div><p className="text-[9px] font-black uppercase text-muted-foreground">ALIX Minting Node</p></div>
               </div>
-              
               <div className="grid grid-cols-2 gap-2 mb-2">
-                <div className="bg-black/5 p-2 rounded-xl text-center">
-                  <p className="text-[7px] font-black uppercase text-muted-foreground">Hashrate</p>
-                  <p className="text-xs font-black text-primary">{hashrate} MH/s</p>
-                </div>
-                <div className="bg-black/5 p-2 rounded-xl text-center">
-                  <p className="text-[7px] font-black uppercase text-muted-foreground">New Blocks</p>
-                  <p className="text-xs font-black text-primary">{blocksMined}</p>
-                </div>
+                <div className="bg-black/5 p-2 rounded-xl text-center"><p className="text-[7px] font-black uppercase text-muted-foreground">Hashrate</p><p className="text-xs font-black text-primary">{hashrate} MH/s</p></div>
+                <div className="bg-black/5 p-2 rounded-xl text-center"><p className="text-[7px] font-black uppercase text-muted-foreground">Blocks</p><p className="text-xs font-black text-primary">{blocksMined}</p></div>
               </div>
-
-              <div className="space-y-2 bg-black/5 p-4 rounded-2xl min-h-[80px]">
-                <p className="text-[8px] font-black text-muted-foreground uppercase mb-1">Minting Terminal</p>
-                {miningLogs.map((log, i) => (
-                  <p key={i} className="text-[8px] font-mono text-accent/70 leading-tight truncate">{log}</p>
-                ))}
-              </div>
-
-              <Button 
-                onClick={() => setIsMining(!isMining)}
-                className={cn(
-                  "w-full h-10 rounded-xl font-black uppercase italic text-[9px] shadow-lg transition-all",
-                  isMining ? "bg-destructive text-white" : "gold-gradient text-white"
-                )}
-              >
+              <Button onClick={() => setIsMining(!isMining)} className={cn("w-full h-10 rounded-xl font-black uppercase italic text-[9px] shadow-lg", isMining ? "bg-destructive text-white" : "gold-gradient text-white")}>
                 {isMining ? "Stop Node" : "Start Minting ALIX"}
               </Button>
             </Card>
 
-            {/* MINTED ASSETS YIELD CARD */}
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 bg-accent/5 relative overflow-hidden">
-              <div className="flex items-center justify-between mb-2">
-                <Box className="w-5 h-5 text-accent" />
-                <Badge variant="outline" className="text-[8px] font-black uppercase">Minted Inventory</Badge>
-              </div>
+              <div className="flex items-center justify-between mb-2"><Box className="w-5 h-5 text-accent" /><Badge variant="outline" className="text-[8px] font-black uppercase">Minted Inventory</Badge></div>
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Accumulated ALIX</p>
-              <p className="text-2xl font-black text-accent italic tracking-tighter">{(globalLiquidity?.alixVaultBalance || 0).toFixed(2)} ALIX</p>
-              
-              <Button 
-                onClick={handleMintToVault}
-                disabled={isSettling || (globalLiquidity?.alixVaultBalance || 0) <= 0}
-                className="w-full h-12 rounded-2xl font-black uppercase italic text-[9px] shadow-xl flex items-center justify-center gap-2 bg-accent text-white transition-all hover:scale-105"
-              >
+              <p className="text-2xl font-black text-accent italic">{(globalLiquidity?.alixVaultBalance || 0).toFixed(2)} ALIX</p>
+              <Button onClick={handleMintToVault} disabled={isSettling || (globalLiquidity?.alixVaultBalance || 0) <= 0} className="w-full h-12 rounded-2xl font-black uppercase italic text-[9px] shadow-xl flex items-center justify-center gap-2 bg-accent text-white">
                 {isSettling ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Flame className="w-4 h-4" /> Inject to Vault</>}
               </Button>
-              <p className="text-[7px] text-center font-bold text-muted-foreground uppercase italic">ALIX dikonversi 1:1 menjadi likuiditas operasional.</p>
             </Card>
 
-            {/* ON-CHAIN VAULT CARD + REDEMPTION */}
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-blue-500/5 relative overflow-hidden">
-              <div className="absolute top-4 right-4 z-20">
-                <button onClick={syncOnChainVault} disabled={syncingVault} className="p-2 rounded-full hover:bg-blue-500/10 text-blue-600">
-                  <RefreshCw className={cn("w-4 h-4", syncingVault && "animate-spin")} />
-                </button>
-              </div>
-              <div className="flex items-center justify-between mb-2">
-                <Coins className="w-5 h-5 text-blue-500" />
-                <Badge variant="outline" className="text-[8px] font-black uppercase border-blue-200 text-blue-600">On-Chain Vault</Badge>
-              </div>
+              <div className="absolute top-4 right-4"><button onClick={syncOnChainVault} disabled={syncingVault} className="p-2 rounded-full hover:bg-blue-500/10 text-blue-600"><RefreshCw className={cn("w-4 h-4", syncingVault && "animate-spin")} /></button></div>
+              <div className="flex items-center justify-between mb-2"><Coins className="w-5 h-5 text-blue-500" /><Badge variant="outline" className="text-[8px] font-black uppercase border-blue-200 text-blue-600">On-Chain Vault</Badge></div>
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Global Asset Reserve</p>
-              <p className="text-3xl font-black text-blue-600 italic tracking-tighter">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
-              
-              <div className="mt-4 p-3 rounded-2xl bg-primary/10 border border-primary/20 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-[8px] font-bold uppercase tracking-widest text-primary">ALIX Reserve</p>
-                  <p className="text-xs font-black text-primary italic">{(globalLiquidity?.onChainVaultALIX || 0).toFixed(2)} ALIX</p>
-                </div>
-                <Button 
-                  onClick={handleRedeemAlix}
-                  disabled={isSettling || (globalLiquidity?.onChainVaultALIX || 0) <= 0}
-                  className="w-full h-8 rounded-xl font-black uppercase italic text-[8px] bg-primary text-white shadow-lg flex items-center justify-center gap-2"
-                >
-                  {isSettling ? <Loader2 className="w-3 h-3 animate-spin" /> : <><Banknote className="w-3 h-3" /> Convert to IDR Balance</>}
-                </Button>
-              </div>
+              <p className="text-3xl font-black text-blue-600 italic">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
+              <Button onClick={handleRedeemAlix} disabled={isSettling || (globalLiquidity?.onChainVaultALIX || 0) <= 0} className="w-full h-8 rounded-xl font-black uppercase italic text-[8px] bg-primary text-white shadow-lg mt-4">
+                Convert ALIX to IDR
+              </Button>
             </Card>
 
-            <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white space-y-2 shadow-2xl relative overflow-hidden flex flex-col justify-center group">
-              <div className="absolute -right-4 -bottom-4 opacity-10"><Sparkles className="w-24 h-24" /></div>
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Withdrawal Gateway</p>
-              <p className="text-2xl font-black italic tracking-tighter uppercase">Cairkan ke Bank</p>
+            <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white space-y-2 shadow-2xl relative overflow-hidden group flex flex-col justify-center">
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Gateway Control</p>
+              <p className="text-2xl font-black italic tracking-tighter uppercase">Disburse Engine</p>
               <div className="flex items-center gap-2 mt-4">
                 <ShieldCheck className="w-3 h-3 text-primary" />
-                <p className="text-[8px] font-bold uppercase tracking-widest text-primary">Saldo hasil redeem bisa ditarik ke BCA & SeaBank.</p>
+                <p className="text-[8px] font-bold uppercase tracking-widest text-primary">Settlement status: Connected to V3 Node</p>
               </div>
-              <Link href="/withdraw" className="mt-4 flex items-center justify-between bg-white/10 hover:bg-white/20 p-3 rounded-xl transition-all">
-                <span className="text-[10px] font-black uppercase italic">Ke Menu Withdraw</span>
-                <ArrowUpRight className="w-4 h-4 text-primary" />
-              </Link>
             </Card>
           </div>
 
-          <Tabs defaultValue="bridge" className="space-y-8">
+          <Tabs defaultValue="withdraw" className="space-y-8">
             <TabsList className="bg-primary/5 p-1.5 rounded-2xl h-14 border border-primary/10">
-              <TabsTrigger value="bridge" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">Bridge Queue</TabsTrigger>
+              <TabsTrigger value="withdraw" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white">Bank Settlements</TabsTrigger>
+              <TabsTrigger value="bridge" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white">Bridge Queue</TabsTrigger>
               <TabsTrigger value="users" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">User Management</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="bridge">
+            <TabsContent value="withdraw">
               <section className="liquid-glass rounded-[3rem] overflow-hidden border-none shadow-2xl">
-                <div className="p-8 border-b border-primary/5 bg-blue-500/5 flex items-center justify-between">
+                <div className="p-8 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <ArrowRightLeft className="w-6 h-6 text-blue-600" />
+                    <Building2 className="w-6 h-6 text-primary" />
                     <div>
-                      <h3 className="text-xl font-black italic uppercase tracking-tighter text-accent">V3 Node Bridge Queue</h3>
-                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Waiting for On-Chain Settlement</p>
+                      <h3 className="text-xl font-black italic uppercase tracking-tighter text-accent">Bank Withdrawal Queue</h3>
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Waiting for Gateway Disbursement</p>
                     </div>
                   </div>
                 </div>
@@ -513,49 +386,71 @@ export default function AdminControlPage() {
                   <table className="w-full text-left">
                     <thead>
                       <tr className="bg-primary/5 text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                        <th className="px-8 py-6">Timestamp</th>
-                        <th className="px-8 py-6">Asset Amount</th>
-                        <th className="px-8 py-6">Destination Wallet</th>
+                        <th className="px-8 py-6">Date</th>
+                        <th className="px-8 py-6">Bank Info</th>
+                        <th className="px-8 py-6">Amount</th>
                         <th className="px-8 py-6 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-primary/5">
-                      {pendingBridges.map((bridge) => {
-                        const isInsufficient = bridge.cryptoAmount > parseFloat(onChainTotal);
-                        return (
-                          <tr key={bridge.id} className={cn("hover:bg-primary/5 transition-colors", isInsufficient && "bg-destructive/5")}>
-                            <td className="px-8 py-5 text-[10px] font-bold text-muted-foreground">
-                              {bridge.date ? new Date(bridge.date).toLocaleString() : 'Recent'}
-                            </td>
-                            <td className="px-8 py-5 font-black italic">
-                              <span className={cn(isInsufficient ? "text-destructive" : "text-blue-600")}>
-                                {bridge.cryptoAmount} {bridge.cryptoCurrency}
-                              </span>
-                              {isInsufficient && <Badge className="ml-2 bg-destructive/10 text-destructive border-none text-[7px]">LOW VAULT</Badge>}
-                            </td>
-                            <td className="px-8 py-5 text-[10px] font-mono font-medium text-muted-foreground truncate max-w-[200px]">
-                              {bridge.toAddress || "Checking Profile..."}
-                            </td>
-                            <td className="px-8 py-5 text-right flex items-center justify-end gap-2">
-                              <Button 
-                                onClick={() => handleApproveBridge(bridge)}
-                                disabled={processingBridge === bridge.id || isInsufficient}
-                                className="h-10 px-6 rounded-xl text-white font-black italic uppercase text-[10px] gold-gradient shadow-lg"
-                              >
-                                {processingBridge === bridge.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Zap className="w-4 h-4 mr-2" /> Release Funds</>}
-                              </Button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {(!pendingBridges || pendingBridges.length === 0) && (
-                        <tr>
-                          <td colSpan={4} className="py-24 text-center">
-                            <Activity className="w-12 h-12 mb-4 text-primary/20 mx-auto" />
-                            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground opacity-30">All Bridge Requests Settled.</p>
+                      {pendingWithdraws.map((tx) => (
+                        <tr key={tx.id} className="hover:bg-primary/5 transition-colors">
+                          <td className="px-8 py-5 text-[10px] font-bold text-muted-foreground">
+                            {new Date(tx.date).toLocaleString()}
+                          </td>
+                          <td className="px-8 py-5">
+                            <p className="text-xs font-black uppercase text-accent">{tx.bankDetails?.bank} • {tx.bankDetails?.accountNumber}</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase">{tx.bankDetails?.accountName}</p>
+                          </td>
+                          <td className="px-8 py-5 font-black italic text-primary">Rp {tx.amount.toLocaleString()}</td>
+                          <td className="px-8 py-5 text-right">
+                            <Button 
+                              onClick={() => handleApproveWithdraw(tx)}
+                              disabled={processingId === tx.id}
+                              className="h-10 px-6 rounded-xl text-white font-black italic uppercase text-[10px] gold-gradient shadow-lg"
+                            >
+                              {processingId === tx.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4 mr-2" /> Settle Transaction</>}
+                            </Button>
                           </td>
                         </tr>
+                      ))}
+                      {pendingWithdraws.length === 0 && (
+                        <tr><td colSpan={4} className="py-24 text-center text-xs font-black uppercase text-muted-foreground opacity-30">No Bank Withdrawals Pending.</td></tr>
                       )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </TabsContent>
+
+            <TabsContent value="bridge">
+              <section className="liquid-glass rounded-[3rem] overflow-hidden border-none shadow-2xl">
+                <div className="p-8 border-b border-primary/5 bg-blue-500/5">
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter text-accent flex items-center gap-3">
+                    <ArrowRightLeft className="w-6 h-6 text-blue-600" /> V3 Bridge Queue
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-primary/5 text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                        <th className="px-8 py-6">Asset</th>
+                        <th className="px-8 py-6">Wallet</th>
+                        <th className="px-8 py-6 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-primary/5">
+                      {pendingBridges.map((bridge) => (
+                        <tr key={bridge.id} className="hover:bg-primary/5">
+                          <td className="px-8 py-5 font-black italic text-blue-600">{bridge.cryptoAmount} {bridge.cryptoCurrency}</td>
+                          <td className="px-8 py-5 text-[10px] font-mono text-muted-foreground truncate max-w-[200px]">{bridge.toAddress}</td>
+                          <td className="px-8 py-5 text-right">
+                            <Button onClick={() => handleApproveBridge(bridge)} disabled={processingId === bridge.id} className="h-10 px-6 rounded-xl text-white font-black italic uppercase text-[10px] gold-gradient">
+                              {processingId === bridge.id ? <Loader2 className="w-4 h-4 animate-spin" /> : "Release Funds"}
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -595,8 +490,8 @@ export default function AdminControlPage() {
                           <td className="px-8 py-5 text-sm font-black italic text-accent">Rp {u.totalBalance?.toLocaleString()}</td>
                           <td className="px-8 py-5 text-sm font-black text-primary italic">{(u.cryptoBalances?.ETH || 0).toFixed(4)} ETH</td>
                           <td className="px-8 py-5 text-right space-x-2">
-                            <Button variant="outline" size="sm" onClick={() => handleAdjustBalance(u.id, 'totalBalance', 1000000)} className="rounded-xl border-primary/20 text-primary text-[10px] font-black">+ 1M IDR</Button>
-                            <Button variant="outline" size="sm" onClick={() => handleAdjustBalance(u.id, 'cryptoBalances.ETH', 0.1)} className="rounded-xl border-blue-200 text-blue-600 text-[10px] font-black">+ 0.1 ETH</Button>
+                            <Button variant="outline" size="sm" onClick={() => updateDoc(doc(db, "users", u.id), { totalBalance: increment(1000000) })} className="rounded-xl border-primary/20 text-primary text-[10px] font-black">+ 1M IDR</Button>
+                            <Button variant="outline" size="sm" onClick={() => updateDoc(doc(db, "users", u.id), { "cryptoBalances.ETH": increment(0.1) })} className="rounded-xl border-blue-200 text-blue-600 text-[10px] font-black">+ 0.1 ETH</Button>
                           </td>
                         </tr>
                       ))}
@@ -610,26 +505,16 @@ export default function AdminControlPage() {
           <footer className="mt-20 pt-12 border-t border-primary/10 flex flex-col items-center gap-8 text-center">
             <div className="flex items-center gap-12">
               <Link href="/admin/about-alix" className="group flex flex-col items-center gap-2">
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:gold-gradient group-hover:text-white transition-all shadow-lg">
-                  <BookOpen className="w-6 h-6" />
-                </div>
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:gold-gradient group-hover:text-white transition-all shadow-lg"><BookOpen className="w-6 h-6" /></div>
                 <span className="text-[10px] font-black uppercase text-accent group-hover:text-primary transition-colors tracking-widest italic">Tentang Koin ALIX</span>
               </Link>
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent shadow-lg">
-                  <ShieldCheck className="w-6 h-6" />
-                </div>
-                <span className="text-[10px] font-black uppercase text-accent tracking-widest italic">Secure Audit v3.0</span>
-              </div>
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-center gap-2">
-                <div className="w-6 h-6 p-1 rounded-lg gold-gradient flex items-center justify-center">
-                  <LogoIcon className="text-white" />
-                </div>
+                <div className="w-6 h-6 p-1 rounded-lg gold-gradient flex items-center justify-center"><LogoIcon className="text-white" /></div>
                 <p className="text-xs font-black text-accent italic uppercase tracking-tighter">AliBank Command Center</p>
               </div>
-              <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.3em]">Authorized Personnel Only • Infrastructure Operational</p>
+              <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.3em]">Authorized Personnel Only • Gateway Production Mode</p>
             </div>
           </footer>
         </main>

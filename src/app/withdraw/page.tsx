@@ -12,7 +12,8 @@ import {
   Loader2, 
   ShieldCheck,
   Wallet,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,33 +77,38 @@ export default function WithdrawPage() {
 
     setIsProcessing(true);
     try {
-      // 1. Update Saldo User
+      // 1. Update Saldo User (Potong Saldo Langsung)
       await updateDoc(userDocRef, {
         totalBalance: increment(-numAmount)
       });
 
-      // 2. Catat Transaksi
+      // 2. Catat Transaksi dengan status PENDING untuk Verifikasi Gateway
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
-        description: `Penarikan Dana ke ${targetBank.toUpperCase()} (${accountNumber})`,
+        description: `Withdraw: ${targetBank.toUpperCase()} (${accountNumber})`,
         category: "Withdraw",
         amount: numAmount,
         type: "expense",
-        status: "success",
+        status: "pending", // Membutuhkan verifikasi Admin/Gateway
+        bankDetails: {
+          bank: targetBank,
+          accountNumber,
+          accountName
+        },
         timestamp: serverTimestamp()
       });
 
       // 3. Kirim Notifikasi
       await addDoc(collection(db, "users", user.uid, "notifications"), {
-        title: "Penarikan Dana Berhasil",
-        message: `Dana sebesar Rp ${numAmount.toLocaleString('id-ID')} sedang diproses ke rekening ${targetBank.toUpperCase()}.`,
-        type: "success",
+        title: "Permintaan Penarikan Diterima",
+        message: `Penarikan Rp ${numAmount.toLocaleString('id-ID')} ke ${targetBank.toUpperCase()} sedang diverifikasi oleh AliBank Node.`,
+        type: "info",
         read: false,
         createdAt: new Date().toISOString()
       });
 
       setStep('success');
-      toast({ title: "Penarikan Berhasil", description: "Permintaan penarikan Anda sedang diproses oleh sistem gateway." });
+      toast({ title: "Permintaan Dikirim", description: "Dana Anda sedang dalam proses verifikasi sistem gateway." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal", description: err.message });
     } finally {
@@ -112,15 +118,15 @@ export default function WithdrawPage() {
 
   if (step === 'success') return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 animate-in zoom-in duration-500">
-      <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mb-6">
-        <CheckCircle2 className="w-12 h-12 text-green-600" />
+      <div className="w-24 h-24 rounded-full bg-amber-100 flex items-center justify-center mb-6">
+        <Clock className="w-12 h-12 text-amber-600 animate-pulse" />
       </div>
-      <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">Withdraw Selesai</h2>
+      <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">Sedang Diproses</h2>
       <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 mb-8 text-center">
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Dicairkan</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Status: Pending Verification</p>
         <p className="text-3xl font-black text-primary italic">Rp {parseFloat(amount).toLocaleString('id-ID')}</p>
-        <div className="mt-4 pt-4 border-t border-primary/5 text-[10px] font-bold text-muted-foreground uppercase">
-          Tujuan: {targetBank.toUpperCase()} • {accountNumber}
+        <div className="mt-4 pt-4 border-t border-primary/5 text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+          Dana akan masuk ke rekening {targetBank.toUpperCase()} ({accountNumber}) setelah diverifikasi oleh AliBank V3 Node (Estimasi 5-15 menit).
         </div>
       </Card>
       <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl" onClick={() => router.push('/')}>
@@ -146,7 +152,7 @@ export default function WithdrawPage() {
               </div>
             </div>
             <Badge className="bg-primary/10 text-primary border-primary/20 px-4 py-2 rounded-full font-bold uppercase tracking-widest text-[10px]">
-              Instant Settlement Active
+              V3 Node Verification Active
             </Badge>
           </header>
 
@@ -264,7 +270,7 @@ export default function WithdrawPage() {
                         <span className="text-sm font-black text-accent">{accountName}</span>
                       </div>
                       <div className="flex justify-between py-4">
-                        <span className="text-sm font-black uppercase text-accent">Total Diterima</span>
+                        <span className="text-sm font-black uppercase text-accent">Total Dicairkan</span>
                         <span className="text-2xl font-black text-primary italic">Rp {parseFloat(amount).toLocaleString('id-ID')}</span>
                       </div>
                     </div>
@@ -299,20 +305,14 @@ export default function WithdrawPage() {
                 <ul className="space-y-4">
                   <li className="flex gap-3">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-                    <p className="text-[10px] font-bold text-white/70 leading-relaxed italic">
-                      Penarikan ke Bank riil memerlukan waktu proses 5-15 menit pada jam kerja.
+                    <p className="text-[10px] font-bold text-white/70 leading-relaxed italic uppercase">
+                      SETIAP PENARIKAN HARUS MELEWATI VERIFIKASI ALI-NODE V3 UNTUK KEAMANAN ASET.
                     </p>
                   </li>
                   <li className="flex gap-3">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-                    <p className="text-[10px] font-bold text-white/70 leading-relaxed italic">
-                      Biaya penarikan: **Gratis (0%)** untuk seluruh nasabah AliBank Platinum.
-                    </p>
-                  </li>
-                  <li className="flex gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-                    <p className="text-[10px] font-bold text-white/70 leading-relaxed italic">
-                      Pastikan nama pemilik rekening sama dengan nama profil AliBank untuk mencegah penundaan keamanan.
+                    <p className="text-[10px] font-bold text-white/70 leading-relaxed italic uppercase">
+                      BIAYA PENARIKAN: **GRATIS (0%)**. ESTIMASI MASUK KE BANK: 5-15 MENIT.
                     </p>
                   </li>
                 </ul>
@@ -321,12 +321,11 @@ export default function WithdrawPage() {
               <Card className="liquid-glass rounded-[2rem] p-6 space-y-4 border-primary/10">
                 <div className="flex items-center gap-3 text-accent">
                   <AlertCircle className="w-5 h-5 text-primary" />
-                  <h4 className="text-[10px] font-black uppercase tracking-widest">Butuh Bantuan?</h4>
+                  <h4 className="text-[10px] font-black uppercase tracking-widest">Informasi Riil</h4>
                 </div>
                 <p className="text-[9px] text-muted-foreground font-medium italic leading-relaxed">
-                  Jika dana belum masuk dalam waktu 1x24 jam, hubungi Private Concierge AliBank melalui kanal AI Intelligence Anda.
+                  Untuk pengiriman dana **secara riil** ke rekening bank fisik, sistem memerlukan koneksi ke Payment Gateway API (seperti Xendit/Midtrans). Saat ini transaksi Anda masuk ke antrean verifikasi Admin.
                 </p>
-                <Button variant="link" className="p-0 h-auto text-[9px] font-black uppercase text-primary">Chat Concierge</Button>
               </Card>
             </div>
           </div>
