@@ -112,6 +112,13 @@ export default function AdminControlPage() {
   const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
   const { data: globalLiquidity } = useDoc(liquidityDocRef);
 
+  // TOTAL LIQUIDITY: Gabungan ETH Riil di Smart Contract + ETH Hasil Mining ALIX
+  const totalBankLiquidity = useMemo(() => {
+    const realEth = parseFloat(onChainTotal) || 0;
+    const minedEth = globalLiquidity?.syntheticEthReserve || 0;
+    return (realEth + minedEth).toFixed(4);
+  }, [onChainTotal, globalLiquidity?.syntheticEthReserve]);
+
   const syncOnChainVault = useCallback(async () => {
     if (typeof window.ethereum === 'undefined') return;
     setSyncingVault(true);
@@ -200,8 +207,7 @@ export default function AdminControlPage() {
     setIsSettling(true);
 
     try {
-      // PROSES OTONOM: Hanya update internal database untuk mengisi kas bank sintetis
-      // Tanpa pemicuan MetaMask pada tahap ini (sesuai permintaan user)
+      // PROSES OTONOM: Mengonversi ALIX menjadi modal riil bank (Synthetic Reserve)
       await updateDoc(doc(db, "system", "liquidity"), {
         onChainVaultALIX: 0, 
         syntheticEthReserve: increment(ethEquivalent),
@@ -209,8 +215,8 @@ export default function AdminControlPage() {
       });
 
       toast({ 
-        title: "Vault Refilled from Earnings", 
-        description: `Berhasil mengubah ALIX menjadi ${ethEquivalent.toFixed(4)} ETH di kas bank. Siap ditarik ke MetaMask!` 
+        title: "Vault Refilled from Mining", 
+        description: `Berhasil mengubah ALIX menjadi ${ethEquivalent.toFixed(4)} ETH modal bank.` 
       });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Refill Failed", description: err.message });
@@ -223,16 +229,17 @@ export default function AdminControlPage() {
     if (!db || !globalLiquidity || typeof window.ethereum === 'undefined') return;
     const reserveAmount = globalLiquidity.syntheticEthReserve || 0;
     if (reserveAmount <= 0) {
-      toast({ variant: "destructive", title: "Gagal", description: "Tidak ada jatah penarikan (Earnings) di kas bank." });
+      toast({ variant: "destructive", title: "Gagal", description: "Tidak ada jatah penarikan dari hasil mining." });
       return;
     }
 
-    const onChainBal = parseFloat(onChainTotal);
-    if (onChainBal < reserveAmount) {
+    // Cek saldo fisik di blockchain untuk pengiriman riil
+    const physicalOnChainBal = parseFloat(onChainTotal);
+    if (physicalOnChainBal < reserveAmount) {
       toast({ 
         variant: "destructive", 
-        title: "Kas Bank On-Chain Tidak Cukup", 
-        description: `Saldo Vault riil adalah ${onChainBal} ETH. Meskipun Anda punya earnings ${reserveAmount.toFixed(4)} ETH, kas fisik di blockchain harus diisi terlebih dahulu.` 
+        title: "Kas Fisik On-Chain Belum Siap", 
+        description: `Meskipun Anda punya jatah ${reserveAmount.toFixed(4)} ETH dari mining, kas fisik di Smart Contract adalah ${physicalOnChainBal} ETH. Gunakan 'Refill Vault' (MetaMask) satu kali untuk menyediakan likuiditas fisik yang akan ditarik.` 
       });
       return;
     }
@@ -245,7 +252,7 @@ export default function AdminControlPage() {
       
       const amountInWei = parseEther(reserveAmount.toFixed(18));
       
-      toast({ title: "Memicu Blockchain...", description: "Mentransfer ETH Riil ke dompet Anda via Smart Contract." });
+      toast({ title: "Memicu Blockchain...", description: "Mentransfer ETH dari Kas Bank ke MetaMask Anda." });
       const tx = await contract.releaseFunds(ADMIN_WALLET, amountInWei);
       const receipt = await tx.wait();
 
@@ -253,7 +260,7 @@ export default function AdminControlPage() {
         await updateDoc(doc(db, "system", "liquidity"), {
           syntheticEthReserve: 0
         });
-        toast({ title: "Bridge Berhasil!", description: `${reserveAmount.toFixed(4)} ETH telah terkirim ke MetaMask. Cek Etherscan!` });
+        toast({ title: "Bridge Berhasil!", description: `${reserveAmount.toFixed(4)} ETH telah terkirim ke MetaMask dari Kas Bank.` });
         syncOnChainVault();
       }
     } catch (err: any) {
@@ -395,7 +402,7 @@ export default function AdminControlPage() {
                   } catch (e:any) { toast({ variant: "destructive", title: "Error", description: e.message }); }
                   setIsDepositing(false);
                 }} disabled={isDepositing || !depositAmount} className="h-11 px-6 gold-gradient text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg">
-                  {isDepositing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Refill Vault"}
+                  {isDepositing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Fill Physical Liquidity"}
                 </Button>
               </div>
             </div>
@@ -420,7 +427,7 @@ export default function AdminControlPage() {
 
             {/* MINTED INVENTORY */}
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 bg-accent/5 relative overflow-hidden">
-              <div className="flex items-center justify-between mb-2"><Box className="w-5 h-5 text-accent" /><Badge variant="outline" className="text-[8px] font-black uppercase">Minted Inventory</Badge></div>
+              <div className="flex items-center justify-between mb-2"><Box className="w-5 h-5 text-accent" /><Badge variant="outline" className="text-[8px] font-black uppercase">Inventory</Badge></div>
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Available ALIX</p>
               <p className="text-2xl font-black text-accent italic">{(globalLiquidity?.onChainVaultALIX || 0).toFixed(2)} ALIX</p>
               <div className="flex gap-2">
@@ -433,7 +440,7 @@ export default function AdminControlPage() {
               </div>
             </Card>
 
-            {/* BANK ETH RESERVE - SHOWING ON-CHAIN VS EARNINGS */}
+            {/* BANK ETH RESERVE - MERGED LIQUIDITY */}
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-blue-500/5 relative overflow-hidden group">
               <div className="absolute top-4 right-4"><button onClick={syncOnChainVault} disabled={syncingVault} className="p-2 rounded-full hover:bg-blue-500/10 text-blue-600"><RefreshCw className={cn("w-4 h-4", syncingVault && "animate-spin")} /></button></div>
               <div className="flex items-center justify-between mb-2">
@@ -441,22 +448,22 @@ export default function AdminControlPage() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Badge variant="outline" className="text-[8px] font-black uppercase border-blue-200 text-blue-600 cursor-help flex items-center gap-1">
-                      <ShieldCheck className="w-2 h-2" /> Live Reserve
+                      <ShieldCheck className="w-2 h-2" /> Unified Vault
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs p-3 rounded-xl bg-accent text-white">
-                    <p className="text-[10px] font-bold">Saldo Kas Bank yang benar-benar ada di Smart Contract (On-Chain). Anda menarik gaji mining dari sini.</p>
+                    <p className="text-[10px] font-bold">Total Likuiditas Bank: Gabungan saldo fisik di blockchain dan modal yang diciptakan dari hasil mining ALIX Anda.</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Vault ETH Reserve</p>
               <p className="text-3xl font-black text-blue-600 italic">
-                {onChainTotal} ETH
+                {totalBankLiquidity} ETH
               </p>
               
               <div className="pt-4 space-y-2">
                 <div className="flex justify-between items-center bg-white/40 p-2 rounded-lg">
-                  <span className="text-[8px] font-black text-muted-foreground uppercase">Mining Earnings</span>
+                  <span className="text-[8px] font-black text-muted-foreground uppercase">Mined Capital</span>
                   <span className="text-[10px] font-black text-accent">{(globalLiquidity?.syntheticEthReserve || 0).toFixed(4)} ETH</span>
                 </div>
                 <Button 
@@ -464,7 +471,7 @@ export default function AdminControlPage() {
                   disabled={isSettling || (globalLiquidity?.onChainVaultALIX || 0) <= 0} 
                   className="w-full h-10 rounded-xl font-black uppercase italic text-[8px] bg-blue-600 text-white shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2"
                 >
-                  {isSettling ? <Loader2 className="w-3 h-3 animate-spin" /> : "Refill Vault from Earnings"}
+                  {isSettling ? <Loader2 className="w-3 h-3 animate-spin" /> : "Inject Mining to Vault"}
                 </Button>
               </div>
             </Card>
@@ -474,7 +481,7 @@ export default function AdminControlPage() {
               <div className="absolute top-4 right-4 animate-pulse"><Zap className="w-4 h-4 text-primary" /></div>
               <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Mainnet Payout</p>
               <p className="text-2xl font-black italic tracking-tighter uppercase">Redeem to Wallet</p>
-              <p className="text-[8px] font-medium opacity-50 uppercase tracking-widest leading-tight">Cairkan hasil mining Anda dari Vault ke dompet MetaMask secara riil.</p>
+              <p className="text-[8px] font-medium opacity-50 uppercase tracking-widest leading-tight">Cairkan modal hasil mining Anda dari Vault ke dompet MetaMask secara riil.</p>
               <Button 
                 onClick={handleRealWorldBridge} 
                 disabled={isSettling || (globalLiquidity?.syntheticEthReserve || 0) <= 0} 
