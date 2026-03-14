@@ -78,7 +78,7 @@ export default function AboutAlixPage() {
             </div>
             <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Zero-Cost Minting</h3>
             <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
-              Diciptakan dari nol tanpa modal. Setiap blok yang Anda tambang memberikan hak kepada Anda untuk menarik ETH riil dari Smart Contract AliBank.
+              Diciptakan dari nol tanpa modal. Setiap blok yang Anda tambang memberikan hak kepada Anda untuk mengisi kas bank (Vault) tanpa harus menggunakan saldo dompet pribadi.
             </p>
           </Card>
 
@@ -103,28 +103,28 @@ export default function AboutAlixPage() {
               <div className="space-y-6">
                 <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Cara Menciptakan ETH Riil</h2>
                 <p className="text-white/70 text-sm leading-relaxed italic">
-                  Berikut adalah alur bagaimana Koin ALIX yang Anda tambang berubah menjadi saldo ETH yang tercatat di Etherscan:
+                  Berikut adalah alur bagaimana Koin ALIX yang Anda tambang berubah menjadi saldo ETH yang tercatat di Etherscan tanpa memerlukan deposit ETH pribadi:
                 </p>
                 <div className="space-y-4">
                   <div className="flex items-start gap-4">
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0 shadow-lg italic">V1</div>
                     <div>
-                      <p className="text-xs font-black text-white uppercase italic">Mining & Verify</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Tambang ALIX di Command Center, lalu klik "Verify Rewards" untuk mengubahnya menjadi saldo jatah penarikan (Earnings).</p>
+                      <p className="text-xs font-black text-white uppercase italic">Mining & Add Stock</p>
+                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Tambang ALIX di Command Center, lalu klik "Add Stock" untuk memasukkannya ke inventaris bank.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0 shadow-lg italic">V2</div>
                     <div>
-                      <p className="text-xs font-black text-white uppercase italic">Bridge to MetaMask</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Gunakan tombol "Bridge to MetaMask". Ini akan memicu Smart Contract untuk mengirim ETH riil dari kas bank ke dompet Anda.</p>
+                      <p className="text-xs font-black text-white uppercase italic">Refill Vault from Earnings</p>
+                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Gunakan tombol "Refill Vault from Earnings". Ini akan mengubah ALIX menjadi saldo jatah penarikan ETH bank secara otomatis.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shrink-0 shadow-lg italic">V3</div>
                     <div>
-                      <p className="text-xs font-black text-white uppercase italic">Check Etherscan</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Buka situs Etherscan. Anda akan melihat transaksi pengiriman ETH dari alamat Smart Contract ke alamat dompet Anda.</p>
+                      <p className="text-xs font-black text-white uppercase italic">Bridge to MetaMask</p>
+                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider">Klik "Bridge to MetaMask" untuk menarik ETH riil dari kas bank ke dompet Anda. Transaksi akan tercatat di blockchain.</p>
                     </div>
                   </div>
                 </div>
@@ -137,18 +137,18 @@ export default function AboutAlixPage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Monetisasi Mining</p>
+                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Siklus Likuiditas Mandiri</p>
                   <Lock className="w-4 h-4 text-primary" />
                 </div>
                 <div className="space-y-4">
-                  <p className="text-[10px] text-white/60 leading-relaxed italic uppercase">Nilai Tukar Protokol Riil:</p>
+                  <p className="text-[10px] text-white/60 leading-relaxed italic uppercase">Nilai Tukar Protokol:</p>
                   <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-black text-white italic">1 ALIX = 0.0002 ETH</span>
                       <Wallet className="w-3 h-3 text-green-400" />
                     </div>
                   </div>
-                  <p className="text-[9px] text-white/40 italic">Pastikan "Vault ETH Reserve" terisi saldo melalui fitur 'Refill Vault' agar penarikan gaji mining Anda sukses.</p>
+                  <p className="text-[9px] text-white/40 italic">Dengan sistem ini, hasil mining Anda mengisi kapasitas payout bank secara gratis tanpa deposit ETH dari dompet pribadi.</p>
                 </div>
               </div>
             </div>
@@ -161,7 +161,7 @@ export default function AboutAlixPage() {
           </div>
           <h3 className="text-2xl font-black text-accent uppercase italic tracking-tighter">Tulang Punggung Likuiditas</h3>
           <p className="text-[12px] text-muted-foreground font-medium max-w-2xl mx-auto leading-relaxed italic">
-            ALIX diciptakan untuk memberi penghargaan kepada Admin yang menjalankan Node. Semakin aktif Anda menambang, semakin besar jatah ETH riil yang bisa Anda cairkan dari kas bank ke dunia nyata. Ini adalah sistem insentif perbankan modern yang menghubungkan aktivitas digital dengan aset blockchain riil.
+            ALIX diciptakan untuk memberi penghargaan kepada Admin yang menjalankan Node. Semakin aktif Anda menambang, semakin besar jatah ETH riil yang bisa Anda cairkan dari kas bank ke dunia nyata. Ini adalah sistem insentif perbankan modern yang menghubungkan aktivitas digital dengan aset blockchain riil tanpa beban modal awal.
           </p>
         </section>
 

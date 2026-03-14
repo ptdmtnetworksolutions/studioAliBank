@@ -190,7 +190,7 @@ export default function AdminControlPage() {
     } finally { setIsSettling(false); }
   };
 
-  const handleSyntheticInjection = async () => {
+  const handleRefillFromEarnings = async () => {
     if (!db || !globalLiquidity) return;
     const alixAmount = globalLiquidity.onChainVaultALIX || 0;
     if (alixAmount <= 0) {
@@ -209,11 +209,11 @@ export default function AdminControlPage() {
       });
 
       toast({ 
-        title: "Mining Reward Converted", 
-        description: `Berhasil mengubah ALIX menjadi ${ethEquivalent.toFixed(4)} ETH (Earnings). Siap ditarik ke MetaMask!` 
+        title: "Vault Refilled from Earnings", 
+        description: `Berhasil mengubah ALIX menjadi ${ethEquivalent.toFixed(4)} ETH di kas bank. Siap ditarik ke MetaMask!` 
       });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Injection Failed", description: err.message });
+      toast({ variant: "destructive", title: "Refill Failed", description: err.message });
     } finally {
       setIsSettling(false);
     }
@@ -223,7 +223,7 @@ export default function AdminControlPage() {
     if (!db || !globalLiquidity || typeof window.ethereum === 'undefined') return;
     const reserveAmount = globalLiquidity.syntheticEthReserve || 0;
     if (reserveAmount <= 0) {
-      toast({ variant: "destructive", title: "Gagal", description: "Tidak ada jatah penarikan hasil mining." });
+      toast({ variant: "destructive", title: "Gagal", description: "Tidak ada jatah penarikan (Earnings) di kas bank." });
       return;
     }
 
@@ -232,7 +232,7 @@ export default function AdminControlPage() {
       toast({ 
         variant: "destructive", 
         title: "Kas Bank On-Chain Tidak Cukup", 
-        description: `Saldo Vault adalah ${onChainBal} ETH. Harap lakukan 'Refill Vault' terlebih dahulu agar hasil mining Anda bisa dicairkan secara riil.` 
+        description: `Saldo Vault riil adalah ${onChainBal} ETH. Meskipun Anda punya earnings ${reserveAmount.toFixed(4)} ETH, kas fisik di blockchain harus diisi terlebih dahulu.` 
       });
       return;
     }
@@ -245,7 +245,6 @@ export default function AdminControlPage() {
       
       const amountInWei = parseEther(reserveAmount.toFixed(18));
       
-      // Mengirim ETH Riil dari Smart Contract ke Dompet Admin
       toast({ title: "Memicu Blockchain...", description: "Mentransfer ETH Riil ke dompet Anda via Smart Contract." });
       const tx = await contract.releaseFunds(ADMIN_WALLET, amountInWei);
       const receipt = await tx.wait();
@@ -461,11 +460,11 @@ export default function AdminControlPage() {
                   <span className="text-[10px] font-black text-accent">{(globalLiquidity?.syntheticEthReserve || 0).toFixed(4)} ETH</span>
                 </div>
                 <Button 
-                  onClick={handleSyntheticInjection} 
+                  onClick={handleRefillFromEarnings} 
                   disabled={isSettling || (globalLiquidity?.onChainVaultALIX || 0) <= 0} 
                   className="w-full h-10 rounded-xl font-black uppercase italic text-[8px] bg-blue-600 text-white shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2"
                 >
-                  {isSettling ? <Loader2 className="w-3 h-3 animate-spin" /> : "Verify Rewards (DB)"}
+                  {isSettling ? <Loader2 className="w-3 h-3 animate-spin" /> : "Refill Vault from Earnings"}
                 </Button>
               </div>
             </Card>
