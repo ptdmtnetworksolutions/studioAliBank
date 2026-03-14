@@ -103,9 +103,10 @@ export default function AdminControlPage() {
   }, [db, isAuthorized]);
   const { data: allUsers } = useCollection(usersQuery);
 
+  // Simplified query to avoid index errors
   const allInvoicesQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
-    return query(collectionGroup(db, "invoices"), limit(100));
+    return query(collectionGroup(db, "invoices"), limit(200));
   }, [db, isAuthorized]);
   const { data: rawInvoices } = useCollection(allInvoicesQuery);
 
@@ -118,15 +119,22 @@ export default function AdminControlPage() {
     });
   }, [rawInvoices]);
 
+  // Simplified query to avoid index errors
   const txQuery = useMemo(() => {
     if (!db || !isAuthorized) return null;
-    return query(collectionGroup(db, "transactions"), limit(100));
+    return query(collectionGroup(db, "transactions"), limit(200));
   }, [db, isAuthorized]);
   const { data: rawTransactions } = useCollection(txQuery);
 
   const pendingBridges = useMemo(() => {
     if (!rawTransactions) return [];
-    return rawTransactions.filter(tx => tx.category === "Bridge" && tx.status === "processing");
+    return rawTransactions
+      .filter(tx => tx.category === "Bridge" && tx.status === "processing")
+      .sort((a, b) => {
+        const timeA = a.timestamp?.seconds || 0;
+        const timeB = b.timestamp?.seconds || 0;
+        return timeB - timeA;
+      });
   }, [rawTransactions]);
 
   const handleAdjustBalance = (userId: string, asset: string, amount: number) => {
@@ -160,9 +168,6 @@ export default function AdminControlPage() {
     
     try {
       // 1. Ekstrak Alamat Wallet - Strategi Berlapis
-      // A. Cek field toAddress (Data terstruktur baru)
-      // B. Cek regex dari deskripsi (Data lama)
-      // C. Cek dari User Profile (Sinkronisasi akun)
       const description = bridgeTx.description || "";
       const addressMatch = description.match(/0x[a-fA-F0-9]{40,}/i);
       

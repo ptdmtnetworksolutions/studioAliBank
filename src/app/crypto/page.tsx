@@ -40,7 +40,7 @@ import { BrowserProvider, formatEther, Contract, parseEther } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useUser, useDoc, useFirestore, useCollection } from "@/firebase";
-import { doc, updateDoc, increment, addDoc, collection, serverTimestamp, query, where, orderBy, limit } from "firebase/firestore";
+import { doc, updateDoc, increment, addDoc, collection, serverTimestamp, query, limit } from "firebase/firestore";
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -149,13 +149,23 @@ export default function CryptoDeFiPage() {
   const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
+  // Simplified query to avoid index errors, using client-side sorting and filtering
   const transactionsQuery = useMemo(() => (!db || !user) ? null : query(
     collection(db, "users", user.uid, "transactions"),
-    where("category", "in", ["Trading", "Bridge", "Swap"]),
-    orderBy("timestamp", "desc"),
-    limit(10)
+    limit(50)
   ), [db, user]);
-  const { data: historyData } = useCollection(transactionsQuery);
+  const { data: rawHistory } = useCollection(transactionsQuery);
+
+  const historyData = useMemo(() => {
+    if (!rawHistory) return [];
+    return rawHistory
+      .filter(tx => ["Trading", "Bridge", "Swap"].includes(tx.category))
+      .sort((a, b) => {
+        const timeA = a.timestamp?.seconds || 0;
+        const timeB = b.timestamp?.seconds || 0;
+        return timeB - timeA;
+      });
+  }, [rawHistory]);
 
   const checkBalances = useCallback(async (walletAddr: string) => {
     if (typeof window.ethereum === 'undefined' || !walletAddr) return;
@@ -236,7 +246,6 @@ export default function CryptoDeFiPage() {
 
     setIsProcessing(true);
     try {
-      // 1. Update Firestore: Decrease internal ETH
       const userRef = doc(db, "users", user.uid);
       const updatePayload = {
         "cryptoBalances.ETH": increment(-numAmount)
@@ -250,21 +259,19 @@ export default function CryptoDeFiPage() {
         }));
       });
 
-      // 2. Log Transaction with dedicated toAddress field for Admin reliability
       const txData = {
         date: new Date().toISOString(),
         description: `Bridge Out: AliBank ke Wallet (${address})`,
         category: "Bridge",
         cryptoAmount: numAmount,
         cryptoCurrency: "ETH",
-        toAddress: address, // Store address explicitly
+        toAddress: address, 
         type: "expense",
-        status: "processing", // Node must approve this
+        status: "processing", 
         timestamp: serverTimestamp()
       };
       await addDoc(collection(db, "users", user.uid, "transactions"), txData);
 
-      // 3. Notification
       await addDoc(collection(db, "users", user.uid, "notifications"), {
         title: "V3 Bridge Node Verification",
         message: `Pengiriman ${numAmount} ETH sedang diverifikasi oleh Node. Aset akan muncul di wallet Anda setelah konfirmasi Owner.`,

@@ -30,8 +30,7 @@ import {
   query, 
   where, 
   getDocs, 
-  limit,
-  orderBy
+  limit
 } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
@@ -55,17 +54,26 @@ export default function TransferPage() {
   const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
+  // Simplified query to avoid index errors, filter client-side
   const transactionsQuery = useMemo(() => (!db || !user) ? null : query(
     collection(db, "users", user.uid, "transactions"),
-    where("category", "==", "Transfer"),
-    orderBy("timestamp", "desc"),
-    limit(20)
+    limit(100)
   ), [db, user]);
 
-  const { data: recentTxs } = useCollection(transactionsQuery);
+  const { data: rawTxs } = useCollection(transactionsQuery);
 
   const realRecentRecipients = useMemo(() => {
-    if (!recentTxs) return [];
+    if (!rawTxs) return [];
+    
+    // Client-side filtering and sorting for Transfer category
+    const recentTxs = rawTxs
+      .filter(tx => tx.category === "Transfer")
+      .sort((a, b) => {
+        const timeA = a.timestamp?.seconds || 0;
+        const timeB = b.timestamp?.seconds || 0;
+        return timeB - timeA;
+      });
+
     const recipients: any[] = [];
     const seen = new Set();
     recentTxs.forEach(tx => {
@@ -78,7 +86,7 @@ export default function TransferPage() {
       }
     });
     return recipients.slice(0, 5);
-  }, [recentTxs]);
+  }, [rawTxs]);
 
   const handleSearchAccount = async () => {
     if (!db || !searchAccount || searchAccount.length < 5) return;
@@ -207,7 +215,7 @@ export default function TransferPage() {
                 )}
               </div>
               <div className="space-y-4">
-                <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Jumlah Transfer</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Jumlah Transfer</label>
                 <Input type="number" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-20 text-3xl font-black italic pl-16 rounded-[2rem] liquid-glass border-none" />
               </div>
               <Button onClick={handleExecuteTransfer} disabled={isProcessing || !amount || !selectedRecipient} className="w-full h-16 gold-gradient text-white text-lg font-black italic uppercase rounded-[2rem] shadow-xl">
