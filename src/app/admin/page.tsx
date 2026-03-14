@@ -159,12 +159,11 @@ export default function AdminControlPage() {
     setProcessingBridge(bridgeTx.id);
     
     try {
-      // 1. Ekstrak Alamat Wallet dari Deskripsi
-      const addressMatch = bridgeTx.description.match(/\((0x[a-fA-F0-9]{40})\)/);
-      const destAddress = addressMatch ? addressMatch[1] : null;
+      // 1. Ekstrak Alamat Wallet - Prioritas field toAddress, Fallback regex
+      const destAddress = bridgeTx.toAddress || (bridgeTx.description.match(/\((0x[a-fA-F0-9]{40,})\)/i)?.[1]);
 
       if (!destAddress) {
-        throw new Error("Alamat wallet tujuan tidak valid atau tidak terbaca.");
+        throw new Error("Alamat wallet tujuan tidak ditemukan pada record transaksi.");
       }
 
       // 2. Interaksi Blockchain Riil
@@ -177,7 +176,6 @@ export default function AdminControlPage() {
       const amountInWei = parseEther(bridgeTx.cryptoAmount.toString());
       
       // Memanggil fungsi rilis dana pada Smart Contract
-      // Jika contract Anda menggunakan nama fungsi berbeda seperti 'withdraw', ganti di sini
       const tx = await contract.releaseFunds(destAddress, amountInWei);
       
       toast({ title: "Transaksi Broadcasted", description: "Menunggu konfirmasi blok Mainnet..." });
@@ -417,7 +415,7 @@ export default function AdminControlPage() {
                           {bridge.path ? bridge.path.split('/')[1].slice(0,8) : '...'}
                         </td>
                         <td className="px-8 py-5 text-[10px] font-mono font-medium text-muted-foreground">
-                          {bridge.description.match(/\((0x.*)\)/)?.[1] || "V3 External Wallet"}
+                          {bridge.toAddress || bridge.description.match(/\((0x.*)\)/)?.[1] || "V3 External Wallet"}
                         </td>
                         <td className="px-8 py-5 text-right">
                           <Button 

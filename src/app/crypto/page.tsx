@@ -250,13 +250,14 @@ export default function CryptoDeFiPage() {
         }));
       });
 
-      // 2. Log Transaction
+      // 2. Log Transaction with dedicated toAddress field for Admin reliability
       const txData = {
         date: new Date().toISOString(),
         description: `Bridge Out: AliBank ke Wallet (${address})`,
         category: "Bridge",
         cryptoAmount: numAmount,
         cryptoCurrency: "ETH",
+        toAddress: address, // Store address explicitly
         type: "expense",
         status: "processing", // Node must approve this
         timestamp: serverTimestamp()
