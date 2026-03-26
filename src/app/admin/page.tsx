@@ -36,7 +36,9 @@ import {
   ArrowUpRight,
   Building2,
   CheckCircle2,
-  PackagePlus
+  PackagePlus,
+  CreditCard,
+  DollarSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -254,7 +256,7 @@ export default function AdminControlPage() {
       toast({ 
         variant: "destructive", 
         title: "Kas Bank Sedang Kosong", 
-        description: `Anda memiliki hak tarik ${reserveAmount.toFixed(4)} ETH, namun kas fisik bank (On-Chain) baru tersedia ${physicalAmount.toFixed(4)} ETH.` 
+        description: `Anda memiliki jatah ${reserveAmount.toFixed(4)} ETH, namun kas fisik (On-Chain) baru tersedia ${physicalAmount.toFixed(4)} ETH. Silakan isi fisik kas bank terlebih dahulu.` 
       });
       return;
     }
@@ -407,13 +409,67 @@ export default function AdminControlPage() {
               <div className="absolute top-4 right-4 animate-pulse"><Zap className="w-4 h-4 text-primary" /></div>
               <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Payout Engine</p>
               <p className="text-2xl font-black italic tracking-tighter uppercase">Cairkan Profit</p>
-              <p className="text-[8px] font-medium opacity-50 uppercase tracking-widest leading-tight">Gunakan hak tarik ALIX untuk mengambil ETH dari kas bank ke dompet Anda.</p>
+              <p className="text-[8px] font-medium opacity-50 uppercase tracking-widest leading-tight">Gunakan jatah mining ALIX untuk mengambil ETH fisik ke dompet Anda.</p>
               <Button 
                 onClick={handleRealWorldBridge} 
                 disabled={isSettling || (globalLiquidity?.syntheticEthReserve || 0) <= 0} 
                 className="w-full h-10 rounded-xl font-black uppercase italic text-[9px] gold-gradient text-white shadow-xl mt-4"
               >
                 {isSettling ? <Loader2 className="w-3 h-3 animate-spin" /> : "Bridge to MetaMask (On-Chain)"}
+              </Button>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+            <Card className="lg:col-span-2 liquid-glass border-none rounded-[2.5rem] p-8 space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-black italic uppercase text-accent flex items-center gap-3">
+                  <CreditCard className="w-6 h-6 text-primary" /> Global Fiat Injections
+                </h3>
+                <Badge className="bg-green-100 text-green-600 font-bold">REAL FUNDS</Badge>
+              </div>
+              <div className="p-8 rounded-[2rem] bg-accent/5 border border-primary/10 flex flex-col md:flex-row items-center justify-between gap-8">
+                <div>
+                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">Total Collected from Cards (Marketplace)</p>
+                  <p className="text-4xl font-black text-accent italic">
+                    Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString('id-ID')}
+                  </p>
+                  <p className="text-[9px] font-medium text-muted-foreground mt-2 italic uppercase">Dana ini tersedia secara riil di rekening gateway AliBank.</p>
+                </div>
+                <div className="flex gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm"><Globe className="w-6 h-6" /></div>
+                  <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-600 shadow-sm"><DollarSign className="w-6 h-6" /></div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <p className="text-[10px] font-black uppercase text-accent">Recent Card Transaction</p>
+                {globalLiquidity?.lastCardTransaction ? (
+                  <div className="p-4 rounded-2xl liquid-glass flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-green-600"><CheckCircle2 className="w-5 h-5" /></div>
+                      <div>
+                        <p className="text-xs font-black text-accent uppercase">Card Deposit: {globalLiquidity.lastCardTransaction.currency}</p>
+                        <p className="text-[9px] text-muted-foreground font-bold">Successfully settled via Global Gateway</p>
+                      </div>
+                    </div>
+                    <p className="text-sm font-black text-accent">Rp {globalLiquidity.lastCardTransaction.amount.toLocaleString()}</p>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground italic uppercase">No card transactions detected yet.</p>
+                )}
+              </div>
+            </Card>
+
+            <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white flex flex-col justify-center space-y-6">
+              <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-primary shadow-xl"><ShieldCheck className="w-8 h-8" /></div>
+              <div>
+                <h4 className="text-xl font-black uppercase italic tracking-tighter">Gateway Audit</h4>
+                <p className="text-[10px] text-white/60 leading-relaxed mt-2 uppercase tracking-widest font-medium">
+                  Seluruh dana yang masuk melalui kartu debit online telah terenkripsi end-to-end dan siap dialokasikan sebagai likuiditas fisik ke dalam smart contract.
+                </p>
+              </div>
+              <Button className="w-full h-12 rounded-2xl gold-gradient text-white font-black uppercase italic text-[10px] shadow-lg">
+                Generate Financial Report
               </Button>
             </Card>
           </div>

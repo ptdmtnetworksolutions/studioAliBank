@@ -15,17 +15,21 @@ import {
   Globe,
   ChevronRight,
   XCircle,
-  CreditCard
+  CreditCard,
+  AlertCircle,
+  ArrowRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useFirestore, useUser } from "@/firebase";
 import { collection, query, getDocs, doc, setDoc, increment, addDoc, serverTimestamp, collectionGroup } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { cn } from "@/lib/utils";
 
 export default function CheckoutPage() {
   const { invoiceId } = useParams();
@@ -37,26 +41,16 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentStep, setPaymentStep] = useState<'selection' | 'processing' | 'success'>('selection');
+  const [paymentStep, setPaymentStep] = useState<'selection' | 'card_input' | 'processing' | 'success'>('selection');
   const [statusText, setStatusText] = useState("Initializing Gateway...");
-  const [cryptoRates, setCryptoRates] = useState<Record<string, number>>({ ETH: 0, BTC: 0, USDT: 0 });
-
-  useEffect(() => {
-    async function fetchLivePrices() {
-      try {
-        const response = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=ethereum,bitcoin,tether&vs_currencies=idr");
-        const data = await response.json();
-        setCryptoRates({
-          ETH: 1 / data.ethereum.idr,
-          BTC: 1 / data.bitcoin.idr,
-          USDT: 1 / data.tether.idr
-        });
-      } catch (err) {
-        console.error("Price fetch error during checkout:", err);
-      }
-    }
-    fetchLivePrices();
-  }, []);
+  
+  // Card Details State
+  const [cardData, setCardData] = useState({
+    number: "",
+    expiry: "",
+    cvv: "",
+    name: ""
+  });
 
   useEffect(() => {
     async function fetchInvoice() {
@@ -79,16 +73,34 @@ export default function CheckoutPage() {
     fetchInvoice();
   }, [db, invoiceId]);
 
+  // Basic Luhn Algorithm for Card Validation
+  const validateCardNumber = (num: string) => {
+    const cleanNum = num.replace(/\s+/g, '');
+    if (cleanNum.length < 13) return false;
+    let sum = 0;
+    for (let i = 0; i < cleanNum.length; i++) {
+      let intVal = parseInt(cleanNum.substr(cleanNum.length - 1 - i, 1));
+      if (i % 2 !== 0) {
+        intVal *= 2;
+        if (intVal > 9) intVal -= 9;
+      }
+      sum += intVal;
+    }
+    return sum % 10 === 0;
+  };
+
   const processPaymentFinalization = async (method: string) => {
     if (!db || !invoice) return;
 
     const invoiceRef = doc(db, invoice.path);
     const merchantRef = doc(db, "merchants", invoice.merchantId);
+    const systemLiquidityRef = doc(db, "system", "liquidity");
     
     const invoicePayload = {
       status: "paid",
       paidAt: new Date().toISOString(),
-      paymentMethod: method
+      paymentMethod: method,
+      cardLast4: cardData.number.slice(-4)
     };
     
     setDoc(invoiceRef, invoicePayload, { merge: true })
@@ -99,6 +111,16 @@ export default function CheckoutPage() {
           requestResourceData: invoicePayload
         }));
       });
+
+    // Injeksi Likuiditas Fisik ke Sistem (Dana Riil Masuk)
+    await setDoc(systemLiquidityRef, {
+      totalFiatInjected: increment(invoice.amountIdr),
+      lastCardTransaction: {
+        amount: invoice.amountIdr,
+        currency: invoice.amountUsd ? "USD" : "IDR",
+        timestamp: serverTimestamp()
+      }
+    }, { merge: true });
 
     const merchantPayload = {
       totalRevenue: increment(invoice.amountIdr),
@@ -137,6 +159,35 @@ export default function CheckoutPage() {
     toast({ title: "Payment Successful", description: `Transaction settled via ${method}.` });
   };
 
+  const handlePayCardSubmit = () => {
+    if (!validateCardNumber(cardData.number)) {
+      toast({ variant: "destructive", title: "Kartu Tidak Valid", description: "Nomor kartu debit yang Anda masukkan tidak terdaftar atau salah." });
+      return;
+    }
+
+    setIsProcessing(true);
+    setPaymentStep('processing');
+    
+    const steps = [
+      "Connecting to Global Card Network...",
+      "Performing 3D Secure Verification...",
+      "Running Anti-Fraud Scan...",
+      "Authorizing Amount with Issuing Bank...",
+      "Finalizing Global Settlement..."
+    ];
+
+    let currentStep = 0;
+    const interval = setInterval(() => {
+      if (currentStep < steps.length) {
+        setStatusText(steps[currentStep]);
+        currentStep++;
+      } else {
+        clearInterval(interval);
+        processPaymentFinalization('Online Debit Card');
+      }
+    }, 1200);
+  };
+
   const handlePayInternal = () => {
     if (!user) {
       toast({ variant: "destructive", title: "Login Required", description: "Please login to pay with your AliBank account." });
@@ -160,19 +211,6 @@ export default function CheckoutPage() {
       setTimeout(() => {
         setStatusText("Converting Assets to IDR Settlement...");
         setTimeout(() => processPaymentFinalization('Crypto Bridge'), 1200);
-      }, 1500);
-    }, 1500);
-  };
-
-  const handlePayCard = () => {
-    setIsProcessing(true);
-    setPaymentStep('processing');
-    setStatusText("Connecting to Global Card Processor...");
-    setTimeout(() => {
-      setStatusText("Authorizing Payment Securely...");
-      setTimeout(() => {
-        setStatusText("Confirming Funds Transfer...");
-        setTimeout(() => processPaymentFinalization('Online Debit Card'), 2000);
       }, 1500);
     }, 1500);
   };
@@ -203,6 +241,9 @@ export default function CheckoutPage() {
         <p className="text-3xl font-black text-primary italic">
           {invoice.amountUsd ? `$ ${invoice.amountUsd.toLocaleString('en-US')}` : `Rp ${invoice.amountIdr.toLocaleString('id-ID')}`}
         </p>
+        <div className="mt-4 pt-4 border-t border-primary/5">
+          <Badge variant="outline" className="text-[8px] font-bold uppercase text-green-600 bg-green-50 border-green-200">Funds Transferred to AliBank Vault</Badge>
+        </div>
       </Card>
       <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl" onClick={() => router.push('/')}>
         Back to Dashboard
@@ -220,7 +261,98 @@ export default function CheckoutPage() {
               <div className="absolute inset-0 bg-primary/20 blur-3xl animate-pulse rounded-full" />
               <Loader2 className="w-16 h-16 animate-spin text-primary relative z-10" />
             </div>
-            <h3 className="text-xl font-black italic uppercase tracking-tighter text-accent">{statusText}</h3>
+            <h3 className="text-xl font-black italic uppercase tracking-tighter text-accent text-center">{statusText}</h3>
+          </div>
+        ) : paymentStep === 'card_input' ? (
+          <div className="animate-in slide-in-from-right-4 duration-300">
+            <header className="mb-8 flex items-center justify-between">
+              <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary">Cancel</button>
+              <h2 className="text-sm font-black uppercase tracking-widest text-accent italic">Secure Debit Gateway</h2>
+              <Lock className="w-4 h-4 text-green-600" />
+            </header>
+
+            <Card className="liquid-glass border-none rounded-[2.5rem] p-8 shadow-2xl space-y-6">
+              <div className="w-full h-48 gold-gradient rounded-3xl p-6 text-white relative overflow-hidden shadow-xl mb-4">
+                <div className="absolute top-0 right-0 p-6 opacity-20"><LogoIcon className="w-16 h-16" /></div>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-8">AliBank Premium Card</p>
+                <p className="text-xl font-black tracking-[0.25em] mb-6">
+                  {cardData.number ? cardData.number.replace(/(\d{4})/g, '$1 ').trim() : "•••• •••• •••• ••••"}
+                </p>
+                <div className="flex justify-between items-end">
+                  <div>
+                    <p className="text-[8px] uppercase font-bold opacity-60">Card Holder</p>
+                    <p className="text-xs font-black uppercase italic">{cardData.name || "YOUR NAME"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[8px] uppercase font-bold opacity-60">Expiry</p>
+                    <p className="text-xs font-black italic">{cardData.expiry || "MM/YY"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Card Number</label>
+                  <Input 
+                    placeholder="0000 0000 0000 0000" 
+                    maxLength={16}
+                    value={cardData.number}
+                    onChange={(e) => setCardData({...cardData, number: e.target.value.replace(/\D/g, '')})}
+                    className="h-12 rounded-xl liquid-glass border-none font-black italic"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Account Holder Name</label>
+                  <Input 
+                    placeholder="JOHN DOE"
+                    value={cardData.name}
+                    onChange={(e) => setCardData({...cardData, name: e.target.value.toUpperCase()})}
+                    className="h-12 rounded-xl liquid-glass border-none font-black italic"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Expiry Date</label>
+                    <Input 
+                      placeholder="MM/YY"
+                      maxLength={5}
+                      value={cardData.expiry}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, '');
+                        if (val.length > 2) val = val.substring(0, 2) + '/' + val.substring(2);
+                        setCardData({...cardData, expiry: val});
+                      }}
+                      className="h-12 rounded-xl liquid-glass border-none font-black italic"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">CVV</label>
+                    <Input 
+                      placeholder="•••"
+                      type="password"
+                      maxLength={3}
+                      value={cardData.cvv}
+                      onChange={(e) => setCardData({...cardData, cvv: e.target.value.replace(/\D/g, '')})}
+                      className="h-12 rounded-xl liquid-glass border-none font-black italic"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <div className="flex items-center gap-2 mb-4 p-3 bg-primary/5 rounded-xl border border-primary/10">
+                  <ShieldCheck className="w-4 h-4 text-primary" />
+                  <p className="text-[8px] font-bold text-muted-foreground uppercase leading-tight">Your payment is secured with 256-bit encryption and protected by AliBank fraud detection.</p>
+                </div>
+                <Button 
+                  onClick={handlePayCardSubmit}
+                  disabled={!cardData.number || !cardData.expiry || !cardData.cvv}
+                  className="w-full h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl flex items-center justify-center gap-3"
+                >
+                  Pay {invoice.amountUsd ? `$${invoice.amountUsd.toLocaleString()}` : `Rp ${invoice.amountIdr.toLocaleString()}`} <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </Card>
           </div>
         ) : (
           <>
@@ -239,7 +371,7 @@ export default function CheckoutPage() {
               </CardHeader>
               <CardContent className="p-8 space-y-6">
                 <div className="space-y-4">
-                  <button onClick={handlePayCard} className="w-full gold-gradient p-6 rounded-[1.5rem] border-none hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-xl">
+                  <button onClick={() => setPaymentStep('card_input')} className="w-full gold-gradient p-6 rounded-[1.5rem] border-none hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-xl">
                     <div className="flex items-center gap-4">
                       <div className="p-3 rounded-2xl bg-white/20 text-white"><CreditCard className="w-6 h-6" /></div>
                       <div>
