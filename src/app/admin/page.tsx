@@ -194,7 +194,8 @@ export default function AdminControlPage() {
         id: "prod-master-node-v3",
         name: "AliBank V3 Global Master Node",
         description: "Infrastruktur Web3 tingkat tinggi dengan kapasitas likuiditas global dan hak bagi hasil mining maksimal. Mendukung transaksi lintas benua secara otonom.",
-        priceIdr: 15500000000, // Approx $1M
+        priceUsd: 1000000,
+        priceIdr: 15500000000,
         category: "Infrastructure",
         stock: 5,
         image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=800&auto=format&fit=crop",

@@ -119,6 +119,7 @@ export default function MarketplacePage() {
         merchantId: MOCK_MERCHANT.merchantId,
         customerName: user.displayName || user.email,
         amountIdr: product.priceIdr,
+        amountUsd: product.priceUsd || 0,
         cryptoCurrency: "ETH",
         status: "unpaid",
         createdAt: new Date().toISOString(),
@@ -244,7 +245,7 @@ export default function MarketplacePage() {
                           <div>
                             <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground mb-1">Database Price</p>
                             <p className="text-xl font-black text-primary italic tracking-tighter">
-                              Rp {mounted ? p.priceIdr.toLocaleString('id-ID') : '...'}
+                              {p.priceUsd ? `$ ${p.priceUsd.toLocaleString('en-US')}` : `Rp ${mounted ? p.priceIdr.toLocaleString('id-ID') : '...'}`}
                             </p>
                           </div>
                           <Button 

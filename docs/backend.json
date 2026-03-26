@@ -52,6 +52,7 @@
         "merchantId": { "type": "string" },
         "customerName": { "type": "string" },
         "amountIdr": { "type": "number" },
+        "amountUsd": { "type": "number" },
         "amountCrypto": { "type": "number" },
         "cryptoCurrency": { "type": "string", "enum": ["ETH", "USDT", "BTC"] },
         "status": { "type": "string", "enum": ["unpaid", "paid", "expired", "refunded"] },
@@ -69,6 +70,7 @@
         "name": { "type": "string" },
         "description": { "type": "string" },
         "priceIdr": { "type": "number" },
+        "priceUsd": { "type": "number" },
         "category": { "type": "string" },
         "stock": { "type": "number" },
         "image": { "type": "string" }

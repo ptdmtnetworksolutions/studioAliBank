@@ -199,8 +199,10 @@ export default function CheckoutPage() {
       </div>
       <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">Payment Confirmed</h2>
       <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-6 mb-8 text-center">
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Paid (Settled in IDR)</p>
-        <p className="text-3xl font-black text-primary italic">Rp {invoice.amountIdr.toLocaleString('id-ID')}</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Paid (Settled)</p>
+        <p className="text-3xl font-black text-primary italic">
+          {invoice.amountUsd ? `$ ${invoice.amountUsd.toLocaleString('en-US')}` : `Rp ${invoice.amountIdr.toLocaleString('id-ID')}`}
+        </p>
       </Card>
       <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl" onClick={() => router.push('/')}>
         Back to Dashboard
@@ -231,7 +233,9 @@ export default function CheckoutPage() {
             <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl mb-6">
               <CardHeader className="bg-accent/5 p-8 border-b border-primary/5 text-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Checkout: {invoice.productName || "Product"}</p>
-                <h2 className="text-4xl font-black text-accent italic tracking-tighter">Rp {invoice.amountIdr.toLocaleString('id-ID')}</h2>
+                <h2 className="text-4xl font-black text-accent italic tracking-tighter">
+                  {invoice.amountUsd ? `$ ${invoice.amountUsd.toLocaleString('en-US')}` : `Rp ${invoice.amountIdr.toLocaleString('id-ID')}`}
+                </h2>
               </CardHeader>
               <CardContent className="p-8 space-y-6">
                 <div className="space-y-4">
