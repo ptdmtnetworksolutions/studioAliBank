@@ -378,7 +378,7 @@ export default function AdminControlPage() {
             </Card>
 
             <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-2 bg-blue-500/5 relative overflow-hidden group">
-              <div className="absolute top-4 right-4"><button onClick={syncOnChainVault} disabled={syncingVault} className="p-2 rounded-full hover:bg-blue-500/10 text-blue-600"><RefreshCw className={cn("w-4 h-4", syncingVault && "animate-spin")} /></button></div>
+              <div className="absolute top-4 right-4"><button onClick={syncOnChainVault} disabled={syncingVault} className="p-2 rounded-full hover:bg-blue-500/10 text-blue-600"><RefreshCw className="cn" /></button></div>
               <div className="flex items-center justify-between mb-2">
                 <Coins className="w-5 h-5 text-blue-500" />
                 <Badge variant="outline" className="text-[8px] font-black uppercase border-blue-200 text-blue-600 flex items-center gap-1">
