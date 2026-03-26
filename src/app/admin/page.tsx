@@ -5,35 +5,14 @@ import { Navbar } from "@/components/layout/Navbar";
 import { 
   ShieldAlert, 
   ShieldCheck,
-  Users, 
-  Search, 
   Loader2,
-  Database,
-  Coins,
-  TrendingUp,
-  Lock,
   RefreshCw,
-  Activity,
-  ArrowRightLeft,
+  Coins,
   Zap,
-  Cpu,
-  Sparkles,
-  Server,
-  Network,
-  Wallet,
-  ArrowDownCircle,
-  AlertTriangle,
-  ExternalLink,
-  Info,
   Pickaxe,
-  Terminal,
-  Gauge,
   Box,
-  Flame,
-  ChevronRight,
+  ExternalLink,
   BookOpen,
-  Banknote,
-  ArrowUpRight,
   Building2,
   CheckCircle2,
   PackagePlus,
@@ -46,19 +25,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useUser, useFirestore, useCollection, useDoc } from "@/firebase";
+import { useUser, useFirestore, useDoc } from "@/firebase";
 import { 
   collection, 
-  query, 
-  limit, 
   doc, 
   updateDoc, 
   increment, 
-  collectionGroup, 
-  addDoc,
-  serverTimestamp,
-  setDoc,
-  getDoc
+  setDoc
 } from "firebase/firestore";
 import { BrowserProvider, Contract, formatEther, parseEther } from "ethers";
 import { useToast } from "@/hooks/use-toast";
@@ -66,10 +39,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
-  Tooltip,
-  TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { LogoIcon } from "@/components/ui/logo";
 
@@ -93,7 +63,6 @@ export default function AdminControlPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [onChainTotal, setOnChainTotal] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
-  const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
   const [connectedBalance, setConnectedBalance] = useState<string>("0");
   const [depositAmount, setDepositAmount] = useState("");
   const [isDepositing, setIsDepositing] = useState(false);
@@ -103,7 +72,6 @@ export default function AdminControlPage() {
   // ALIX MINING ENGINE V3
   const [isMining, setIsMining] = useState(false);
   const [hashrate, setHashrate] = useState(0);
-  const [miningLogs, setMiningLogs] = useState<string[]>([]);
 
   const ALIX_TO_ETH_RATE = 0.0002;
   const OWNER_EMAIL = "alidzulfikar075@gmail.com";
@@ -119,9 +87,7 @@ export default function AdminControlPage() {
       const accounts = await provider.listAccounts();
       
       if (accounts.length > 0) {
-        const addr = accounts[0].address.toLowerCase();
-        setConnectedAddress(addr);
-        const bal = await provider.getBalance(addr);
+        const bal = await provider.getBalance(accounts[0].address);
         setConnectedBalance(formatEther(bal));
       }
 
@@ -154,9 +120,6 @@ export default function AdminControlPage() {
 
         if (Math.random() > 0.92) {
           const reward = 0.5;
-          const timestamp = new Date().toLocaleTimeString();
-          setMiningLogs(prev => [`[${timestamp}] BLOCK MINTED: +${reward} ALIX`, ...prev].slice(0, 5));
-
           const platformRef = doc(db, "system", "liquidity");
           await setDoc(platformRef, { 
             alixVaultBalance: increment(reward),
@@ -195,7 +158,7 @@ export default function AdminControlPage() {
       const premiumProduct = {
         id: "prod-master-node-v3",
         name: "AliBank V3 Global Master Node",
-        description: "Infrastruktur Web3 tingkat tinggi dengan kapasitas likuiditas global dan hak bagi hasil mining maksimal. Mendukung transaksi lintas benua secara otonom.",
+        description: "Infrastruktur Web3 tingkat tinggi dengan kapasitas likuiditas global dan hak bagi hasil mining maksimal. Pembayaran diproses riil via PayPal Gateway.",
         priceUsd: 1000000,
         priceIdr: 15500000000,
         category: "Infrastructure",
@@ -323,7 +286,7 @@ export default function AdminControlPage() {
               <div className="liquid-glass border-none rounded-2xl p-5 flex flex-col gap-3 bg-primary/5 min-w-[350px]">
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
-                    <p className="text-[9px] font-black text-muted-foreground uppercase">Treasury (Initial Funding)</p>
+                    <p className="text-[9px] font-black text-muted-foreground uppercase">Treasury Funding</p>
                     <p className="text-lg font-black text-accent italic">{parseFloat(connectedBalance).toFixed(4)} ETH</p>
                   </div>
                   <Badge variant="outline" className="text-[7px] font-black uppercase bg-green-500/10 text-green-600 border-green-200">Owner Wallet</Badge>
@@ -424,38 +387,47 @@ export default function AdminControlPage() {
             <Card className="lg:col-span-2 liquid-glass border-none rounded-[2.5rem] p-8 space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-black italic uppercase text-accent flex items-center gap-3">
-                  <CreditCard className="w-6 h-6 text-primary" /> Global Fiat Injections
+                  <CreditCard className="w-6 h-6 text-primary" /> Global PayPal Injections
                 </h3>
-                <Badge className="bg-green-100 text-green-600 font-bold">REAL FUNDS</Badge>
+                <Badge className="bg-green-100 text-green-600 font-bold">LIVE FUNDS</Badge>
               </div>
               <div className="p-8 rounded-[2rem] bg-accent/5 border border-primary/10 flex flex-col md:flex-row items-center justify-between gap-8">
-                <div>
-                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">Total Collected from Cards (Marketplace)</p>
-                  <p className="text-4xl font-black text-accent italic">
-                    Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString('id-ID')}
-                  </p>
-                  <p className="text-[9px] font-medium text-muted-foreground mt-2 italic uppercase">Dana ini tersedia secara riil di rekening gateway AliBank.</p>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">Total Injected via PayPal (USD)</p>
+                    <p className="text-4xl font-black text-primary italic">
+                      $ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString('en-US')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">Equivalent Value (IDR)</p>
+                    <p className="text-xl font-black text-accent italic opacity-70">
+                      Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString('id-ID')}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm"><Globe className="w-6 h-6" /></div>
-                  <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-600 shadow-sm"><DollarSign className="w-6 h-6" /></div>
+                  <div className="w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center p-3">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" className="w-full h-full object-contain" />
+                  </div>
+                  <div className="w-16 h-16 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-600 shadow-sm"><DollarSign className="w-8 h-8" /></div>
                 </div>
               </div>
               <div className="space-y-4">
-                <p className="text-[10px] font-black uppercase text-accent">Recent Card Transaction</p>
+                <p className="text-[10px] font-black uppercase text-accent">Recent PayPal Transaction</p>
                 {globalLiquidity?.lastCardTransaction ? (
                   <div className="p-4 rounded-2xl liquid-glass flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-green-600"><CheckCircle2 className="w-5 h-5" /></div>
                       <div>
-                        <p className="text-xs font-black text-accent uppercase">Card Deposit: {globalLiquidity.lastCardTransaction.currency}</p>
-                        <p className="text-[9px] text-muted-foreground font-bold">Successfully settled via Global Gateway</p>
+                        <p className="text-xs font-black text-accent uppercase">PayPal Order: {globalLiquidity.lastCardTransaction.gateway}</p>
+                        <p className="text-[9px] text-muted-foreground font-bold">Successfully settled via PayPal Smart Buttons</p>
                       </div>
                     </div>
-                    <p className="text-sm font-black text-accent">Rp {globalLiquidity.lastCardTransaction.amount.toLocaleString()}</p>
+                    <p className="text-sm font-black text-primary italic">$ {(globalLiquidity.lastCardTransaction.amountUsd || 0).toLocaleString()}</p>
                   </div>
                 ) : (
-                  <p className="text-[10px] text-muted-foreground italic uppercase">No card transactions detected yet.</p>
+                  <p className="text-[10px] text-muted-foreground italic uppercase">No live transactions detected yet.</p>
                 )}
               </div>
             </Card>
@@ -463,53 +435,16 @@ export default function AdminControlPage() {
             <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white flex flex-col justify-center space-y-6">
               <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-primary shadow-xl"><ShieldCheck className="w-8 h-8" /></div>
               <div>
-                <h4 className="text-xl font-black uppercase italic tracking-tighter">Gateway Audit</h4>
+                <h4 className="text-xl font-black uppercase italic tracking-tighter">PayPal Node Audit</h4>
                 <p className="text-[10px] text-white/60 leading-relaxed mt-2 uppercase tracking-widest font-medium">
-                  Seluruh dana yang masuk melalui kartu debit online telah terenkripsi end-to-end dan siap dialokasikan sebagai likuiditas fisik ke dalam smart contract.
+                  Seluruh dana yang masuk melalui PayPal API telah diverifikasi oleh gateway internasional AliBank dan siap dialokasikan sebagai likuiditas fisik on-chain.
                 </p>
               </div>
               <Button className="w-full h-12 rounded-2xl gold-gradient text-white font-black uppercase italic text-[10px] shadow-lg">
-                Generate Financial Report
+                View PayPal Analytics
               </Button>
             </Card>
           </div>
-
-          <Tabs defaultValue="withdraw" className="space-y-8">
-            <TabsList className="bg-primary/5 p-1.5 rounded-2xl h-14 border border-primary/10">
-              <TabsTrigger value="withdraw" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white">Bank Settlements</TabsTrigger>
-              <TabsTrigger value="bridge" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white">Bridge Queue</TabsTrigger>
-              <TabsTrigger value="users" className="rounded-xl font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">User Management</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="withdraw">
-              <section className="liquid-glass rounded-[3rem] overflow-hidden border-none shadow-2xl">
-                <div className="p-8 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Building2 className="w-6 h-6 text-primary" />
-                    <div>
-                      <h3 className="text-xl font-black italic uppercase tracking-tighter text-accent">Bank Withdrawal Queue</h3>
-                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Waiting for Gateway Disbursement</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-primary/5 text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                        <th className="px-8 py-6">Date</th>
-                        <th className="px-8 py-6">Bank Info</th>
-                        <th className="px-8 py-6">Amount</th>
-                        <th className="px-8 py-6 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-primary/5">
-                      {/* Mapping pending withdraws code remains same... */}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            </TabsContent>
-          </Tabs>
 
           <footer className="mt-20 pt-12 border-t border-primary/10 flex flex-col items-center gap-8 text-center">
             <div className="flex items-center gap-12">
@@ -521,7 +456,7 @@ export default function AdminControlPage() {
                 <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent shadow-lg">
                   <ShieldCheck className="w-6 h-6" />
                 </div>
-                <span className="text-[10px] font-black uppercase text-accent tracking-widest italic">Secure Audit v3.0</span>
+                <span className="text-[10px] font-black uppercase text-accent tracking-widest italic">Secure PayPal Bridge v3.0</span>
               </div>
             </div>
             <div className="space-y-2">
@@ -529,7 +464,7 @@ export default function AdminControlPage() {
                 <div className="w-6 h-6 p-1 rounded-lg gold-gradient flex items-center justify-center"><LogoIcon className="text-white" /></div>
                 <p className="text-xs font-black text-accent italic uppercase tracking-tighter">AliBank Command Center</p>
               </div>
-              <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.3em]">Authorized Personnel Only • Gateway Production Mode</p>
+              <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.3em]">Authorized Personnel Only • PayPal Production Mode Active</p>
             </div>
           </footer>
         </main>
