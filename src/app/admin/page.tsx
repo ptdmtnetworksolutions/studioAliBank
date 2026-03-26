@@ -155,20 +155,36 @@ export default function AdminControlPage() {
     setIsSeeding(true);
     try {
       const mktRef = collection(db, "marketplace");
-      const premiumProduct = {
-        id: "prod-master-node-v3",
-        name: "AliBank V3 Global Master Node",
-        description: "Infrastruktur Web3 tingkat tinggi dengan kapasitas likuiditas global dan hak bagi hasil mining maksimal. Pembayaran diproses riil via PayPal Gateway.",
-        priceUsd: 1000000,
-        priceIdr: 15500000000,
-        category: "Infrastructure",
-        stock: 5,
-        image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=800&auto=format&fit=crop",
-        createdAt: new Date().toISOString()
-      };
+      const products = [
+        {
+          id: "prod-master-node-v3",
+          name: "AliBank V3 Global Master Node",
+          description: "Infrastruktur Web3 tingkat tinggi dengan kapasitas likuiditas global dan hak bagi hasil mining maksimal. Pembayaran diproses riil via PayPal Gateway.",
+          priceUsd: 1000000,
+          priceIdr: 15500000000,
+          category: "Infrastructure",
+          stock: 5,
+          image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=800&auto=format&fit=crop",
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: "prod-basic-node-v3",
+          name: "AliBank V3 Basic Node Access",
+          description: "Akses entry-level ke ekosistem AliBank V3. Cocok untuk pengujian transaksi gateway PayPal dengan nominal rendah.",
+          priceUsd: 1,
+          priceIdr: 15500,
+          category: "Infrastructure",
+          stock: 1000,
+          image: "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?q=80&w=800&auto=format&fit=crop",
+          createdAt: new Date().toISOString()
+        }
+      ];
       
-      await setDoc(doc(mktRef, premiumProduct.id), premiumProduct);
-      toast({ title: "Premium Products Online", description: "Produk Master Node $1M telah ditambahkan ke database marketplace." });
+      for (const product of products) {
+        await setDoc(doc(mktRef, product.id), product);
+      }
+      
+      toast({ title: "Premium Products Online", description: "Produk Master Node $1M dan Basic Node $1 telah ditambahkan ke database." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal", description: err.message });
     } finally {
