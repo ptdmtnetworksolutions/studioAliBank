@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -13,7 +14,8 @@ import {
   Lock,
   Globe,
   ChevronRight,
-  XCircle
+  XCircle,
+  CreditCard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -61,11 +63,8 @@ export default function CheckoutPage() {
       if (!db || !invoiceId) return;
       
       try {
-        // Simplified query to avoid missing index errors on collectionGroup
         const q = query(collectionGroup(db, "invoices"));
         const snapshot = await getDocs(q);
-        
-        // Client-side find
         const found = snapshot.docs.find(doc => doc.data().invoiceId === invoiceId);
         
         if (found) {
@@ -135,7 +134,7 @@ export default function CheckoutPage() {
 
     setPaymentStep('success');
     setIsProcessing(false);
-    toast({ title: "Payment Successful", description: `Transaction settled and recorded.` });
+    toast({ title: "Payment Successful", description: `Transaction settled via ${method}.` });
   };
 
   const handlePayInternal = () => {
@@ -161,6 +160,19 @@ export default function CheckoutPage() {
       setTimeout(() => {
         setStatusText("Converting Assets to IDR Settlement...");
         setTimeout(() => processPaymentFinalization('Crypto Bridge'), 1200);
+      }, 1500);
+    }, 1500);
+  };
+
+  const handlePayCard = () => {
+    setIsProcessing(true);
+    setPaymentStep('processing');
+    setStatusText("Connecting to Global Card Processor...");
+    setTimeout(() => {
+      setStatusText("Authorizing Payment Securely...");
+      setTimeout(() => {
+        setStatusText("Confirming Funds Transfer...");
+        setTimeout(() => processPaymentFinalization('Online Debit Card'), 2000);
       }, 1500);
     }, 1500);
   };
@@ -223,6 +235,17 @@ export default function CheckoutPage() {
               </CardHeader>
               <CardContent className="p-8 space-y-6">
                 <div className="space-y-4">
+                  <button onClick={handlePayCard} className="w-full gold-gradient p-6 rounded-[1.5rem] border-none hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-xl">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-2xl bg-white/20 text-white"><CreditCard className="w-6 h-6" /></div>
+                      <div>
+                        <p className="text-sm font-black text-white italic">Debit Card Online</p>
+                        <p className="text-[9px] font-medium text-white/70 uppercase">Global Payment Processor</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-white/60" />
+                  </button>
+
                   <button onClick={handlePayInternal} className="w-full liquid-glass-dark p-6 rounded-[1.5rem] border-white/10 hover:border-primary/40 transition-all text-left flex items-center justify-between group">
                     <div className="flex items-center gap-4">
                       <div className="p-3 rounded-2xl bg-white/10 text-white group-hover:bg-primary transition-colors"><LogoIcon className="w-6 h-6" /></div>
@@ -233,6 +256,7 @@ export default function CheckoutPage() {
                     </div>
                     <ChevronRight className="w-4 h-4 text-white/40" />
                   </button>
+
                   <button onClick={handlePayCrypto} className="w-full liquid-glass p-6 rounded-[1.5rem] border-primary/10 hover:border-primary/30 transition-all text-left flex items-center justify-between group">
                     <div className="flex items-center gap-4">
                       <div className="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors"><Wallet className="w-6 h-6" /></div>

@@ -35,7 +35,8 @@ import {
   Banknote,
   ArrowUpRight,
   Building2,
-  CheckCircle2
+  CheckCircle2,
+  PackagePlus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -90,12 +91,12 @@ export default function AdminControlPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [onChainTotal, setOnChainTotal] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
-  const [processingId, setProcessingId] = useState<string | null>(null);
   const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
   const [connectedBalance, setConnectedBalance] = useState<string>("0");
   const [depositAmount, setDepositAmount] = useState("");
   const [isDepositing, setIsDepositing] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
 
   // ALIX MINING ENGINE V3
   const [isMining, setIsMining] = useState(false);
@@ -107,12 +108,6 @@ export default function AdminControlPage() {
 
   const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
   const { data: globalLiquidity } = useDoc(liquidityDocRef);
-
-  const totalBankLiquidity = useMemo(() => {
-    const realEth = parseFloat(onChainTotal) || 0;
-    const minedEth = globalLiquidity?.syntheticEthReserve || 0;
-    return (realEth + minedEth).toFixed(4);
-  }, [onChainTotal, globalLiquidity?.syntheticEthReserve]);
 
   const syncOnChainVault = useCallback(async () => {
     if (typeof window.ethereum === 'undefined') return;
@@ -190,6 +185,31 @@ export default function AdminControlPage() {
     } finally { setIsSettling(false); }
   };
 
+  const handleSeedProducts = async () => {
+    if (!db) return;
+    setIsSeeding(true);
+    try {
+      const mktRef = collection(db, "marketplace");
+      const premiumProduct = {
+        id: "prod-master-node-v3",
+        name: "AliBank V3 Global Master Node",
+        description: "Infrastruktur Web3 tingkat tinggi dengan kapasitas likuiditas global dan hak bagi hasil mining maksimal. Mendukung transaksi lintas benua secara otonom.",
+        priceIdr: 15500000000, // Approx $1M
+        category: "Infrastructure",
+        stock: 5,
+        image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=800&auto=format&fit=crop",
+        createdAt: new Date().toISOString()
+      };
+      
+      await setDoc(doc(mktRef, premiumProduct.id), premiumProduct);
+      toast({ title: "Premium Products Online", description: "Produk Master Node $1M telah ditambahkan ke database marketplace." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal", description: err.message });
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
   const handleRefillFromEarnings = async () => {
     if (!db || !globalLiquidity) return;
     const alixAmount = globalLiquidity.onChainVaultALIX || 0;
@@ -233,7 +253,7 @@ export default function AdminControlPage() {
       toast({ 
         variant: "destructive", 
         title: "Kas Bank Sedang Kosong", 
-        description: `Anda memiliki hak tarik ${reserveAmount.toFixed(4)} ETH, namun kas fisik bank (On-Chain) baru tersedia ${physicalAmount.toFixed(4)} ETH. Anda bisa mengisi kas bank melalui 'Fill Physical Liquidity' (sebagai Owner) atau menunggu nasabah lain melakukan deposit/pembelian marketplace.` 
+        description: `Anda memiliki hak tarik ${reserveAmount.toFixed(4)} ETH, namun kas fisik bank (On-Chain) baru tersedia ${physicalAmount.toFixed(4)} ETH.` 
       });
       return;
     }
@@ -246,7 +266,7 @@ export default function AdminControlPage() {
       
       const amountInWei = parseEther(reserveAmount.toFixed(18));
       
-      toast({ title: "Mencairkan Profit...", description: "Mentransfer ETH dari Kas Bank (Hasil Aktivitas Bank) ke MetaMask Anda." });
+      toast({ title: "Mencairkan Profit...", description: "Mentransfer ETH dari Kas Bank ke MetaMask Anda." });
       
       const tx = await contract.releaseFunds(ADMIN_WALLET, amountInWei);
       const receipt = await tx.wait();
@@ -288,29 +308,39 @@ export default function AdminControlPage() {
               </div>
             </div>
 
-            <div className="liquid-glass border-none rounded-2xl p-5 flex flex-col gap-3 bg-primary/5 min-w-[350px]">
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col">
-                  <p className="text-[9px] font-black text-muted-foreground uppercase">Treasury (Initial Funding)</p>
-                  <p className="text-lg font-black text-accent italic">{parseFloat(connectedBalance).toFixed(4)} ETH</p>
+            <div className="flex gap-4">
+              <Button 
+                onClick={handleSeedProducts} 
+                disabled={isSeeding}
+                className="h-14 px-6 rounded-2xl bg-blue-600 text-white font-black uppercase text-[10px] italic shadow-xl hover:bg-blue-700"
+              >
+                {isSeeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <><PackagePlus className="w-4 h-4 mr-2" /> Seed Premium Inventory</>}
+              </Button>
+
+              <div className="liquid-glass border-none rounded-2xl p-5 flex flex-col gap-3 bg-primary/5 min-w-[350px]">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <p className="text-[9px] font-black text-muted-foreground uppercase">Treasury (Initial Funding)</p>
+                    <p className="text-lg font-black text-accent italic">{parseFloat(connectedBalance).toFixed(4)} ETH</p>
+                  </div>
+                  <Badge variant="outline" className="text-[7px] font-black uppercase bg-green-500/10 text-green-600 border-green-200">Owner Wallet</Badge>
                 </div>
-                <Badge variant="outline" className="text-[7px] font-black uppercase bg-green-500/10 text-green-600 border-green-200">Owner Wallet</Badge>
-              </div>
-              <div className="flex items-center gap-3">
-                <Input placeholder="ETH to Deposit" type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} className="h-11 rounded-xl bg-white/50 border-none text-xs font-black italic" />
-                <Button onClick={async () => {
-                  setIsDepositing(true);
-                  try {
-                    const provider = new BrowserProvider(window.ethereum!);
-                    const signer = await provider.getSigner();
-                    const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
-                    const tx = await contract.deposit({ value: parseEther(depositAmount) });
-                    await tx.wait(); toast({ title: "Vault Refilled" }); setDepositAmount(""); syncOnChainVault();
-                  } catch (e:any) { toast({ variant: "destructive", title: "Error", description: e.message }); }
-                  setIsDepositing(false);
-                }} disabled={isDepositing || !depositAmount} className="h-11 px-6 gold-gradient text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg">
-                  {isDepositing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Fill Physical Liquidity"}
-                </Button>
+                <div className="flex items-center gap-3">
+                  <Input placeholder="ETH to Deposit" type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} className="h-11 rounded-xl bg-white/50 border-none text-xs font-black italic" />
+                  <Button onClick={async () => {
+                    setIsDepositing(true);
+                    try {
+                      const provider = new BrowserProvider(window.ethereum!);
+                      const signer = await provider.getSigner();
+                      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
+                      const tx = await contract.deposit({ value: parseEther(depositAmount) });
+                      await tx.wait(); toast({ title: "Vault Refilled" }); setDepositAmount(""); syncOnChainVault();
+                    } catch (e:any) { toast({ variant: "destructive", title: "Error", description: e.message }); }
+                    setIsDepositing(false);
+                  }} disabled={isDepositing || !depositAmount} className="h-11 px-6 gold-gradient text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg">
+                    {isDepositing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Fill Physical Liquidity"}
+                  </Button>
+                </div>
               </div>
             </div>
           </header>
