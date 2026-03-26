@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -71,12 +70,12 @@ export default function CheckoutPage() {
     await setDoc(invoiceRef, {
       status: "paid",
       paidAt: new Date().toISOString(),
-      paymentMethod: "PayPal / Credit Card",
-      paypalOrderId: details.id,
+      paymentMethod: "AliBank Global Gateway",
+      gatewayOrderId: details.id,
       payerEmail: details.payer?.email_address
     }, { merge: true });
 
-    // 2. INJEKSI DANA NYATA KE SISTEM (PayPal Injection)
+    // 2. INJEKSI DANA NYATA KE SISTEM (AliBank Injection)
     await setDoc(systemLiquidityRef, {
       totalFiatInjected: increment(invoice.amountIdr),
       totalUsdInjected: increment(invoice.amountUsd || 0),
@@ -84,7 +83,7 @@ export default function CheckoutPage() {
         amount: invoice.amountIdr,
         amountUsd: invoice.amountUsd,
         currency: "USD",
-        gateway: "PayPal Secure",
+        gateway: "AliBank Secure Global",
         timestamp: serverTimestamp(),
         status: "settled"
       }
@@ -97,7 +96,7 @@ export default function CheckoutPage() {
     }, { merge: true });
 
     setPaymentStep('success');
-    toast({ title: "Payment Settled via PayPal", description: `Dana riil senilai $${invoice.amountUsd} telah diamankan ke sistem AliBank.` });
+    toast({ title: "Payment Settled via AliBank", description: `Dana riil senilai $${invoice.amountUsd} telah diamankan ke sistem AliBank.` });
   };
 
   const initPayPalButtons = () => {
@@ -119,8 +118,8 @@ export default function CheckoutPage() {
           await processPaymentFinalization(details);
         },
         onError: (err: any) => {
-          console.error("PayPal Error:", err);
-          toast({ variant: "destructive", title: "PayPal Error", description: "Terjadi kesalahan saat memproses pembayaran PayPal." });
+          console.error("Payment Error:", err);
+          toast({ variant: "destructive", title: "Gateway Error", description: "Terjadi kesalahan saat memproses pembayaran melalui AliBank Gateway." });
         }
       }).render(paypalButtonContainerRef.current);
     }
@@ -136,7 +135,7 @@ export default function CheckoutPage() {
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
       <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-      <p className="text-xs font-black uppercase tracking-widest text-muted-foreground italic">Syncing Payment Engine...</p>
+      <p className="text-xs font-black uppercase tracking-widest text-muted-foreground italic">Syncing AliBank Gateway...</p>
     </div>
   );
 
@@ -146,14 +145,14 @@ export default function CheckoutPage() {
         <CheckCircle2 className="w-12 h-12 text-green-600" />
       </div>
       <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">Transaction Complete</h2>
-      <p className="text-xs text-muted-foreground font-bold uppercase mb-8">PayPal Funds Secured in AliBank Vault.</p>
+      <p className="text-xs text-muted-foreground font-bold uppercase mb-8">Funds Secured in AliBank Vault.</p>
       <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-6 mb-8 text-center">
         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Settled (USD)</p>
         <p className="text-3xl font-black text-primary italic">
           $ {(invoice.amountUsd || 0).toLocaleString('en-US')}
         </p>
         <div className="mt-4 pt-4 border-t border-primary/5">
-          <Badge variant="outline" className="text-[8px] font-bold uppercase text-green-600 bg-green-50 border-green-200 italic">Verified by PayPal Secure Gateway</Badge>
+          <Badge variant="outline" className="text-[8px] font-bold uppercase text-green-600 bg-green-50 border-green-200 italic">Verified by AliBank Infrastructure</Badge>
         </div>
       </Card>
       <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl" onClick={() => router.push('/')}>
@@ -191,8 +190,8 @@ export default function CheckoutPage() {
                   <div className="flex items-center gap-4">
                     <div className="p-3 rounded-2xl bg-white/20 text-white"><CreditCard className="w-6 h-6" /></div>
                     <div>
-                      <p className="text-sm font-black text-white italic">PayPal / Debit Card</p>
-                      <p className="text-[9px] font-medium text-white/70 uppercase">Global Secure Payment</p>
+                      <p className="text-sm font-black text-white italic">AliBank Global Payment</p>
+                      <p className="text-[9px] font-medium text-white/70 uppercase">Debit Card / Global Secure</p>
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-white/60" />
@@ -215,14 +214,14 @@ export default function CheckoutPage() {
                   <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary">Back</button>
                   <div className="flex items-center gap-2">
                     <Lock className="w-3 h-3 text-green-600" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-accent italic">PayPal Secure Encryption</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-accent italic">AliBank Secure Encryption</span>
                   </div>
                 </header>
                 
                 {!paypalReady ? (
                   <div className="flex flex-col items-center justify-center py-10">
                     <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
-                    <p className="text-[9px] font-black uppercase text-muted-foreground">Connecting to PayPal...</p>
+                    <p className="text-[9px] font-black uppercase text-muted-foreground">Connecting to Gateway...</p>
                   </div>
                 ) : (
                   <div id="paypal-button-container" ref={paypalButtonContainerRef} className="w-full min-h-[150px]" />
@@ -231,7 +230,7 @@ export default function CheckoutPage() {
                 <div className="p-4 rounded-xl bg-green-500/5 border border-green-500/10 flex gap-3">
                   <ShieldCheck className="w-5 h-5 text-green-600 shrink-0" />
                   <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed">
-                    Pembayaran Anda diproses langsung oleh PayPal. AliBank tidak menyimpan data kartu Anda. Dana akan masuk ke saldo fiat Admin AliBank setelah transaksi sukses.
+                    Pembayaran Anda diproses melalui infrastruktur gateway internasional AliBank secara aman. Kami tidak menyimpan data kartu Anda. Dana akan diamankan ke sistem AliBank setelah transaksi sukses.
                   </p>
                 </div>
               </div>

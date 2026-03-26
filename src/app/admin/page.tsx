@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -159,7 +158,7 @@ export default function AdminControlPage() {
         {
           id: "prod-master-node-v3",
           name: "AliBank V3 Global Master Node",
-          description: "Infrastruktur Web3 tingkat tinggi dengan kapasitas likuiditas global dan hak bagi hasil mining maksimal. Pembayaran diproses riil via PayPal Gateway.",
+          description: "Infrastruktur Web3 tingkat tinggi dengan kapasitas likuiditas global dan hak bagi hasil mining maksimal. Pembayaran diproses riil via AliBank Gateway.",
           priceUsd: 1000000,
           priceIdr: 15500000000,
           category: "Infrastructure",
@@ -170,7 +169,7 @@ export default function AdminControlPage() {
         {
           id: "prod-basic-node-v3",
           name: "AliBank V3 Basic Node Access",
-          description: "Akses entry-level ke ekosistem AliBank V3. Cocok untuk pengujian transaksi gateway PayPal dengan nominal rendah.",
+          description: "Akses entry-level ke ekosistem AliBank V3. Cocok untuk pengujian transaksi gateway internasional dengan nominal rendah.",
           priceUsd: 1,
           priceIdr: 15500,
           category: "Infrastructure",
@@ -403,14 +402,14 @@ export default function AdminControlPage() {
             <Card className="lg:col-span-2 liquid-glass border-none rounded-[2.5rem] p-8 space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-black italic uppercase text-accent flex items-center gap-3">
-                  <CreditCard className="w-6 h-6 text-primary" /> Global PayPal Injections
+                  <CreditCard className="w-6 h-6 text-primary" /> Global AliBank Injections
                 </h3>
                 <Badge className="bg-green-100 text-green-600 font-bold">LIVE FUNDS</Badge>
               </div>
               <div className="p-8 rounded-[2rem] bg-accent/5 border border-primary/10 flex flex-col md:flex-row items-center justify-between gap-8">
                 <div className="space-y-4">
                   <div>
-                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">Total Injected via PayPal (USD)</p>
+                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">Total Injected via Gateway (USD)</p>
                     <p className="text-4xl font-black text-primary italic">
                       $ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString('en-US')}
                     </p>
@@ -424,20 +423,20 @@ export default function AdminControlPage() {
                 </div>
                 <div className="flex gap-3">
                   <div className="w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center p-3">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" className="w-full h-full object-contain" />
+                    <LogoIcon className="text-primary" />
                   </div>
                   <div className="w-16 h-16 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-600 shadow-sm"><DollarSign className="w-8 h-8" /></div>
                 </div>
               </div>
               <div className="space-y-4">
-                <p className="text-[10px] font-black uppercase text-accent">Recent PayPal Transaction</p>
+                <p className="text-[10px] font-black uppercase text-accent">Recent AliBank Transaction</p>
                 {globalLiquidity?.lastCardTransaction ? (
                   <div className="p-4 rounded-2xl liquid-glass flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-green-600"><CheckCircle2 className="w-5 h-5" /></div>
                       <div>
-                        <p className="text-xs font-black text-accent uppercase">PayPal Order: {globalLiquidity.lastCardTransaction.gateway}</p>
-                        <p className="text-[9px] text-muted-foreground font-bold">Successfully settled via PayPal Smart Buttons</p>
+                        <p className="text-xs font-black text-accent uppercase">AliBank Order ID: {globalLiquidity.lastCardTransaction.gateway}</p>
+                        <p className="text-[9px] text-muted-foreground font-bold">Successfully settled via AliBank Secure Processing</p>
                       </div>
                     </div>
                     <p className="text-sm font-black text-primary italic">$ {(globalLiquidity.lastCardTransaction.amountUsd || 0).toLocaleString()}</p>
@@ -451,13 +450,13 @@ export default function AdminControlPage() {
             <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white flex flex-col justify-center space-y-6">
               <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-primary shadow-xl"><ShieldCheck className="w-8 h-8" /></div>
               <div>
-                <h4 className="text-xl font-black uppercase italic tracking-tighter">PayPal Node Audit</h4>
+                <h4 className="text-xl font-black uppercase italic tracking-tighter">AliBank Node Audit</h4>
                 <p className="text-[10px] text-white/60 leading-relaxed mt-2 uppercase tracking-widest font-medium">
-                  Seluruh dana yang masuk melalui PayPal API telah diverifikasi oleh gateway internasional AliBank dan siap dialokasikan sebagai likuiditas fisik on-chain.
+                  Seluruh dana yang masuk melalui gerbang internasional AliBank telah diverifikasi oleh infrastruktur blockchain ganda dan siap dialokasikan sebagai likuiditas fisik on-chain.
                 </p>
               </div>
               <Button className="w-full h-12 rounded-2xl gold-gradient text-white font-black uppercase italic text-[10px] shadow-lg">
-                View PayPal Analytics
+                View AliBank Analytics
               </Button>
             </Card>
           </div>
@@ -472,7 +471,7 @@ export default function AdminControlPage() {
                 <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent shadow-lg">
                   <ShieldCheck className="w-6 h-6" />
                 </div>
-                <span className="text-[10px] font-black uppercase text-accent tracking-widest italic">Secure PayPal Bridge v3.0</span>
+                <span className="text-[10px] font-black uppercase text-accent tracking-widest italic">Secure AliBank Bridge v3.0</span>
               </div>
             </div>
             <div className="space-y-2">
@@ -480,7 +479,7 @@ export default function AdminControlPage() {
                 <div className="w-6 h-6 p-1 rounded-lg gold-gradient flex items-center justify-center"><LogoIcon className="text-white" /></div>
                 <p className="text-xs font-black text-accent italic uppercase tracking-tighter">AliBank Command Center</p>
               </div>
-              <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.3em]">Authorized Personnel Only • PayPal Production Mode Active</p>
+              <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.3em]">Authorized Personnel Only • AliBank Production Node Active</p>
             </div>
           </footer>
         </main>
