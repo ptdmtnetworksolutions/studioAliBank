@@ -16,7 +16,10 @@ import {
   BarChart3,
   Globe,
   RefreshCw,
-  HelpCircle
+  HelpCircle,
+  Coins,
+  Percent,
+  Flame
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +34,7 @@ import { MOCK_MERCHANT } from "@/app/lib/mock-data";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { LogoIcon } from "@/components/ui/logo";
 import {
   Tooltip,
   TooltipContent,
@@ -58,6 +62,7 @@ export default function MarketplacePage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [useAlixForDiscount, setUseAlixForDiscount] = useState(true);
   
   const itemsQuery = useMemo(() => {
     if (!db) return null;
@@ -96,7 +101,7 @@ export default function MarketplacePage() {
   const filteredProducts = useMemo(() => {
     if (!dbProducts) return [];
     return dbProducts.filter(p => {
-      const matchesSearch = p.name?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = (p.name || "").toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = activeCategory === "All" || p.category === activeCategory;
       return matchesSearch && matchesCategory;
     });
@@ -111,19 +116,24 @@ export default function MarketplacePage() {
     setIsProcessing(product.id);
     const invoiceId = `MKT-${Math.floor(100000 + Math.random() * 900000)}`;
     
+    // Apply 5% discount if ALIX is chosen (BNB Strategy)
+    const finalPriceIdr = useAlixForDiscount ? product.priceIdr * 0.95 : product.priceIdr;
+    const finalPriceUsd = useAlixForDiscount ? (product.priceUsd || 0) * 0.95 : (product.priceUsd || 0);
+
     try {
       const invoicesColRef = collection(db, "merchants", MOCK_MERCHANT.merchantId, "invoices");
       const payload = {
         invoiceId,
         merchantId: MOCK_MERCHANT.merchantId,
         customerName: user.displayName || user.email,
-        amountIdr: product.priceIdr,
-        amountUsd: product.priceUsd || 0,
-        cryptoCurrency: "ETH",
+        amountIdr: finalPriceIdr,
+        amountUsd: finalPriceUsd,
+        cryptoCurrency: useAlixForDiscount ? "ALIX" : "ETH",
         status: "unpaid",
         createdAt: new Date().toISOString(),
         timestamp: serverTimestamp(),
-        productName: product.name
+        productName: product.name,
+        discountApplied: useAlixForDiscount ? "5% (ALIX Holder)" : "0%"
       };
 
       await addDoc(invoicesColRef, payload);
@@ -141,16 +151,30 @@ export default function MarketplacePage() {
         <Navbar />
         
         <main className="container mx-auto px-4 max-w-7xl pt-4">
-          <header className="mb-12">
-            <div className="flex items-center gap-4 mb-3">
+          <header className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-2xl gold-gradient flex items-center justify-center shadow-2xl p-3">
                 <ShoppingBag className="text-white w-8 h-8" />
               </div>
               <div>
                 <h1 className="text-4xl font-black text-accent uppercase italic tracking-tighter">AliBank Marketplace</h1>
                 <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                  <Globe className="w-3 h-3 text-primary" /> Database Inventory & Global Market 2026
+                  <Globe className="w-3 h-3 text-primary" /> Multi-Chain Infrastructure Store
                 </p>
+              </div>
+            </div>
+
+            {/* ALIX Sovereign Discount Banner */}
+            <div className="liquid-glass-dark p-4 rounded-2xl flex items-center gap-4 border-none shadow-xl cursor-pointer hover:scale-105 transition-transform" onClick={() => setUseAlixForDiscount(!useAlixForDiscount)}>
+              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all", useAlixForDiscount ? "gold-gradient text-white" : "bg-white/10 text-white/40")}>
+                <LogoIcon className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-primary uppercase tracking-widest">ALIX HOLDER PERK</p>
+                <p className="text-xs font-black text-white italic uppercase tracking-tighter">5% DISCOUNT ACTIVE</p>
+              </div>
+              <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center", useAlixForDiscount ? "border-primary bg-primary text-white" : "border-white/20")}>
+                {useAlixForDiscount && <Check className="w-3 h-3" />}
               </div>
             </div>
           </header>
@@ -158,10 +182,10 @@ export default function MarketplacePage() {
           <Tabs defaultValue="products" className="space-y-12">
             <TabsList className="bg-primary/5 p-1.5 rounded-[2rem] h-16 border border-primary/10 w-full md:w-auto">
               <TabsTrigger value="products" className="rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
-                Web3 Products
+                Inventory Products
               </TabsTrigger>
               <TabsTrigger value="market" className="rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
-                Global Market (Live)
+                Global DeFi Pulse
               </TabsTrigger>
             </TabsList>
 
@@ -170,8 +194,8 @@ export default function MarketplacePage() {
                 <div className="relative flex-1">
                   <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input 
-                    placeholder="Cari inventory riil di database..." 
-                    className="h-14 pl-14 rounded-2xl liquid-glass border-none text-sm font-medium focus:ring-2 focus:ring-primary/20"
+                    placeholder="Search database inventory..." 
+                    className="h-14 pl-14 rounded-2xl liquid-glass border-none text-sm font-medium"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -196,24 +220,24 @@ export default function MarketplacePage() {
               {itemsLoading ? (
                 <div className="flex flex-col items-center justify-center py-20">
                   <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Syncing Database Inventory...</p>
+                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Syncing Database...</p>
                 </div>
               ) : filteredProducts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                   {filteredProducts.map((p) => (
-                    <Card key={p.id} className="liquid-glass border-none rounded-[2.5rem] overflow-hidden group hover:scale-[1.02] transition-all duration-500 shadow-xl">
+                    <Card key={p.id} className="liquid-glass border-none rounded-[2.5rem] overflow-hidden group hover:scale-[1.02] transition-all duration-500 shadow-xl relative">
+                      {useAlixForDiscount && (
+                        <div className="absolute top-4 right-4 z-20">
+                          <Badge className="bg-orange-600 text-white font-black text-[7px] uppercase italic px-2 py-1 border-none shadow-lg animate-bounce">
+                            -5% ALIX Price
+                          </Badge>
+                        </div>
+                      )}
                       <div className="relative h-64 overflow-hidden bg-white/5">
                         {p.image ? (
-                          <Image 
-                            src={p.image} 
-                            alt={p.name} 
-                            fill 
-                            className="object-cover group-hover:scale-110 transition-transform duration-700"
-                          />
+                          <Image src={p.image} alt={p.name} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
                         ) : (
-                          <div className="flex items-center justify-center h-full">
-                            <Package className="w-12 h-12 text-primary/20" />
-                          </div>
+                          <div className="flex items-center justify-center h-full"><Package className="w-12 h-12 text-primary/20" /></div>
                         )}
                         <div className="absolute top-4 left-4 flex gap-2">
                           <Badge className="bg-white/90 backdrop-blur-md text-accent border-none font-black text-[8px] px-3 py-1 uppercase rounded-full">
@@ -233,14 +257,19 @@ export default function MarketplacePage() {
                         <div className="flex items-center justify-between pt-4 border-t border-primary/5">
                           <div>
                             <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground mb-1">Unit Price</p>
-                            <p className="text-xl font-black text-primary italic tracking-tighter">
-                              {p.priceUsd ? `$ ${p.priceUsd.toLocaleString('en-US')}` : `Rp ${mounted ? p.priceIdr.toLocaleString('id-ID') : '...'}`}
-                            </p>
+                            <div className="flex flex-col">
+                              <p className={cn("text-xl font-black italic tracking-tighter transition-colors", useAlixForDiscount ? "text-orange-600" : "text-primary")}>
+                                {useAlixForDiscount 
+                                  ? `$ ${( (p.priceUsd || 0) * 0.95 ).toFixed(2)}` 
+                                  : `$ ${(p.priceUsd || 0).toLocaleString()}`}
+                              </p>
+                              {useAlixForDiscount && <p className="text-[8px] font-bold text-muted-foreground line-through opacity-50">$ {(p.priceUsd || 0).toLocaleString()}</p>}
+                            </div>
                           </div>
                           <Button 
                             onClick={() => handleBuyProduct(p)}
                             disabled={!!isProcessing}
-                            className="w-12 h-12 rounded-2xl gold-gradient text-white shadow-xl hover:scale-110 transition-all p-0 flex items-center justify-center"
+                            className={cn("w-12 h-12 rounded-2xl text-white shadow-xl hover:scale-110 transition-all p-0 flex items-center justify-center", useAlixForDiscount ? "bg-orange-600" : "gold-gradient")}
                           >
                             {isProcessing === p.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingCart className="w-5 h-5" />}
                           </Button>
@@ -253,7 +282,6 @@ export default function MarketplacePage() {
                 <div className="text-center py-20 liquid-glass rounded-[3rem] border-dashed border-2 border-primary/5">
                   <Package className="w-16 h-16 text-primary/10 mx-auto mb-4" />
                   <h3 className="text-xl font-black text-accent uppercase italic">Inventory Empty</h3>
-                  <p className="text-xs text-muted-foreground font-medium mt-2">Belum ada produk riil di database AliBank.</p>
                 </div>
               )}
             </TabsContent>
@@ -263,20 +291,19 @@ export default function MarketplacePage() {
                 <div className="p-8 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
                   <div>
                     <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3 text-accent">
-                      <BarChart3 className="w-6 h-6 text-primary" /> Live Global Market
+                      <BarChart3 className="w-6 h-6 text-primary" /> Institutional Flow
                     </h3>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Suku bunga riil dari pasar global saat ini.</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Real-time DeFi sector synchronization.</p>
                   </div>
                 </div>
-
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
                       <tr className="bg-primary/5 text-[9px] font-black uppercase text-muted-foreground tracking-widest">
                         <th className="px-8 py-6">Asset</th>
-                        <th className="px-8 py-6">Current Price</th>
+                        <th className="px-8 py-6">Spot Price</th>
                         <th className="px-8 py-6">24h Change</th>
-                        <th className="px-8 py-6 text-right">Quick Action</th>
+                        <th className="px-8 py-6 text-right">Execution</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-primary/5">
@@ -284,49 +311,27 @@ export default function MarketplacePage() {
                         Array.from({ length: 5 }).map((_, i) => (
                           <tr key={i}><td colSpan={4} className="px-8 py-8 animate-pulse bg-primary/5" /></tr>
                         ))
-                      ) : coins.length > 0 ? coins.map((coin) => (
+                      ) : coins.map((coin) => (
                         <tr key={coin.id} className="hover:bg-primary/5 transition-colors group">
                           <td className="px-8 py-5">
                             <div className="flex items-center gap-4">
                               <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-white p-1">
                                 <Image src={coin.image} alt={coin.name} fill className="object-contain" />
                               </div>
-                              <div>
-                                <p className="text-sm font-black text-accent">{coin.name}</p>
-                                <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{coin.symbol}</p>
-                              </div>
+                              <div><p className="text-sm font-black text-accent">{coin.name}</p><p className="text-[9px] text-muted-foreground font-black uppercase">{coin.symbol}</p></div>
                             </div>
                           </td>
+                          <td className="px-8 py-5"><p className="text-sm font-black text-accent italic">Rp {coin.current_price.toLocaleString('id-ID')}</p></td>
                           <td className="px-8 py-5">
-                            <p className="text-sm font-black text-accent italic">Rp {coin.current_price.toLocaleString('id-ID')}</p>
-                          </td>
-                          <td className="px-8 py-5">
-                            <div className={cn(
-                              "flex items-center gap-1 text-[10px] font-black uppercase",
-                              coin.price_change_percentage_24h >= 0 ? "text-green-600" : "text-destructive"
-                            )}>
-                              {coin.price_change_percentage_24h >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                            <div className={cn("flex items-center gap-1 text-[10px] font-black uppercase", coin.price_change_percentage_24h >= 0 ? "text-green-600" : "text-destructive")}>
                               {coin.price_change_percentage_24h.toFixed(2)}%
                             </div>
                           </td>
                           <td className="px-8 py-5 text-right">
-                            <Button 
-                              onClick={() => router.push(`/crypto/trade/${coin.id}`)}
-                              className="h-10 px-6 rounded-xl gold-gradient text-white font-black italic uppercase text-[10px] shadow-lg hover:scale-105 transition-all"
-                            >
-                              Trade Now
-                            </Button>
+                            <Button onClick={() => router.push(`/crypto/trade/${coin.id}`)} className="h-10 px-6 rounded-xl gold-gradient text-white font-black italic uppercase text-[10px] shadow-lg">Open Terminal</Button>
                           </td>
                         </tr>
-                      )) : (
-                        <tr>
-                          <td colSpan={4} className="py-20 text-center">
-                            <RefreshCw className="w-10 h-10 text-primary/20 mx-auto mb-4" />
-                            <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Gagal memuat pasar kripto riil. Silakan coba lagi.</p>
-                            <Button variant="ghost" className="mt-4 text-[10px] font-black uppercase" onClick={fetchMarketData}>Muat Ulang</Button>
-                          </td>
-                        </tr>
-                      )}
+                      ))}
                     </tbody>
                   </table>
                 </div>

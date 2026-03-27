@@ -50,7 +50,8 @@ import {
   Flame,
   SearchCheck,
   ShoppingBag,
-  UserCheck
+  UserCheck,
+  Percent
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -104,9 +105,11 @@ function AdminContent() {
   const [onChainEth, setOnChainEth] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
   
-  // ALIX Real Supply States
+  // ALIX Sovereign Supply States
   const [alixMintAmount, setAlixMintAmount] = useState("");
+  const [alixBurnAmount, setAlixBurnAmount] = useState("");
   const [isMinting, setIsMinting] = useState(false);
+  const [isBurning, setIsBurning] = useState(false);
 
   // Marketplace Management States
   const [newProduct, setNewProduct] = useState({ name: "", description: "", priceIdr: "", priceUsd: "", category: "Security", image: "" });
@@ -186,6 +189,39 @@ function AdminContent() {
       toast({ variant: "destructive", title: "Minting Failed", description: err.message });
     } finally {
       setIsMinting(false);
+    }
+  };
+
+  const handleBurnAlix = async () => {
+    if (!db || !alixBurnAmount) return;
+    const amount = parseFloat(alixBurnAmount);
+    if (isNaN(amount) || amount <= 0) return;
+
+    setIsBurning(true);
+    try {
+      const liquidityRef = doc(db, "system", "liquidity");
+      await updateDoc(liquidityRef, {
+        alixVaultBalance: increment(-amount),
+        totalAlixBurned: increment(amount),
+        lastAlixBurn: serverTimestamp()
+      });
+
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `BURN-${Date.now()}`,
+        category: "ALIX Protocol Burn",
+        cryptoAmount: amount,
+        cryptoCurrency: "ALIX",
+        status: "success",
+        timestamp: serverTimestamp(),
+        description: "Token Scarcity Protocol: supply removed from circulation permanently."
+      });
+
+      toast({ title: "Protocol Burn Successful", description: `${amount} ALIX burned permanently.` });
+      setAlixBurnAmount("");
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Burn Failed", description: err.message });
+    } finally {
+      setIsBurning(false);
     }
   };
 
@@ -289,7 +325,7 @@ function AdminContent() {
 
                 <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 bg-orange-500/5 shadow-md">
                   <div className="flex items-center justify-between">
-                    <Coins className="w-6 h-6 text-orange-600" />
+                    <LogoIcon className="w-6 h-6 text-orange-600" />
                     <Badge className="bg-orange-600 text-white uppercase text-[8px] font-black border-none">ALIX Supply</Badge>
                   </div>
                   <div>
@@ -322,8 +358,8 @@ function AdminContent() {
                       <span className="text-xs font-black text-green-600 uppercase">Operational • 100%</span>
                     </div>
                     <div className="p-5 rounded-2xl bg-accent/5 border border-primary/5 flex justify-between items-center">
-                      <span className="text-[10px] font-black uppercase text-muted-foreground">Internal Settlement Hub</span>
-                      <span className="text-xs font-black text-green-600 uppercase">Online</span>
+                      <span className="text-[10px] font-black uppercase text-muted-foreground">Mainnet Node Cluster</span>
+                      <span className="text-xs font-black text-green-600 uppercase">Online (Standard BNB V3)</span>
                     </div>
                   </div>
                 </Card>
@@ -332,12 +368,12 @@ function AdminContent() {
                   <div className="absolute right-0 top-0 p-8 opacity-10"><Sparkles className="w-32 h-32" /></div>
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-primary"><Zap className="w-6 h-6" /></div>
-                    <h3 className="text-xl font-black text-white uppercase italic">AI Security Sentinel</h3>
+                    <h3 className="text-xl font-black text-white uppercase italic">Sovereign Asset Sentinel</h3>
                   </div>
                   <p className="text-xs font-medium italic text-white/70 leading-relaxed uppercase">
-                    Seluruh mutasi data sedang dipantau secara real-time. Deteksi anomali pada Smart Contract V3 diaktifkan melalui Node Ethereum.
+                    Seluruh pencetakan koin ALIX didukung oleh agunan likuiditas Mainnet. Deteksi anomali pada Smart Contract V3 diaktifkan melalui Global Node.
                   </p>
-                  <Button onClick={() => setActiveTab('audit')} className="w-full h-12 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl font-black uppercase italic text-[10px]">View Full System Logs</Button>
+                  <Button onClick={() => setActiveTab('audit')} className="w-full h-12 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl font-black uppercase italic text-[10px]">View System Records</Button>
                 </Card>
               </div>
             </TabsContent>
@@ -381,51 +417,59 @@ function AdminContent() {
 
             <TabsContent value="alix" className="space-y-8 animate-in slide-in-from-bottom-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* ALIX Minting Hub */}
                 <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-8 shadow-2xl border-t-4 border-orange-500/20">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600 shadow-inner"><Pickaxe className="w-8 h-8" /></div>
                     <div>
-                      <h3 className="text-2xl font-black text-accent uppercase italic leading-none">ALIX Sovereign Mint</h3>
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase mt-1">Authorized creation of ALIX assets on the verified ledger.</p>
+                      <h3 className="text-2xl font-black text-accent uppercase italic leading-none">Sovereign Minting</h3>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase mt-1">Expansion of ALIX supply based on collateral ratio.</p>
                     </div>
                   </div>
                   <div className="space-y-6">
                     <div className="p-6 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-between">
-                      <div><p className="text-[9px] font-black uppercase text-muted-foreground">Authorized Reserve Value</p><p className="text-2xl font-black text-accent italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p></div>
-                      <div className="text-right"><p className="text-[9px] font-black uppercase text-muted-foreground">Audit Grade</p><p className="text-xs font-bold text-green-600 uppercase tracking-widest">MAINNET V3</p></div>
+                      <div><p className="text-[9px] font-black uppercase text-muted-foreground">Authorized Reserve</p><p className="text-2xl font-black text-accent italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p></div>
+                      <div className="text-right"><p className="text-[9px] font-black uppercase text-muted-foreground">Mint Capacity</p><p className="text-xs font-bold text-green-600 uppercase tracking-widest">STABLE</p></div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Mint Amount (ALIX)</label>
+                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Amount to Mint (ALIX)</label>
                       <div className="relative">
                         <Input type="number" placeholder="0.00" value={alixMintAmount} onChange={(e) => setAlixMintAmount(e.target.value)} className="h-16 rounded-2xl liquid-glass border-none font-black italic text-xl px-6" />
-                        <Coins className="absolute right-6 top-1/2 -translate-y-1/2 w-6 h-6 text-orange-500 opacity-20" />
+                        <LogoIcon className="absolute right-6 top-1/2 -translate-y-1/2 w-6 h-6 text-orange-500 opacity-20" />
                       </div>
                     </div>
-                    <Button onClick={handleMintAlix} disabled={isMinting || !alixMintAmount} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-sm shadow-xl transition-all">
-                      {isMinting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Authorize Mainnet Minting"}
+                    <Button onClick={handleMintAlix} disabled={isMinting || !alixMintAmount} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-sm shadow-xl">
+                      {isMinting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Authorize Sovereign Mint"}
                     </Button>
                   </div>
                 </Card>
 
-                <div className="space-y-8">
-                  <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 shadow-xl">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-destructive/10 flex items-center justify-center text-destructive"><Flame className="w-6 h-6" /></div>
-                      <h3 className="text-xl font-black text-accent uppercase italic">Deflationary Protocol</h3>
+                {/* ALIX Burn Protocol - Deflation Mechanism (Standard BNB) */}
+                <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-8 shadow-2xl border-t-4 border-destructive/20">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center text-destructive shadow-inner"><Flame className="w-8 h-8" /></div>
+                    <div>
+                      <h3 className="text-2xl font-black text-accent uppercase italic leading-none">Auto-Burn Protocol</h3>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase mt-1">Deflationary mechanism to increase asset value.</p>
                     </div>
-                    <p className="text-[10px] text-muted-foreground font-medium uppercase leading-relaxed italic">AliBank Smart Contract secara otomatis membakar proporsi suplai berdasarkan aktivitas marketplace.</p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-5 rounded-2xl bg-accent/5 border border-primary/5">
-                        <p className="text-[8px] font-black uppercase text-muted-foreground">Sovereign Burned</p>
-                        <p className="text-xl font-black text-destructive italic">{(globalLiquidity?.totalAlixBurned || 0).toLocaleString()} ALIX</p>
-                      </div>
-                      <div className="p-5 rounded-2xl bg-accent/5 border border-primary/5">
-                        <p className="text-[8px] font-black uppercase text-muted-foreground">Equilibrium Ratio</p>
-                        <p className="text-xl font-black text-accent italic">1.2x</p>
+                  </div>
+                  <div className="space-y-6">
+                    <div className="p-6 rounded-2xl bg-destructive/5 border border-destructive/10 flex items-center justify-between">
+                      <div><p className="text-[9px] font-black uppercase text-muted-foreground">Total Permanently Burned</p><p className="text-2xl font-black text-destructive italic">{(globalLiquidity?.totalAlixBurned || 0).toLocaleString()} ALIX</p></div>
+                      <div className="text-right"><p className="text-[9px] font-black uppercase text-muted-foreground">Burn Rate</p><p className="text-xs font-bold text-destructive uppercase tracking-widest">ACCELERATING</p></div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Amount to Burn (ALIX)</label>
+                      <div className="relative">
+                        <Input type="number" placeholder="0.00" value={alixBurnAmount} onChange={(e) => setAlixBurnAmount(e.target.value)} className="h-16 rounded-2xl bg-destructive/5 border-none font-black italic text-xl px-6 text-destructive" />
+                        <Flame className="absolute right-6 top-1/2 -translate-y-1/2 w-6 h-6 text-destructive opacity-20" />
                       </div>
                     </div>
-                  </Card>
-                </div>
+                    <Button onClick={handleBurnAlix} disabled={isBurning || !alixBurnAmount} className="w-full h-16 bg-destructive hover:bg-destructive/90 text-white rounded-[2rem] font-black uppercase italic text-sm shadow-xl">
+                      {isBurning ? <Loader2 className="w-5 h-5 animate-spin" /> : "Execute Deflationary Burn"}
+                    </Button>
+                  </div>
+                </Card>
               </div>
             </TabsContent>
 
@@ -447,11 +491,11 @@ function AdminContent() {
                     </div>
                   </div>
                   <div className="p-8 rounded-[2.5rem] bg-accent/5 border border-primary/10 space-y-4">
-                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Contract Status</p>
+                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Contract Integrity</p>
                     <div className="space-y-3">
-                      <div className="flex justify-between items-end border-b border-primary/5 pb-2"><span className="text-[9px] font-bold uppercase text-muted-foreground">Version</span><span className="text-xs font-black italic">V3.0 Institutional</span></div>
-                      <div className="flex justify-between items-end border-b border-primary/5 pb-2"><span className="text-[9px] font-bold uppercase text-muted-foreground">Compliance</span><span className="text-xs font-black italic">Sovereign Standard</span></div>
-                      <div className="flex justify-between items-end border-b border-primary/5 pb-2"><span className="text-[9px] font-bold uppercase text-muted-foreground">Auditor</span><span className="text-xs font-black italic">AliBank Sentinel AI</span></div>
+                      <div className="flex justify-between items-end border-b border-primary/5 pb-2"><span className="text-[9px] font-bold uppercase text-muted-foreground">Standard</span><span className="text-xs font-black italic">Web3 Sovereign (BNB Equivalent)</span></div>
+                      <div className="flex justify-between items-end border-b border-primary/5 pb-2"><span className="text-[9px] font-bold uppercase text-muted-foreground">Compliance</span><span className="text-xs font-black italic">Institutional V3</span></div>
+                      <div className="flex justify-between items-end border-b border-primary/5 pb-2"><span className="text-[9px] font-bold uppercase text-muted-foreground">Liquidity Type</span><span className="text-xs font-black italic">Multi-Asset Backed</span></div>
                     </div>
                   </div>
                 </div>
@@ -485,7 +529,7 @@ function AdminContent() {
             <TabsContent value="audit" className="animate-in slide-in-from-bottom-4">
               <Card className="liquid-glass border-none rounded-[3rem] overflow-hidden shadow-2xl">
                 <div className="p-8 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
-                  <h3 className="text-xl font-black italic uppercase text-accent flex items-center gap-3"><FileText className="w-6 h-6 text-primary" /> System-Wide Audit Log</h3>
+                  <h3 className="text-xl font-black italic uppercase text-accent flex items-center gap-3"><FileText className="w-6 h-6 text-primary" /> Global Production Audit</h3>
                   <Badge variant="outline" className="text-[8px] font-black uppercase border-primary/20">Production Integrity Active</Badge>
                 </div>
                 <div className="overflow-x-auto">
