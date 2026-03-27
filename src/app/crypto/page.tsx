@@ -58,8 +58,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
 const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
@@ -91,17 +89,12 @@ export default function CryptoDeFiPage() {
   const [mounted, setMounted] = useState(false);
   const [coins, setCoins] = useState<CoinData[]>([]);
   const [selectedCoin, setSelectedCoin] = useState<CoinData | null>(null);
-  const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Wallet states
   const [address, setAddress] = useState<string | null>(null);
   const [vaultBalance, setVaultBalance] = useState("0");
   const [walletBalance, setWalletBalance] = useState("0");
-  const [isWrongNetwork, setIsWrongNetwork] = useState(false);
-  const [bridgeAmount, setBridgeAmount] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
   const [usingGlobalNode, setUsingGlobalNode] = useState(true);
 
   const fetchMarketData = useCallback(async () => {
@@ -150,7 +143,6 @@ export default function CryptoDeFiPage() {
 
   useEffect(() => {
     if (mounted && user) {
-      // Jika ada wallet internal di database, cek saldonya via Global Node RPC
       if (userData?.walletAddress) {
         setAddress(userData.walletAddress);
         checkBalances(userData.walletAddress);
@@ -170,7 +162,6 @@ export default function CryptoDeFiPage() {
       toast({ variant: "destructive", title: "MetaMask Diperlukan", description: "Gunakan browser MetaMask di HP untuk otorisasi transaksi." });
       return;
     }
-    setIsConnecting(true);
     try {
       const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
@@ -178,44 +169,7 @@ export default function CryptoDeFiPage() {
         setAddress(accounts[0]);
         await checkBalances(accounts[0]);
       }
-    } catch (err: any) {} finally { setIsConnecting(false); }
-  };
-
-  const handleVaultAction = async (action: 'deposit' | 'withdraw') => {
-    if (!address) { await handleConnectWallet(); return; }
-    if (!bridgeAmount) return;
-    
-    setIsProcessing(true);
-    try {
-      const provider = new BrowserProvider(window.ethereum!);
-      const signer = await provider.getSigner();
-      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
-      
-      const tx = action === 'deposit' 
-        ? await contract.deposit({ value: parseEther(bridgeAmount) })
-        : await contract.withdraw(parseEther(bridgeAmount));
-        
-      toast({ title: "Transaksi Terkirim", description: "Menunggu konfirmasi blockchain..." });
-      await tx.wait();
-      
-      const txRef = collection(db!, "users", user!.uid, "transactions");
-      addDoc(txRef, {
-        date: new Date().toISOString(),
-        description: `${action === 'deposit' ? 'Staking' : 'Penarikan'} Vault V3`,
-        category: "Bridge",
-        cryptoAmount: parseFloat(bridgeAmount),
-        cryptoCurrency: "ETH",
-        type: action === 'deposit' ? 'expense' : 'income',
-        status: "success",
-        timestamp: serverTimestamp()
-      });
-
-      toast({ title: "Berhasil!", description: `Aset telah diamankan di Brankas.` });
-      setBridgeAmount("");
-      await checkBalances(address);
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Gagal", description: err.message });
-    } finally { setIsProcessing(false); }
+    } catch (err: any) {}
   };
 
   if (!mounted) return null;
@@ -233,119 +187,183 @@ export default function CryptoDeFiPage() {
                   <LogoIcon className="text-white" />
                 </div>
                 <h1 className="text-4xl font-black text-accent italic uppercase tracking-tighter flex items-center gap-3">
-                  DeFi Central <Globe className={cn("w-6 h-6 text-primary", usingGlobalNode ? "animate-pulse" : "")} />
+                  Exchange Center <Globe className={cn("w-6 h-6 text-primary", usingGlobalNode ? "animate-pulse" : "")} />
                 </h1>
               </div>
               <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest pl-1">
-                {usingGlobalNode ? "Powered by AliBank Global Node Architecture (Independent of MetaMask)" : "Connected via Local Provider Interface"}
+                AliBank Global Liquidity Engine • Real-Time Market Execution
               </p>
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={() => router.push('/crypto/trade/bitcoin')} className="h-12 px-8 rounded-2xl bg-accent text-white font-black uppercase italic shadow-xl">
+                <Zap className="mr-2 w-4 h-4" /> Buka Terminal Pro
+              </Button>
               {address ? (
-                <Badge className="h-12 px-6 rounded-2xl font-black text-[11px] uppercase tracking-tighter shadow-lg bg-green-600 text-white">
+                <Badge className="h-12 px-6 rounded-2xl font-black text-[11px] uppercase tracking-tighter shadow-lg bg-green-600 text-white border-none">
                   {address.slice(0, 6)}...{address.slice(-4)}
                 </Badge>
               ) : (
-                <Button onClick={handleConnectWallet} disabled={isConnecting} className="h-12 px-8 rounded-2xl gold-gradient text-white font-black uppercase italic shadow-xl">
-                  {isConnecting ? <Loader2 className="animate-spin mr-2" /> : <Wallet className="mr-2" />} Konek Wallet
+                <Button onClick={handleConnectWallet} className="h-12 px-8 rounded-2xl gold-gradient text-white font-black uppercase italic shadow-xl">
+                  <Wallet className="mr-2 w-4 h-4" /> Konek Wallet
                 </Button>
               )}
             </div>
           </header>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Market List Column */}
-            <div className="lg:col-span-3">
-              <Card className="rounded-2xl border-none shadow-sm overflow-hidden bg-white h-[600px] flex flex-col">
-                <div className="p-6 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-accent flex items-center gap-2">
-                    <LayoutGrid className="w-4 h-4 text-primary" /> Market List
+            {/* Asset Performance Side */}
+            <div className="lg:col-span-8 space-y-8">
+              {/* Market Overview Table */}
+              <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white">
+                <div className="p-8 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
+                  <h3 className="text-xl font-black italic uppercase text-accent flex items-center gap-3">
+                    <BarChart3 className="w-6 h-6 text-primary" /> Live Markets
                   </h3>
+                  <Badge className="bg-primary/10 text-primary uppercase font-black text-[10px]">Mainnet Prices</Badge>
                 </div>
-                <div className="flex-1 overflow-y-auto no-scrollbar divide-y divide-primary/5">
-                  {coins.map((coin) => (
-                    <button key={coin.id} onClick={() => setSelectedCoin(coin)} className={cn("w-full p-4 flex items-center justify-between hover:bg-primary/5 transition-colors text-left", selectedCoin?.id === coin.id && "bg-primary/5 border-l-4 border-primary")}>
-                      <div className="flex items-center gap-3">
-                        <div className="relative w-8 h-8 rounded-full overflow-hidden bg-white shadow-sm">
-                          <Image src={coin.image} alt={coin.name} fill className="object-contain p-1" />
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-black text-accent uppercase tracking-tighter">{coin.symbol}/IDR</p>
-                          <p className={cn("text-[9px] font-bold", coin.price_change_percentage_24h >= 0 ? "text-green-600" : "text-destructive")}>{coin.price_change_percentage_24h.toFixed(2)}%</p>
-                        </div>
-                      </div>
-                      <p className="text-[10px] font-black text-accent italic">{coin.current_price.toLocaleString('id-ID')}</p>
-                    </button>
-                  ))}
+                <div className="overflow-x-auto no-scrollbar">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-primary/5 text-[10px] font-black uppercase text-muted-foreground tracking-widest">
+                        <th className="px-8 py-6">Pasangan Aset</th>
+                        <th className="px-8 py-6">Harga Terakhir</th>
+                        <th className="px-8 py-6">24h Perubahan</th>
+                        <th className="px-8 py-6 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-primary/5">
+                      {loading ? (
+                        Array.from({ length: 5 }).map((_, i) => (
+                          <tr key={i}><td colSpan={4} className="px-8 py-10 animate-pulse bg-primary/5" /></tr>
+                        ))
+                      ) : coins.map((coin) => (
+                        <tr key={coin.id} className="hover:bg-primary/5 transition-colors group">
+                          <td className="px-8 py-5">
+                            <div className="flex items-center gap-4">
+                              <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-white p-1 shadow-sm">
+                                <Image src={coin.image} alt={coin.name} fill className="object-contain" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-black text-accent uppercase tracking-tighter">{coin.symbol}/IDR</p>
+                                <p className="text-[9px] text-muted-foreground font-black uppercase">{coin.name}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-8 py-5">
+                            <p className="text-sm font-black text-accent italic">Rp {coin.current_price.toLocaleString('id-ID')}</p>
+                          </td>
+                          <td className="px-8 py-5">
+                            <div className={cn(
+                              "flex items-center gap-1 text-[10px] font-black uppercase",
+                              coin.price_change_percentage_24h >= 0 ? "text-green-600" : "text-destructive"
+                            )}>
+                              {coin.price_change_percentage_24h.toFixed(2)}%
+                            </div>
+                          </td>
+                          <td className="px-8 py-5 text-right">
+                            <Button 
+                              onClick={() => router.push(`/crypto/trade/${coin.id}`)}
+                              className="h-10 px-6 rounded-xl gold-gradient text-white font-black italic uppercase text-[10px] shadow-lg group-hover:scale-105 transition-all"
+                            >
+                              Trade Now
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </Card>
+
+              {/* Security & DeFi Highlights */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-lg font-black text-accent uppercase italic tracking-tighter">Custody Aman V3</h4>
+                  <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">Aset Anda diamankan dengan teknologi smart contract multi-sig yang terverifikasi di Mainnet.</p>
+                </Card>
+                <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600">
+                    <Zap className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-lg font-black text-accent uppercase italic tracking-tighter">Eksekusi Instan</h4>
+                  <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">Terminal trading pro AliBank menggunakan orderbook hybrid untuk likuiditas tak terbatas.</p>
+                </Card>
+              </div>
             </div>
 
-            {/* Trading & Tabs Column */}
-            <div className="lg:col-span-6 space-y-6">
-              <Tabs defaultValue="vault" className="w-full">
-                <TabsList className="bg-primary/5 p-1.5 rounded-[2rem] h-16 border border-primary/10 grid grid-cols-3">
-                  <TabsTrigger value="vault" className="rounded-[1.5rem] font-black uppercase text-[10px]">Brankas V3</TabsTrigger>
-                  <TabsTrigger value="bridge" className="rounded-[1.5rem] font-black uppercase text-[10px]">Bridge Out</TabsTrigger>
-                  <TabsTrigger value="audit" className="rounded-[1.5rem] font-black uppercase text-[10px]">Audit</TabsTrigger>
-                </TabsList>
+            {/* Portfolio & Vault Side */}
+            <div className="lg:col-span-4 space-y-8">
+              <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10"><PieChart className="w-20 h-20" /></div>
+                <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-8">Portofolio Saya</h3>
+                
+                <div className="space-y-8 relative z-10">
+                  <div>
+                    <p className="text-[9px] font-bold text-white/60 uppercase">Estimasi Saldo Total</p>
+                    <p className="text-4xl font-black italic tracking-tighter">Rp {(userData?.totalBalance || 0).toLocaleString()}</p>
+                  </div>
 
-                <TabsContent value="vault" className="mt-6">
-                  <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="p-8 rounded-[2rem] liquid-glass-dark text-white text-center space-y-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Vault Balance</p>
-                        <p className="text-4xl font-black text-primary italic">{parseFloat(vaultBalance).toFixed(4)} ETH</p>
-                        <Badge className="bg-primary/20 text-primary mt-2">Yield APY: 4.85%</Badge>
+                  <div className="space-y-4">
+                    <p className="text-[10px] font-black uppercase text-white/40 tracking-widest">Aset Digital</p>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center p-4 rounded-2xl bg-white/5 border border-white/10">
+                        <div className="flex items-center gap-3">
+                          <Bitcoin className="w-5 h-5 text-orange-400" />
+                          <span className="text-xs font-black italic">BTC</span>
+                        </div>
+                        <span className="text-sm font-black italic">{(userData?.cryptoBalances?.BTC || 0).toFixed(6)}</span>
                       </div>
-                      <div className="p-8 rounded-[2rem] bg-accent/5 border border-primary/5 text-center space-y-2 flex flex-col justify-center">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Wallet Balance</p>
-                        <p className="text-2xl font-black text-accent italic">{parseFloat(walletBalance).toFixed(4)} ETH</p>
-                        <p className="text-[8px] font-bold text-muted-foreground uppercase">Real-Time Sync</p>
+                      <div className="flex justify-between items-center p-4 rounded-2xl bg-white/5 border border-white/10">
+                        <div className="flex items-center gap-3">
+                          <Cpu className="w-5 h-5 text-blue-400" />
+                          <span className="text-xs font-black italic">ETH</span>
+                        </div>
+                        <span className="text-sm font-black italic">{(userData?.cryptoBalances?.ETH || 0).toFixed(4)}</span>
                       </div>
                     </div>
-
-                    <div className="space-y-4">
-                      <div className="relative">
-                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-lg font-black text-primary/40">ETH</span>
-                        <Input type="number" placeholder="0.00" value={bridgeAmount} onChange={(e) => setBridgeAmount(e.target.value)} className="h-16 pl-16 rounded-2xl liquid-glass border-none text-lg font-black italic" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <Button onClick={() => handleVaultAction('deposit')} disabled={isProcessing || !bridgeAmount} className="h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl">
-                          {isProcessing ? <Loader2 className="animate-spin" /> : "Stake Asset"}
-                        </Button>
-                        <Button onClick={() => handleVaultAction('withdraw')} variant="outline" disabled={isProcessing || !bridgeAmount} className="h-14 border-primary/20 text-primary font-black italic uppercase rounded-2xl">
-                          Unstake
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            </div>
-
-            {/* Sidebar Column */}
-            <div className="lg:col-span-3 space-y-6">
-              <Card className="liquid-glass-dark rounded-[2.5rem] p-8 border-none text-white shadow-2xl">
-                <div className="flex items-center gap-2 mb-6">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                    <Activity className="w-4 h-4" /> Global Node Insight
-                  </h4>
-                </div>
-                <p className="text-[11px] font-bold text-white/80 leading-relaxed italic mb-6">
-                  "AliBank mengintegrasikan Node RPC independen untuk memastikan saldo Anda tetap akurat tanpa tergantung pada provider wallet lokal."
-                </p>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center text-[10px] font-bold text-white/60">
-                    <span>STATUS NODE</span>
-                    <span className="text-green-400">AKTIF (GLOBAL)</span>
                   </div>
-                  <div className="flex justify-between items-center text-[10px] font-bold text-white/60">
-                    <span>UPTIME</span>
-                    <span>99.99%</span>
+
+                  <Button onClick={() => router.push('/topup')} className="w-full h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl">
+                    Deposit IDR
+                  </Button>
+                </div>
+              </Card>
+
+              {/* Vault Section */}
+              <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-accent uppercase italic">Brankas V3</h4>
+                    <p className="text-[8px] font-bold text-muted-foreground uppercase">On-Chain Yield Bearing</p>
                   </div>
                 </div>
+                
+                <div className="p-6 rounded-2xl bg-accent/5 border border-primary/5 space-y-1 text-center">
+                  <p className="text-[9px] font-black uppercase text-muted-foreground">Saldo Staking Mainnet</p>
+                  <p className="text-2xl font-black text-accent italic">{parseFloat(vaultBalance).toFixed(4)} ETH</p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between text-[10px] font-bold">
+                    <span className="text-muted-foreground uppercase">APY Tahunan</span>
+                    <span className="text-green-600">4.85%</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-bold">
+                    <span className="text-muted-foreground uppercase">Status Node</span>
+                    <span className="text-primary italic">Connected</span>
+                  </div>
+                </div>
+
+                <Button variant="outline" className="w-full h-12 border-primary/20 text-primary font-black uppercase italic rounded-xl">
+                  Kelola Brankas
+                </Button>
               </Card>
             </div>
           </div>
