@@ -101,7 +101,7 @@ export default function CheckoutPage() {
 
   const paypalButtonContainerRef = useRef<HTMLDivElement>(null);
 
-  // API Key Bisnis Nyata yang Anda berikan
+  // API Key Bisnis Nyata
   const PAYPAL_CLIENT_ID = "AbHG-qL9bHR0-rhmrDMV7TH-PiYAFHFNimv3LfxBUPmSIMaQPrbvFd7cJah1bc8YqlUkS7i3OpD0nvGF";
 
   useEffect(() => {
@@ -233,7 +233,8 @@ export default function CheckoutPage() {
           layout: 'vertical',
           color: 'gold',
           shape: 'pill',
-          label: 'pay'
+          label: 'pay',
+          tagline: false // MENGHAPUS BRANDING "POWERED BY PAYPAL" DI BAWAH TOMBOL
         },
         createOrder: (data: any, actions: any) => {
           return actions.order.create({
@@ -250,12 +251,12 @@ export default function CheckoutPage() {
           const details = await actions.order.capture();
           await processPaymentFinalization({
             ...details,
-            gateway: "PayPal Business"
+            gateway: "International Card Gateway"
           });
         },
         onError: (err: any) => {
           console.error("PayPal Execution Error:", err);
-          toast({ variant: "destructive", title: "Gateway Unreachable", description: "Terjadi gangguan pada gerbang PayPal." });
+          toast({ variant: "destructive", title: "Gateway Unreachable", description: "Terjadi gangguan pada gerbang internasional." });
         }
       }).render(paypalButtonContainerRef.current);
     }
@@ -264,7 +265,6 @@ export default function CheckoutPage() {
   // Inisialisasi tombol saat step PayPal dipilih dan script sudah siap
   useEffect(() => {
     if (paymentStep === 'paypal_gate' && paypalReady) {
-      // Small delay to ensure DOM element is ready
       const timer = setTimeout(initPayPalButtons, 300);
       return () => clearTimeout(timer);
     }
@@ -302,11 +302,10 @@ export default function CheckoutPage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background pb-20 relative overflow-hidden">
-        {/* PayPal SDK Script dengan deteksi dinamis */}
         <Script 
           src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&locale=en_US&components=buttons`}
           onLoad={() => setPaypalReady(true)}
-          onError={() => toast({ variant: "destructive", title: "SDK Load Error", description: "Gagal memuat modul PayPal." })}
+          onError={() => toast({ variant: "destructive", title: "SDK Load Error", description: "Gagal memuat modul gerbang internasional." })}
         />
         
         <div className="absolute top-0 left-0 w-full h-64 gold-gradient opacity-10 blur-[100px]" />
@@ -333,7 +332,7 @@ export default function CheckoutPage() {
                       <div className="p-3 rounded-2xl bg-white/20 text-white"><CreditCard className="w-6 h-6" /></div>
                       <div>
                         <p className="text-sm font-black text-white italic">International Card</p>
-                        <p className="text-[9px] font-medium text-white/70 uppercase">Pay with PayPal Global Gateway</p>
+                        <p className="text-[9px] font-medium text-white/70 uppercase">Visa, Mastercard, Amex</p>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-white/60" />
@@ -365,10 +364,10 @@ export default function CheckoutPage() {
               ) : paymentStep === 'paypal_gate' ? (
                 <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
                   <header className="flex items-center justify-between mb-4">
-                    <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary">Back</button>
+                    <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors">Back</button>
                     <div className="flex items-center gap-2">
                       <Lock className="w-3 h-3 text-green-600" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-accent italic">PayPal Secure Layer</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-accent italic">Secure Cloud Layer</span>
                     </div>
                   </header>
                   
@@ -390,7 +389,7 @@ export default function CheckoutPage() {
                   {!paypalReady ? (
                     <div className="flex flex-col items-center justify-center py-10">
                       <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
-                      <p className="text-[9px] font-black uppercase text-muted-foreground">Handshaking with PayPal...</p>
+                      <p className="text-[9px] font-black uppercase text-muted-foreground">Initializing secure tunnel...</p>
                     </div>
                   ) : (
                     <div id="paypal-button-container" ref={paypalButtonContainerRef} className="w-full min-h-[150px] transition-all" />
@@ -399,7 +398,7 @@ export default function CheckoutPage() {
               ) : (
                 <form onSubmit={handleNativeCardPayment} className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                    <header className="flex items-center justify-between mb-4">
-                    <button type="button" onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary">Back</button>
+                    <button type="button" onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors">Back</button>
                     <Badge className="bg-primary/10 text-primary text-[8px] font-black uppercase italic flex items-center gap-1"><ShieldCheck className="w-2 h-2" /> V3 Secure Node</Badge>
                   </header>
                   
