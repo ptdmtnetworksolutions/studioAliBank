@@ -66,7 +66,8 @@ import {
   limit,
   serverTimestamp,
   addDoc,
-  getDocs
+  getDocs,
+  where
 } from "firebase/firestore";
 import { BrowserProvider, Contract, formatEther, parseEther, JsonRpcProvider, ethers } from "ethers";
 import { useToast } from "@/hooks/use-toast";
@@ -163,7 +164,7 @@ function AdminContent() {
     setIsSyncingEngine(true);
     try {
       await syncOnChainVault();
-      toast({ title: t ? t('integrity_sync_complete') : "Integrity Sync Complete", description: "Ledger Internal dan Saldo On-Chain telah disinkronkan." });
+      toast({ title: "Integrity Sync Complete", description: "Ledger Internal dan Saldo On-Chain telah disinkronkan." });
     } catch (err) {
       toast({ variant: "destructive", title: "Sync Failed" });
     } finally {
@@ -175,29 +176,45 @@ function AdminContent() {
     if (!db || isReconciling) return;
     setIsReconciling(true);
     try {
+      // Query audit riil dari gateway pembayaran
       const q = query(collection(db, "system", "audit", "global_transactions"));
       const snapshot = await getDocs(q);
       
       let totalUsd = 0;
       let totalIdr = 0;
+      let matchCount = 0;
       
       snapshot.docs.forEach(doc => {
         const data = doc.data();
-        if (data.status === 'success' && data.category === 'Marketplace Purchase') {
-          totalUsd += (data.amountUsd || 0);
-          totalIdr += (data.amountIdr || 0);
+        // Hanya hitung transaksi sukses dari marketplace (termasuk yang via PayPal)
+        if ((data.status === 'success' || data.status === 'paid' || data.status === 'settled') && 
+            (data.category === 'Marketplace Purchase' || data.category === 'Product Purchase')) {
+          totalUsd += (Number(data.amountUsd) || 0);
+          totalIdr += (Number(data.amountIdr) || 0);
+          matchCount++;
         }
       });
 
-      await updateDoc(doc(db, "system", "liquidity"), {
-        totalUsdInjected: totalUsd,
-        totalFiatInjected: totalIdr,
-        lastReconciliation: serverTimestamp()
-      });
-
-      toast({ title: "Gateway Reconciled", description: "Semua mutasi fiat telah disinkronkan dengan laporan gerbang pembayaran global." });
-    } catch (err) {
-      toast({ variant: "destructive", title: "Reconciliation Failed" });
+      if (matchCount > 0) {
+        await updateDoc(doc(db, "system", "liquidity"), {
+          totalUsdInjected: totalUsd,
+          totalFiatInjected: totalIdr,
+          lastReconciliation: serverTimestamp()
+        });
+        toast({ 
+          title: "Gateway Reconciled", 
+          description: `${matchCount} mutasi riil (PayPal & Internal) telah disinkronkan. Total: $${totalUsd.toLocaleString()}` 
+        });
+      } else {
+        toast({ 
+          variant: "destructive", 
+          title: "Reconciliation Incomplete", 
+          description: "Tidak ditemukan mutasi sukses di audit log. Data likuiditas tidak diperbarui untuk menjaga integritas." 
+        });
+      }
+    } catch (err: any) {
+      console.error("Recon error:", err);
+      toast({ variant: "destructive", title: "Reconciliation Failed", description: err.message });
     } finally {
       setIsReconciling(false);
     }
@@ -435,7 +452,7 @@ function AdminContent() {
                   </div>
                   <div>
                     <p className="text-4xl font-black text-accent italic tracking-tighter">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
-                    <p className="text-[8px] font-bold text-muted-foreground uppercase mt-2">Verified via Secure Global Bridge</p>
+                    <p className="text-[8px] font-bold text-muted-foreground uppercase mt-2">Verified via Secure Global Bridge (incl. PayPal)</p>
                   </div>
                   <div className="pt-4 border-t border-primary/5 flex justify-between items-center">
                     <span className="text-[9px] font-black uppercase text-green-600">Active Pipeline</span>
@@ -498,12 +515,12 @@ function AdminContent() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-primary/5">
-                      {globalHistory?.filter(t => t.category === 'Marketplace Purchase').slice(0, 10).map((tx: any, idx: number) => (
+                      {globalHistory?.filter(t => t.category === 'Marketplace Purchase' || t.category === 'Product Purchase').slice(0, 15).map((tx: any, idx: number) => (
                         <tr key={idx} className="hover:bg-primary/5 transition-colors">
-                          <td className="px-8 py-5 text-[10px] font-black text-accent uppercase">{tx.id?.slice(0, 12)}...</td>
+                          <td className="px-8 py-5 text-[10px] font-black text-accent uppercase">{tx.id?.slice(0, 16)}...</td>
                           <td className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase">{tx.userName || 'Anonymous Client'}</td>
                           <td className="px-8 py-5 font-black text-primary italic">$ {tx.amountUsd?.toLocaleString()}</td>
-                          <td className="px-8 py-5"><Badge variant="outline" className="text-[7px] font-black uppercase border-primary/20">{tx.gateway || 'Secure Global'}</Badge></td>
+                          <td className="px-8 py-5"><Badge variant="outline" className="text-[7px] font-black uppercase border-primary/20">{tx.gateway || 'AliBank Gateway'}</Badge></td>
                           <td className="px-8 py-5 text-right text-[9px] font-medium text-muted-foreground">{tx.timestamp?.seconds ? new Date(tx.timestamp.seconds * 1000).toLocaleString() : 'Processing'}</td>
                         </tr>
                       ))}

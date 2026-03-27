@@ -11,7 +11,8 @@ import {
   ChevronRight,
   CreditCard,
   AlertCircle,
-  Info
+  Info,
+  Smartphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -53,7 +54,7 @@ export default function CheckoutPage() {
   
   const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState<any>(null);
-  const [paymentStep, setPaymentStep] = useState<'selection' | 'paypal_gate' | 'success'>('selection');
+  const [paymentStep, setPaymentStep] = useState<'selection' | 'paypal_gate' | 'native_card' | 'success'>('selection');
   const [paypalReady, setPaypalReady] = useState(false);
   const paypalButtonContainerRef = useRef<HTMLDivElement>(null);
 
@@ -80,10 +81,9 @@ export default function CheckoutPage() {
   }, [db, invoiceId]);
 
   // KALKULASI BIAYA GATEWAY (Agar Merchant menerima UTUH)
-  // Rumus: (Nilai_Ingin_Diterima + Biaya_Tetap) / (1 - Persentase_Fee)
   const baseAmount = invoice?.amountUsd || 0;
-  const fixedFee = 0.35; // Biaya tetap PayPal rata-rata
-  const percentFee = 0.044; // 4.4% untuk transaksi internasional
+  const fixedFee = 0.35; 
+  const percentFee = 0.044; 
   const totalWithGatewayFee = parseFloat(((baseAmount + fixedFee) / (1 - percentFee)).toFixed(2));
   const serviceFee = parseFloat((totalWithGatewayFee - baseAmount).toFixed(2));
 
@@ -94,31 +94,33 @@ export default function CheckoutPage() {
     const systemLiquidityRef = doc(db, "system", "liquidity");
     const globalAuditRef = collection(db, "system", "audit", "global_transactions");
     
+    const timestamp = new Date().toISOString();
+
     // 1. Mark Invoice as PAID
     await setDoc(invoiceRef, {
       status: "paid",
-      paidAt: new Date().toISOString(),
-      paymentMethod: details.id === 'ALIBANK-INTERNAL' ? "AliBank Internal" : "AliBank Global Gateway",
+      paidAt: timestamp,
+      paymentMethod: details.gateway || "AliBank Global Gateway",
       gatewayOrderId: details.id,
       payerEmail: details.payer?.email_address || user.email,
-      actualReceivedUsd: baseAmount // Merchant menerima utuh
+      actualReceivedUsd: baseAmount 
     }, { merge: true });
 
     // 2. INJEKSI DANA NYATA KE SISTEM
     await setDoc(systemLiquidityRef, {
       totalFiatInjected: increment(invoice.amountIdr),
-      totalUsdInjected: increment(baseAmount), // Injeksi nilai bersih
+      totalUsdInjected: increment(baseAmount), 
       lastCardTransaction: {
         amount: invoice.amountIdr,
         amountUsd: baseAmount,
         currency: "USD",
-        gateway: "AliBank Secure Global",
+        gateway: details.gateway || "AliBank Secure Global",
         timestamp: serverTimestamp(),
         status: "settled"
       }
     }, { merge: true });
 
-    // 3. Global Audit Log
+    // 3. Global Audit Log (Kritis untuk Rekonsiliasi Admin)
     await addDoc(globalAuditRef, {
       id: details.id || `TX-${Date.now()}`,
       userId: user.uid,
@@ -126,9 +128,9 @@ export default function CheckoutPage() {
       productName: invoice.productName || "AliBank Infrastructure",
       amountIdr: invoice.amountIdr,
       amountUsd: baseAmount,
-      category: "Marketplace Purchase",
-      gateway: details.id === 'ALIBANK-INTERNAL' ? "Internal" : "AliBank Secure",
-      status: "success",
+      category: "Marketplace Purchase", // Harus cocok dengan filter di Admin
+      gateway: details.gateway || "AliBank Secure",
+      status: "success", 
       timestamp: serverTimestamp()
     });
 
@@ -150,7 +152,7 @@ export default function CheckoutPage() {
         createOrder: (data: any, actions: any) => {
           return actions.order.create({
             purchase_units: [{
-              description: `AliBank: ${invoice.productName || "Infrastructure Access"} (Incl. Gateway Fees)`,
+              description: `AliBank: ${invoice.productName || "Infrastructure Access"}`,
               amount: {
                 currency_code: "USD",
                 value: totalWithGatewayFee.toString()
@@ -160,7 +162,10 @@ export default function CheckoutPage() {
         },
         onApprove: async (data: any, actions: any) => {
           const details = await actions.order.capture();
-          await processPaymentFinalization(details);
+          await processPaymentFinalization({
+            ...details,
+            gateway: "PayPal Business"
+          });
         },
         onError: (err: any) => {
           console.error("Payment Error:", err);
@@ -237,30 +242,43 @@ export default function CheckoutPage() {
                       <div className="p-3 rounded-2xl bg-white/20 text-white"><CreditCard className="w-6 h-6" /></div>
                       <div>
                         <p className="text-sm font-black text-white italic">Global Debit/Credit Card</p>
-                        <p className="text-[9px] font-medium text-white/70 uppercase">Pay with Card + Gateway Fees</p>
+                        <p className="text-[9px] font-medium text-white/70 uppercase">Pay with PayPal Gateway</p>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-white/60" />
                   </button>
 
-                  <button onClick={() => processPaymentFinalization({ id: 'ALIBANK-INTERNAL' })} className="w-full liquid-glass-dark p-6 rounded-[1.5rem] border-white/10 hover:border-primary/40 transition-all text-left flex items-center justify-between group">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-2xl bg-white/10 text-white group-hover:bg-primary transition-colors"><LogoIcon className="w-6 h-6" /></div>
+                  {/* Visi Masa Depan: AliBank Native Card Processing */}
+                  <button onClick={() => setPaymentStep('native_card')} className="w-full liquid-glass-dark p-6 rounded-[1.5rem] border-white/10 hover:border-primary/40 transition-all text-left flex items-center justify-between group relative overflow-hidden">
+                    <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
+                    <div className="flex items-center gap-4 relative z-10">
+                      <div className="p-3 rounded-2xl bg-white/10 text-white group-hover:bg-primary transition-colors"><ShieldCheck className="w-6 h-6" /></div>
                       <div>
-                        <p className="text-sm font-black text-white italic">AliBank Account</p>
-                        <p className="text-[9px] font-medium text-white/50 uppercase italic">0% Fees • Instant Settlement</p>
+                        <p className="text-sm font-black text-white italic">AliBank Native Processing</p>
+                        <p className="text-[9px] font-medium text-white/50 uppercase italic">Direct API • No Middleman Fees</p>
                       </div>
                     </div>
-                    <Badge className="bg-green-600 text-white text-[7px] font-black border-none px-2 py-0.5 animate-pulse">HEMAT</Badge>
+                    <Badge className="bg-primary text-white text-[7px] font-black border-none px-2 py-0.5 animate-pulse">ELITE</Badge>
+                  </button>
+
+                  <button onClick={() => processPaymentFinalization({ id: 'ALIBANK-INTERNAL', gateway: 'AliBank Internal' })} className="w-full liquid-glass p-6 rounded-[1.5rem] border-primary/10 hover:border-primary/40 transition-all text-left flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors"><LogoIcon className="w-6 h-6" /></div>
+                      <div>
+                        <p className="text-sm font-black text-accent italic">AliBank Internal Account</p>
+                        <p className="text-[9px] font-medium text-muted-foreground uppercase italic">Instant Settlement from Balance</p>
+                      </div>
+                    </div>
+                    <Badge className="bg-green-600 text-white text-[7px] font-black border-none px-2 py-0.5">0% FEE</Badge>
                   </button>
                 </div>
-              ) : (
+              ) : paymentStep === 'paypal_gate' ? (
                 <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
                   <header className="flex items-center justify-between mb-4">
                     <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary">Back</button>
                     <div className="flex items-center gap-2">
                       <Lock className="w-3 h-3 text-green-600" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-accent italic">Encryption Active</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-accent italic">PayPal Secure Encryption</span>
                     </div>
                   </header>
                   
@@ -270,11 +288,11 @@ export default function CheckoutPage() {
                       <span className="text-accent">$ {baseAmount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] font-bold uppercase">
-                      <span className="text-muted-foreground flex items-center gap-1">Gateway & Card Fee <Info className="w-3 h-3" /></span>
+                      <span className="text-muted-foreground flex items-center gap-1">Gateway Fees <Info className="w-3 h-3" /></span>
                       <span className="text-accent">$ {serviceFee.toFixed(2)}</span>
                     </div>
                     <div className="pt-3 border-t border-primary/5 flex justify-between items-center">
-                      <span className="text-xs font-black uppercase text-accent">Total Payment</span>
+                      <span className="text-xs font-black uppercase text-accent">Total Settlement</span>
                       <span className="text-lg font-black text-primary italic">$ {totalWithGatewayFee.toFixed(2)}</span>
                     </div>
                   </div>
@@ -282,17 +300,29 @@ export default function CheckoutPage() {
                   {!paypalReady ? (
                     <div className="flex flex-col items-center justify-center py-10">
                       <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
-                      <p className="text-[9px] font-black uppercase text-muted-foreground">Connecting Gateway...</p>
+                      <p className="text-[9px] font-black uppercase text-muted-foreground">Connecting PayPal...</p>
                     </div>
                   ) : (
                     <div id="paypal-button-container" ref={paypalButtonContainerRef} className="w-full min-h-[150px]" />
                   )}
-
-                  <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
-                    <AlertCircle className="w-5 h-5 text-blue-600 shrink-0" />
-                    <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                      Biaya Gateway digunakan untuk menutupi biaya pemrosesan kartu kredit/debit internasional agar transaksi dapat diverifikasi oleh AliBank V3 Node.
+                </div>
+              ) : (
+                <div className="space-y-6 animate-in fade-in duration-300">
+                   <header className="flex items-center justify-between mb-4">
+                    <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary">Back</button>
+                    <Badge className="bg-primary/10 text-primary text-[8px] font-black uppercase italic">V3 Direct Processing</Badge>
+                  </header>
+                  <div className="text-center py-10 space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                      <Smartphone className="w-8 h-8 text-primary animate-pulse" />
+                    </div>
+                    <h3 className="text-sm font-black uppercase text-accent italic">Native Card Terminal</h3>
+                    <p className="text-[10px] text-muted-foreground font-medium uppercase leading-relaxed px-10">
+                      Fitur pemrosesan kartu kredit native AliBank sedang dalam proses audit PCI-DSS. Untuk saat ini, silakan gunakan gerbang PayPal.
                     </p>
+                    <Button onClick={() => setPaymentStep('paypal_gate')} className="gold-gradient text-white h-12 px-8 rounded-xl font-black uppercase italic text-[10px] shadow-lg">
+                      Use PayPal Gateway Instead
+                    </Button>
                   </div>
                 </div>
               )}
