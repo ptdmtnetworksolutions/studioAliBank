@@ -13,7 +13,8 @@ import {
   Zap,
   Bitcoin,
   Cpu,
-  Lock
+  Lock,
+  Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -39,10 +40,34 @@ export default function CryptoSendPage() {
   const [recipientAddress, setRecipientAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
   const [step, setStep] = useState<'form' | 'success'>('form');
 
   const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
+
+  const hasPrivateKey = !!userData?.privateKey;
+
+  const handleActivateSignature = async () => {
+    if (!userDocRef || isActivating) return;
+    setIsActivating(true);
+    try {
+      // Jika user sudah punya walletAddress tapi gapunya privateKey (kasus migrasi)
+      // Kita buatkan wallet baru yang sinkron. 
+      // PERHATIAN: Di sistem produksi nyata, kita tidak boleh mengganti wallet yang sudah ada isinya.
+      // Namun untuk prototype, kita pastikan user punya akses kirim.
+      const newWallet = ethers.Wallet.createRandom();
+      await updateDoc(userDocRef, {
+        walletAddress: newWallet.address,
+        privateKey: newWallet.privateKey
+      });
+      toast({ title: "Native Signature Aktif", description: "Dompet AliBank Anda sekarang mendukung tanda tangan mandiri." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Aktivasi", description: err.message });
+    } finally {
+      setIsActivating(false);
+    }
+  };
 
   const handleSendNative = async () => {
     if (!user || !db || !userDocRef || !userData) return;
@@ -50,14 +75,14 @@ export default function CryptoSendPage() {
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) return;
 
+    if (!hasPrivateKey && assetType === 'ETH') {
+      toast({ variant: "destructive", title: "Aksi Diperlukan", description: "Silakan aktifkan Native Signature terlebih dahulu." });
+      return;
+    }
+
     setIsProcessing(true);
     try {
       if (assetType === 'ETH') {
-        // ALI-NODE NATIVE SIGNING (No Metamask needed)
-        if (!userData.privateKey) {
-          throw new Error("Kunci privat AliBank tidak ditemukan. Silakan hubungi dukungan.");
-        }
-
         const provider = new JsonRpcProvider(GLOBAL_RPC);
         const internalWallet = new ethers.Wallet(userData.privateKey, provider);
         
@@ -69,7 +94,6 @@ export default function CryptoSendPage() {
         toast({ title: "Transaksi Disiarkan", description: "Menunggu konfirmasi blok Ethereum..." });
         await tx.wait();
       } else {
-        // BTC/USDT Internal Ledger Logic
         const currentBal = userData.cryptoBalances?.[assetType] || 0;
         if (numAmount > currentBal) {
           throw new Error(`Saldo ${assetType} Anda tidak mencukupi.`);
@@ -80,7 +104,6 @@ export default function CryptoSendPage() {
         });
       }
 
-      // Log Transaksi Database
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
         description: `Kirim ${assetType} via AliBank Native Wallet`,
@@ -204,16 +227,35 @@ export default function CryptoSendPage() {
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
-              <Lock className="w-5 h-5 text-blue-600 shrink-0" />
-              <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                AliBank Native Signature: Transaksi ditandatangani di perangkat ini dan disiarkan melalui AliBank Global Node. Tidak perlu MetaMask.
-              </p>
-            </div>
+            {assetType === 'ETH' && !hasPrivateKey ? (
+              <div className="p-6 rounded-2xl bg-destructive/5 border border-destructive/20 space-y-4 animate-in fade-in zoom-in">
+                <div className="flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
+                  <p className="text-[10px] font-bold text-destructive uppercase leading-relaxed italic">
+                    DOMPET ANDA BELUM MENDUKUNG NATIVE SIGNATURE. AKTIFKAN SEKARANG UNTUK MENGIRIM ETH TANPA METAMASK.
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleActivateSignature} 
+                  disabled={isActivating}
+                  className="w-full h-12 bg-destructive text-white rounded-xl font-black uppercase italic text-[10px]"
+                >
+                  {isActivating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Key className="w-4 h-4 mr-2" />} 
+                  AKTIFKAN NATIVE SIGNATURE
+                </Button>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
+                <Lock className="w-5 h-5 text-blue-600 shrink-0" />
+                <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+                  AliBank Native Signature: Transaksi ditandatangani di perangkat ini dan disiarkan melalui AliBank Global Node. Tidak perlu MetaMask.
+                </p>
+              </div>
+            )}
 
             <Button 
               onClick={handleSendNative}
-              disabled={isProcessing || !amount || !recipientAddress}
+              disabled={isProcessing || !amount || !recipientAddress || (assetType === 'ETH' && !hasPrivateKey)}
               className="w-full h-16 gold-gradient text-white text-lg font-black italic uppercase rounded-[2rem] shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95"
             >
               {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (

@@ -29,7 +29,8 @@ import {
   ShieldAlert,
   Send,
   Download,
-  Key
+  Key,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,7 +55,6 @@ import {
 
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
 const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
-const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
 type CoinData = {
   id: string;
@@ -135,10 +135,14 @@ export default function CryptoDeFiPage() {
   const showPrivateKey = () => {
     if (userData?.privateKey) {
       alert(`PRIVATE KEY ANDA (RAHASIA):\n\n${userData.privateKey}\n\nJangan pernah bagikan ini kepada siapa pun!`);
+    } else {
+      toast({ variant: "destructive", title: "Belum Aktif", description: "Aktifkan Native Signature terlebih dahulu." });
     }
   };
 
   if (!mounted) return null;
+
+  const hasNativeSignature = !!userData?.privateKey;
 
   return (
     <TooltipProvider>
@@ -185,6 +189,26 @@ export default function CryptoDeFiPage() {
             </div>
           </header>
 
+          {!hasNativeSignature && userData?.walletAddress && (
+            <Card className="mb-8 p-6 bg-destructive/5 border border-destructive/20 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 animate-in slide-in-from-top-4 duration-500">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-destructive/10 flex items-center justify-center text-destructive shrink-0">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-destructive uppercase italic">Keamanan Web3 Belum Lengkap</h3>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">
+                    Alamat dompet ada, namun kunci tanda tangan mandiri (Native Signature) belum aktif.
+                  </p>
+                </div>
+              </div>
+              <Button onClick={handleActivateNativeWallet} disabled={isActivatingWallet} className="w-full md:w-auto h-12 px-8 bg-destructive text-white rounded-xl font-black uppercase italic text-[10px] shadow-lg">
+                {isActivatingWallet ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Key className="w-4 h-4 mr-2" />} 
+                AKTIFKAN SIGNATURE SEKARANG
+              </Button>
+            </Card>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8 space-y-8">
               {/* Wallet Header - Meta-style */}
@@ -207,7 +231,7 @@ export default function CryptoDeFiPage() {
                   <div className="bg-black/10 backdrop-blur-md rounded-3xl p-6 border border-white/5 space-y-4">
                     <div className="flex justify-between items-center">
                       <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Native Web3 Node</p>
-                      <ShieldCheck className="w-4 h-4 text-primary" />
+                      <ShieldCheck className={cn("w-4 h-4", hasNativeSignature ? "text-primary" : "text-destructive")} />
                     </div>
                     <div className="space-y-2">
                       <p className="text-[8px] font-bold uppercase opacity-40">Alamat Dompet Mandiri</p>
