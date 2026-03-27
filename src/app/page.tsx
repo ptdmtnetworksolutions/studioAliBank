@@ -260,8 +260,11 @@ export default function Dashboard() {
 
             {/* Feature Grid 2x2 */}
             <div className="grid grid-cols-2 gap-4">
-              {/* Card 1: ALIX */}
-              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden group cursor-pointer" onClick={() => router.push('/crypto/trade/alix')}>
+              {/* Card 1: ALIX (Convert) */}
+              <div 
+                className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden group cursor-pointer" 
+                onClick={() => router.push('/crypto/convert')}
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center p-1">
                     <LogoIcon className="text-yellow-400" />
