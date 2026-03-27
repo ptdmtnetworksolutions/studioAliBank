@@ -278,7 +278,10 @@ export default function Dashboard() {
               </div>
 
               {/* Card 2: P2P */}
-              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer">
+              <div 
+                className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer active:scale-[0.98] transition-all"
+                onClick={() => router.push('/p2p/order-history')}
+              >
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-sm font-black text-slate-400">Order P2P</span>
                   <ChevronRight className="w-4 h-4 text-slate-300" />
