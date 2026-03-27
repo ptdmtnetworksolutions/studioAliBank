@@ -49,6 +49,9 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
 } from "@/components/ui/sheet";
 
 export default function Dashboard() {
@@ -467,7 +470,10 @@ export default function Dashboard() {
           <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 mb-6" />
           <div className="px-6 space-y-8">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">Tambah Dana</h2>
+              <SheetHeader>
+                <SheetTitle className="text-xl font-black text-slate-900 tracking-tight">Tambah Dana</SheetTitle>
+                <SheetDescription className="sr-only">Pilih metode untuk menambahkan dana ke akun AliBank Anda.</SheetDescription>
+              </SheetHeader>
               <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-full border border-slate-100 cursor-pointer">
                 <div className="w-4 h-4 rounded-full bg-rose-600 flex items-center justify-center text-[8px] font-black text-white">Rp</div>
                 <span className="text-xs font-black text-slate-900">IDR</span>
