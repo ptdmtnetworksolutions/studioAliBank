@@ -28,7 +28,9 @@ import {
   Wallet2,
   PieChart,
   ExternalLink,
-  ShieldAlert
+  ShieldAlert,
+  Send,
+  Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -168,8 +170,12 @@ export default function CryptoDeFiPage() {
       const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
       if (accounts.length > 0) {
-        setAddress(accounts[0]);
-        await checkBalances(accounts[0]);
+        const addr = accounts[0];
+        setAddress(addr);
+        if (userDocRef) {
+          await updateDoc(userDocRef, { walletAddress: addr });
+        }
+        await checkBalances(addr);
       }
     } catch (err: any) {}
   };
@@ -213,9 +219,17 @@ export default function CryptoDeFiPage() {
                 <Zap className="mr-2 w-4 h-4" /> Buka Terminal Pro
               </Button>
               {address ? (
-                <Badge className="h-12 px-6 rounded-2xl font-black text-[11px] uppercase tracking-tighter shadow-lg bg-green-600 text-white border-none">
-                  {address.slice(0, 6)}...{address.slice(-4)}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge className="h-12 px-6 rounded-2xl font-black text-[11px] uppercase tracking-tighter shadow-lg bg-green-600 text-white border-none">
+                    {address.slice(0, 6)}...{address.slice(-4)}
+                  </Badge>
+                  <Button onClick={() => router.push('/crypto/send')} variant="outline" className="h-12 w-12 rounded-2xl border-primary/20 text-primary flex items-center justify-center shadow-md">
+                    <Send className="w-5 h-5" />
+                  </Button>
+                  <Button onClick={() => router.push('/crypto/receive')} variant="outline" className="h-12 w-12 rounded-2xl border-primary/20 text-primary flex items-center justify-center shadow-md">
+                    <Download className="w-5 h-5" />
+                  </Button>
+                </div>
               ) : (
                 <Button onClick={handleConnectWallet} className="h-12 px-8 rounded-2xl gold-gradient text-white font-black uppercase italic shadow-xl">
                   <Wallet className="mr-2 w-4 h-4" /> Konek Wallet
@@ -225,9 +239,7 @@ export default function CryptoDeFiPage() {
           </header>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Asset Performance Side */}
             <div className="lg:col-span-8 space-y-8">
-              {/* Market Overview Table */}
               <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white">
                 <div className="p-8 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
                   <h3 className="text-xl font-black italic uppercase text-accent flex items-center gap-3">
@@ -289,7 +301,6 @@ export default function CryptoDeFiPage() {
                 </div>
               </Card>
 
-              {/* Security & DeFi Highlights */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-4">
                   <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
@@ -308,7 +319,6 @@ export default function CryptoDeFiPage() {
               </div>
             </div>
 
-            {/* Portfolio & Vault Side */}
             <div className="lg:col-span-4 space-y-8">
               <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10"><PieChart className="w-20 h-20" /></div>
@@ -340,13 +350,17 @@ export default function CryptoDeFiPage() {
                     </div>
                   </div>
 
-                  <Button onClick={() => router.push('/topup')} className="w-full h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl">
-                    Deposit IDR
-                  </Button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button onClick={() => router.push('/crypto/send')} className="h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl">
+                      Kirim
+                    </Button>
+                    <Button onClick={() => router.push('/crypto/receive')} className="h-14 bg-white/10 text-white border border-white/20 rounded-2xl font-black uppercase italic shadow-xl hover:bg-white/20">
+                      Terima
+                    </Button>
+                  </div>
                 </div>
               </Card>
 
-              {/* Vault Section */}
               <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">

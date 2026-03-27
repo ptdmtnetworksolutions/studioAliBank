@@ -1,0 +1,114 @@
+
+"use client";
+
+import { Navbar } from "@/components/layout/Navbar";
+import { 
+  ArrowLeft, 
+  Download, 
+  Copy, 
+  ShieldCheck, 
+  Globe, 
+  QrCode as QrIcon,
+  Info
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useUser, useDoc, useFirestore } from "@/firebase";
+import { doc } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
+import { LogoIcon } from "@/components/ui/logo";
+
+export default function CryptoReceivePage() {
+  const router = useRouter();
+  const { user } = useUser();
+  const db = useFirestore();
+  const { toast } = useToast();
+  
+  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const { data: userData } = useDoc(userDocRef);
+
+  const walletAddress = userData?.walletAddress || "Belum Terhubung";
+
+  const copyAddress = () => {
+    if (walletAddress === "Belum Terhubung") return;
+    navigator.clipboard.writeText(walletAddress);
+    toast({ title: "Alamat Disalin", description: "Alamat dompet Anda telah disalin ke clipboard." });
+  };
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      <Navbar />
+      <main className="container mx-auto px-4 max-w-lg pt-4">
+        <header className="mb-8">
+          <button onClick={() => router.back()} className="flex items-center gap-2 text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors mb-6">
+            <ArrowLeft className="w-4 h-4" /> Kembali
+          </button>
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl gold-gradient flex items-center justify-center shadow-xl p-3">
+              <Download className="text-white w-8 h-8" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter">Terima Aset</h1>
+              <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Alamat unik dompet AliBank Anda.</p>
+            </div>
+          </div>
+        </header>
+
+        <Card className="liquid-glass border-none rounded-[2.5rem] p-10 flex flex-col items-center space-y-8 shadow-2xl">
+          <div className="relative">
+            <div className="w-64 h-64 bg-white rounded-3xl p-6 shadow-inner border-4 border-primary/10 flex items-center justify-center">
+              {/* QR CODE PLACEHOLDER - In production use a lib like qrcode.react */}
+              <div className="w-full h-full bg-slate-100 rounded-xl flex flex-col items-center justify-center text-primary/20">
+                <QrIcon className="w-32 h-32 mb-2" />
+                <span className="text-[8px] font-black uppercase tracking-widest">Scan to Pay</span>
+              </div>
+            </div>
+            <div className="absolute -bottom-4 -right-4 w-12 h-12 rounded-2xl gold-gradient flex items-center justify-center shadow-xl border-4 border-white">
+              <LogoIcon className="text-white w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="w-full space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center block">Alamat Wallet (ETH/BTC/USDT)</label>
+              <div className="p-5 rounded-2xl bg-accent/5 border border-primary/10 relative group">
+                <p className="text-xs font-black text-accent break-all text-center leading-relaxed">
+                  {walletAddress}
+                </p>
+                <Button 
+                  onClick={copyAddress}
+                  className="w-full mt-4 h-12 bg-primary/10 hover:bg-primary/20 text-primary border-none rounded-xl font-black uppercase italic text-[10px]"
+                >
+                  <Copy className="w-4 h-4 mr-2" /> Salin Alamat
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Badge variant="outline" className="h-10 justify-center font-black text-[8px] uppercase tracking-widest border-primary/20 text-accent">
+                <Globe className="w-3 h-3 mr-2 text-primary" /> Multi-Chain
+              </Badge>
+              <Badge variant="outline" className="h-10 justify-center font-black text-[8px] uppercase tracking-widest border-primary/20 text-accent">
+                <ShieldCheck className="w-3 h-3 mr-2 text-primary" /> Secured V3
+              </Badge>
+            </div>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
+            <Info className="w-6 h-6 text-blue-600 shrink-0" />
+            <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+              Alamat ini mendukung seluruh aset yang berbasis jaringan Ethereum (ERC-20). Pastikan pengirim menggunakan jaringan yang sama untuk menghindari kehilangan aset.
+            </p>
+          </div>
+        </Card>
+
+        <footer className="mt-12 text-center">
+          <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.3em]">Official AliBank Custody Infrastructure</p>
+        </footer>
+      </main>
+    </div>
+  );
+}
