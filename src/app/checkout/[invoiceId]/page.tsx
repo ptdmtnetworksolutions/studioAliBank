@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -14,7 +15,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useUser } from "@/firebase";
-import { collection, query, getDocs, doc, setDoc, increment, addDoc, serverTimestamp, collectionGroup } from "firebase/firestore";
+import { 
+  doc, 
+  setDoc, 
+  increment, 
+  addDoc, 
+  serverTimestamp, 
+  collection, 
+  query, 
+  getDocs, 
+  collectionGroup 
+} from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import Script from "next/script";
@@ -60,11 +71,11 @@ export default function CheckoutPage() {
   }, [db, invoiceId]);
 
   const processPaymentFinalization = async (details: any) => {
-    if (!db || !invoice) return;
+    if (!db || !invoice || !user) return;
 
     const invoiceRef = doc(db, invoice.path);
-    const merchantRef = doc(db, "merchants", invoice.merchantId);
     const systemLiquidityRef = doc(db, "system", "liquidity");
+    const globalAuditRef = collection(db, "system", "audit", "global_transactions");
     
     // 1. Mark Invoice as PAID
     await setDoc(invoiceRef, {
@@ -72,7 +83,7 @@ export default function CheckoutPage() {
       paidAt: new Date().toISOString(),
       paymentMethod: "AliBank Global Gateway",
       gatewayOrderId: details.id,
-      payerEmail: details.payer?.email_address
+      payerEmail: details.payer?.email_address || user.email
     }, { merge: true });
 
     // 2. INJEKSI DANA NYATA KE SISTEM (AliBank Injection)
@@ -89,11 +100,19 @@ export default function CheckoutPage() {
       }
     }, { merge: true });
 
-    // 3. Update Merchant Revenue
-    await setDoc(merchantRef, {
-      totalRevenue: increment(invoice.amountIdr),
-      pendingSettlement: increment(invoice.amountIdr)
-    }, { merge: true });
+    // 3. Global Audit Log for Admin Dashboard
+    await addDoc(globalAuditRef, {
+      id: details.id || `TX-${Date.now()}`,
+      userId: user.uid,
+      userName: user.displayName || user.email,
+      productName: invoice.productName || "AliBank Infrastructure",
+      amountIdr: invoice.amountIdr,
+      amountUsd: invoice.amountUsd || 0,
+      category: "Marketplace Purchase",
+      gateway: "AliBank Secure",
+      status: "success",
+      timestamp: serverTimestamp()
+    });
 
     setPaymentStep('success');
     toast({ title: "Payment Settled via AliBank", description: `Dana riil senilai $${invoice.amountUsd} telah diamankan ke sistem AliBank.` });
@@ -108,7 +127,7 @@ export default function CheckoutPage() {
               description: invoice.productName || "AliBank Web3 Infrastructure",
               amount: {
                 currency_code: "USD",
-                value: (invoice.amountUsd || 1000000).toString()
+                value: (invoice.amountUsd || 1).toString()
               }
             }]
           });
@@ -127,7 +146,6 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (paymentStep === 'paypal_gate' && paypalReady) {
-      // Small timeout to ensure container is in DOM
       setTimeout(initPayPalButtons, 100);
     }
   }, [paymentStep, paypalReady]);
