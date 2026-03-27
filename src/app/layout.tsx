@@ -1,3 +1,4 @@
+
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -11,16 +12,11 @@ import Script from 'next/script';
 export const metadata: Metadata = {
   title: 'AliBank - Bintang Kejora Perbankan Riil',
   description: 'Ekosistem perbankan elit dengan integrasi aset kripto Mainnet dan manajemen kekayaan cerdas.',
+  manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'AliBank',
-    startupImage: [
-      {
-        url: 'https://picsum.photos/seed/alibank-splash/1242/2688',
-        media: '(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)',
-      },
-    ],
   },
   formatDetection: {
     telephone: false,
@@ -47,9 +43,11 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-        <meta name="mobile-web-app-capable" content="yes" />
+        
+        {/* Apple Standalone Optimization */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        
         {/* PWA Icons - Black Edition (Maskable Optimized) */}
         <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='0' y='0' width='100' height='100' fill='black'/%3E%3Cpath d='M50 20C52 48 80 50 80 50C80 50 52 52 50 80C48 52 20 50 20 50C20 50 48 48 50 20Z' fill='%23B8860B'/%3E%3C/svg%3E" />
         <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='0' y='0' width='100' height='100' fill='black'/%3E%3Cpath d='M50 20C52 48 80 50 80 50C80 50 52 52 50 80C48 52 20 50 20 50C20 50 48 48 50 20Z' fill='%23B8860B'/%3E%3C/svg%3E" />
@@ -74,13 +72,16 @@ export default function RootLayout({
             </FirebaseClientProvider>
           </LanguageProvider>
         </ThemeProvider>
+        
+        {/* Robust Service Worker Registration */}
         <Script id="register-sw" strategy="afterInteractive">
           {`
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', function() {
-                // Skrip pendaftaran service worker dasar untuk memenuhi syarat install PWA
-                navigator.serviceWorker.register('/sw.js').catch(function(err) {
-                  // Silently fail if file not exists yet, browser will still detect manifest
+                navigator.serviceWorker.register('/sw.js').then(function(registration) {
+                  console.log('AliBank SW registered with scope:', registration.scope);
+                }, function(err) {
+                  console.log('AliBank SW registration failed:', err);
                 });
               });
             }
