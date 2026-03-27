@@ -9,7 +9,8 @@ import {
   CheckCircle2, 
   Lock,
   ChevronRight,
-  CreditCard
+  CreditCard,
+  AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -49,6 +50,7 @@ export default function CheckoutPage() {
   const [paypalReady, setPaypalReady] = useState(false);
   const paypalButtonContainerRef = useRef<HTMLDivElement>(null);
 
+  // Client ID resmi dari dashboard user
   const PAYPAL_CLIENT_ID = "AbHG-qL9bHR0-rhmrDMV7TH-PiYAFHFNimv3LfxBUPmSIMaQPrbvFd7cJah1bc8YqlUkS7i3OpD0nvGF";
 
   useEffect(() => {
@@ -100,7 +102,7 @@ export default function CheckoutPage() {
       }
     }, { merge: true });
 
-    // 3. Global Audit Log for Admin Dashboard
+    // 3. Global Audit Log for Admin Dashboard (Tahun 2026)
     await addDoc(globalAuditRef, {
       id: details.id || `TX-${Date.now()}`,
       userId: user.uid,
@@ -115,12 +117,21 @@ export default function CheckoutPage() {
     });
 
     setPaymentStep('success');
-    toast({ title: "Payment Settled via AliBank", description: `Dana riil senilai $${invoice.amountUsd} telah diamankan ke sistem AliBank.` });
+    toast({ title: "Payment Settled via AliBank", description: `Dana riil senilai $${invoice.amountUsd} telah diamankan ke sistem AliBank (Infrastruktur 2026).` });
   };
 
   const initPayPalButtons = () => {
     if (window.paypal && paypalButtonContainerRef.current) {
+      // Clear container before rendering to prevent duplicate buttons
+      paypalButtonContainerRef.current.innerHTML = '';
+      
       window.paypal.Buttons({
+        style: {
+          layout: 'vertical',
+          color: 'gold',
+          shape: 'pill',
+          label: 'pay'
+        },
         createOrder: (data: any, actions: any) => {
           return actions.order.create({
             purchase_units: [{
@@ -138,7 +149,7 @@ export default function CheckoutPage() {
         },
         onError: (err: any) => {
           console.error("Payment Error:", err);
-          toast({ variant: "destructive", title: "Gateway Error", description: "Terjadi kesalahan saat memproses pembayaran melalui AliBank Gateway." });
+          toast({ variant: "destructive", title: "Gateway Error", description: "Terjadi kesalahan saat memproses pembayaran melalui AliBank Gateway (Check Card Eligibility)." });
         }
       }).render(paypalButtonContainerRef.current);
     }
@@ -146,7 +157,8 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (paymentStep === 'paypal_gate' && paypalReady) {
-      setTimeout(initPayPalButtons, 100);
+      const timer = setTimeout(initPayPalButtons, 500);
+      return () => clearTimeout(timer);
     }
   }, [paymentStep, paypalReady]);
 
@@ -163,14 +175,14 @@ export default function CheckoutPage() {
         <CheckCircle2 className="w-12 h-12 text-green-600" />
       </div>
       <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">Transaction Complete</h2>
-      <p className="text-xs text-muted-foreground font-bold uppercase mb-8">Funds Secured in AliBank Vault.</p>
+      <p className="text-xs text-muted-foreground font-bold uppercase mb-8">Funds Secured in AliBank Vault (V3 Node).</p>
       <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-6 mb-8 text-center">
         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Settled (USD)</p>
         <p className="text-3xl font-black text-primary italic">
           $ {(invoice.amountUsd || 0).toLocaleString('en-US')}
         </p>
         <div className="mt-4 pt-4 border-t border-primary/5">
-          <Badge variant="outline" className="text-[8px] font-bold uppercase text-green-600 bg-green-50 border-green-200 italic">Verified by AliBank Infrastructure</Badge>
+          <Badge variant="outline" className="text-[8px] font-bold uppercase text-green-600 bg-green-50 border-green-200 italic">Verified by AliBank Infrastructure 2026</Badge>
         </div>
       </Card>
       <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl" onClick={() => router.push('/')}>
@@ -181,8 +193,9 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-background pb-20 relative overflow-hidden">
+      {/* Script PayPal dengan locale en_US untuk mendukung transaksi Global/USA secara optimal */}
       <Script 
-        src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD`}
+        src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&locale=en_US&components=buttons`}
         onLoad={() => setPaypalReady(true)}
       />
       <div className="absolute top-0 left-0 w-full h-64 gold-gradient opacity-10 blur-[100px]" />
@@ -191,7 +204,7 @@ export default function CheckoutPage() {
           <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center shadow-2xl mb-4 p-3.5">
             <LogoIcon className="text-white" />
           </div>
-          <h1 className="text-xl font-black italic uppercase tracking-tighter text-accent">AliBank Gateway</h1>
+          <h1 className="text-xl font-black italic uppercase tracking-tighter text-accent">AliBank Secure Gateway</h1>
         </div>
 
         <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl mb-6">
@@ -208,8 +221,8 @@ export default function CheckoutPage() {
                   <div className="flex items-center gap-4">
                     <div className="p-3 rounded-2xl bg-white/20 text-white"><CreditCard className="w-6 h-6" /></div>
                     <div>
-                      <p className="text-sm font-black text-white italic">AliBank Global Payment</p>
-                      <p className="text-[9px] font-medium text-white/70 uppercase">Debit Card / Global Secure</p>
+                      <p className="text-sm font-black text-white italic">Global Debit/Credit Card</p>
+                      <p className="text-[9px] font-medium text-white/70 uppercase">USA & Worldwide Secure Payment</p>
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-white/60" />
@@ -232,23 +245,23 @@ export default function CheckoutPage() {
                   <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary">Back</button>
                   <div className="flex items-center gap-2">
                     <Lock className="w-3 h-3 text-green-600" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-accent italic">AliBank Secure Encryption</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-accent italic">Global Encryption Active</span>
                   </div>
                 </header>
                 
                 {!paypalReady ? (
                   <div className="flex flex-col items-center justify-center py-10">
                     <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
-                    <p className="text-[9px] font-black uppercase text-muted-foreground">Connecting to Gateway...</p>
+                    <p className="text-[9px] font-black uppercase text-muted-foreground">Connecting to Global Gateway...</p>
                   </div>
                 ) : (
                   <div id="paypal-button-container" ref={paypalButtonContainerRef} className="w-full min-h-[150px]" />
                 )}
 
-                <div className="p-4 rounded-xl bg-green-500/5 border border-green-500/10 flex gap-3">
-                  <ShieldCheck className="w-5 h-5 text-green-600 shrink-0" />
+                <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-blue-600 shrink-0" />
                   <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed">
-                    Pembayaran Anda diproses melalui infrastruktur gateway internasional AliBank secara aman. Kami tidak menyimpan data kartu Anda. Dana akan diamankan ke sistem AliBank setelah transaksi sukses.
+                    USA Customers: Please use standard Visa, Mastercard, or Amex. Local debit cards may require manual approval from your bank for international merchant PT DMT Network (Singapore).
                   </p>
                 </div>
               </div>
