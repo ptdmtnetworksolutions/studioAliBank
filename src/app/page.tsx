@@ -30,7 +30,8 @@ import {
   HelpCircle,
   Languages,
   Check,
-  Loader2
+  Loader2,
+  Coins
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -150,6 +151,7 @@ export default function Dashboard() {
   const accountNumber = userData?.accountNumber || "---";
   
   const cryptoBalances = {
+    ALIX: userData?.cryptoBalances?.ALIX ?? 0,
     BTC: userData?.cryptoBalances?.BTC ?? 0,
     ETH: parseFloat(mainnetEthBalance),
     USDT: userData?.cryptoBalances?.USDT ?? 0,
@@ -225,7 +227,7 @@ export default function Dashboard() {
                       <span className="text-[8px] md:text-[11px] font-black text-white/80 uppercase tracking-widest italic">{t('current_liquidity')}</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <HelpCircle className="w-3 h-3 md:w-4 md:h-4 text-white/40 cursor-help hover:text-white transition-colors" />
+                          <HelpCircle className="w-3.5 h-3.5 text-white/40 cursor-help hover:text-white transition-colors" />
                         </TooltipTrigger>
                         <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
                           <p className="text-[10px] font-bold">Saldo IDR riil Anda yang diamankan di Ledger Internal AliBank V3.</p>
@@ -314,8 +316,9 @@ export default function Dashboard() {
                   Analysis <ChevronRight className="w-2.5 h-2.5" />
                 </Link>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4">
                 {[
+                  { name: 'AliBank', symbol: 'ALIX', amount: cryptoBalances.ALIX.toLocaleString('id-ID'), icon: LogoIcon, color: "gold-gradient text-white", sovereign: true },
                   { name: 'Bitcoin', symbol: 'BTC', amount: cryptoBalances.BTC.toFixed(6), icon: Bitcoin, color: "bg-orange-50 text-orange-500", type: "Ali-Bridge" },
                   { name: 'Ethereum', symbol: 'ETH', amount: cryptoBalances.ETH.toFixed(4), icon: Cpu, color: "bg-blue-50 text-blue-500", mainnet: true },
                   { name: 'Tether USD', symbol: 'USDT', amount: cryptoBalances.USDT.toLocaleString('id-ID'), icon: ShieldCheck, color: "bg-green-50 text-green-500", type: "Internal" }
@@ -325,18 +328,18 @@ export default function Dashboard() {
                       <coin.icon className="w-12 h-12 md:w-16 md:h-16" />
                     </div>
                     <div className="flex items-center gap-3 md:gap-4 relative z-10">
-                      <div className={cn("w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-2xl flex items-center justify-center shadow-sm", coin.color)}>
+                      <div className={cn("w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-2xl flex items-center justify-center shadow-sm", coin.color, coin.sovereign && "p-2")}>
                         <coin.icon className="w-4 h-4 md:w-6 md:h-6" />
                       </div>
                       <div>
                         <div className="flex items-center gap-1">
                           <p className="text-[7px] md:text-[10px] font-black text-muted-foreground uppercase">{coin.name}</p>
                           {coin.mainnet && <Badge className="bg-green-600 text-white text-[4px] md:text-[5px] h-2.5 px-1 leading-none">MAINNET</Badge>}
+                          {coin.sovereign && <Badge className="bg-orange-600 text-white text-[4px] md:text-[5px] h-2.5 px-1 leading-none uppercase">Native</Badge>}
                         </div>
                         <p className="text-sm md:text-lg font-black text-accent italic">{coin.amount} {coin.symbol}</p>
                       </div>
                     </div>
-                    <TrendingUp className="w-3 h-3 md:w-5 md:h-5 text-green-500" />
                   </Link>
                 ))}
               </div>
