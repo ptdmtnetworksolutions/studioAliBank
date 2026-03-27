@@ -28,7 +28,9 @@ import {
   HandCoins,
   Globe,
   Trophy,
-  ListTodo
+  ListTodo,
+  ShoppingBag,
+  Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +46,10 @@ import {
   CarouselItem,
   type CarouselApi,
 } from "@/components/ui/carousel";
+import {
+  Sheet,
+  SheetContent,
+} from "@/components/ui/sheet";
 
 export default function Dashboard() {
   const { user, loading: userLoading } = useUser();
@@ -57,6 +63,7 @@ export default function Dashboard() {
   const [swiftApi, setSwiftApi] = useState<CarouselApi>();
   const [currentBanner, setCurrentBanner] = useState(0);
   const [currentSwift, setCurrentSwift] = useState(0);
+  const [isTambahDanaOpen, setIsTambahDanaOpen] = useState(false);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -189,7 +196,7 @@ export default function Dashboard() {
                   <ChevronDown className="w-3 h-3 text-slate-400" />
                 </div>
               </div>
-              <Button className="bg-[#FCD535] hover:bg-[#FCD535]/90 text-slate-900 font-bold px-4 h-10 rounded-lg shadow-none text-xs" onClick={() => router.push('/topup')}>
+              <Button className="bg-[#FCD535] hover:bg-[#FCD535]/90 text-slate-900 font-bold px-4 h-10 rounded-lg shadow-none text-xs" onClick={() => setIsTambahDanaOpen(true)}>
                 Tambah Dana
               </Button>
             </div>
@@ -453,6 +460,55 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Bottom Sheet Tambah Dana */}
+      <Sheet open={isTambahDanaOpen} onOpenChange={setIsTambahDanaOpen}>
+        <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-white h-auto pb-10">
+          <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 mb-6" />
+          <div className="px-6 space-y-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-black text-slate-900 tracking-tight">Tambah Dana</h2>
+              <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-full border border-slate-100 cursor-pointer">
+                <div className="w-4 h-4 rounded-full bg-rose-600 flex items-center justify-center text-[8px] font-black text-white">Rp</div>
+                <span className="text-xs font-black text-slate-900">IDR</span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div 
+                className="p-6 rounded-[1.5rem] border border-slate-100 bg-white flex items-center gap-5 active:bg-slate-50 transition-all cursor-pointer group shadow-sm"
+                onClick={() => { setIsTambahDanaOpen(false); router.push('/topup'); }}
+              >
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100 group-hover:scale-110 transition-transform">
+                  <ShoppingBag className="w-6 h-6 text-slate-900" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 italic uppercase tracking-tight leading-none">Beli dengan IDR</h3>
+                  <p className="text-xs font-bold text-slate-400 mt-1.5 leading-tight">Manfaatkan berbagai cara pembayaran!</p>
+                </div>
+              </div>
+
+              <div 
+                className="p-6 rounded-[1.5rem] border border-slate-100 bg-white flex items-center gap-5 active:bg-slate-50 transition-all cursor-pointer group shadow-sm"
+                onClick={() => { setIsTambahDanaOpen(false); router.push('/crypto/receive'); }}
+              >
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100 group-hover:scale-110 transition-transform">
+                  <Download className="w-6 h-6 text-slate-900" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 italic uppercase tracking-tight leading-none">Penyetoran On-Chain</h3>
+                  <p className="text-xs font-bold text-slate-400 mt-1.5 leading-tight">Setor kripto dari bursa/dompet lain ke AliBank</p>
+                </div>
+              </div>
+            </div>
+
+            <button className="w-full flex items-center justify-center gap-1 text-[10px] font-black text-slate-400 py-2 hover:text-slate-600 transition-colors uppercase tracking-widest">
+              Tampilkan Selengkapnya <ChevronDown className="w-4 h-4" />
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
