@@ -27,7 +27,8 @@ import {
   Landmark,
   HandCoins,
   Globe,
-  Trophy
+  Trophy,
+  ListTodo
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -191,7 +192,7 @@ export default function Dashboard() {
                 <CarouselContent>
                   {/* Slide 1: ALIX Challenge */}
                   <CarouselItem>
-                    <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center justify-between shadow-sm relative cursor-pointer h-[90px]">
+                    <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center justify-between shadow-sm relative cursor-pointer h-[100px]">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100 shrink-0">
                           <Award className="w-6 h-6 text-slate-900" />
@@ -210,7 +211,7 @@ export default function Dashboard() {
 
                   {/* Slide 2: Referral Tournament */}
                   <CarouselItem>
-                    <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center justify-between shadow-sm relative cursor-pointer h-[90px]">
+                    <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center justify-between shadow-sm relative cursor-pointer h-[100px]">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-lg bg-yellow-50 flex items-center justify-center border border-yellow-100 shrink-0">
                           <Trophy className="w-6 h-6 text-yellow-600" />
@@ -226,6 +227,26 @@ export default function Dashboard() {
                       </button>
                     </div>
                   </CarouselItem>
+
+                  {/* Slide 3: Pending Tasks (Tugas yang Menunggu) */}
+                  <CarouselItem>
+                    <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center justify-between shadow-sm relative cursor-pointer h-[100px]">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-yellow-50 flex items-center justify-center border border-yellow-100 shrink-0">
+                          <ListTodo className="w-6 h-6 text-yellow-600" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-[11px] font-medium text-slate-400">Tugas yang Menunggu</p>
+                          <h3 className="text-sm font-black text-slate-900 leading-tight">Beberapa tindakan tugas perlu dilakukan</h3>
+                          <p className="text-[10px] text-slate-400 font-medium">2 tugas harus diselesaikan</p>
+                        </div>
+                      </div>
+                      <Button className="bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-[10px] h-8 px-4 rounded-md shadow-none shrink-0">Lihat</Button>
+                      <button className="absolute top-2 right-2 text-slate-300 hover:text-slate-500">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </CarouselItem>
                 </CarouselContent>
               </Carousel>
               
@@ -233,6 +254,7 @@ export default function Dashboard() {
               <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
                 <div className={cn("h-1 rounded-full transition-all duration-300", currentSlide === 0 ? "w-4 bg-slate-900" : "w-1.5 bg-slate-200")} />
                 <div className={cn("h-1 rounded-full transition-all duration-300", currentSlide === 1 ? "w-4 bg-slate-900" : "w-1.5 bg-slate-200")} />
+                <div className={cn("h-1 rounded-full transition-all duration-300", currentSlide === 2 ? "w-4 bg-slate-900" : "w-1.5 bg-slate-200")} />
               </div>
             </div>
 
