@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -28,7 +29,8 @@ import {
   Wallet,
   X,
   Lock,
-  Unlock
+  Unlock,
+  AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -68,7 +70,8 @@ const CONTRACT_ABI = [
   "function owner() public view returns (address)",
   "function releaseFunds(address _to, uint256 _amount) public",
   "function withdraw(uint256 _amount) public",
-  "function deposit() public payable"
+  "function deposit() public payable",
+  "function balances(address) public view returns (uint256)"
 ];
 
 const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
@@ -151,15 +154,14 @@ export default function AdminControlPage() {
         const currentHash = Math.floor(Math.random() * 1200) + 2500;
         setHashrate(currentHash);
 
-        // Peluang 8% untuk mendapatkan jatah profit mining per detak
         if (Math.random() > 0.92) {
           const reward = 0.5;
           const platformRef = doc(db, "system", "liquidity");
-          setDoc(platformRef, { 
+          updateDoc(platformRef, { 
             alixVaultBalance: increment(reward),
             totalAlixMinted: increment(reward),
             lastMintingPulse: new Date().toISOString()
-          }, { merge: true });
+          });
         }
       }, 1500);
     } else {
@@ -206,14 +208,28 @@ export default function AdminControlPage() {
   };
 
   const handleBridgeToVault = async () => {
-    if (!db || !globalLiquidity || typeof window.ethereum === 'undefined') return;
-    const fiatBalance = globalLiquidity.totalUsdInjected || 0;
-    if (fiatBalance <= 0) {
-      toast({ variant: "destructive", title: "Kas Kosong", description: "Tidak ada dana di gerbang pembayaran untuk dijembatani." });
+    if (!db || !globalLiquidity) {
+      toast({ variant: "destructive", title: "Database Error", description: "Gagal memuat data likuiditas." });
       return;
     }
 
-    const ethToDeposit = fiatBalance * 0.0003; // Rasio konversi operasional
+    if (typeof window.ethereum === 'undefined') {
+      toast({ variant: "destructive", title: "MetaMask Tidak Ditemukan", description: "Gunakan browser dengan ekstensi Web3 untuk menjembatani dana." });
+      return;
+    }
+
+    const fiatBalance = globalLiquidity.totalUsdInjected || 0;
+    if (fiatBalance <= 0) {
+      toast({ 
+        variant: "destructive", 
+        title: "Kas Gateway Kosong", 
+        description: "Belum ada akumulasi pembayaran PayPal yang masuk ke sistem AliBank." 
+      });
+      return;
+    }
+
+    // Rasio konversi operasional (Contoh: $1 = 0.0003 ETH)
+    const ethToDeposit = fiatBalance * 0.0003; 
     
     setIsSettling(true);
     try {
@@ -221,21 +237,31 @@ export default function AdminControlPage() {
       const signer = await provider.getSigner();
       const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
       
-      toast({ title: "Memproses Jembatan Likuiditas...", description: `Mengirim ${ethToDeposit.toFixed(4)} ETH ke Brankas On-Chain.` });
+      toast({ title: "Memulai Transaksi Blockchain...", description: `Mengonversi $${fiatBalance} menjadi ${ethToDeposit.toFixed(4)} ETH ke Brankas.` });
       
+      // Kirim ETH nyata ke Smart Contract AliBank
       const tx = await contract.deposit({ value: parseEther(ethToDeposit.toFixed(18)) });
+      
+      toast({ title: "Menunggu Konfirmasi Jaringan", description: "Silakan pantau MetaMask Anda." });
+      
       await tx.wait();
 
+      // Update Database AliBank: Kosongkan kas gateway karena sudah dijembatani ke ETH riil
       await updateDoc(doc(db, "system", "liquidity"), {
         totalUsdInjected: 0,
         totalFiatInjected: 0,
         lastBridgeSync: serverTimestamp()
       });
 
-      toast({ title: "Likuiditas Berhasil Disinkronkan", description: "Dana gateway telah dipindahkan ke Brankas riil." });
+      toast({ title: "Jembatan Sukses", description: "Likuiditas riil telah diamankan di Smart Contract AliBank." });
       syncOnChainVault();
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Sinkronisasi Gagal", description: err.message });
+      console.error("Bridge Error:", err);
+      toast({ 
+        variant: "destructive", 
+        title: "Gagal Mengeksekusi Jembatan", 
+        description: err.message || "Transaksi ditolak atau saldo dompet tidak mencukupi." 
+      });
     } finally {
       setIsSettling(false);
     }
@@ -258,6 +284,7 @@ export default function AdminControlPage() {
       
       toast({ title: "Mencairkan Jatah Keuntungan...", description: `Menarik ${ethToRelease.toFixed(4)} ETH ke dompet MetaMask.` });
       
+      // Panggil fungsi releaseFunds pada Smart Contract riil
       const tx = await contract.releaseFunds(await signer.getAddress(), parseEther(ethToRelease.toFixed(18)));
       await tx.wait();
 
@@ -266,7 +293,7 @@ export default function AdminControlPage() {
         lastProfitWithdrawal: serverTimestamp()
       });
 
-      toast({ title: "Pencairan Sukses", description: "ETH telah dikirim ke wallet Anda sebagai bagi hasil mining." });
+      toast({ title: "Pencairan Sukses", description: "ETH telah dikirim ke wallet Anda sebagai bagi hasil mining riil." });
       syncOnChainVault();
     } catch (err: any) {
       toast({ variant: "destructive", title: "Pencairan Gagal", description: err.message });
@@ -291,7 +318,7 @@ export default function AdminControlPage() {
               <div>
                 <h1 className="text-2xl md:text-4xl font-black text-accent uppercase italic tracking-tighter">Pusat Komando</h1>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-muted-foreground text-[8px] md:text-[10px] font-black uppercase tracking-widest italic truncate max-w-[150px] md:max-w-none">NODE AKTIF: {DEFAULT_CONTRACT}</p>
+                  <p className="text-muted-foreground text-[8px] md:text-[10px] font-black uppercase tracking-widest italic truncate max-w-[150px] md:max-w-none">KONTRAK: {DEFAULT_CONTRACT}</p>
                   <Badge className="bg-green-100 text-green-600 border-none font-black text-[7px] md:text-[8px] px-2 py-0.5 uppercase animate-pulse whitespace-nowrap">Mainnet Online</Badge>
                 </div>
               </div>
@@ -329,7 +356,7 @@ export default function AdminControlPage() {
                     <Badge className="bg-primary/10 text-primary uppercase text-[7px] md:text-[8px] font-black">Kas Gateway</Badge>
                   </div>
                   <div>
-                    <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Saldo USD Tersedia</p>
+                    <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Saldo PayPal Tersedia</p>
                     <p className="text-2xl md:text-3xl font-black text-accent italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
                   </div>
                   <div className="pt-2 border-t border-primary/10">
@@ -347,7 +374,7 @@ export default function AdminControlPage() {
                     <p className="text-2xl md:text-3xl font-black text-blue-600 italic">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
                   </div>
                   <div className="pt-2 border-t border-blue-200/20">
-                    <p className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase">Smart Contract Aktif</p>
+                    <p className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase">Smart Contract V3</p>
                   </div>
                 </Card>
 
@@ -357,18 +384,18 @@ export default function AdminControlPage() {
                     <Badge className="bg-orange-100 text-orange-600 uppercase text-[7px] md:text-[8px] font-black">Mining</Badge>
                   </div>
                   <div>
-                    <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Kolam Penambangan</p>
+                    <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Jatah Profit</p>
                     <p className="text-2xl md:text-3xl font-black text-orange-600 italic">{(globalLiquidity?.alixVaultBalance || 0).toFixed(2)} ALIX</p>
                   </div>
                   <div className="pt-2 border-t border-orange-200/20">
-                    <p className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase">Kekuatan: {hashrate} MH/s</p>
+                    <p className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase">Rate: {hashrate} MH/s</p>
                   </div>
                 </Card>
 
                 <Card className="liquid-glass-dark border-none rounded-2xl md:rounded-[2.5rem] p-6 md:p-8 text-white space-y-3 md:space-y-4 flex flex-col justify-center shadow-xl">
-                  <p className="text-[8px] md:text-[10px] font-black uppercase tracking-widest opacity-60">Sistem Payout</p>
+                  <p className="text-[8px] md:text-[10px] font-black uppercase tracking-widest opacity-60">Payout V3</p>
                   <h3 className="text-xl md:text-2xl font-black italic tracking-tighter uppercase leading-none">Tarik Profit</h3>
-                  <p className="text-[7px] md:text-[8px] opacity-50 uppercase font-medium leading-relaxed">Konversi jatah mining menjadi saldo ETH di MetaMask.</p>
+                  <p className="text-[7px] md:text-[8px] opacity-50 uppercase font-medium leading-relaxed">Cairkan jatah mining Anda ke MetaMask secara riil.</p>
                   <Button 
                     onClick={handleWithdrawProfit} 
                     disabled={isSettling || (globalLiquidity?.alixVaultBalance || 0) < 10}
@@ -383,22 +410,22 @@ export default function AdminControlPage() {
                 <Card className="lg:col-span-8 liquid-glass border-none rounded-[2rem] md:rounded-[3rem] p-6 md:p-8 space-y-4 md:space-y-6 shadow-xl">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg md:text-xl font-black italic uppercase text-accent flex items-center gap-2 md:gap-3">
-                      <Activity className="w-5 h-5 md:w-6 md:h-6 text-primary" /> Intelijen Sistem
+                      <Activity className="w-5 h-5 md:w-6 md:h-6 text-primary" /> Status Sistem AliBank
                     </h3>
-                    <Badge className="bg-green-100 text-green-600 font-bold text-[8px] md:text-[10px]">SELURUH NODE OPERASIONAL</Badge>
+                    <Badge className="bg-green-100 text-green-600 font-bold text-[8px] md:text-[10px]">AKTIF</Badge>
                   </div>
                   <div className="p-6 md:p-10 rounded-2xl md:rounded-[2.5rem] bg-accent/5 border border-primary/10 flex flex-col items-center justify-center text-center space-y-3 md:space-y-4">
                     <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-primary/10 flex items-center justify-center animate-pulse shadow-inner">
                       <Zap className="w-8 h-8 md:w-10 md:h-10 text-primary" />
                     </div>
                     <div>
-                      <h4 className="text-xl md:text-2xl font-black text-accent uppercase italic tracking-tighter">Kesehatan Gateway: 100%</h4>
-                      <p className="text-[8px] md:text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Jembatan Produksi AliBank tersinkronisasi.</p>
+                      <h4 className="text-xl md:text-2xl font-black text-accent uppercase italic tracking-tighter">Kesehatan Jaringan: 100%</h4>
+                      <p className="text-[8px] md:text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Seluruh node operasional dalam kondisi prima.</p>
                     </div>
                     <div className="grid grid-cols-3 gap-4 md:gap-8 w-full mt-6 md:mt-8 pt-6 md:pt-8 border-t border-primary/5">
-                      <div><p className="text-[6px] md:text-[8px] font-black text-muted-foreground uppercase">Total Injeksi</p><p className="text-sm md:text-lg font-black text-primary italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p></div>
-                      <div><p className="text-[6px] md:text-[8px] font-black text-muted-foreground uppercase">Tertunda</p><p className="text-sm md:text-lg font-black text-accent italic">{( (globalLiquidity?.totalUsdInjected || 0) * 0.0003 ).toFixed(4)} ETH</p></div>
-                      <div><p className="text-[6px] md:text-[8px] font-black text-muted-foreground uppercase">Latensi</p><p className="text-sm md:text-lg font-black text-green-600 italic">14ms</p></div>
+                      <div><p className="text-[6px] md:text-[8px] font-black text-muted-foreground uppercase">Total PayPal</p><p className="text-sm md:text-lg font-black text-primary italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p></div>
+                      <div><p className="text-[6px] md:text-[8px] font-black text-muted-foreground uppercase">Potensi Bridge</p><p className="text-sm md:text-lg font-black text-accent italic">{( (globalLiquidity?.totalUsdInjected || 0) * 0.0003 ).toFixed(4)} ETH</p></div>
+                      <div><p className="text-[6px] md:text-[8px] font-black text-muted-foreground uppercase">Node Ping</p><p className="text-sm md:text-lg font-black text-green-600 italic">12ms</p></div>
                     </div>
                   </div>
                 </Card>
@@ -406,8 +433,8 @@ export default function AdminControlPage() {
                 <Card className="lg:col-span-4 liquid-glass-dark border-none rounded-[2rem] md:rounded-[3rem] p-8 md:p-10 text-white space-y-6 md:space-y-8 flex flex-col justify-between shadow-2xl">
                   <div className="space-y-3 md:space-y-4">
                     <ShieldCheck className="w-10 h-10 md:w-12 md:h-12 text-primary" />
-                    <h3 className="text-xl md:text-2xl font-black uppercase italic tracking-tighter leading-tight">Logika Keamanan</h3>
-                    <p className="text-[8px] md:text-[10px] opacity-60 font-medium leading-relaxed italic uppercase">Pastikan saldo ETH tersedia di MetaMask untuk setiap operasi bridging atau penarikan profit riil.</p>
+                    <h3 className="text-xl md:text-2xl font-black uppercase italic tracking-tighter leading-tight">Protokol Keamanan</h3>
+                    <p className="text-[8px] md:text-[10px] opacity-60 font-medium leading-relaxed italic uppercase">Gunakan dompet MetaMask yang sama dengan pemilik kontrak untuk mengelola brankas riil.</p>
                   </div>
                   <Button 
                     onClick={() => setIsFirewallActive(!isFirewallActive)}
@@ -416,7 +443,7 @@ export default function AdminControlPage() {
                       isFirewallActive ? "gold-gradient text-white" : "bg-destructive text-white"
                     )}
                   >
-                    {isFirewallActive ? <><Lock className="w-4 h-4 mr-2" /> Firewall Aktif</> : <><Unlock className="w-4 h-4 mr-2" /> Buka Firewall</>}
+                    {isFirewallActive ? <><Lock className="w-4 h-4 mr-2" /> Firewall Aktif</> : <><Unlock className="w-4 h-4 mr-2" /> Firewall Dinonaktifkan</>}
                   </Button>
                 </Card>
               </div>
@@ -427,7 +454,7 @@ export default function AdminControlPage() {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-4">
                 <div>
                   <h2 className="text-2xl md:text-3xl font-black text-accent uppercase italic tracking-tighter">Manajer Pasar</h2>
-                  <p className="text-muted-foreground text-[10px] md:text-xs font-bold uppercase tracking-widest">Kendalikan inventaris riil di database AliBank.</p>
+                  <p className="text-muted-foreground text-[10px] md:text-xs font-bold uppercase tracking-widest">Kelola produk fisik dan digital secara riil di AliBank.</p>
                 </div>
                 <Button onClick={() => setIsAddingProduct(!isAddingProduct)} className="w-full sm:w-auto h-10 md:h-12 px-4 md:px-6 rounded-lg md:rounded-xl gold-gradient text-white font-black uppercase text-[9px] md:text-[10px] italic shadow-lg">
                   {isAddingProduct ? <X className="w-3 h-3 md:w-4 md:h-4 mr-2" /> : <Plus className="w-3 h-3 md:w-4 md:h-4 mr-2" />} 
@@ -447,8 +474,8 @@ export default function AdminControlPage() {
                       <Input type="number" placeholder="1000000" value={newProduct.priceUsd} onChange={(e) => setNewProduct({...newProduct, priceUsd: e.target.value})} className="h-10 md:h-12 rounded-lg md:rounded-xl bg-white/50 border-none font-bold text-xs" />
                     </div>
                     <div className="space-y-1.5 md:space-y-2 md:col-span-2">
-                      <label className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground ml-1">Deskripsi Produk</label>
-                      <Input placeholder="Spesifikasi teknis produk..." value={newProduct.description} onChange={(e) => setNewProduct({...newProduct, description: e.target.value})} className="h-10 md:h-12 rounded-lg md:rounded-xl bg-white/50 border-none font-bold text-xs" />
+                      <label className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground ml-1">Deskripsi</label>
+                      <Input placeholder="Detail teknis produk..." value={newProduct.description} onChange={(e) => setNewProduct({...newProduct, description: e.target.value})} className="h-10 md:h-12 rounded-lg md:rounded-xl bg-white/50 border-none font-bold text-xs" />
                     </div>
                     <div className="space-y-1.5 md:space-y-2">
                       <label className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground ml-1">Kategori</label>
@@ -460,7 +487,7 @@ export default function AdminControlPage() {
                     </div>
                   </div>
                   <Button onClick={handleAddProduct} disabled={isSettling} className="w-full h-12 md:h-14 gold-gradient text-white rounded-xl md:rounded-2xl font-black uppercase italic text-xs md:text-sm shadow-xl">
-                    {isSettling ? <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" /> : "Terapkan ke Marketplace"}
+                    {isSettling ? <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" /> : "Publikasikan ke Marketplace"}
                   </Button>
                 </Card>
               )}
@@ -503,35 +530,41 @@ export default function AdminControlPage() {
                     <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-lg"><ArrowRightLeft className="w-6 h-6 md:w-8 md:h-8" /></div>
                     <div>
                       <h3 className="text-xl md:text-2xl font-black text-accent uppercase italic tracking-tighter leading-none">Jembatan Gateway</h3>
-                      <p className="text-[8px] md:text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Pindahkan Kas ke Brankas On-Chain.</p>
+                      <p className="text-[8px] md:text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Pindahkan Kas PayPal ke Brankas On-Chain.</p>
                     </div>
                   </div>
 
                   <div className="space-y-4 md:space-y-6">
                     <div className="p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] bg-accent/5 border border-primary/10 space-y-3 md:space-y-4 text-center">
                       <div className="space-y-1">
-                        <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground">Dana Aman AliBank</p>
+                        <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground">Akumulasi Dana PayPal</p>
                         <p className="text-3xl md:text-5xl font-black text-accent italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
                       </div>
                       <div className="flex items-center justify-center gap-2 md:gap-3">
-                        <Badge className="bg-green-100 text-green-600 font-black text-[7px] md:text-[8px] px-2 py-1 uppercase">Siap Dijembatani</Badge>
+                        <Badge className="bg-green-100 text-green-600 font-black text-[7px] md:text-[8px] px-2 py-1 uppercase">Tersedia untuk Bridging</Badge>
                         <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-green-500 animate-pulse" />
                       </div>
                     </div>
 
                     <div className="flex flex-col items-center gap-3 md:gap-4 py-2 md:py-4">
                       <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary animate-bounce shadow-md"><ArrowUpRight className="w-5 h-5 md:w-6 md:h-6 rotate-45" /></div>
-                      <p className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground text-center max-w-[200px] md:max-w-xs italic leading-relaxed">Menyuntikkan likuiditas riil dari PayPal ke Smart Contract ETH.</p>
+                      <p className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground text-center max-w-[200px] md:max-w-xs italic leading-relaxed">Dana PayPal akan dikonversi menjadi deposit ETH riil pada Smart Contract AliBank V3.</p>
                     </div>
 
                     <div className="p-4 md:p-6 rounded-xl md:rounded-[2rem] liquid-glass-dark text-white text-center shadow-lg">
-                      <p className="text-[8px] md:text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">Estimasi Konversi Brankas</p>
+                      <p className="text-[8px] md:text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">Estimasi Konversi ETH</p>
                       <p className="text-xl md:text-2xl font-black text-primary italic">{( (globalLiquidity?.totalUsdInjected || 0) * 0.0003 ).toFixed(4)} ETH</p>
                     </div>
 
                     <Button onClick={handleBridgeToVault} disabled={isSettling || (globalLiquidity?.totalUsdInjected || 0) <= 0} className="w-full h-14 md:h-16 gold-gradient text-white rounded-[1.5rem] md:rounded-[2rem] font-black uppercase italic text-xs md:text-sm shadow-2xl active:scale-95 transition-all">
                       {isSettling ? <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" /> : "Eksekusi Jembatan ke Brankas"}
                     </Button>
+                    
+                    {(globalLiquidity?.totalUsdInjected || 0) <= 0 && (
+                      <div className="flex items-center gap-2 justify-center text-destructive text-[9px] font-bold uppercase animate-pulse">
+                        <AlertCircle className="w-3 h-3" /> Kas Gateway Kosong - Tidak ada yang perlu dijembatani
+                      </div>
+                    )}
                   </div>
                 </Card>
 
@@ -540,7 +573,7 @@ export default function AdminControlPage() {
                     <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 shadow-lg"><Wallet className="w-6 h-6 md:w-8 md:h-8" /></div>
                     <div>
                       <h3 className="text-xl md:text-2xl font-black text-accent uppercase italic tracking-tighter leading-none">Status Brankas</h3>
-                      <p className="text-[8px] md:text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Audit Mainnet Waktu Nyata.</p>
+                      <p className="text-[8px] md:text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Audit Blockchain Waktu Nyata.</p>
                     </div>
                   </div>
 
@@ -550,7 +583,7 @@ export default function AdminControlPage() {
                       <p className="text-3xl md:text-5xl font-black text-blue-600 italic">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
                       <div className="flex items-center justify-center gap-2 pt-2">
                         <ShieldCheck className="w-3 h-3 md:w-4 md:h-4 text-green-600" />
-                        <span className="text-[7px] md:text-[8px] font-black text-green-600 uppercase">Terverifikasi di Blockchain</span>
+                        <span className="text-[7px] md:text-[8px] font-black text-green-600 uppercase">Terverifikasi On-Chain</span>
                       </div>
                     </div>
 
@@ -558,18 +591,18 @@ export default function AdminControlPage() {
                       <p className="text-[8px] md:text-[10px] font-black uppercase text-accent ml-1">Analitik Brankas</p>
                       <div className="space-y-2">
                         <div className="flex justify-between items-center p-3 md:p-4 rounded-xl md:rounded-2xl bg-white/60 shadow-sm">
-                          <span className="text-[8px] md:text-[9px] font-bold text-muted-foreground uppercase italic">Profit Terdistribusi</span>
+                          <span className="text-[8px] md:text-[9px] font-bold text-muted-foreground uppercase italic">Likuiditas Terserap</span>
                           <span className="text-xs font-black text-accent">{(globalLiquidity?.totalProfitDistributed || 0).toFixed(4)} ETH</span>
                         </div>
                         <div className="flex justify-between items-center p-3 md:p-4 rounded-xl md:rounded-2xl bg-white/60 shadow-sm">
-                          <span className="text-[8px] md:text-[9px] font-bold text-muted-foreground uppercase italic">Hasil APY Aktif</span>
+                          <span className="text-[8px] md:text-[9px] font-bold text-muted-foreground uppercase italic">Yield APY V3</span>
                           <span className="text-xs font-black text-green-600 italic">+ 4.85% p.a</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="p-4 md:p-6 rounded-xl md:rounded-2xl border-2 border-dashed border-blue-300 flex flex-col items-center justify-center text-center">
-                      <p className="text-[8px] md:text-[9px] font-bold text-blue-600/60 uppercase italic leading-relaxed">Dana dalam Brankas dilindungi sepenuhnya oleh protokol AliBank V3.</p>
+                      <p className="text-[8px] md:text-[9px] font-bold text-blue-600/60 uppercase italic leading-relaxed">Dana dalam Brankas dilindungi sepenuhnya oleh protokol Multi-Sig AliBank.</p>
                     </div>
                   </div>
                 </Card>
@@ -582,7 +615,7 @@ export default function AdminControlPage() {
                 <div className="p-6 md:p-8 border-b border-primary/5 bg-accent/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
                     <h3 className="text-lg md:text-xl font-black italic uppercase text-accent flex items-center gap-2 md:gap-3">
-                      <FileText className="w-5 h-5 md:w-6 md:h-6 text-primary" /> Log Audit Global
+                      <FileText className="w-5 h-5 md:w-6 md:h-6 text-primary" /> Log Audit Ekosistem
                     </h3>
                     <p className="text-[8px] md:text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Seluruh jejak ekonomi ekosistem AliBank.</p>
                   </div>
@@ -592,7 +625,7 @@ export default function AdminControlPage() {
                     className="text-[8px] md:text-[9px] font-black uppercase hover:bg-primary/10 w-full sm:w-auto"
                     onClick={() => toast({ title: "Laporan Audit", description: "Menampilkan 15 transaksi terbaru dari database riil." })}
                   >
-                    <LayoutGrid className="w-3 h-3 mr-2" /> Segarkan Data
+                    <LayoutGrid className="w-3 h-3 mr-2" /> Segarkan Log
                   </Button>
                 </div>
                 <div className="overflow-x-auto no-scrollbar">
@@ -636,7 +669,7 @@ export default function AdminControlPage() {
                         <tr>
                           <td colSpan={5} className="py-16 md:py-20 text-center">
                             <Activity className="w-10 h-10 md:w-12 md:h-12 text-primary/10 mx-auto mb-4" />
-                            <p className="text-[9px] md:text-xs font-black text-muted-foreground uppercase tracking-widest">Tidak ada jejak aktivitas ekonomi.</p>
+                            <p className="text-[9px] md:text-xs font-black text-muted-foreground uppercase tracking-widest">Tidak ada jejak aktivitas ekonomi terdeteksi.</p>
                           </td>
                         </tr>
                       )}
@@ -651,7 +684,7 @@ export default function AdminControlPage() {
             <div className="flex items-center gap-8 md:gap-12">
               <Link href="/admin/about-alix" className="group flex flex-col items-center gap-2">
                 <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:gold-gradient group-hover:text-white transition-all shadow-lg shadow-primary/10"><BookOpen className="w-5 h-5 md:w-6 md:h-6" /></div>
-                <span className="text-[8px] md:text-[10px] font-black uppercase text-accent group-hover:text-primary transition-colors tracking-widest italic">Dokumentasi ALIX</span>
+                <span className="text-[8px] md:text-[10px] font-black uppercase text-accent group-hover:text-primary transition-colors tracking-widest italic">Dokumentasi V3</span>
               </Link>
               <div className="flex flex-col items-center gap-2">
                 <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-accent/10 flex items-center justify-center text-accent shadow-lg shadow-accent/10">
@@ -663,9 +696,9 @@ export default function AdminControlPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-center gap-2">
                 <div className="w-5 h-5 md:w-6 md:h-6 p-1 rounded-lg gold-gradient flex items-center justify-center"><LogoIcon className="text-white" /></div>
-                <p className="text-[10px] md:text-xs font-black text-accent italic uppercase tracking-tighter">AliBank Command Center</p>
+                <p className="text-[10px] md:text-xs font-black text-accent italic uppercase tracking-tighter">Pusat Komando AliBank</p>
               </div>
-              <p className="text-[6px] md:text-[8px] font-black uppercase text-muted-foreground tracking-[0.2em] md:tracking-[0.3em]">Hanya Personel Berwenang • Node V3 Aktif</p>
+              <p className="text-[6px] md:text-[8px] font-black uppercase text-muted-foreground tracking-[0.2em] md:tracking-[0.3em]">Hanya Personel Berwenang • Node V3 Aktif • 2024</p>
             </div>
           </footer>
         </main>
