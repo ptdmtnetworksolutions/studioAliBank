@@ -30,7 +30,8 @@ import {
   X,
   Lock,
   Unlock,
-  AlertCircle
+  AlertCircle,
+  Smartphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -89,6 +90,8 @@ export default function AdminControlPage() {
   const [connectedBalance, setConnectedBalance] = useState<string>("0");
   const [isSettling, setIsSettling] = useState(false);
   const [isFirewallActive, setIsFirewallActive] = useState(true);
+  const [isMobileBrowser, setIsMobileBrowser] = useState(false);
+  const [showWeb3Warning, setShowWeb3Warning] = useState(false);
   
   // State Form Inventaris
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -115,20 +118,23 @@ export default function AdminControlPage() {
   const [isMining, setIsMining] = useState(false);
   const [hashrate, setHashrate] = useState(0);
 
+  const handleOpenMetaMask = () => {
+    const host = window.location.host;
+    const path = window.location.pathname;
+    window.location.href = `https://metamask.app.link/dapp/${host}${path}`;
+  };
+
   const syncOnChainVault = useCallback(async () => {
     if (typeof window.ethereum === 'undefined') {
-      toast({ variant: "destructive", title: "Web3 Tidak Terdeteksi", description: "Gunakan MetaMask untuk sinkronisasi data blockchain." });
+      setShowWeb3Warning(true);
       return;
     }
     setSyncingVault(true);
     try {
       const provider = new BrowserProvider(window.ethereum);
-      
-      // Ambil Saldo Langsung dari Alamat Kontrak (Cara paling riil)
       const balance = await provider.getBalance(DEFAULT_CONTRACT);
       setOnChainTotal(formatEther(balance));
 
-      // Cek Saldo Dompet Terhubung
       const accounts = await provider.listAccounts();
       if (accounts.length > 0) {
         const walletBal = await provider.getBalance(accounts[0].address);
@@ -136,6 +142,7 @@ export default function AdminControlPage() {
       }
 
       toast({ title: "Sinkronisasi Berhasil", description: "Data Brankas Riil telah diperbarui dari Mainnet." });
+      setShowWeb3Warning(false);
     } catch (err: any) {
       console.error("Kesalahan Sinkronisasi Brankas:", err);
       toast({ variant: "destructive", title: "Sinkronisasi Gagal", description: "Pastikan Anda terhubung ke jaringan Ethereum." });
@@ -145,6 +152,10 @@ export default function AdminControlPage() {
   }, [toast]);
 
   useEffect(() => {
+    // Deteksi Device
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    setIsMobileBrowser(isMobile);
+
     if (userLoading) return;
     if (!user || user.email !== OWNER_EMAIL) {
       router.push('/');
@@ -221,7 +232,7 @@ export default function AdminControlPage() {
     }
 
     if (typeof window.ethereum === 'undefined') {
-      toast({ variant: "destructive", title: "MetaMask Tidak Ditemukan", description: "Gunakan browser dengan ekstensi Web3 untuk menjembatani dana." });
+      setShowWeb3Warning(true);
       return;
     }
 
@@ -230,7 +241,7 @@ export default function AdminControlPage() {
       toast({ 
         variant: "destructive", 
         title: "Kas Gateway Kosong", 
-        description: "Belum ada akumulasi pembayaran PayPal yang masuk ke sistem AliBank." 
+        description: "Belum ada akumulasi pembayaran yang masuk ke sistem AliBank." 
       });
       return;
     }
@@ -313,6 +324,29 @@ export default function AdminControlPage() {
         <Navbar />
         <main className="container mx-auto px-4 max-w-7xl pt-4 md:pt-8">
           
+          {/* Web3 Warning Banner for Mobile */}
+          {showWeb3Warning && (
+            <div className="mb-8 p-6 rounded-[2rem] bg-destructive/10 border-2 border-destructive/20 animate-in slide-in-from-top-4 duration-500">
+              <div className="flex flex-col md:flex-row items-center gap-6">
+                <div className="w-16 h-16 rounded-2xl bg-destructive flex items-center justify-center text-white shrink-0 shadow-lg">
+                  <ShieldAlert className="w-10 h-10" />
+                </div>
+                <div className="flex-1 text-center md:text-left">
+                  <h3 className="text-xl font-black text-destructive uppercase italic tracking-tighter">Web3 Tidak Terdeteksi</h3>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">
+                    Anda sedang menggunakan browser standar. Fungsi blockchain memerlukan browser internal MetaMask.
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleOpenMetaMask}
+                  className="w-full md:w-auto h-14 px-8 rounded-2xl bg-destructive text-white font-black uppercase italic shadow-xl hover:scale-105 transition-all"
+                >
+                  <Smartphone className="w-5 h-5 mr-2" /> Buka di MetaMask
+                </Button>
+              </div>
+            </div>
+          )}
+
           <header className="mb-8 md:mb-12 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 md:gap-8">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl gold-gradient flex items-center justify-center border border-white/20 p-3 md:p-4 shadow-2xl">
