@@ -10,15 +10,12 @@ import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: 'AliBank',
-  description: 'Infrastruktur perbankan elit dengan integrasi aset kripto Mainnet dan manajemen kekayaan cerdas.',
+  description: 'Infrastruktur perbankan elit dengan integrasi aset kripto Mainnet.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'AliBank',
-  },
-  formatDetection: {
-    telephone: false,
   },
 };
 
@@ -48,7 +45,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="mobile-web-app-capable" content="yes" />
         
-        {/* PWA Icons - Black Edition (Maskable Optimized) */}
+        {/* PWA Icons - Black Edition (Maskable) */}
         <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='0' y='0' width='100' height='100' fill='black'/%3E%3Cpath d='M50 20C52 48 80 50 80 50C80 50 52 52 50 80C48 52 20 50 20 50C20 50 48 48 50 20Z' fill='%23B8860B'/%3E%3C/svg%3E" />
         <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='0' y='0' width='100' height='100' fill='black'/%3E%3Cpath d='M50 20C52 48 80 50 80 50C80 50 52 52 50 80C48 52 20 50 20 50C20 50 48 48 50 20Z' fill='%23B8860B'/%3E%3C/svg%3E" />
       </head>
@@ -73,15 +70,15 @@ export default function RootLayout({
           </LanguageProvider>
         </ThemeProvider>
         
-        {/* Registration of Real Service Worker */}
+        {/* Registration of Professional Service Worker */}
         <Script id="register-sw" strategy="afterInteractive">
           {`
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                  console.log('AliBank SW registered successfully');
-                }, function(err) {
-                  console.log('AliBank SW registration failed:', err);
+                navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                  console.log('AliBank V3 SW Active:', reg.scope);
+                }).catch(function(err) {
+                  console.error('AliBank V3 SW Registration Failed:', err);
                 });
               });
             }

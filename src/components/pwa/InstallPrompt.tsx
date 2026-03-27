@@ -13,27 +13,26 @@ export function InstallPrompt() {
   const [mounted, setMounted] = useState(false);
 
   const checkStandalone = useCallback(() => {
+    if (typeof window === 'undefined') return true;
     return window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
   }, []);
 
   useEffect(() => {
     setMounted(true);
     
-    // Jangan munculkan jika sudah dalam mode standalone (terinstall)
-    if (checkStandalone()) {
-      return;
-    }
+    if (checkStandalone()) return;
 
     const handleBeforeInstallPrompt = (e: any) => {
-      // Mencegah mini-infobar default muncul
       e.preventDefault();
-      // Simpan event agar bisa dipicu nanti
       setDeferredPrompt(e);
-      // Tampilkan banner kustom
-      setShowPrompt(true);
+      // Cek apakah user pernah menutup banner dalam 24 jam terakhir
+      const lastDismissed = localStorage.getItem("pwa-prompt-dismissed-at");
+      const dayInMs = 24 * 60 * 60 * 1000;
+      if (!lastDismissed || Date.now() - parseInt(lastDismissed) > dayInMs) {
+        setShowPrompt(true);
+      }
     };
 
-    // Deteksi iOS
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
 
@@ -54,22 +53,16 @@ export function InstallPrompt() {
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
-    
-    // Munculkan prompt instalasi bawaan browser
     deferredPrompt.prompt();
-    
-    // Tunggu pilihan user
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === "accepted") {
       setShowPrompt(false);
-      localStorage.setItem("pwa-installed", "true");
     }
     setDeferredPrompt(null);
   };
 
   const closePrompt = () => {
     setShowPrompt(false);
-    // Simpan di local storage dengan masa berlaku (misal 24 jam)
     localStorage.setItem("pwa-prompt-dismissed-at", Date.now().toString());
     if (isIOS) localStorage.setItem("ios-pwa-prompt-seen", "true");
   };
@@ -78,7 +71,7 @@ export function InstallPrompt() {
 
   return (
     <div className="fixed top-24 left-4 right-4 z-[9999] animate-in slide-in-from-top-10 fade-in duration-700 max-w-lg mx-auto pointer-events-auto">
-      <div className="liquid-glass-dark bg-black/95 border-primary/20 p-5 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden group">
+      <div className="liquid-glass-dark bg-black/95 border-primary/20 p-5 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
         <div className="absolute inset-0 gold-gradient opacity-10" />
         
         <button 
@@ -89,34 +82,31 @@ export function InstallPrompt() {
         </button>
 
         <div className="flex items-center gap-4 relative z-10">
-          <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0 shadow-lg p-2.5 border border-white/20">
+          <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0 shadow-lg p-2 border border-white/20">
             <LogoIcon className="text-primary" />
           </div>
           
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-0.5">
-              <Badge className="bg-primary text-white text-[6px] font-black h-3 px-1 leading-none">NATIVE EXP</Badge>
-              <h3 className="text-[11px] font-black text-white uppercase tracking-tighter italic flex items-center gap-1">
-                Install AliBank <Sparkles className="w-2.5 h-2.5 text-primary" />
-              </h3>
+              <Badge className="bg-primary text-white text-[6px] font-black h-3 px-1 leading-none">NATIVE APK</Badge>
+              <h3 className="text-[11px] font-black text-white uppercase tracking-tighter italic">Install AliBank</h3>
             </div>
             <p className="text-[9px] text-white/70 font-medium leading-tight line-clamp-2">
               {isIOS 
-                ? "Tap 'Bagikan' lalu 'Tambah ke Layar Utama'." 
-                : "Pasang AliBank ke layar utama untuk akses tanpa browser."}
+                ? "Tap 'Bagikan' lalu 'Tambah ke Layar Utama' untuk pengalaman aplikasi utuh." 
+                : "Pasang AliBank ke layar utama untuk akses instan tanpa browser."}
             </p>
           </div>
 
           {!isIOS ? (
             <Button 
               onClick={handleInstallClick}
-              size="sm"
               className="bg-primary text-white font-black text-[9px] rounded-full px-4 h-8 hover:bg-primary/90 shadow-lg uppercase tracking-widest border-none shrink-0"
             >
-              PASANG <Download className="w-3 h-3 ml-1.5" />
+              INSTALL <Download className="w-3 h-3 ml-1.5" />
             </Button>
           ) : (
-            <div className="flex items-center justify-center p-2 rounded-xl bg-white/10 border border-white/10 text-primary shrink-0">
+            <div className="flex items-center justify-center p-2 rounded-xl bg-white/10 text-primary shrink-0">
               <Smartphone className="w-4 h-4 animate-bounce" />
             </div>
           )}
