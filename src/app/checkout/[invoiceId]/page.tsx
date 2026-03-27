@@ -14,7 +14,8 @@ import {
   Info,
   Smartphone,
   ShieldAlert,
-  CreditCard as CreditCardIcon
+  CreditCard as CreditCardIcon,
+  Globe
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -89,8 +90,8 @@ export default function CheckoutPage() {
   
   const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState<any>(null);
-  const [paymentStep, setPaymentStep] = useState<'selection' | 'paypal_gate' | 'native_card' | 'success'>('selection');
-  const [paypalReady, setPaypalReady] = useState(false);
+  const [paymentStep, setPaymentStep] = useState<'selection' | 'bridge_gate' | 'native_card' | 'success'>('selection');
+  const [bridgeReady, setBridgeReady] = useState(false);
   const [isProcessingCard, setIsProcessingCard] = useState(false);
   
   // Card Input States
@@ -99,9 +100,9 @@ export default function CheckoutPage() {
   const [cvv, setCvv] = useState("");
   const [cardBrand, setCardBrand] = useState("Unknown");
 
-  const paypalButtonContainerRef = useRef<HTMLDivElement>(null);
+  const bridgeButtonContainerRef = useRef<HTMLDivElement>(null);
 
-  // API Key Bisnis Nyata
+  // API Key Bisnis Nyata (Ali-Global Infrastructure)
   const PAYPAL_CLIENT_ID = "AbHG-qL9bHR0-rhmrDMV7TH-PiYAFHFNimv3LfxBUPmSIMaQPrbvFd7cJah1bc8YqlUkS7i3OpD0nvGF";
 
   useEffect(() => {
@@ -123,11 +124,11 @@ export default function CheckoutPage() {
     fetchInvoice();
   }, [db, invoiceId]);
 
-  // Deteksi Aktif untuk SDK PayPal (Robust Detection)
+  // Deteksi Aktif untuk SDK Bridge (Robust Detection)
   useEffect(() => {
     const checkInterval = setInterval(() => {
       if (window.paypal) {
-        setPaypalReady(true);
+        setBridgeReady(true);
         clearInterval(checkInterval);
       }
     }, 500);
@@ -223,18 +224,18 @@ export default function CheckoutPage() {
     }
   };
 
-  const initPayPalButtons = () => {
-    if (window.paypal && paypalButtonContainerRef.current) {
+  const initBridgeButtons = () => {
+    if (window.paypal && bridgeButtonContainerRef.current) {
       // Reset container untuk mencegah duplikasi tombol
-      paypalButtonContainerRef.current.innerHTML = '';
+      bridgeButtonContainerRef.current.innerHTML = '';
       
       window.paypal.Buttons({
         style: {
           layout: 'vertical',
           color: 'gold',
           shape: 'pill',
-          label: 'pay',
-          tagline: false // MENGHAPUS BRANDING "POWERED BY PAYPAL" DI BAWAH TOMBOL
+          label: 'pay', // MENGGUNAKAN LABEL "PAY" UNTUK MENGURANGI BRANDING EXTERNAL
+          tagline: false 
         },
         createOrder: (data: any, actions: any) => {
           return actions.order.create({
@@ -251,24 +252,24 @@ export default function CheckoutPage() {
           const details = await actions.order.capture();
           await processPaymentFinalization({
             ...details,
-            gateway: "International Card Gateway"
+            gateway: "Ali-Global Settlement Bridge"
           });
         },
         onError: (err: any) => {
-          console.error("PayPal Execution Error:", err);
-          toast({ variant: "destructive", title: "Gateway Unreachable", description: "Terjadi gangguan pada gerbang internasional." });
+          console.error("Bridge Execution Error:", err);
+          toast({ variant: "destructive", title: "Bridge Unreachable", description: "Terjadi gangguan pada jalur kliring internasional." });
         }
-      }).render(paypalButtonContainerRef.current);
+      }).render(bridgeButtonContainerRef.current);
     }
   };
 
-  // Inisialisasi tombol saat step PayPal dipilih dan script sudah siap
+  // Inisialisasi tombol saat step Bridge dipilih dan script sudah siap
   useEffect(() => {
-    if (paymentStep === 'paypal_gate' && paypalReady) {
-      const timer = setTimeout(initPayPalButtons, 300);
+    if (paymentStep === 'bridge_gate' && bridgeReady) {
+      const timer = setTimeout(initBridgeButtons, 300);
       return () => clearTimeout(timer);
     }
-  }, [paymentStep, paypalReady]);
+  }, [paymentStep, bridgeReady]);
 
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
@@ -304,8 +305,8 @@ export default function CheckoutPage() {
       <div className="min-h-screen bg-background pb-20 relative overflow-hidden">
         <Script 
           src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&locale=en_US&components=buttons`}
-          onLoad={() => setPaypalReady(true)}
-          onError={() => toast({ variant: "destructive", title: "SDK Load Error", description: "Gagal memuat modul gerbang internasional." })}
+          onLoad={() => setBridgeReady(true)}
+          onError={() => toast({ variant: "destructive", title: "SDK Load Error", description: "Gagal memuat modul jalur kliring internasional." })}
         />
         
         <div className="absolute top-0 left-0 w-full h-64 gold-gradient opacity-10 blur-[100px]" />
@@ -327,27 +328,27 @@ export default function CheckoutPage() {
             <CardContent className="p-8 space-y-6">
               {paymentStep === 'selection' ? (
                 <div className="space-y-4">
-                  <button onClick={() => setPaymentStep('paypal_gate')} className="w-full gold-gradient p-6 rounded-[1.5rem] border-none hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-xl">
+                  <button onClick={() => setPaymentStep('native_card')} className="w-full gold-gradient p-6 rounded-[1.5rem] border-none hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-xl">
                     <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-2xl bg-white/20 text-white"><CreditCard className="w-6 h-6" /></div>
+                      <div className="p-3 rounded-2xl bg-white/20 text-white"><ShieldCheck className="w-6 h-6" /></div>
                       <div>
-                        <p className="text-sm font-black text-white italic">International Card</p>
-                        <p className="text-[9px] font-medium text-white/70 uppercase">Visa, Mastercard, Amex</p>
+                        <p className="text-sm font-black text-white italic">AliBank Direct Node</p>
+                        <p className="text-[9px] font-medium text-white/70 uppercase italic">Direct PCI-DSS Verified • 0% Fee</p>
+                      </div>
+                    </div>
+                    <Badge className="bg-white text-primary text-[7px] font-black border-none px-2 py-0.5 animate-pulse">DIRECT</Badge>
+                  </button>
+
+                  <button onClick={() => setPaymentStep('bridge_gate')} className="w-full liquid-glass-dark p-6 rounded-[1.5rem] border-white/10 hover:border-primary/40 transition-all text-left flex items-center justify-between group relative overflow-hidden">
+                    <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
+                    <div className="flex items-center gap-4 relative z-10">
+                      <div className="p-3 rounded-2xl bg-white/10 text-white group-hover:bg-primary transition-colors"><Globe className="w-6 h-6" /></div>
+                      <div>
+                        <p className="text-sm font-black text-white italic">Ali-Network Global Card</p>
+                        <p className="text-[9px] font-medium text-white/50 uppercase">Visa, Mastercard, Amex Bridge</p>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-white/60" />
-                  </button>
-
-                  <button onClick={() => setPaymentStep('native_card')} className="w-full liquid-glass-dark p-6 rounded-[1.5rem] border-white/10 hover:border-primary/40 transition-all text-left flex items-center justify-between group relative overflow-hidden">
-                    <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
-                    <div className="flex items-center gap-4 relative z-10">
-                      <div className="p-3 rounded-2xl bg-white/10 text-white group-hover:bg-primary transition-colors"><ShieldCheck className="w-6 h-6" /></div>
-                      <div>
-                        <p className="text-sm font-black text-white italic">AliBank Direct Processing</p>
-                        <p className="text-[9px] font-medium text-white/50 uppercase italic">Direct Node • PCI-DSS Verified</p>
-                      </div>
-                    </div>
-                    <Badge className="bg-primary text-white text-[7px] font-black border-none px-2 py-0.5 animate-pulse">DIRECT</Badge>
                   </button>
 
                   <button onClick={() => processPaymentFinalization({ id: 'INTERNAL-SETTLE', gateway: 'AliBank Internal Ledger' })} className="w-full liquid-glass p-6 rounded-[1.5rem] border-primary/10 hover:border-primary/40 transition-all text-left flex items-center justify-between group">
@@ -358,16 +359,16 @@ export default function CheckoutPage() {
                         <p className="text-[9px] font-medium text-muted-foreground uppercase italic">Instant Liquidity Settlement</p>
                       </div>
                     </div>
-                    <Badge className="bg-green-600 text-white text-[7px] font-black border-none px-2 py-0.5">0% FEE</Badge>
+                    <Badge className="bg-green-600 text-white text-[7px] font-black border-none px-2 py-0.5">INTERNAL</Badge>
                   </button>
                 </div>
-              ) : paymentStep === 'paypal_gate' ? (
+              ) : paymentStep === 'bridge_gate' ? (
                 <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
                   <header className="flex items-center justify-between mb-4">
                     <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors">Back</button>
                     <div className="flex items-center gap-2">
                       <Lock className="w-3 h-3 text-green-600" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-accent italic">Secure Cloud Layer</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-accent italic">Institutional Bridge Verification</span>
                     </div>
                   </header>
                   
@@ -386,20 +387,20 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-                  {!paypalReady ? (
+                  {!bridgeReady ? (
                     <div className="flex flex-col items-center justify-center py-10">
                       <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
                       <p className="text-[9px] font-black uppercase text-muted-foreground">Initializing secure tunnel...</p>
                     </div>
                   ) : (
-                    <div id="paypal-button-container" ref={paypalButtonContainerRef} className="w-full min-h-[150px] transition-all" />
+                    <div id="bridge-button-container" ref={bridgeButtonContainerRef} className="w-full min-h-[150px] transition-all" />
                   )}
                 </div>
               ) : (
                 <form onSubmit={handleNativeCardPayment} className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                    <header className="flex items-center justify-between mb-4">
                     <button type="button" onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors">Back</button>
-                    <Badge className="bg-primary/10 text-primary text-[8px] font-black uppercase italic flex items-center gap-1"><ShieldCheck className="w-2 h-2" /> V3 Secure Node</Badge>
+                    <Badge className="bg-primary/10 text-primary text-[8px] font-black uppercase italic flex items-center gap-1"><ShieldCheck className="w-2 h-2" /> Ali-Direct Node</Badge>
                   </header>
                   
                   <div className="space-y-4">
@@ -450,7 +451,7 @@ export default function CheckoutPage() {
                   <div className="p-4 rounded-2xl bg-green-500/5 border border-green-500/10 flex gap-3">
                     <ShieldAlert className="w-5 h-5 text-green-600 shrink-0" />
                     <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                      Direct Settlement: Transaksi ini diproses langsung melalui infrastruktur Node AliBank. Tanpa biaya perantara eksternal.
+                      Direct Settlement: Transaksi ini diproses langsung melalui infrastruktur Node AliBank tanpa perantara eksternal.
                     </p>
                   </div>
 
