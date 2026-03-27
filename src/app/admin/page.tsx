@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -31,7 +32,8 @@ import {
   Unlock,
   AlertCircle,
   Smartphone,
-  Globe
+  Globe,
+  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -130,7 +132,6 @@ export default function AdminControlPage() {
     setSyncingVault(true);
     try {
       let provider;
-      // Gunakan MetaMask jika ada, jika tidak gunakan Global Node RPC
       if (typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask) {
         provider = new BrowserProvider(window.ethereum);
         setUsingGlobalNode(false);
@@ -139,7 +140,6 @@ export default function AdminControlPage() {
         setUsingGlobalNode(true);
       }
 
-      // Pastikan address valid sebelum getBalance
       const balance = await provider.getBalance(DEFAULT_CONTRACT).catch((e) => {
         console.warn("RPC fetch failed, using fallback 0", e);
         return 0n;
@@ -183,7 +183,7 @@ export default function AdminControlPage() {
           updateDoc(platformRef, { 
             alixVaultBalance: increment(reward),
             totalAlixMinted: increment(reward),
-            lastMintingPulse: new Date().toISOString()
+            lastMintingPulse: serverTimestamp()
           }).catch(() => {});
         }
       }, 1500);
@@ -324,7 +324,15 @@ export default function AdminControlPage() {
                     <Badge className="bg-primary/10 text-primary uppercase text-[7px] md:text-[8px] font-black">Kas Gateway</Badge>
                   </div>
                   <div>
-                    <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Saldo Gateway Tersedia</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Saldo Gateway Bersih</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild><Info className="w-3 h-3 text-muted-foreground/40" /></TooltipTrigger>
+                        <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
+                          <p className="text-[10px] font-bold italic">Ini adalah nilai riil yang Anda terima setelah sistem AliBank menghitung biaya tambahan (surcharge) untuk menutupi potongan PayPal. Anda menerima 100% dari harga barang.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <p className="text-2xl md:text-3xl font-black text-accent italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
                   </div>
                   <div className="pt-2 border-t border-primary/10">
