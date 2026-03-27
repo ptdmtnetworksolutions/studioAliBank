@@ -54,7 +54,6 @@ import {
 } from "@/components/ui/tooltip";
 
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
-const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
 
 type CoinData = {
   id: string;
@@ -196,9 +195,9 @@ export default function CryptoDeFiPage() {
                   <AlertTriangle className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-destructive uppercase italic">Keamanan Web3 Belum Lengkap</h3>
+                  <h3 className="text-sm font-black text-destructive uppercase italic">Keamanan Web3 Aktif</h3>
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">
-                    Alamat dompet ada, namun kunci tanda tangan mandiri (Native Signature) belum aktif.
+                    Alamat dompet terdeteksi. Aktifkan kunci tanda tangan mandiri (Native Signature) untuk transaksi riil.
                   </p>
                 </div>
               </div>
@@ -211,7 +210,6 @@ export default function CryptoDeFiPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8 space-y-8">
-              {/* Wallet Header - Meta-style */}
               <Card className="rounded-[2.5rem] gold-gradient border-none p-10 text-white shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10"><LogoIcon className="w-40 h-40" /></div>
                 <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -326,8 +324,8 @@ export default function CryptoDeFiPage() {
                       <span className="text-xs font-black text-accent italic uppercase">Global Node Aktif</span>
                     </div>
                   </div>
-                  <p className="text-[9px] text-muted-foreground font-medium italic leading-relaxed">
-                    Aplikasi ini menggunakan teknologi signing mandiri. Anda tidak lagi membutuhkan MetaMask untuk menandatangani transaksi. Semua dikelola aman oleh AliBank V3 Node.
+                  <p className="text-[9px] text-muted-foreground font-medium italic leading-relaxed uppercase">
+                    Aplikasi ini menggunakan teknologi signing mandiri. Semua transaksi dikelola aman oleh AliBank V3 Node 2026.
                   </p>
                 </div>
 
@@ -341,7 +339,7 @@ export default function CryptoDeFiPage() {
 
               <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10"><PieChart className="w-20 h-20" /></div>
-                <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-8">Portofolio Saya</h3>
+                <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-8">Portofolio Digital</h3>
                 
                 <div className="space-y-8 relative z-10">
                   <div>
@@ -350,7 +348,7 @@ export default function CryptoDeFiPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <p className="text-[10px] font-black uppercase text-white/40 tracking-widest">Aset Digital</p>
+                    <p className="text-[10px] font-black uppercase text-white/40 tracking-widest">Aset On-Chain</p>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center p-4 rounded-2xl bg-white/5 border border-white/10">
                         <div className="flex items-center gap-3">

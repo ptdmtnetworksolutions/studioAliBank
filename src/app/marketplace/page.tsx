@@ -71,8 +71,7 @@ export default function MarketplacePage() {
   const fetchMarketData = useCallback(async () => {
     try {
       const response = await fetch(
-        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=idr&order=market_cap_desc&per_page=20&page=1&sparkline=false",
-        { signal: AbortSignal.timeout(10000) }
+        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=idr&order=market_cap_desc&per_page=20&page=1&sparkline=false"
       );
       if (response.ok) {
         const data = await response.json();
@@ -81,7 +80,7 @@ export default function MarketplacePage() {
         }
       }
     } catch (err) {
-      console.warn("Market fetch handled error:", err);
+      console.warn("Market fetch error handled");
     } finally {
       setMarketLoading(false);
     }
@@ -150,7 +149,7 @@ export default function MarketplacePage() {
               <div>
                 <h1 className="text-4xl font-black text-accent uppercase italic tracking-tighter">AliBank Marketplace</h1>
                 <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                  <Globe className="w-3 h-3 text-primary" /> Riil Database Inventory & Global Market
+                  <Globe className="w-3 h-3 text-primary" /> Database Inventory & Global Market 2026
                 </p>
               </div>
             </div>
@@ -159,7 +158,7 @@ export default function MarketplacePage() {
           <Tabs defaultValue="products" className="space-y-12">
             <TabsList className="bg-primary/5 p-1.5 rounded-[2rem] h-16 border border-primary/10 w-full md:w-auto">
               <TabsTrigger value="products" className="rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
-                Web3 Products (Riil)
+                Web3 Products
               </TabsTrigger>
               <TabsTrigger value="market" className="rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
                 Global Market (Live)
@@ -220,16 +219,6 @@ export default function MarketplacePage() {
                           <Badge className="bg-white/90 backdrop-blur-md text-accent border-none font-black text-[8px] px-3 py-1 uppercase rounded-full">
                             {p.category}
                           </Badge>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="w-6 h-6 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center cursor-help">
-                                <HelpCircle className="w-3.5 h-3.5 text-accent/60" />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
-                              <p className="text-[10px] font-bold">Produk riil dari inventaris database AliBank. Anda dapat membeli menggunakan saldo IDR.</p>
-                            </TooltipContent>
-                          </Tooltip>
                         </div>
                       </div>
                       
@@ -243,7 +232,7 @@ export default function MarketplacePage() {
 
                         <div className="flex items-center justify-between pt-4 border-t border-primary/5">
                           <div>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground mb-1">Database Price</p>
+                            <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground mb-1">Unit Price</p>
                             <p className="text-xl font-black text-primary italic tracking-tighter">
                               {p.priceUsd ? `$ ${p.priceUsd.toLocaleString('en-US')}` : `Rp ${mounted ? p.priceIdr.toLocaleString('id-ID') : '...'}`}
                             </p>
@@ -264,7 +253,7 @@ export default function MarketplacePage() {
                 <div className="text-center py-20 liquid-glass rounded-[3rem] border-dashed border-2 border-primary/5">
                   <Package className="w-16 h-16 text-primary/10 mx-auto mb-4" />
                   <h3 className="text-xl font-black text-accent uppercase italic">Inventory Empty</h3>
-                  <p className="text-xs text-muted-foreground font-medium mt-2">Belum ada produk riil di koleksi database Anda.</p>
+                  <p className="text-xs text-muted-foreground font-medium mt-2">Belum ada produk riil di database AliBank.</p>
                 </div>
               )}
             </TabsContent>
@@ -273,19 +262,9 @@ export default function MarketplacePage() {
               <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl">
                 <div className="p-8 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
                   <div>
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3 text-accent">
-                        <BarChart3 className="w-6 h-6 text-primary" /> Live Global Market
-                      </h3>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className="w-4 h-4 text-muted-foreground/40 cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
-                          <p className="text-[10px] font-bold">Harga aset kripto global secara real-time. Anda bisa membeli aset ini langsung menggunakan saldo IDR AliBank Anda.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
+                    <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3 text-accent">
+                      <BarChart3 className="w-6 h-6 text-primary" /> Live Global Market
+                    </h3>
                     <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Suku bunga riil dari pasar global saat ini.</p>
                   </div>
                 </div>

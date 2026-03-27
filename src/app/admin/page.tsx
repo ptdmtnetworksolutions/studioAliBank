@@ -176,7 +176,6 @@ function AdminContent() {
     if (!db || isSettling) return;
     setIsSettling(true);
     try {
-      // PROSES KLIRING RESMI: Menyiarkan instruksi ke network tujuan
       const bridgeRef = doc(db, "system", "bridge", "queue", bridgeId);
       await updateDoc(bridgeRef, {
         status: "broadcasted",
@@ -229,10 +228,8 @@ function AdminContent() {
     setIsSettling(true);
     try {
       const adminRef = doc(db, "users", user.uid);
-      // Eksekusi Pemotongan Saldo Riil
       await updateDoc(adminRef, { [`cryptoBalances.${vaultAssetType}`]: increment(-amount) });
 
-      // Injeksi ke Likuiditas Sistem
       const ethEquivalent = vaultAssetType === 'BTC' ? amount * 15 : vaultAssetType === 'USDT' ? amount * 0.0003 : amount;
       await updateDoc(doc(db, "system", "liquidity"), { totalProfitDistributed: increment(ethEquivalent) });
 

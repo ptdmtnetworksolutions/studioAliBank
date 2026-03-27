@@ -37,20 +37,20 @@ export default function TransactionsPage() {
       <main className="container mx-auto px-4 max-w-4xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-accent">Riwayat Transaksi</h1>
-            <p className="text-muted-foreground">Pantau aktivitas finansial asli Anda dari database</p>
+            <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter">Buku Besar Transaksi</h1>
+            <p className="text-muted-foreground text-sm font-medium">Aktivitas finansial riil Anda yang tercatat di Ledger Bank 2026.</p>
           </div>
-          <Button variant="outline" className="liquid-glass border-primary/20 text-primary self-start">
-            <Download className="w-4 h-4 mr-2" /> Ekspor Laporan
+          <Button variant="outline" className="liquid-glass border-primary/20 text-primary self-start font-black uppercase text-[10px] tracking-widest">
+            <Download className="w-4 h-4 mr-2" /> Ekspor Laporan Resmi
           </Button>
         </div>
 
         <div className="flex gap-2 mb-6">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 
-              placeholder="Cari deskripsi, kategori..." 
-              className="pl-10 h-12 rounded-2xl liquid-glass border-none"
+              placeholder="Cari deskripsi, kategori, atau ID..." 
+              className="pl-12 h-12 rounded-2xl liquid-glass border-none font-medium"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -64,13 +64,13 @@ export default function TransactionsPage() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 className="w-8 h-8 text-primary animate-spin mb-2" />
-              <p className="text-sm text-muted-foreground">Mengambil data transaksi...</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Mengakses Ledger Jaringan...</p>
             </div>
           ) : filtered.length > 0 ? (
             filtered.map((tx, idx) => (
               <div 
                 key={idx} 
-                className="liquid-glass p-5 rounded-2xl flex items-center justify-between card-hover-effect animate-in fade-in slide-in-from-bottom-2"
+                className="liquid-glass p-5 rounded-[1.5rem] flex items-center justify-between group hover:bg-white/60 transition-all animate-in fade-in slide-in-from-bottom-2"
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
                 <div className="flex items-center gap-4">
@@ -81,10 +81,10 @@ export default function TransactionsPage() {
                     {tx.cryptoAmount ? <Bitcoin className="w-6 h-6" /> : (tx.type === "income" ? <ArrowDownLeft className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />)}
                   </div>
                   <div>
-                    <p className="font-bold text-base text-accent">{tx.description}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-wider">{tx.category}</span>
-                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <p className="font-black text-accent uppercase text-sm italic tracking-tight">{tx.description}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[8px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-wider">{tx.category}</span>
+                      <span className="text-[9px] font-bold text-muted-foreground flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {new Date(tx.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </span>
@@ -93,7 +93,7 @@ export default function TransactionsPage() {
                 </div>
                 <div className="text-right">
                   <p className={cn(
-                    "font-bold text-lg",
+                    "font-black text-lg italic tracking-tighter",
                     tx.type === "income" ? "text-green-600" : "text-accent"
                   )}>
                     {tx.type === "income" ? "+" : "-"}
@@ -103,19 +103,21 @@ export default function TransactionsPage() {
                         ? `${tx.cryptoAmount} ${tx.cryptoCurrency || 'ETH'}` 
                         : '---'}
                   </p>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-black">
-                    {tx.status || "Berhasil"}
+                  <p className={cn(
+                    "text-[8px] uppercase tracking-[0.2em] font-black mt-0.5",
+                    tx.status === 'success' || tx.status === 'settled' ? "text-green-600" : "text-amber-600"
+                  )}>
+                    {tx.status?.toUpperCase() || "SETTLED"}
                   </p>
                 </div>
               </div>
             ))
           ) : (
-            <div className="text-center py-20 liquid-glass rounded-3xl border-dashed border-2 border-primary/10">
+            <div className="text-center py-24 liquid-glass rounded-[2.5rem] border-dashed border-2 border-primary/10">
               <div className="w-16 h-16 bg-muted/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Search className="w-8 h-8 text-muted-foreground/50" />
               </div>
-              <p className="text-muted-foreground font-medium">Belum ada transaksi ditemukan.</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Coba lakukan transfer pertama Anda!</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Ledger Bersih. Belum ada transaksi ditemukan.</p>
             </div>
           )}
         </div>
