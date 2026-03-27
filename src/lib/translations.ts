@@ -25,7 +25,12 @@ export const translations = {
     mainnet_online: 'Mainnet Online',
     platinum_private: 'Platinum Privat',
     copied: 'Berhasil Disalin',
-    account_copied_msg: 'Nomor rekening telah disalin ke clipboard.'
+    account_copied_msg: 'Nomor rekening telah disalin ke clipboard.',
+    alix_sovereign: 'Aset Kedaulatan ALIX',
+    alix_description: 'Koin utilitas resmi AliBank yang didukung oleh likuiditas riil ekosistem.',
+    mint_alix: 'Cetak ALIX Baru',
+    burn_alix: 'Bakar Suplai ALIX',
+    alix_ecosystem: 'Ekosistem ALIX'
   },
   en: {
     dashboard: 'Dashboard',
@@ -51,6 +56,11 @@ export const translations = {
     mainnet_online: 'Mainnet Online',
     platinum_private: 'Platinum Private',
     copied: 'Copied!',
-    account_copied_msg: 'Account number copied to clipboard.'
+    account_copied_msg: 'Account number copied to clipboard.',
+    alix_sovereign: 'ALIX Sovereign Asset',
+    alix_description: 'Official utility coin backed by real ecosystem liquidity.',
+    mint_alix: 'Mint New ALIX',
+    burn_alix: 'Burn ALIX Supply',
+    alix_ecosystem: 'ALIX Ecosystem'
   }
 };
