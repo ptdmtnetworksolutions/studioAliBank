@@ -306,7 +306,7 @@ export default function Dashboard() {
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-40">
                 <Carousel setApi={setSwiftApi} className="w-full h-full">
                   <CarouselContent className="h-full ml-0">
-                    <CarouselItem className="pl-0 h-full" onClick={() => router.push('/crypto/deposit-methods')}>
+                    <CarouselItem className="pl-0 h-full" onClick={() => router.push('/crypto/deposit-methods?type=setor')}>
                       <div className="p-4 h-full flex flex-col">
                         <div className="flex items-center gap-2 mb-2">
                           <div className="w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center font-bold text-xs">$</div>
@@ -320,7 +320,7 @@ export default function Dashboard() {
                       </div>
                     </CarouselItem>
                     
-                    <CarouselItem className="pl-0 h-full">
+                    <CarouselItem className="pl-0 h-full" onClick={() => router.push('/crypto/deposit-methods?type=tarik')}>
                       <div className="p-4 h-full flex flex-col bg-slate-50/30">
                         <div className="flex items-center gap-2 mb-2">
                           <div className="w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center font-bold text-xs">$</div>
