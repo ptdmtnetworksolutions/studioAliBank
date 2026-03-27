@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -11,7 +10,8 @@ import {
   Info, 
   Gift, 
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -37,6 +37,7 @@ const mockChartData = [
 export default function ConvertPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -117,10 +118,18 @@ export default function ConvertPage() {
         {/* Conversion Form */}
         <div className="relative pt-6">
           {/* Tooltip box */}
-          <div className="absolute -top-2 left-0 bg-[#475569] text-white text-[10px] px-3 py-2 rounded-lg z-10 flex items-center gap-1 font-bold shadow-lg animate-in fade-in slide-in-from-bottom-1">
-            Anda dapat memilih hingga 5 mata uang sekarang
-            <div className="absolute -bottom-1 left-4 w-2 h-2 bg-[#475569] rotate-45" />
-          </div>
+          {showTooltip && (
+            <div className="absolute -top-2 left-0 bg-[#475569] text-white text-[10px] px-3 py-2 rounded-lg z-30 flex items-center gap-2 font-bold shadow-lg animate-in fade-in slide-in-from-bottom-1">
+              <span>Anda dapat memilih hingga 5 mata uang sekarang</span>
+              <button 
+                onClick={() => setShowTooltip(false)}
+                className="ml-1 p-0.5 hover:bg-white/10 rounded-full transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+              <div className="absolute -bottom-1 left-4 w-2 h-2 bg-[#475569] rotate-45" />
+            </div>
+          )}
 
           <div className="space-y-1">
             {/* From */}
