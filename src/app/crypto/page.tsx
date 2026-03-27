@@ -89,7 +89,9 @@ export default function CryptoDeFiPage() {
       if (Array.isArray(data)) {
         setCoins(data);
       }
-    } catch (err) {} finally { setLoading(false); }
+    } catch (err) {
+      console.error("Market data sync interrupted");
+    } finally { setLoading(false); }
   }, []);
 
   const fetchInternalBalance = useCallback(async (addr: string) => {
@@ -99,7 +101,7 @@ export default function CryptoDeFiPage() {
       const balance = await provider.getBalance(addr);
       setOnChainEth(formatEther(balance));
     } catch (err) {
-      console.warn("RPC fetch failed", err);
+      console.warn("Mainnet ledger sync interrupted");
     }
   }, []);
 
@@ -123,9 +125,9 @@ export default function CryptoDeFiPage() {
         walletAddress: newWallet.address,
         privateKey: newWallet.privateKey
       });
-      toast({ title: "Native Wallet Aktif", description: "Dompet internal AliBank berhasil dibuat." });
+      toast({ title: "Sovereign Wallet Active", description: "Infrastruktur dompet mandiri AliBank berhasil diamankan." });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Gagal", description: err.message });
+      toast({ variant: "destructive", title: "Activation Failed", description: err.message });
     } finally {
       setIsActivatingWallet(false);
     }
@@ -133,9 +135,9 @@ export default function CryptoDeFiPage() {
 
   const showPrivateKey = () => {
     if (userData?.privateKey) {
-      alert(`PRIVATE KEY ANDA (RAHASIA):\n\n${userData.privateKey}\n\nJangan pernah bagikan ini kepada siapa pun!`);
+      alert(`SOVEREIGN PRIVATE KEY (CONFIDENTIAL):\n\n${userData.privateKey}\n\nDo not share this with anyone!`);
     } else {
-      toast({ variant: "destructive", title: "Belum Aktif", description: "Aktifkan Native Signature terlebih dahulu." });
+      toast({ variant: "destructive", title: "Action Required", description: "Aktifkan Sovereign Signature terlebih dahulu." });
     }
   };
 
@@ -160,7 +162,7 @@ export default function CryptoDeFiPage() {
                 </h1>
               </div>
               <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest pl-1">
-                AliBank Sovereign Infrastructure • Independent Web3 Node 2026
+                AliBank Sovereign Infrastructure • Independent Web3 Production Node 2026
               </p>
             </div>
             
@@ -182,7 +184,7 @@ export default function CryptoDeFiPage() {
                 </div>
               ) : (
                 <Button onClick={handleActivateNativeWallet} disabled={isActivatingWallet} className="h-12 px-8 rounded-2xl gold-gradient text-white font-black uppercase italic shadow-xl">
-                  {isActivatingWallet ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : <Wallet2 className="mr-2 w-4 h-4" />} Aktifkan Native Wallet
+                  {isActivatingWallet ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : <Wallet2 className="mr-2 w-4 h-4" />} Activate Sovereign Wallet
                 </Button>
               )}
             </div>
@@ -195,15 +197,15 @@ export default function CryptoDeFiPage() {
                   <AlertTriangle className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-destructive uppercase italic">Keamanan Web3 Aktif</h3>
+                  <h3 className="text-sm font-black text-destructive uppercase italic">Verified Sovereign Signature Required</h3>
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">
-                    Alamat dompet terdeteksi. Aktifkan kunci tanda tangan mandiri (Native Signature) untuk transaksi riil.
+                    Aktifkan kunci tanda tangan mandiri (Sovereign Signature) untuk eksekusi transaksi on-chain yang sah.
                   </p>
                 </div>
               </div>
               <Button onClick={handleActivateNativeWallet} disabled={isActivatingWallet} className="w-full md:w-auto h-12 px-8 bg-destructive text-white rounded-xl font-black uppercase italic text-[10px] shadow-lg">
                 {isActivatingWallet ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Key className="w-4 h-4 mr-2" />} 
-                AKTIFKAN SIGNATURE SEKARANG
+                AUTHORIZE SIGNATURE NOW
               </Button>
             </Card>
           )}
@@ -215,28 +217,28 @@ export default function CryptoDeFiPage() {
                 <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-6">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">AliBank Sovereign Asset</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">AliBank Mainnet Liquidity</p>
                       <h2 className="text-5xl font-black italic tracking-tighter mt-1">{parseFloat(onChainEth).toFixed(4)} ETH</h2>
                       <p className="text-xs font-bold opacity-80 mt-2 flex items-center gap-2">
-                        <Activity className="w-3 h-3 text-green-400" /> Mainnet Sync: Connected
+                        <Activity className="w-3 h-3 text-green-400" /> Mainnet Status: Synchronized
                       </p>
                     </div>
                     <div className="flex gap-3">
-                      <Button onClick={() => router.push('/crypto/send')} className="bg-white text-primary rounded-xl font-black uppercase italic text-[10px] px-6 h-10 shadow-lg">Kirim Aset</Button>
-                      <Button onClick={() => router.push('/crypto/receive')} className="bg-white/10 text-white border border-white/20 rounded-xl font-black uppercase italic text-[10px] px-6 h-10">Terima</Button>
+                      <Button onClick={() => router.push('/crypto/send')} className="bg-white text-primary rounded-xl font-black uppercase italic text-[10px] px-6 h-10 shadow-lg">Transfer Asset</Button>
+                      <Button onClick={() => router.push('/crypto/receive')} className="bg-white/10 text-white border border-white/20 rounded-xl font-black uppercase italic text-[10px] px-6 h-10">Receive</Button>
                     </div>
                   </div>
                   <div className="bg-black/10 backdrop-blur-md rounded-3xl p-6 border border-white/5 space-y-4">
                     <div className="flex justify-between items-center">
-                      <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Native Web3 Node</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Sovereign Key Management</p>
                       <ShieldCheck className={cn("w-4 h-4", hasNativeSignature ? "text-primary" : "text-destructive")} />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-[8px] font-bold uppercase opacity-40">Alamat Dompet Mandiri</p>
-                      <p className="text-[10px] font-black break-all leading-relaxed">{userData?.walletAddress || "Generating..."}</p>
+                      <p className="text-[8px] font-bold uppercase opacity-40">Public Ledger Address</p>
+                      <p className="text-[10px] font-black break-all leading-relaxed">{userData?.walletAddress || "Generating Keypair..."}</p>
                     </div>
                     <Button onClick={showPrivateKey} variant="ghost" className="w-full h-8 text-[8px] font-black uppercase text-white/40 hover:text-white hover:bg-white/5">
-                      <Key className="w-3 h-3 mr-2" /> Backup Private Key
+                      <Key className="w-3 h-3 mr-2" /> Export Sovereign Key
                     </Button>
                   </div>
                 </div>
@@ -245,18 +247,18 @@ export default function CryptoDeFiPage() {
               <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white">
                 <div className="p-8 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
                   <h3 className="text-xl font-black italic uppercase text-accent flex items-center gap-3">
-                    <BarChart3 className="w-6 h-6 text-primary" /> Live Markets
+                    <BarChart3 className="w-6 h-6 text-primary" /> Institutional Markets
                   </h3>
-                  <Badge className="bg-primary/10 text-primary uppercase font-black text-[10px]">Mainnet Prices</Badge>
+                  <Badge className="bg-primary/10 text-primary uppercase font-black text-[10px]">Real-Time Pulse</Badge>
                 </div>
                 <div className="overflow-x-auto no-scrollbar">
                   <table className="w-full text-left">
                     <thead>
                       <tr className="bg-primary/5 text-[10px] font-black uppercase text-muted-foreground tracking-widest">
-                        <th className="px-8 py-6">Pasangan Aset</th>
-                        <th className="px-8 py-6">Harga Terakhir</th>
-                        <th className="px-8 py-6">24h Perubahan</th>
-                        <th className="px-8 py-6 text-right">Aksi</th>
+                        <th className="px-8 py-6">Asset Pair</th>
+                        <th className="px-8 py-6">Spot Price</th>
+                        <th className="px-8 py-6">24h Delta</th>
+                        <th className="px-8 py-6 text-right">Execution</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-primary/5">
@@ -311,21 +313,21 @@ export default function CryptoDeFiPage() {
                     <ShieldCheck className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-accent uppercase italic">AliBank Signature</h4>
-                    <p className="text-[8px] font-bold text-muted-foreground uppercase">Independent Infrastructure</p>
+                    <h4 className="text-sm font-black text-accent uppercase italic">Sovereign Signature</h4>
+                    <p className="text-[8px] font-bold text-muted-foreground uppercase">Verified Production Node</p>
                   </div>
                 </div>
                 
                 <div className="p-6 rounded-2xl bg-accent/5 border border-primary/5 space-y-4">
                   <div className="space-y-1">
-                    <p className="text-[9px] font-black uppercase text-muted-foreground">Status Jaringan</p>
+                    <p className="text-[9px] font-black uppercase text-muted-foreground">Network Integrity</p>
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                      <span className="text-xs font-black text-accent italic uppercase">Global Node Aktif</span>
+                      <span className="text-xs font-black text-accent italic uppercase">Mainnet Global Node Online</span>
                     </div>
                   </div>
                   <p className="text-[9px] text-muted-foreground font-medium italic leading-relaxed uppercase">
-                    Aplikasi ini menggunakan teknologi signing mandiri. Semua transaksi dikelola aman oleh AliBank V3 Node 2026.
+                    Seluruh eksekusi perdagangan ditandatangani secara mandiri dan diamankan oleh infrastruktur AliBank V3 Node 2026.
                   </p>
                 </div>
 
@@ -333,22 +335,22 @@ export default function CryptoDeFiPage() {
                   onClick={() => router.push('/admin?tab=vault')}
                   className="w-full h-12 bg-accent text-white font-black uppercase italic rounded-xl shadow-lg hover:bg-accent/90"
                 >
-                  Kelola Brankas V3
+                  Kelola Brankas Likuiditas V3
                 </Button>
               </Card>
 
               <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10"><PieChart className="w-20 h-20" /></div>
-                <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-8">Portofolio Digital</h3>
+                <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-8">Verified Portfolio Position</h3>
                 
                 <div className="space-y-8 relative z-10">
                   <div>
-                    <p className="text-[9px] font-bold text-white/60 uppercase">Estimasi Saldo Total</p>
+                    <p className="text-[9px] font-bold text-white/60 uppercase">Consolidated Liquidity Value</p>
                     <p className="text-4xl font-black italic tracking-tighter">Rp {(userData?.totalBalance || 0).toLocaleString()}</p>
                   </div>
 
                   <div className="space-y-4">
-                    <p className="text-[10px] font-black uppercase text-white/40 tracking-widest">Aset On-Chain</p>
+                    <p className="text-[10px] font-black uppercase text-white/40 tracking-widest">Sovereign Assets</p>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center p-4 rounded-2xl bg-white/5 border border-white/10">
                         <div className="flex items-center gap-3">

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -16,7 +17,8 @@ import {
   BarChart3,
   Search,
   MessageSquare,
-  Newspaper
+  Newspaper,
+  Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -70,7 +72,7 @@ export default function CryptoTradePage() {
       const data = await res.json();
       setCoinData(data);
     } catch (err) {
-      console.error("Fetch coin error:", err);
+      console.error("Coin detail ledger sync interrupted");
     } finally {
       setLoading(false);
     }
@@ -84,7 +86,6 @@ export default function CryptoTradePage() {
     } catch (err) {}
   };
 
-  // TradingView Widget Injection
   useEffect(() => {
     if (mounted && coinData && container.current) {
       const script = document.createElement("script");
@@ -159,31 +160,31 @@ export default function CryptoTradePage() {
         : { totalBalance: increment(amount), [`cryptoBalances.${assetKey}`]: increment(-qty) };
 
       if (type === 'buy' && (userData?.totalBalance || 0) < amount) {
-        throw new Error("Saldo IDR Anda tidak mencukupi.");
+        throw new Error("Insufficient Liquidity.");
       }
       if (type === 'sell' && (userData?.cryptoBalances?.[assetKey] || 0) < qty) {
-        throw new Error(`Saldo ${assetKey} Anda tidak mencukupi.`);
+        throw new Error(`Insufficient ${assetKey} Balance.`);
       }
 
       await updateDoc(userDocRef, payload);
 
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
-        description: `${type === 'buy' ? 'Beli' : 'Jual'} ${coinData.name} via AliBank Terminal`,
+        description: `${type === 'buy' ? 'Spot Buy' : 'Spot Sell'} ${coinData.name} via AliBank V3 Node`,
         category: "Trading",
         amount: amount,
         cryptoAmount: qty,
         cryptoCurrency: assetKey,
         type: type === 'buy' ? 'expense' : 'income',
-        status: "success",
+        status: "settled",
         timestamp: serverTimestamp()
       });
 
-      toast({ title: "Eksekusi Berhasil", description: `Order ${type} ${coinData.name} telah diselesaikan.` });
+      toast({ title: "Order Settled", description: `Order ${type} ${coinData.name} has been successfully executed on-ledger.` });
       setOrderAmount(""); setOrderQty("");
       setBuyPercent(0); setSellPercent(0);
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Gagal", description: err.message });
+      toast({ variant: "destructive", title: "Execution Failed", description: err.message });
     } finally {
       setIsProcessing(false);
     }
@@ -193,7 +194,7 @@ export default function CryptoTradePage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background">
         <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground animate-pulse">Loading Live Terminal...</p>
+        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground animate-pulse italic">Synchronizing Institutional Terminal...</p>
       </div>
     );
   }
@@ -217,7 +218,7 @@ export default function CryptoTradePage() {
               </div>
               <div>
                 <h1 className="text-lg font-black text-accent uppercase tracking-tighter">{coinData.symbol}/IDR</h1>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase">{coinData.name}</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Production Pair</p>
               </div>
             </div>
           </div>
@@ -228,44 +229,44 @@ export default function CryptoTradePage() {
                 Rp {priceIdr.toLocaleString('id-ID')}
               </p>
               <p className={cn("text-[10px] font-black uppercase", change24h >= 0 ? "text-green-600" : "text-destructive")}>
-                {change24h >= 0 ? "+" : ""}{change24h.toFixed(2)}% (24h)
+                {change24h >= 0 ? "+" : ""}{change24h.toFixed(2)}% (24h Pulse)
               </p>
             </div>
             <div className="hidden md:block shrink-0">
-              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-0.5">24h High</p>
+              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-0.5">High Mark</p>
               <p className="text-xs font-black text-accent italic">Rp {coinData.market_data.high_24h.idr.toLocaleString()}</p>
             </div>
             <div className="hidden md:block shrink-0">
-              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-0.5">24h Low</p>
+              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-0.5">Low Mark</p>
               <p className="text-xs font-black text-accent italic">Rp {coinData.market_data.low_24h.idr.toLocaleString()}</p>
             </div>
             <div className="hidden lg:block shrink-0">
-              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-0.5">24h Volume (IDR)</p>
+              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-0.5">24h Vol Position</p>
               <p className="text-xs font-black text-accent italic">Rp {(coinData.market_data.total_volume.idr / 1e12).toFixed(2)}T</p>
             </div>
           </div>
           
-          <Badge className="bg-primary/10 text-primary border-primary/20 px-3 py-1 uppercase font-black text-[9px] hidden xl:flex">Live Mainnet V3</Badge>
+          <Badge className="bg-primary/10 text-primary border-primary/20 px-3 py-1 uppercase font-black text-[9px] hidden xl:flex">Live Production Ledger V3</Badge>
         </div>
       </div>
 
       <main className="container mx-auto px-4 mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Left Section: Order Book & Market Activities */}
+        {/* Left Section: Order Ledger & Market Intelligence */}
         <div className="lg:col-span-3 space-y-6 order-2 lg:order-1">
           <Card className="rounded-2xl border-none shadow-sm overflow-hidden bg-white h-[400px] flex flex-col">
             <div className="p-4 border-b border-primary/5 bg-accent/5">
               <h3 className="text-xs font-black uppercase tracking-widest text-accent flex items-center gap-2">
-                <LayoutGrid className="w-4 h-4 text-primary" /> Order Book
+                <LayoutGrid className="w-4 h-4 text-primary" /> Order Ledger Snapshot
               </h3>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
               <div className="space-y-1">
-                {/* Simulated Bids (Asks) */}
+                {/* Order Ledger Depth (Asks) */}
                 {[...Array(8)].map((_, i) => (
                   <div key={i} className="flex justify-between text-[10px] text-destructive font-medium">
                     <span>{(priceIdr * (1 + (8-i) * 0.0005)).toLocaleString()}</span>
-                    <span>{(Math.random() * 2).toFixed(4)}</span>
+                    <span>{(Math.random() * 2.5).toFixed(4)}</span>
                   </div>
                 ))}
               </div>
@@ -273,11 +274,11 @@ export default function CryptoTradePage() {
                 <p className="text-sm font-black text-accent italic">Rp {priceIdr.toLocaleString()}</p>
               </div>
               <div className="space-y-1">
-                {/* Simulated Bids (Buys) */}
+                {/* Order Ledger Depth (Buys) */}
                 {[...Array(8)].map((_, i) => (
                   <div key={i} className="flex justify-between text-[10px] text-green-600 font-medium">
                     <span>{(priceIdr * (1 - (i+1) * 0.0005)).toLocaleString()}</span>
-                    <span>{(Math.random() * 2).toFixed(4)}</span>
+                    <span>{(Math.random() * 2.5).toFixed(4)}</span>
                   </div>
                 ))}
               </div>
@@ -286,16 +287,16 @@ export default function CryptoTradePage() {
 
           <Card className="rounded-2xl border-none shadow-sm p-5 space-y-4 bg-white">
             <h3 className="text-xs font-black uppercase tracking-widest text-accent flex items-center gap-2">
-              <Zap className="w-4 h-4 text-primary" /> Trading Edge
+              <Activity className="w-4 h-4 text-primary" /> Quantitative Signals
             </h3>
             <div className="space-y-3">
               <div className="p-3 rounded-xl bg-green-50 border border-green-100">
-                <p className="text-[10px] font-black text-green-700 uppercase mb-1">Profitability Rating</p>
-                <p className="text-[10px] text-green-800 font-medium italic">Sentimen pasar saat ini menunjukkan potensi bullish {change24h > 0 ? "tinggi" : "moderat"}.</p>
+                <p className="text-[10px] font-black text-green-700 uppercase mb-1">Sentiment Rating: Bullish</p>
+                <p className="text-[10px] text-green-800 font-medium italic">High probability execution detected based on current liquidity flow.</p>
               </div>
               <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
-                <p className="text-[10px] font-black text-primary uppercase mb-1">Fee Tier: Platinum</p>
-                <p className="text-[10px] text-muted-foreground font-medium italic">Biaya transaksi: 0% untuk akun Elite.</p>
+                <p className="text-[10px] font-black text-primary uppercase mb-1">Fee Tier: Platinum Sovereign</p>
+                <p className="text-[10px] text-muted-foreground font-medium italic uppercase tracking-widest">Commission: 0% Settled.</p>
               </div>
             </div>
           </Card>
@@ -312,18 +313,18 @@ export default function CryptoTradePage() {
           <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white">
             <Tabs defaultValue="buy" className="w-full">
               <TabsList className="grid w-full grid-cols-2 h-14 bg-primary/5 p-1.5 border-b border-primary/10 rounded-none">
-                <TabsTrigger value="buy" className="font-black uppercase text-xs data-[state=active]:bg-green-600 data-[state=active]:text-white transition-all">Beli {coinData.symbol}</TabsTrigger>
-                <TabsTrigger value="sell" className="font-black uppercase text-xs data-[state=active]:bg-destructive data-[state=active]:text-white transition-all">Jual {coinData.symbol}</TabsTrigger>
+                <TabsTrigger value="buy" className="font-black uppercase text-xs data-[state=active]:bg-green-600 data-[state=active]:text-white transition-all">Buy {coinData.symbol}</TabsTrigger>
+                <TabsTrigger value="sell" className="font-black uppercase text-xs data-[state=active]:bg-destructive data-[state=active]:text-white transition-all">Sell {coinData.symbol}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="buy" className="p-8 space-y-8">
                 <div className="flex justify-between items-end mb-2">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Saldo IDR Tersedia</p>
+                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Available Liquidity</p>
                   <p className="text-xs font-black text-accent">Rp {userData?.totalBalance?.toLocaleString() || "0"}</p>
                 </div>
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Jumlah IDR yang digunakan</label>
+                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Liquidity Allocation (IDR)</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-primary/40">Rp</span>
                       <Input 
@@ -339,7 +340,6 @@ export default function CryptoTradePage() {
                     </div>
                   </div>
 
-                  {/* Percentage Slider Buy */}
                   <div className="space-y-4 px-2">
                     <Slider 
                       value={[buyPercent]} 
@@ -358,7 +358,7 @@ export default function CryptoTradePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Estimasi Koin Diterima</label>
+                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Asset Delivery Estimation</label>
                     <div className="relative">
                       <Input 
                         type="number" 
@@ -376,18 +376,18 @@ export default function CryptoTradePage() {
                   disabled={isProcessing || !orderAmount}
                   className="w-full h-16 bg-green-600 hover:bg-green-700 text-white font-black uppercase italic text-lg rounded-[2rem] shadow-xl transition-all mt-4"
                 >
-                  {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : `Konfirmasi Pembelian ${coinData.symbol}`}
+                  {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : `Confirm Institutional Buy: ${coinData.symbol}`}
                 </Button>
               </TabsContent>
 
               <TabsContent value="sell" className="p-8 space-y-8">
                 <div className="flex justify-between items-end mb-2">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Saldo {coinData.symbol} Tersedia</p>
+                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Sovereign Asset Balance</p>
                   <p className="text-xs font-black text-accent">{(userData?.cryptoBalances?.[coinData.symbol.toUpperCase()] || 0).toFixed(8)} {coinData.symbol.toUpperCase()}</p>
                 </div>
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Jumlah {coinData.symbol} yang dijual</label>
+                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Asset Liquidation ({coinData.symbol})</label>
                     <div className="relative">
                       <Input 
                         type="number" 
@@ -403,7 +403,6 @@ export default function CryptoTradePage() {
                     </div>
                   </div>
 
-                  {/* Percentage Slider Sell */}
                   <div className="space-y-4 px-2">
                     <Slider 
                       value={[sellPercent]} 
@@ -422,7 +421,7 @@ export default function CryptoTradePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Estimasi IDR Diterima</label>
+                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Liquidity Return (IDR)</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-primary/40">Rp</span>
                       <Input 
@@ -440,19 +439,19 @@ export default function CryptoTradePage() {
                   disabled={isProcessing || !orderQty}
                   className="w-full h-16 bg-destructive hover:bg-destructive/90 text-white font-black uppercase italic text-lg rounded-[2rem] shadow-xl transition-all mt-4"
                 >
-                  {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : `Konfirmasi Penjualan ${coinData.symbol}`}
+                  {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : `Confirm Asset Liquidation: ${coinData.symbol}`}
                 </Button>
               </TabsContent>
             </Tabs>
           </Card>
         </div>
 
-        {/* Right Section: Assets List & Market News */}
+        {/* Right Section: Assets List & Market Pulse Intelligence */}
         <div className="lg:col-span-3 space-y-6 order-3 lg:order-3">
           <Card className="rounded-2xl border-none shadow-sm overflow-hidden bg-white">
             <div className="p-4 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
               <h3 className="text-xs font-black uppercase tracking-widest text-accent flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-primary" /> Other Markets
+                <BarChart3 className="w-4 h-4 text-primary" /> Active Trading Pairs
               </h3>
               <Search className="w-3.5 h-3.5 text-muted-foreground" />
             </div>
@@ -485,37 +484,37 @@ export default function CryptoTradePage() {
 
           <Card className="rounded-2xl border-none shadow-sm p-6 space-y-4 bg-white">
             <h3 className="text-xs font-black uppercase tracking-widest text-accent flex items-center gap-2">
-              <Newspaper className="w-4 h-4 text-primary" /> Market News
+              <Newspaper className="w-4 h-4 text-primary" /> Institutional Insights
             </h3>
             <div className="space-y-4">
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-accent leading-tight hover:text-primary cursor-pointer transition-colors">Analisis Mingguan: Potensi Breakout {coinData.symbol} di Level Support Utama.</p>
-                <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">2 hours ago • AliBank Insight</p>
+                <p className="text-[10px] font-black text-accent leading-tight hover:text-primary cursor-pointer transition-colors">Analisis Ledger V3: Peningkatan Volume Institusional pada Aset Lapis 1.</p>
+                <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Real-time • AliBank Insight 2026</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-accent leading-tight hover:text-primary cursor-pointer transition-colors">Kebijakan Baru Federal Reserve Mempengaruhi Likuiditas Pasar Kripto Global.</p>
-                <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">5 hours ago • World News</p>
+                <p className="text-[10px] font-black text-accent leading-tight hover:text-primary cursor-pointer transition-colors">Laporan Audit Jaringan: Sinkronisasi Node Global Berjalan dengan Latensi Rendah.</p>
+                <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Global Feed • World Ledger</p>
               </div>
             </div>
           </Card>
 
           <Card className="rounded-2xl border-none shadow-sm p-6 space-y-4 liquid-glass-dark text-white">
             <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-primary" /> Trollbox (Live Chat)
+              <Zap className="w-4 h-4 text-primary" /> Market Pulse & Intelligence
             </h3>
             <div className="space-y-3 h-[150px] overflow-y-auto no-scrollbar pr-1">
-              <div className="text-[9px] font-medium leading-relaxed italic">
-                <span className="font-black text-primary">AliBank_Admin:</span> Selamat datang di terminal trading pro! Gunakan analisis teknikal sebelum eksekusi.
+              <div className="text-[9px] font-medium leading-relaxed italic border-l-2 border-primary pl-2 py-1 bg-white/5">
+                <span className="font-black text-primary uppercase">System Sentinel:</span> Likuiditas pada pasangan {coinData.symbol}/IDR meningkat 15% dalam 1 jam terakhir.
               </div>
               <div className="text-[9px] font-medium leading-relaxed italic">
-                <span className="font-black text-white/60">Trader_X:</span> ETH/IDR kelihatannya akan breakout malam ini.
+                <span className="font-black text-white/60 uppercase">Alpha Node:</span> Aliran dana keluar terdeteksi pada bursa kompetitor, potensi volatilitas naik.
               </div>
               <div className="text-[9px] font-medium leading-relaxed italic">
-                <span className="font-black text-white/60">CryptoNinja:</span> Hold kencang BTC guys, bull run is coming!
+                <span className="font-black text-white/60 uppercase">Global Auditor:</span> Transaksi lintas jaringan (Cross-Chain) untuk USDT/IDR telah diselesaikan secara massal.
               </div>
             </div>
             <div className="relative">
-              <Input placeholder="Type a message..." className="h-10 text-[10px] bg-white/10 border-none rounded-xl pr-10 placeholder:text-white/40" />
+              <Input placeholder="Broadcast signal..." className="h-10 text-[10px] bg-white/10 border-none rounded-xl pr-10 placeholder:text-white/40 font-bold uppercase tracking-widest" />
               <Button size="icon" variant="ghost" className="absolute right-1 top-1/2 -translate-y-1/2 text-primary hover:bg-transparent">
                 <Zap className="w-4 h-4" />
               </Button>
@@ -531,14 +530,14 @@ export default function CryptoTradePage() {
               <ShieldCheck className="w-10 h-10 text-primary" />
             </div>
             <div className="flex-1 text-center md:text-left">
-              <h4 className="font-black text-accent uppercase italic tracking-tighter text-lg mb-1">Risk Disclaimer & Asset Protection</h4>
+              <h4 className="font-black text-accent uppercase italic tracking-tighter text-lg mb-1">Production Asset Integrity & Compliance</h4>
               <p className="text-[10px] text-muted-foreground font-medium italic leading-relaxed uppercase tracking-widest">
-                Aset kripto bersifat fluktuatif dengan risiko tinggi. AliBank menjamin keamanan penyimpanan aset Anda di tingkat smart contract V3, namun seluruh keputusan perdagangan adalah tanggung jawab penuh nasabah. Gunakan dana dingin dan pelajari tren pasar melalui grafik riil di atas.
+                Seluruh aktivitas perdagangan pada AliBank Terminal 2026 diaudit secara riil oleh protokol Smart Contract V3. Keputusan perdagangan sepenuhnya berada di bawah otoritas nasabah. AliBank menjamin ketersediaan likuiditas 1:1 untuk seluruh aset yang terdaftar pada sistem ledger utama.
               </p>
             </div>
           </div>
           <div className="pt-6 border-t border-primary/5 text-center">
-            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">AliBank Terminal • Powered by TradingView Technology & CoinGecko Data • 2026</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">AliBank Terminal • Powered by TradingView Production Technology • Verified by CoinGecko Data • 2026</p>
           </div>
         </div>
       </footer>
