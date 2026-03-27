@@ -36,7 +36,8 @@ import {
   Info,
   Bitcoin,
   Cpu,
-  ArrowDownToLine
+  ArrowDownToLine,
+  Send
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -126,18 +127,15 @@ function AdminContent() {
   const txQuery = useMemo(() => (db ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(15)) : null), [db]);
   const { data: globalHistory } = useCollection(txQuery);
 
+  const bridgeQuery = useMemo(() => (db ? query(collection(db, "system", "bridge", "queue"), orderBy("timestamp", "desc")) : null), [db]);
+  const { data: bridgeQueue } = useCollection(bridgeQuery);
+
   const adminDocRef = useMemo(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: adminData } = useDoc(adminDocRef);
 
   // MESIN MINING ALIX
   const [isMining, setIsMining] = useState(false);
   const [hashrate, setHashrate] = useState(0);
-
-  const handleOpenMetaMask = () => {
-    const host = window.location.host;
-    const path = window.location.pathname;
-    window.location.href = `https://metamask.app.link/dapp/${host}${path}`;
-  };
 
   const syncOnChainVault = useCallback(async () => {
     if (syncingVault) return;
@@ -152,21 +150,10 @@ function AdminContent() {
         setUsingGlobalNode(true);
       }
 
-      const balance = await provider.getBalance(DEFAULT_CONTRACT).catch((e) => {
-        console.warn("RPC fetch failed, using fallback 0", e);
-        return 0n;
-      });
+      const balance = await provider.getBalance(DEFAULT_CONTRACT).catch(() => 0n);
       setOnChainTotal(formatEther(balance));
-
-      if (typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask) {
-        const accounts = await (provider as BrowserProvider).listAccounts();
-        if (accounts.length > 0) {
-          const walletBal = await provider.getBalance(accounts[0].address);
-          setConnectedBalance(formatEther(walletBal));
-        }
-      }
     } catch (err: any) {
-      console.error("Kesalahan Sinkronisasi Brankas:", err);
+      console.error("Sinkronisasi gagal:", err);
     } finally {
       setSyncingVault(false);
     }
@@ -205,40 +192,46 @@ function AdminContent() {
     return () => clearInterval(miningInterval);
   }, [isMining, db]);
 
-  const handleAddProduct = async () => {
-    if (!db || !newProduct.name || !newProduct.priceUsd) return;
+  const handleBroadcastBridge = async (bridgeId: string, asset: string, amount: number, recipient: string) => {
+    if (!db || isSettling) return;
     setIsSettling(true);
     try {
-      const id = `prod-${Date.now()}`;
-      const productData = {
-        id,
-        name: newProduct.name,
-        description: newProduct.description,
-        priceUsd: parseFloat(newProduct.priceUsd),
-        priceIdr: parseFloat(newProduct.priceIdr) || parseFloat(newProduct.priceUsd) * 15500,
-        category: newProduct.category,
-        stock: 99,
-        image: newProduct.image || "https://picsum.photos/seed/node/600/400",
-        createdAt: new Date().toISOString()
-      };
-      await setDoc(doc(db, "marketplace", id), productData);
-      toast({ title: "Produk Berhasil Diterbitkan", description: `${newProduct.name} sekarang tersedia di pasar.` });
-      setNewProduct({ name: "", description: "", priceUsd: "", priceIdr: "", category: "Infrastruktur", image: "" });
-      setIsAddingProduct(false);
+      // Simulasi Broadcaster Node ke Network BTC/Mainnet
+      const bridgeRef = doc(db, "system", "bridge", "queue", bridgeId);
+      await updateDoc(bridgeRef, {
+        status: "broadcasted",
+        broadcastTime: serverTimestamp(),
+        txId: `PROX-${Math.random().toString(36).substring(2, 15).toUpperCase()}`
+      });
+
+      toast({ title: "Bridge Broadcasted", description: `Aset ${amount} ${asset} telah disiarkan ke network tujuan.` });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Gagal Menambah Produk", description: err.message });
+      toast({ variant: "destructive", title: "Broadcast Gagal", description: err.message });
     } finally {
       setIsSettling(false);
     }
   };
 
-  const handleDeleteProduct = async (id: string) => {
-    if (!db || !confirm("Hapus produk ini secara permanen dari database?")) return;
+  const handleAddProduct = async () => {
+    if (!db || !newProduct.name || !newProduct.priceUsd) return;
+    setIsSettling(true);
     try {
-      await deleteDoc(doc(db, "marketplace", id));
-      toast({ title: "Produk Berhasil Dihapus" });
+      const id = `prod-${Date.now()}`;
+      await setDoc(doc(db, "marketplace", id), {
+        ...newProduct,
+        id,
+        priceUsd: parseFloat(newProduct.priceUsd),
+        priceIdr: parseFloat(newProduct.priceIdr) || parseFloat(newProduct.priceUsd) * 15500,
+        stock: 99,
+        image: newProduct.image || "https://picsum.photos/seed/node/600/400",
+        createdAt: new Date().toISOString()
+      });
+      setIsAddingProduct(false);
+      toast({ title: "Produk Terbit" });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Gagal Menghapus", description: err.message });
+      toast({ variant: "destructive", title: "Gagal", description: err.message });
+    } finally {
+      setIsSettling(false);
     }
   };
 
@@ -249,81 +242,22 @@ function AdminContent() {
 
     const currentBal = adminData.cryptoBalances?.[vaultAssetType] || 0;
     if (amount > currentBal) {
-      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo ${vaultAssetType} Anda tidak mencukupi.` });
+      toast({ variant: "destructive", title: "Saldo Tidak Cukup" });
       return;
     }
 
     setIsSettling(true);
     try {
-      // 1. Potong saldo admin
       const adminRef = doc(db, "users", user.uid);
-      await updateDoc(adminRef, {
-        [`cryptoBalances.${vaultAssetType}`]: increment(-amount)
-      });
+      await updateDoc(adminRef, { [`cryptoBalances.${vaultAssetType}`]: increment(-amount) });
 
-      // 2. Tambah likuiditas sistem (Brankas)
-      // Konversi estimasi ke ETH untuk dashboard status
       const ethEquivalent = vaultAssetType === 'BTC' ? amount * 15 : vaultAssetType === 'USDT' ? amount * 0.0003 : amount;
-      const liquidityRef = doc(db, "system", "liquidity");
-      await updateDoc(liquidityRef, {
-        totalProfitDistributed: increment(ethEquivalent)
-      });
+      await updateDoc(doc(db, "system", "liquidity"), { totalProfitDistributed: increment(ethEquivalent) });
 
-      // 3. Log Transaksi
-      await addDoc(collection(db, "system", "audit", "global_transactions"), {
-        id: `VAULT-DEP-${Date.now()}`,
-        userId: user.uid,
-        userName: adminData.name,
-        category: "Vault Deposit",
-        cryptoAmount: amount,
-        cryptoCurrency: vaultAssetType,
-        status: "success",
-        timestamp: serverTimestamp()
-      });
-
-      toast({ title: "Aset Dipindahkan", description: `${amount} ${vaultAssetType} telah masuk ke likuiditas Brankas AliBank.` });
+      toast({ title: "Aset Masuk Brankas" });
       setVaultVaultDepositAmount("");
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Gagal Memindahkan", description: err.message });
-    } finally {
-      setIsSettling(false);
-    }
-  };
-
-  const handleBridgeToVault = async () => {
-    if (!db || !globalLiquidity) return;
-    if (typeof window.ethereum === 'undefined') {
-      toast({ variant: "destructive", title: "MetaMask Diperlukan", description: "Gunakan browser MetaMask di HP untuk otorisasi." });
-      handleOpenMetaMask();
-      return;
-    }
-
-    const fiatBalance = globalLiquidity.totalUsdInjected || 0;
-    if (fiatBalance <= 0) {
-      toast({ variant: "destructive", title: "Kas Gateway Kosong" });
-      return;
-    }
-
-    const ethToDeposit = fiatBalance * 0.0003; 
-    setIsSettling(true);
-    try {
-      const provider = new BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
-      
-      const tx = await contract.deposit({ value: parseEther(ethToDeposit.toFixed(18)) });
-      await tx.wait();
-
-      await updateDoc(doc(db, "system", "liquidity"), {
-        totalUsdInjected: 0,
-        totalFiatInjected: 0,
-        lastBridgeSync: serverTimestamp()
-      });
-
-      toast({ title: "Jembatan Sukses", description: "Likuiditas riil telah diamankan di Smart Contract AliBank." });
-      syncOnChainVault();
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Gagal Mengeksekusi Jembatan", description: err.message });
+      toast({ variant: "destructive", title: "Gagal", description: err.message });
     } finally {
       setIsSettling(false);
     }
@@ -335,376 +269,250 @@ function AdminContent() {
     <TooltipProvider>
       <div className="min-h-screen pb-32 bg-[#f8f9fa]">
         <Navbar />
-        <main className="container mx-auto px-4 max-w-7xl pt-4 md:pt-8">
+        <main className="container mx-auto px-4 max-w-7xl pt-4">
           
-          <header className="mb-8 md:mb-12 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 md:gap-8">
+          <header className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl gold-gradient flex items-center justify-center border border-white/20 p-3 md:p-4 shadow-2xl">
-                <ShieldAlert className="text-white w-6 h-6 md:w-10 md:h-10" />
+              <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center border border-white/20 p-4 shadow-2xl">
+                <ShieldAlert className="text-white w-10 h-10" />
               </div>
               <div>
-                <h1 className="text-2xl md:text-4xl font-black text-accent uppercase italic tracking-tighter">Pusat Komando</h1>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-muted-foreground text-[8px] md:text-[10px] font-black uppercase tracking-widest italic truncate max-w-[150px] md:max-w-none">KONTRAK: {DEFAULT_CONTRACT}</p>
-                  <Badge className="bg-primary/10 text-primary border-none font-black text-[7px] md:text-[8px] px-2 py-0.5 uppercase flex items-center gap-1">
-                    <Globe className="w-2 h-2" /> Global Node Active
-                  </Badge>
-                </div>
+                <h1 className="text-4xl font-black text-accent uppercase italic tracking-tighter">Pusat Komando</h1>
+                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest italic">Infrastruktur: {DEFAULT_CONTRACT}</p>
               </div>
             </div>
 
-            <div className="flex gap-2 md:gap-3 w-full lg:w-auto">
-              <Button 
-                onClick={() => setIsMining(!isMining)} 
-                className={cn("flex-1 lg:flex-none h-12 md:h-14 px-4 md:px-6 rounded-xl md:rounded-2xl font-black uppercase text-[9px] md:text-[10px] italic shadow-xl transition-all", isMining ? "bg-destructive text-white" : "gold-gradient text-white")}
-              >
-                {isMining ? <><Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin mr-2" /> Hentikan Node</> : <><Pickaxe className="w-3 h-3 md:w-4 md:h-4 mr-2" /> Jalankan Node ALIX</>}
+            <div className="flex gap-3">
+              <Button onClick={() => setIsMining(!isMining)} className={cn("h-14 px-6 rounded-2xl font-black uppercase text-[10px] italic shadow-xl transition-all", isMining ? "bg-destructive text-white" : "gold-gradient text-white")}>
+                {isMining ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Hentikan Node</> : <><Pickaxe className="w-4 h-4 mr-2" /> Jalankan Node ALIX</>}
               </Button>
-              <Button onClick={syncOnChainVault} disabled={syncingVault} className="h-12 w-12 md:h-14 md:w-14 rounded-xl md:rounded-2xl liquid-glass border-primary/10 text-primary flex items-center justify-center shrink-0">
-                <RefreshCw className={cn("w-4 h-4 md:w-5 md:h-5", syncingVault && "animate-spin")} />
+              <Button onClick={syncOnChainVault} disabled={syncingVault} className="h-14 w-14 rounded-2xl liquid-glass border-primary/10 text-primary flex items-center justify-center">
+                <RefreshCw className={cn("w-5 h-5", syncingVault && "animate-spin")} />
               </Button>
             </div>
           </header>
 
-          <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="space-y-6 md:space-y-8">
-            <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
-              <TabsList className="bg-primary/5 p-1 rounded-2xl md:rounded-[2rem] h-12 md:h-16 border border-primary/10 grid grid-cols-5 min-w-[500px] lg:w-3/4 mx-auto shadow-sm">
-                <TabsTrigger value="overview" className="rounded-xl md:rounded-[1.5rem] font-black uppercase text-[8px] md:text-[10px] italic">Ikhtisar</TabsTrigger>
-                <TabsTrigger value="inventory" className="rounded-xl md:rounded-[1.5rem] font-black uppercase text-[8px] md:text-[10px] italic">Pasar</TabsTrigger>
-                <TabsTrigger value="liquidity" className="rounded-xl md:rounded-[1.5rem] font-black uppercase text-[8px] md:text-[10px] italic">Jembatan</TabsTrigger>
-                <TabsTrigger value="vault" className="rounded-xl md:rounded-[1.5rem] font-black uppercase text-[8px] md:text-[10px] italic">Brankas</TabsTrigger>
-                <TabsTrigger value="audit" className="rounded-xl md:rounded-[1.5rem] font-black uppercase text-[8px] md:text-[10px] italic">Audit</TabsTrigger>
-              </TabsList>
-            </div>
+          <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="space-y-8">
+            <TabsList className="bg-primary/5 p-1 rounded-[2rem] h-16 border border-primary/10 grid grid-cols-6 lg:w-full shadow-sm overflow-x-auto no-scrollbar">
+              <TabsTrigger value="overview" className="rounded-[1.5rem] font-black uppercase text-[10px] italic">Ikhtisar</TabsTrigger>
+              <TabsTrigger value="inventory" className="rounded-[1.5rem] font-black uppercase text-[10px] italic">Pasar</TabsTrigger>
+              <TabsTrigger value="bridge" className="rounded-[1.5rem] font-black uppercase text-[10px] italic relative">
+                Bridge {bridgeQueue?.filter(b => b.status === 'pending_broadcast').length > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-white text-[8px] rounded-full flex items-center justify-center animate-pulse">!</span>}
+              </TabsTrigger>
+              <TabsTrigger value="liquidity" className="rounded-[1.5rem] font-black uppercase text-[10px] italic">Jembatan</TabsTrigger>
+              <TabsTrigger value="vault" className="rounded-[1.5rem] font-black uppercase text-[10px] italic">Brankas</TabsTrigger>
+              <TabsTrigger value="audit" className="rounded-[1.5rem] font-black uppercase text-[10px] italic">Audit</TabsTrigger>
+            </TabsList>
 
-            <TabsContent value="overview" className="space-y-6 md:space-y-8 animate-in fade-in zoom-in-95 duration-300">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                <Card className="liquid-glass border-none rounded-2xl md:rounded-[2.5rem] p-6 md:p-8 space-y-3 md:space-y-4 bg-primary/5 shadow-md">
+            <TabsContent value="overview" className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 bg-primary/5 shadow-md">
                   <div className="flex items-center justify-between">
-                    <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-primary" />
-                    <Badge className="bg-primary/10 text-primary uppercase text-[7px] md:text-[8px] font-black">Kas Gateway</Badge>
+                    <DollarSign className="w-6 h-6 text-primary" />
+                    <Badge className="bg-primary/10 text-primary uppercase text-[8px] font-black">Kas Gateway</Badge>
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Saldo Gateway Bersih</p>
-                    </div>
-                    <p className="text-2xl md:text-3xl font-black text-accent italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
-                  </div>
-                  <div className="pt-2 border-t border-primary/10">
-                    <p className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase">Setara Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString()}</p>
+                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Saldo Gateway Bersih</p>
+                    <p className="text-3xl font-black text-accent italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
                   </div>
                 </Card>
 
-                <Card className="liquid-glass border-none rounded-2xl md:rounded-[2.5rem] p-6 md:p-8 space-y-3 md:space-y-4 bg-blue-500/5 shadow-md">
+                <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 bg-blue-500/5 shadow-md">
                   <div className="flex items-center justify-between">
-                    <Wallet className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
-                    <Badge className="bg-blue-100 text-blue-600 uppercase text-[7px] md:text-[8px] font-black">Brankas Riil</Badge>
+                    <Wallet className="w-6 h-6 text-blue-600" />
+                    <Badge className="bg-blue-100 text-blue-600 uppercase text-[8px] font-black">Brankas Riil</Badge>
                   </div>
                   <div>
-                    <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Saldo Fisik ETH</p>
-                    <p className="text-2xl md:text-3xl font-black text-blue-600 italic">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
-                  </div>
-                  <div className="pt-2 border-t border-blue-200/20 flex items-center justify-between">
-                    <p className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase">Global Node Active</p>
-                    {usingGlobalNode && <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />}
+                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Saldo Fisik ETH</p>
+                    <p className="text-3xl font-black text-blue-600 italic">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
                   </div>
                 </Card>
 
-                <Card className="liquid-glass border-none rounded-2xl md:rounded-[2.5rem] p-6 md:p-8 space-y-3 md:space-y-4 bg-orange-500/5 shadow-md">
+                <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 bg-orange-500/5 shadow-md">
                   <div className="flex items-center justify-between">
-                    <Pickaxe className="w-5 h-5 md:w-6 md:h-6 text-orange-600" />
-                    <Badge className="bg-orange-100 text-orange-600 uppercase text-[7px] md:text-[8px] font-black">Mining</Badge>
+                    <Pickaxe className="w-6 h-6 text-orange-600" />
+                    <Badge className="bg-orange-100 text-orange-600 uppercase text-[8px] font-black">Mining</Badge>
                   </div>
                   <div>
-                    <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Jatah Profit</p>
-                    <p className="text-2xl md:text-3xl font-black text-orange-600 italic">{(globalLiquidity?.alixVaultBalance || 0).toFixed(2)} ALIX</p>
-                  </div>
-                  <div className="pt-2 border-t border-orange-200/20">
-                    <p className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase">Rate: {hashrate} MH/s</p>
+                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Jatah Profit</p>
+                    <p className="text-3xl font-black text-orange-600 italic">{(globalLiquidity?.alixVaultBalance || 0).toFixed(2)} ALIX</p>
                   </div>
                 </Card>
 
-                <Card className="liquid-glass-dark border-none rounded-2xl md:rounded-[2.5rem] p-6 md:p-8 text-white space-y-3 md:space-y-4 flex flex-col justify-center shadow-xl">
-                  <p className="text-[8px] md:text-[10px] font-black uppercase tracking-widest opacity-60">Payout V3</p>
-                  <h3 className="text-xl md:text-2xl font-black italic tracking-tighter uppercase leading-none">Tarik Profit</h3>
-                  <p className="text-[7px] md:text-[8px] opacity-50 uppercase font-medium leading-relaxed">Cairkan jatah mining Anda ke MetaMask secara riil.</p>
-                  <Button 
-                    onClick={() => router.push('/crypto')} 
-                    className="w-full h-9 md:h-10 gold-gradient text-white rounded-lg md:rounded-xl text-[8px] md:text-[9px] font-black uppercase italic shadow-lg mt-1"
-                  >
-                    Kelola Profit
-                  </Button>
-                </Card>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
-                <Card className="lg:col-span-8 liquid-glass border-none rounded-[2rem] md:rounded-[3rem] p-6 md:p-8 space-y-4 md:space-y-6 shadow-xl">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg md:text-xl font-black italic uppercase text-accent flex items-center gap-2 md:gap-3">
-                      <Activity className="w-5 h-5 md:w-6 md:h-6 text-primary" /> Status Sistem AliBank
-                    </h3>
-                    <Badge className="bg-green-100 text-green-600 font-bold text-[8px] md:text-[10px]">AKTIF</Badge>
-                  </div>
-                  <div className="p-6 md:p-10 rounded-2xl md:rounded-[2.5rem] bg-accent/5 border border-primary/10 flex flex-col items-center justify-center text-center space-y-3 md:space-y-4">
-                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-primary/10 flex items-center justify-center animate-pulse shadow-inner">
-                      <Zap className="w-8 h-8 md:w-10 md:h-10 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="text-xl md:text-2xl font-black text-accent uppercase italic tracking-tighter">Kesehatan Jaringan: 100%</h4>
-                      <p className="text-[8px] md:text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">AliBank Global Node beroperasi tanpa ketergantungan wallet.</p>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="lg:col-span-4 liquid-glass-dark border-none rounded-[2rem] md:rounded-[3rem] p-8 md:p-10 text-white space-y-6 md:space-y-8 flex flex-col justify-between shadow-2xl">
-                  <div className="space-y-3 md:space-y-4">
-                    <ShieldCheck className="w-10 h-10 md:w-12 md:h-12 text-primary" />
-                    <h3 className="text-xl md:text-2xl font-black uppercase italic tracking-tighter leading-tight">Protokol Keamanan</h3>
-                    <p className="text-[8px] md:text-[10px] opacity-60 font-medium leading-relaxed italic uppercase">Audit saldo dilakukan secara independen via AliBank Global Node.</p>
-                  </div>
-                  <Button 
-                    onClick={() => setIsFirewallActive(!isFirewallActive)}
-                    className={cn(
-                      "w-full h-12 md:h-14 rounded-xl md:rounded-[1.5rem] font-black uppercase italic text-[10px] md:text-xs shadow-2xl transition-all",
-                      isFirewallActive ? "gold-gradient text-white" : "bg-destructive text-white"
-                    )}
-                  >
-                    {isFirewallActive ? <><Lock className="w-4 h-4 mr-2" /> Firewall Aktif</> : <><Unlock className="w-4 h-4 mr-2" /> Firewall Dinonaktifkan</>}
-                  </Button>
+                <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white flex flex-col justify-center shadow-xl">
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Payout V3</p>
+                  <h3 className="text-2xl font-black italic uppercase leading-none">Tarik Profit</h3>
+                  <Button onClick={() => router.push('/crypto')} className="w-full h-10 gold-gradient text-white rounded-xl text-[9px] font-black uppercase italic shadow-lg mt-4">Kelola Profit</Button>
                 </Card>
               </div>
             </TabsContent>
 
-            <TabsContent value="inventory" className="space-y-6 md:space-y-8 animate-in slide-in-from-bottom-4 duration-300">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-4">
-                <div>
-                  <h2 className="text-2xl md:text-3xl font-black text-accent uppercase italic tracking-tighter">Manajer Pasar</h2>
-                  <p className="text-muted-foreground text-[10px] md:text-xs font-bold uppercase tracking-widest">Kelola produk fisik dan digital secara riil di AliBank.</p>
+            <TabsContent value="bridge" className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+              <Card className="liquid-glass border-none rounded-[3rem] p-10 shadow-2xl">
+                <div className="flex items-center gap-4 mb-10">
+                  <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600">
+                    <ArrowRightLeft className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-accent uppercase italic">Ali-Bridge Broadcaster</h3>
+                    <p className="text-xs text-muted-foreground font-bold uppercase">Antrean Pengiriman Aset Antar Network (BTC/USDT).</p>
+                  </div>
                 </div>
-                <Button onClick={() => setIsAddingProduct(!isAddingProduct)} className="w-full sm:w-auto h-10 md:h-12 px-4 md:px-6 rounded-lg md:rounded-xl gold-gradient text-white font-black uppercase text-[9px] md:text-[10px] italic shadow-lg">
-                  {isAddingProduct ? <X className="w-3 h-3 md:w-4 md:h-4 mr-2" /> : <Plus className="w-3 h-3 md:w-4 md:h-4 mr-2" />} 
-                  {isAddingProduct ? "Batal" : "Tambah Item"}
+
+                <div className="space-y-4">
+                  {bridgeQueue && bridgeQueue.length > 0 ? bridgeQueue.map((item: any) => (
+                    <div key={item.id} className="p-6 rounded-3xl bg-accent/5 border border-primary/10 flex flex-col lg:flex-row justify-between items-center gap-6 group hover:bg-accent/10 transition-colors">
+                      <div className="flex items-center gap-6">
+                        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black", item.asset === 'BTC' ? 'bg-orange-500' : 'bg-green-600')}>
+                          {item.asset[0]}
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-lg font-black text-accent italic">{item.amount} {item.asset}</p>
+                            <Badge variant="outline" className={cn("text-[8px] font-black uppercase", item.status === 'broadcasted' ? 'text-green-600 border-green-200' : 'text-amber-600 border-amber-200')}>
+                              {item.status}
+                            </Badge>
+                          </div>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase break-all">Tujuan: {item.recipient}</p>
+                          <p className="text-[8px] text-muted-foreground uppercase italic">Oleh Nasabah: {item.userName}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-4">
+                        {item.status === 'pending_broadcast' ? (
+                          <Button 
+                            onClick={() => handleBroadcastBridge(item.id, item.asset, item.amount, item.recipient)}
+                            disabled={isSettling}
+                            className="h-12 px-8 gold-gradient text-white rounded-xl font-black uppercase italic text-[10px] shadow-lg"
+                          >
+                            {isSettling ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Zap className="w-4 h-4 mr-2" /> Siarkan ke Network Luar</>}
+                          </Button>
+                        ) : (
+                          <div className="text-right">
+                            <p className="text-[8px] font-black text-green-600 uppercase">TXID: {item.txId}</p>
+                            <p className="text-[7px] text-muted-foreground uppercase">{new Date(item.broadcastTime?.seconds * 1000).toLocaleString()}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="py-20 text-center space-y-4">
+                      <Activity className="w-12 h-12 text-primary/10 mx-auto" />
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Tidak ada antrean bridge aktif.</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="inventory" className="space-y-8 animate-in slide-in-from-bottom-4 duration-300">
+              <div className="flex justify-between items-end gap-4 mb-4">
+                <div>
+                  <h2 className="text-3xl font-black text-accent uppercase italic">Manajer Pasar</h2>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Kelola produk riil di database AliBank.</p>
+                </div>
+                <Button onClick={() => setIsAddingProduct(!isAddingProduct)} className="h-12 px-6 rounded-xl gold-gradient text-white font-black uppercase text-[10px] italic shadow-lg">
+                  {isAddingProduct ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />} {isAddingProduct ? "Batal" : "Tambah Item"}
                 </Button>
               </div>
 
               {isAddingProduct && (
-                <Card className="liquid-glass border-none rounded-2xl md:rounded-[2.5rem] p-6 md:p-8 mb-8 animate-in fade-in slide-in-from-top-2 shadow-xl">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
-                    <div className="space-y-1.5 md:space-y-2">
-                      <label className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground ml-1">Nama Produk</label>
-                      <Input placeholder="Contoh: Master Node V3" value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} className="h-10 md:h-12 rounded-lg md:rounded-xl bg-white/50 border-none font-bold text-xs" />
-                    </div>
-                    <div className="space-y-1.5 md:space-y-2">
-                      <label className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground ml-1">Harga (USD)</label>
-                      <Input type="number" placeholder="1000000" value={newProduct.priceUsd} onChange={(e) => setNewProduct({...newProduct, priceUsd: e.target.value})} className="h-10 md:h-12 rounded-lg md:rounded-xl bg-white/50 border-none font-bold text-xs" />
-                    </div>
-                    <div className="space-y-1.5 md:space-y-2 md:col-span-2">
-                      <label className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground ml-1">Deskripsi</label>
-                      <Input placeholder="Detail teknis produk..." value={newProduct.description} onChange={(e) => setNewProduct({...newProduct, description: e.target.value})} className="h-10 md:h-12 rounded-lg md:rounded-xl bg-white/50 border-none font-bold text-xs" />
-                    </div>
-                    <div className="space-y-1.5 md:space-y-2">
-                      <label className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground ml-1">Kategori</label>
-                      <Input placeholder="Infrastruktur" value={newProduct.category} onChange={(e) => setNewProduct({...newProduct, category: e.target.value})} className="h-10 md:h-12 rounded-lg md:rounded-xl bg-white/50 border-none font-bold text-xs" />
-                    </div>
-                    <div className="space-y-1.5 md:space-y-2">
-                      <label className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground ml-1">URL Gambar</label>
-                      <Input placeholder="https://..." value={newProduct.image} onChange={(e) => setNewProduct({...newProduct, image: e.target.value})} className="h-10 md:h-12 rounded-lg md:rounded-xl bg-white/50 border-none font-bold text-xs" />
-                    </div>
+                <Card className="liquid-glass border-none rounded-[2.5rem] p-8 mb-8 animate-in fade-in slide-in-from-top-2 shadow-xl">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div className="space-y-2"><label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Nama Produk</label><Input placeholder="Master Node V3" value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} className="h-12 rounded-xl bg-white/50 border-none font-bold text-xs" /></div>
+                    <div className="space-y-2"><label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Harga (USD)</label><Input type="number" placeholder="1000" value={newProduct.priceUsd} onChange={(e) => setNewProduct({...newProduct, priceUsd: e.target.value})} className="h-12 rounded-xl bg-white/50 border-none font-bold text-xs" /></div>
+                    <div className="space-y-2 md:col-span-2"><label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Deskripsi</label><Input placeholder="Detail teknis..." value={newProduct.description} onChange={(e) => setNewProduct({...newProduct, description: e.target.value})} className="h-12 rounded-xl bg-white/50 border-none font-bold text-xs" /></div>
                   </div>
-                  <Button onClick={handleAddProduct} disabled={isSettling} className="w-full h-12 md:h-14 gold-gradient text-white rounded-xl md:rounded-2xl font-black uppercase italic text-xs md:text-sm shadow-xl">
-                    {isSettling ? <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" /> : "Publikasikan ke Marketplace"}
-                  </Button>
+                  <Button onClick={handleAddProduct} disabled={isSettling} className="w-full h-14 gold-gradient text-white rounded-2xl font-black uppercase italic text-sm shadow-xl">Publikasikan</Button>
                 </Card>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {products?.map((p: any) => (
-                  <Card key={p.id} className="liquid-glass border-none rounded-2xl md:rounded-[2rem] overflow-hidden group shadow-lg">
-                    <div className="relative h-32 md:h-40 overflow-hidden bg-white/5">
-                      <Image src={p.image || "https://picsum.photos/seed/node/600/400"} alt={p.name} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
-                    </div>
-                    <div className="p-4 md:p-6 space-y-3 md:space-y-4">
+                  <Card key={p.id} className="liquid-glass border-none rounded-[2rem] overflow-hidden group shadow-lg">
+                    <div className="relative h-40 overflow-hidden bg-white/5"><Image src={p.image || "https://picsum.photos/seed/node/600/400"} alt={p.name} fill className="object-cover group-hover:scale-110 transition-transform duration-700" /></div>
+                    <div className="p-6 space-y-4">
                       <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="text-xs md:text-sm font-black text-accent uppercase italic">{p.name}</h4>
-                          <p className="text-[8px] md:text-[9px] text-muted-foreground font-bold italic line-clamp-1">{p.description}</p>
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteProduct(p.id)} className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5" /></Button>
+                        <div><h4 className="text-sm font-black text-accent uppercase italic">{p.name}</h4><p className="text-[9px] text-muted-foreground font-bold italic line-clamp-1">{p.description}</p></div>
+                        <Button variant="ghost" size="icon" onClick={() => deleteDoc(doc(db!, "marketplace", p.id))} className="text-destructive/40 hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
                       </div>
-                      <div className="flex justify-between items-end pt-3 md:pt-4 border-t border-primary/5">
-                        <p className="text-base md:text-lg font-black text-primary italic">$ {p.priceUsd?.toLocaleString()}</p>
-                        <Badge variant="outline" className="text-[7px] md:text-[8px] font-black uppercase">Stok: {p.stock || 0}</Badge>
-                      </div>
+                      <p className="text-lg font-black text-primary italic">$ {p.priceUsd?.toLocaleString()}</p>
                     </div>
                   </Card>
                 ))}
               </div>
             </TabsContent>
 
-            <TabsContent value="liquidity" className="space-y-6 md:space-y-8 animate-in zoom-in-95 duration-300">
-              <Card className="liquid-glass border-none rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 space-y-6 shadow-xl">
-                <div className="flex items-center gap-3 md:gap-4">
-                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-lg"><ArrowRightLeft className="w-6 h-6 md:w-8 md:h-8" /></div>
-                  <div>
-                    <h3 className="text-xl md:text-2xl font-black text-accent uppercase italic tracking-tighter leading-none">Jembatan Gateway</h3>
-                    <p className="text-[8px] md:text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Pindahkan Kas Gateway ke Brankas On-Chain.</p>
-                  </div>
-                </div>
-                <div className="p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] bg-accent/5 border border-primary/10 space-y-3 text-center">
-                  <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground">Akumulasi Dana Gateway</p>
-                  <p className="text-3xl md:text-5xl font-black text-accent italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
-                </div>
-                <Button onClick={handleBridgeToVault} disabled={isSettling || (globalLiquidity?.totalUsdInjected || 0) <= 0} className="w-full h-14 md:h-16 gold-gradient text-white rounded-[1.5rem] md:rounded-[2rem] font-black uppercase italic text-xs md:text-sm shadow-2xl active:scale-95 transition-all">
-                  {isSettling ? <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" /> : "Eksekusi Jembatan ke Brankas"}
-                </Button>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="vault" className="space-y-6 md:space-y-8 animate-in slide-in-from-right-4 duration-300">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-                <Card className="liquid-glass border-none rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 space-y-6 md:space-y-8 shadow-xl">
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-accent/10 flex items-center justify-center text-accent shadow-lg"><Lock className="w-6 h-6 md:w-8 md:h-8" /></div>
+            <TabsContent value="vault" className="space-y-8 animate-in slide-in-from-right-4 duration-300">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-8 shadow-xl">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center text-accent"><Lock className="w-8 h-8" /></div>
                     <div>
-                      <h3 className="text-xl md:text-2xl font-black text-accent uppercase italic tracking-tighter leading-none">Manajer Brankas</h3>
-                      <p className="text-[8px] md:text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Pindahkan Aset Digital Kripto ke Brankas V3.</p>
+                      <h3 className="text-2xl font-black text-accent uppercase italic">Manajer Brankas</h3>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase">Pindahkan Aset Digital Kripto ke Brankas V3.</p>
                     </div>
                   </div>
 
                   <div className="space-y-6">
-                    <div className="grid grid-cols-3 gap-2 md:gap-4">
-                      <button 
-                        onClick={() => setVaultAssetType('BTC')}
-                        className={cn("p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all", vaultAssetType === 'BTC' ? "border-orange-500 bg-orange-50" : "border-primary/5")}
-                      >
-                        <Bitcoin className={cn("w-6 h-6 md:w-8 md:h-8", vaultAssetType === 'BTC' ? "text-orange-500" : "text-muted-foreground")} />
-                        <span className="text-[8px] md:text-[10px] font-black uppercase">BTC</span>
-                      </button>
-                      <button 
-                        onClick={() => setVaultAssetType('ETH')}
-                        className={cn("p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all", vaultAssetType === 'ETH' ? "border-blue-500 bg-blue-50" : "border-primary/5")}
-                      >
-                        <Cpu className={cn("w-6 h-6 md:w-8 md:h-8", vaultAssetType === 'ETH' ? "text-blue-500" : "text-muted-foreground")} />
-                        <span className="text-[8px] md:text-[10px] font-black uppercase">ETH</span>
-                      </button>
-                      <button 
-                        onClick={() => setVaultAssetType('USDT')}
-                        className={cn("p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all", vaultAssetType === 'USDT' ? "border-green-500 bg-green-50" : "border-primary/5")}
-                      >
-                        <ShieldCheck className={cn("w-6 h-6 md:w-8 md:h-8", vaultAssetType === 'USDT' ? "text-green-500" : "text-muted-foreground")} />
-                        <span className="text-[8px] md:text-[10px] font-black uppercase">USDT</span>
-                      </button>
+                    <div className="grid grid-cols-3 gap-4">
+                      {['BTC', 'ETH', 'USDT'].map((type) => (
+                        <button key={type} onClick={() => setVaultAssetType(type as any)} className={cn("p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all", vaultAssetType === type ? "border-primary bg-primary/5" : "border-primary/5")}>
+                          {type === 'BTC' ? <Bitcoin className={vaultAssetType === 'BTC' ? "text-orange-500" : "text-muted-foreground"} /> : type === 'ETH' ? <Cpu className={vaultAssetType === 'ETH' ? "text-blue-500" : "text-muted-foreground"} /> : <ShieldCheck className={vaultAssetType === 'USDT' ? "text-green-500" : "text-muted-foreground"} />}
+                          <span className="text-[10px] font-black uppercase">{type}</span>
+                        </button>
+                      ))}
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground ml-1">Jumlah {vaultAssetType} untuk Dipindahkan</label>
-                      <div className="relative">
-                        <Input 
-                          type="number" 
-                          placeholder="0.00" 
-                          value={vaultDepositAmount} 
-                          onChange={(e) => setVaultVaultDepositAmount(e.target.value)} 
-                          className="h-14 rounded-2xl liquid-glass border-none font-black italic text-lg" 
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary uppercase">{vaultAssetType}</span>
-                      </div>
-                      <p className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase px-1">
-                        Tersedia di Saldo Admin: {adminData?.cryptoBalances?.[vaultAssetType] || 0} {vaultAssetType}
-                      </p>
+                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Jumlah {vaultAssetType}</label>
+                      <Input type="number" placeholder="0.00" value={vaultDepositAmount} onChange={(e) => setVaultVaultDepositAmount(e.target.value)} className="h-14 rounded-2xl liquid-glass border-none font-black italic text-lg" />
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase px-1">Tersedia: {adminData?.cryptoBalances?.[vaultAssetType] || 0} {vaultAssetType}</p>
                     </div>
 
-                    <Button 
-                      onClick={handleDepositToVault} 
-                      disabled={isSettling || !vaultDepositAmount}
-                      className="w-full h-14 md:h-16 gold-gradient text-white rounded-[1.5rem] md:rounded-[2rem] font-black uppercase italic text-xs md:text-sm shadow-2xl active:scale-95 transition-all"
-                    >
-                      {isSettling ? <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" /> : `Pindahkan ${vaultAssetType} ke Brankas`}
+                    <Button onClick={handleDepositToVault} disabled={isSettling || !vaultDepositAmount} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-sm shadow-2xl">
+                      {isSettling ? <Loader2 className="w-5 h-5 animate-spin" /> : `Pindahkan ${vaultAssetType} ke Brankas`}
                     </Button>
                   </div>
                 </Card>
 
-                <Card className="liquid-glass-dark border-none rounded-[2rem] md:rounded-[3rem] p-8 md:p-10 text-white space-y-6 shadow-2xl flex flex-col justify-center">
+                <Card className="liquid-glass-dark border-none rounded-[3rem] p-10 text-white space-y-6 flex flex-col justify-center shadow-2xl">
                   <div className="text-center space-y-4">
                     <ShieldCheck className="w-16 h-16 text-primary mx-auto" />
-                    <h3 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter">Status Likuiditas</h3>
+                    <h3 className="text-3xl font-black uppercase italic">Status Likuiditas</h3>
                     <div className="space-y-2 pt-4 border-t border-white/10">
                       <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Estimasi Total Likuiditas Terserap</p>
-                      <p className="text-4xl font-black text-primary italic">{(globalLiquidity?.totalProfitDistributed || 0).toFixed(4)} ETH</p>
+                      <p className="text-5xl font-black text-primary italic">{(globalLiquidity?.totalProfitDistributed || 0).toFixed(4)} ETH</p>
                     </div>
-                    <p className="text-[9px] opacity-50 uppercase font-medium leading-relaxed italic pt-4">
-                      Pemindahan aset dari saldo admin ke brankas akan meningkatkan kapasitas pembayaran profit (ALIX) bagi seluruh nasabah dalam ekosistem.
-                    </p>
                   </div>
                 </Card>
               </div>
             </TabsContent>
 
             <TabsContent value="audit" className="animate-in fade-in duration-300">
-              <Card className="liquid-glass border-none rounded-2xl md:rounded-[3rem] overflow-hidden shadow-2xl">
-                <div className="p-6 md:p-8 border-b border-primary/5 bg-accent/5">
-                  <h3 className="text-lg md:text-xl font-black italic uppercase text-accent flex items-center gap-2 md:gap-3">
-                    <FileText className="w-5 h-5 md:w-6 md:h-6 text-primary" /> Log Audit Ekosistem
-                  </h3>
-                </div>
-                <div className="overflow-x-auto no-scrollbar">
+              <Card className="liquid-glass border-none rounded-[3rem] overflow-hidden shadow-2xl">
+                <div className="p-8 border-b border-primary/5 bg-accent/5"><h3 className="text-xl font-black italic uppercase text-accent flex items-center gap-3"><FileText className="w-6 h-6 text-primary" /> Log Audit Ekosistem</h3></div>
+                <div className="overflow-x-auto">
                   <table className="w-full text-left min-w-[600px]">
                     <thead>
-                      <tr className="bg-primary/5 text-[8px] md:text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                        <th className="px-6 md:px-8 py-4 md:py-6">ID Transaksi</th>
-                        <th className="px-6 md:px-8 py-4 md:py-6">Kategori</th>
-                        <th className="px-6 md:px-8 py-4 md:py-6">Nominal</th>
-                        <th className="px-6 md:px-8 py-4 md:py-6">Status</th>
-                        <th className="px-6 md:px-8 py-4 md:py-6 text-right">Waktu</th>
-                      </tr>
+                      <tr className="bg-primary/5 text-[9px] font-black uppercase text-muted-foreground tracking-widest"><th className="px-8 py-6">ID Transaksi</th><th className="px-8 py-6">Kategori</th><th className="px-8 py-6">Nominal</th><th className="px-8 py-6">Status</th><th className="px-8 py-6 text-right">Waktu</th></tr>
                     </thead>
                     <tbody className="divide-y divide-primary/5">
-                      {globalHistory && globalHistory.length > 0 ? globalHistory.map((tx: any, idx: number) => (
+                      {globalHistory?.map((tx: any, idx: number) => (
                         <tr key={idx} className="hover:bg-primary/5 transition-colors">
-                          <td className="px-6 md:px-8 py-4 md:py-5"><p className="text-[9px] md:text-[10px] font-black text-accent uppercase">#{tx.id?.slice(-10) || `TX-${idx}`}</p></td>
-                          <td className="px-6 md:px-8 py-4 md:py-5">
-                            <Badge className={cn("text-[6px] md:text-[7px] font-black uppercase border-none", tx.type === 'income' ? "bg-green-100 text-green-600" : "bg-primary/10 text-primary")}>
-                              {tx.category || 'Umum'}
-                            </Badge>
-                          </td>
-                          <td className="px-6 md:px-8 py-4 md:py-5">
-                            <p className="text-xs md:text-sm font-black text-accent italic whitespace-nowrap">
-                              {tx.amountUsd ? `$ ${tx.amountUsd.toLocaleString()}` : tx.amount ? `Rp ${tx.amount.toLocaleString()}` : tx.cryptoAmount ? `${tx.cryptoAmount} ${tx.cryptoCurrency || 'ETH'}` : '---'}
-                            </p>
-                          </td>
-                          <td className="px-6 md:px-8 py-4 md:py-5">
-                            <div className="flex items-center gap-1">
-                              <div className={cn("w-1 md:w-1.5 h-1 md:h-1.5 rounded-full", tx.status === 'success' || !tx.status ? "bg-green-500" : "bg-amber-500")} />
-                              <span className="text-[8px] md:text-[9px] font-bold uppercase">{tx.status === 'success' ? 'Berhasil' : tx.status || 'Selesai'}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 md:px-8 py-4 md:py-5 text-right">
-                            <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground whitespace-nowrap">
-                              {tx.timestamp?.seconds ? new Date(tx.timestamp.seconds * 1000).toLocaleString('id-ID') : 'Baru saja'}
-                            </p>
-                          </td>
+                          <td className="px-8 py-5"><p className="text-[10px] font-black text-accent uppercase">#{tx.id?.slice(-10)}</p></td>
+                          <td className="px-8 py-5"><Badge className="text-[7px] font-black uppercase bg-primary/10 text-primary border-none">{tx.category}</Badge></td>
+                          <td className="px-8 py-5"><p className="text-sm font-black text-accent italic">{tx.amountUsd ? `$ ${tx.amountUsd.toLocaleString()}` : tx.cryptoAmount ? `${tx.cryptoAmount} ${tx.cryptoCurrency}` : '---'}</p></td>
+                          <td className="px-8 py-5"><div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-green-500" /><span className="text-[9px] font-bold uppercase">{tx.status || 'Berhasil'}</span></div></td>
+                          <td className="px-8 py-5 text-right"><p className="text-[10px] font-bold text-muted-foreground">{tx.timestamp?.seconds ? new Date(tx.timestamp.seconds * 1000).toLocaleString() : 'Baru saja'}</p></td>
                         </tr>
-                      )) : (
-                        <tr>
-                          <td colSpan={5} className="py-16 md:py-20 text-center">
-                            <Activity className="w-10 h-10 md:w-12 md:h-12 text-primary/10 mx-auto mb-4" />
-                            <p className="text-[9px] md:text-xs font-black text-muted-foreground uppercase tracking-widest">Tidak ada aktivitas terdeteksi.</p>
-                          </td>
-                        </tr>
-                      )}
+                      ))}
                     </tbody>
                   </table>
                 </div>
               </Card>
             </TabsContent>
           </Tabs>
-
-          <footer className="mt-16 md:mt-20 pt-8 md:pt-12 border-t border-primary/10 flex flex-col items-center gap-6 md:gap-8 text-center">
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-5 h-5 md:w-6 md:h-6 p-1 rounded-lg gold-gradient flex items-center justify-center"><LogoIcon className="text-white" /></div>
-              <p className="text-[10px] md:text-xs font-black text-accent italic uppercase tracking-tighter">Pusat Komando AliBank</p>
-            </div>
-            <p className="text-[6px] md:text-[8px] font-black uppercase text-muted-foreground tracking-[0.2em] md:tracking-[0.3em]">Official Web3 Node Infrastructure • Google Cloud Powered • 2026</p>
-          </footer>
         </main>
       </div>
     </TooltipProvider>

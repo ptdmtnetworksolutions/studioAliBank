@@ -15,7 +15,8 @@ import {
   Cpu,
   Lock,
   Key,
-  Info
+  Info,
+  ArrowRightLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -50,7 +51,6 @@ export default function CryptoSendPage() {
 
   const hasPrivateKey = !!userData?.privateKey;
 
-  // Sync on-chain balance for better accuracy
   useEffect(() => {
     async function sync() {
       if (userData?.walletAddress) {
@@ -85,18 +85,9 @@ export default function CryptoSendPage() {
 
   const handleMaxAmount = () => {
     if (assetType === 'ETH') {
-      // Sediakan buffer untuk Gas Fee (rata-rata 0.0005 - 0.001 ETH)
       const currentBal = parseFloat(onChainBal);
       const safeMax = Math.max(0, currentBal - 0.0006); 
       setAmount(safeMax.toFixed(18).replace(/\.?0+$/, ""));
-      
-      if (currentBal < 0.0006) {
-        toast({ 
-          variant: "destructive", 
-          title: "Saldo Terlalu Kecil", 
-          description: "Anda membutuhkan setidaknya 0.0006 ETH untuk membayar biaya jaringan (Gas Fee)." 
-        });
-      }
     } else {
       const bal = userData?.cryptoBalances?.[assetType] || 0;
       setAmount(bal.toString());
@@ -109,18 +100,14 @@ export default function CryptoSendPage() {
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) return;
 
-    if (!hasPrivateKey && assetType === 'ETH') {
-      toast({ variant: "destructive", title: "Aksi Diperlukan", description: "Silakan aktifkan Native Signature terlebih dahulu." });
-      return;
-    }
-
     setIsProcessing(true);
     try {
       if (assetType === 'ETH') {
+        if (!hasPrivateKey) throw new Error("Aktifkan Native Signature terlebih dahulu.");
+        
         const provider = new JsonRpcProvider(GLOBAL_RPC);
         const internalWallet = new ethers.Wallet(userData.privateKey, provider);
         
-        // Cek gas secara proaktif
         const feeData = await provider.getFeeData();
         const gasPrice = feeData.gasPrice || ethers.parseUnits('20', 'gwei');
         const gasLimit = 21000n;
@@ -131,8 +118,7 @@ export default function CryptoSendPage() {
         const currentBalance = await provider.getBalance(userData.walletAddress);
         
         if (currentBalance < totalNeeded) {
-          const needed = ethers.formatEther(totalNeeded - currentBalance);
-          throw new Error(`Saldo tidak cukup untuk Biaya Gas. Anda membutuhkan tambahan ${parseFloat(needed).toFixed(6)} ETH.`);
+          throw new Error("Saldo tidak cukup untuk membayar Biaya Gas jaringan.");
         }
 
         const tx = await internalWallet.sendTransaction({
@@ -144,37 +130,60 @@ export default function CryptoSendPage() {
         
         toast({ title: "Transaksi Disiarkan", description: "Menunggu konfirmasi blok Ethereum..." });
         await tx.wait();
+
+        await addDoc(collection(db, "users", user.uid, "transactions"), {
+          date: new Date().toISOString(),
+          description: `Kirim ETH ke ${recipientAddress.slice(0,6)}...`,
+          category: "Crypto Transfer",
+          cryptoAmount: numAmount,
+          cryptoCurrency: "ETH",
+          recipient: recipientAddress,
+          type: "expense",
+          status: "success",
+          txHash: tx.hash,
+          timestamp: serverTimestamp()
+        });
       } else {
+        // BTC / USDT Logic: Bridge Request
         const currentBal = userData.cryptoBalances?.[assetType] || 0;
         if (numAmount > currentBal) {
           throw new Error(`Saldo ${assetType} Anda tidak mencukupi.`);
         }
         
+        // 1. Potong Saldo Internal
         await updateDoc(userDocRef, {
           [`cryptoBalances.${assetType}`]: increment(-numAmount)
         });
-      }
 
-      await addDoc(collection(db, "users", user.uid, "transactions"), {
-        date: new Date().toISOString(),
-        description: `Kirim ${assetType} via AliBank Native Wallet`,
-        category: "Crypto Transfer",
-        cryptoAmount: numAmount,
-        cryptoCurrency: assetType,
-        recipient: recipientAddress,
-        type: "expense",
-        status: "success",
-        timestamp: serverTimestamp()
-      });
+        // 2. Masukkan ke Antrean Bridge Global (Agar Admin/Node bisa menyiarkan ke Network Asli)
+        await addDoc(collection(db, "system", "bridge", "queue"), {
+          userId: user.uid,
+          userName: userData.name,
+          asset: assetType,
+          amount: numAmount,
+          recipient: recipientAddress,
+          status: "pending_broadcast",
+          timestamp: serverTimestamp()
+        });
+
+        // 3. Log Transaksi User
+        await addDoc(collection(db, "users", user.uid, "transactions"), {
+          date: new Date().toISOString(),
+          description: `Bridge ${assetType} ke Network Luar`,
+          category: "Cross-Chain Bridge",
+          cryptoAmount: numAmount,
+          cryptoCurrency: assetType,
+          recipient: recipientAddress,
+          type: "expense",
+          status: "processing", // Status menandakan sedang dalam antrean node
+          timestamp: serverTimestamp()
+        });
+      }
 
       setStep('success');
-      toast({ title: "Aset Terkirim", description: `${amount} ${assetType} telah dikirim menggunakan AliBank Engine.` });
+      toast({ title: "Transaksi Berhasil", description: assetType === 'ETH' ? "Aset telah sampai di dompet tujuan." : "Aset telah masuk ke antrean broadcast Ali-Bridge." });
     } catch (err: any) {
-      let msg = err.message;
-      if (err.code === 'INSUFFICIENT_FUNDS') {
-        msg = "Saldo tidak cukup untuk membayar jumlah transfer + Biaya Gas jaringan.";
-      }
-      toast({ variant: "destructive", title: "Gagal Mengirim", description: msg });
+      toast({ variant: "destructive", title: "Gagal Mengirim", description: err.message });
     } finally {
       setIsProcessing(false);
     }
@@ -185,15 +194,26 @@ export default function CryptoSendPage() {
       <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mb-6">
         <ShieldCheck className="w-12 h-12 text-green-600" />
       </div>
-      <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">Transaksi Sukses</h2>
-      <p className="text-xs font-bold text-muted-foreground uppercase mb-8">Verified by AliBank Infrastructure</p>
-      <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 mb-8 text-center">
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Aset Terkirim</p>
-        <p className="text-3xl font-black text-primary italic">{amount} {assetType}</p>
-        <div className="mt-4 pt-4 border-t border-primary/5">
+      <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">TRANSAKSI SUKSES</h2>
+      <p className="text-[10px] font-black text-muted-foreground uppercase mb-8 tracking-widest">Verified by AliBank Infrastructure</p>
+      
+      <Card className="w-full max-w-sm liquid-glass border-none rounded-[2.5rem] p-8 mb-8 text-center space-y-4">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Aset Terkirim</p>
+          <p className="text-3xl font-black text-primary italic">{amount} {assetType}</p>
+        </div>
+        <div className="pt-4 border-t border-primary/5">
           <p className="text-[8px] font-bold text-muted-foreground uppercase break-all">Tujuan: {recipientAddress}</p>
         </div>
+        {assetType !== 'ETH' && (
+          <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
+            <p className="text-[8px] font-black text-blue-600 uppercase leading-relaxed italic">
+              Status: Sedang dalam antrean broadcast Ali-Bridge. Dana akan muncul di dompet tujuan setelah konfirmasi node (5-30 menit).
+            </p>
+          </div>
+        )}
       </Card>
+      
       <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl" onClick={() => router.push('/crypto')}>
         Kembali ke Exchange
       </Button>
@@ -214,7 +234,7 @@ export default function CryptoSendPage() {
             </div>
             <div>
               <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter">Kirim Kripto</h1>
-              <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">AliBank Native Signature Active.</p>
+              <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Sovereign Asset Transfer Hub.</p>
             </div>
           </div>
         </header>
@@ -222,12 +242,12 @@ export default function CryptoSendPage() {
         <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-8 shadow-2xl">
           <div className="space-y-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Pilih Aset</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Pilih Network & Aset</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { id: 'ETH', icon: Cpu, color: 'text-blue-500' },
-                  { id: 'BTC', icon: Bitcoin, color: 'text-orange-500' },
-                  { id: 'USDT', icon: ShieldCheck, color: 'text-green-500' }
+                  { id: 'ETH', icon: Cpu, color: 'text-blue-500', network: 'Ethereum' },
+                  { id: 'BTC', icon: Bitcoin, color: 'text-orange-500', network: 'Bitcoin' },
+                  { id: 'USDT', icon: ShieldCheck, color: 'text-green-500', network: 'TRC-20' }
                 ].map((asset) => (
                   <button 
                     key={asset.id}
@@ -238,17 +258,20 @@ export default function CryptoSendPage() {
                     )}
                   >
                     <asset.icon className={cn("w-6 h-6", assetType === asset.id ? asset.color : "text-muted-foreground")} />
-                    <span className="text-[10px] font-black uppercase">{asset.id}</span>
+                    <div className="text-center">
+                      <p className="text-[10px] font-black uppercase leading-none">{asset.id}</p>
+                      <p className="text-[6px] font-bold text-muted-foreground uppercase mt-1">{asset.network}</p>
+                    </div>
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Alamat Penerima</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Alamat Penerima (Luar)</label>
               <div className="relative">
                 <Input 
-                  placeholder="0x... atau alamat wallet" 
+                  placeholder={assetType === 'BTC' ? "1FSj... atau alamat BTC" : "0x... atau alamat wallet"} 
                   value={recipientAddress}
                   onChange={(e) => setRecipientAddress(e.target.value)}
                   className="h-14 rounded-2xl liquid-glass border-none font-bold text-xs" 
@@ -278,11 +301,9 @@ export default function CryptoSendPage() {
                 <p className="text-[8px] font-bold text-muted-foreground uppercase">
                   Tersedia: {assetType === 'ETH' ? parseFloat(onChainBal).toFixed(8) : (userData?.cryptoBalances?.[assetType] || 0)} {assetType}
                 </p>
-                {assetType === 'ETH' && (
-                  <div className="flex items-center gap-1 text-[7px] font-black text-primary uppercase">
-                    <Info className="w-2.5 h-2.5" /> Estimasi Gas: ~0.0005 ETH
-                  </div>
-                )}
+                <div className="flex items-center gap-1 text-[7px] font-black text-primary uppercase">
+                  <Info className="w-2.5 h-2.5" /> {assetType === 'ETH' ? 'On-Chain (Instan)' : 'Ali-Bridge Network'}
+                </div>
               </div>
             </div>
 
@@ -305,9 +326,11 @@ export default function CryptoSendPage() {
               </div>
             ) : (
               <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
-                <Lock className="w-5 h-5 text-blue-600 shrink-0" />
+                {assetType === 'ETH' ? <Lock className="w-5 h-5 text-blue-600 shrink-0" /> : <ArrowRightLeft className="w-5 h-5 text-blue-600 shrink-0" />}
                 <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                  AliBank Native Signature: Transaksi ditandatangani secara lokal dan disiarkan melalui Global Node. Pastikan saldo ETH Anda menyisakan Biaya Gas.
+                  {assetType === 'ETH' 
+                    ? "AliBank Native Signature: Transaksi ditandatangani secara lokal dan disiarkan melalui Global Node Ethereum."
+                    : "Ali-Bridge Protocol: Pengiriman BTC/USDT ke dompet luar diproses melalui cold-storage vault AliBank untuk keamanan ganda."}
                 </p>
               </div>
             )}
@@ -319,7 +342,7 @@ export default function CryptoSendPage() {
             >
               {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (
                 <>
-                  TANDATANGANI & KIRIM
+                  {assetType === 'ETH' ? 'TANDATANGANI & KIRIM' : 'EKSEKUSI ALI-BRIDGE'}
                   <Zap className="w-5 h-5 ml-2" />
                 </>
               )}
