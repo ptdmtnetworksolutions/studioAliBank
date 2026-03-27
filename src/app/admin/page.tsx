@@ -116,26 +116,33 @@ export default function AdminControlPage() {
   const [hashrate, setHashrate] = useState(0);
 
   const syncOnChainVault = useCallback(async () => {
-    if (typeof window.ethereum === 'undefined') return;
+    if (typeof window.ethereum === 'undefined') {
+      toast({ variant: "destructive", title: "Web3 Tidak Terdeteksi", description: "Gunakan MetaMask untuk sinkronisasi data blockchain." });
+      return;
+    }
     setSyncingVault(true);
     try {
       const provider = new BrowserProvider(window.ethereum);
-      const accounts = await provider.listAccounts();
       
+      // Ambil Saldo Langsung dari Alamat Kontrak (Cara paling riil)
+      const balance = await provider.getBalance(DEFAULT_CONTRACT);
+      setOnChainTotal(formatEther(balance));
+
+      // Cek Saldo Dompet Terhubung
+      const accounts = await provider.listAccounts();
       if (accounts.length > 0) {
-        const bal = await provider.getBalance(accounts[0].address);
-        setConnectedBalance(formatEther(bal));
+        const walletBal = await provider.getBalance(accounts[0].address);
+        setConnectedBalance(formatEther(walletBal));
       }
 
-      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
-      const balance = await contract.getTotalVaultBalance().catch(() => 0n);
-      setOnChainTotal(formatEther(balance));
-    } catch (err) {
+      toast({ title: "Sinkronisasi Berhasil", description: "Data Brankas Riil telah diperbarui dari Mainnet." });
+    } catch (err: any) {
       console.error("Kesalahan Sinkronisasi Brankas:", err);
+      toast({ variant: "destructive", title: "Sinkronisasi Gagal", description: "Pastikan Anda terhubung ke jaringan Ethereum." });
     } finally {
       setSyncingVault(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     if (userLoading) return;
@@ -228,7 +235,6 @@ export default function AdminControlPage() {
       return;
     }
 
-    // Rasio konversi operasional (Contoh: $1 = 0.0003 ETH)
     const ethToDeposit = fiatBalance * 0.0003; 
     
     setIsSettling(true);
@@ -239,14 +245,12 @@ export default function AdminControlPage() {
       
       toast({ title: "Memulai Transaksi Blockchain...", description: `Mengonversi $${fiatBalance} menjadi ${ethToDeposit.toFixed(4)} ETH ke Brankas.` });
       
-      // Kirim ETH nyata ke Smart Contract AliBank
       const tx = await contract.deposit({ value: parseEther(ethToDeposit.toFixed(18)) });
       
       toast({ title: "Menunggu Konfirmasi Jaringan", description: "Silakan pantau MetaMask Anda." });
       
       await tx.wait();
 
-      // Update Database AliBank: Kosongkan kas gateway karena sudah dijembatani ke ETH riil
       await updateDoc(doc(db, "system", "liquidity"), {
         totalUsdInjected: 0,
         totalFiatInjected: 0,
@@ -284,7 +288,6 @@ export default function AdminControlPage() {
       
       toast({ title: "Mencairkan Jatah Keuntungan...", description: `Menarik ${ethToRelease.toFixed(4)} ETH ke dompet MetaMask.` });
       
-      // Panggil fungsi releaseFunds pada Smart Contract riil
       const tx = await contract.releaseFunds(await signer.getAddress(), parseEther(ethToRelease.toFixed(18)));
       await tx.wait();
 
@@ -347,7 +350,6 @@ export default function AdminControlPage() {
               </TabsList>
             </div>
 
-            {/* TAB IKHTISAR */}
             <TabsContent value="overview" className="space-y-6 md:space-y-8 animate-in fade-in zoom-in-95 duration-300">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 <Card className="liquid-glass border-none rounded-2xl md:rounded-[2.5rem] p-6 md:p-8 space-y-3 md:space-y-4 bg-primary/5 shadow-md">
@@ -374,7 +376,7 @@ export default function AdminControlPage() {
                     <p className="text-2xl md:text-3xl font-black text-blue-600 italic">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
                   </div>
                   <div className="pt-2 border-t border-blue-200/20">
-                    <p className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase">Smart Contract V3</p>
+                    <p className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase">Blockchain Mainnet</p>
                   </div>
                 </Card>
 
@@ -449,7 +451,6 @@ export default function AdminControlPage() {
               </div>
             </TabsContent>
 
-            {/* TAB INVENTARIS PASAR */}
             <TabsContent value="inventory" className="space-y-6 md:space-y-8 animate-in slide-in-from-bottom-4 duration-300">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-4">
                 <div>
@@ -522,7 +523,6 @@ export default function AdminControlPage() {
               </div>
             </TabsContent>
 
-            {/* TAB JEMBATAN LIKUIDITAS */}
             <TabsContent value="liquidity" className="space-y-6 md:space-y-8 animate-in zoom-in-95 duration-300">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                 <Card className="liquid-glass border-none rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 space-y-6 md:space-y-8 shadow-xl">
@@ -609,7 +609,6 @@ export default function AdminControlPage() {
               </div>
             </TabsContent>
 
-            {/* TAB LOG AUDIT GLOBAL */}
             <TabsContent value="audit" className="animate-in fade-in duration-300">
               <Card className="liquid-glass border-none rounded-2xl md:rounded-[3rem] overflow-hidden shadow-2xl">
                 <div className="p-6 md:p-8 border-b border-primary/5 bg-accent/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
