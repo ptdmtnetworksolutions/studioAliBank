@@ -198,7 +198,6 @@ export default function Dashboard() {
             <div className="relative group">
               <Carousel setApi={setBannerApi} className="w-full">
                 <CarouselContent>
-                  {/* Slide 1: ALIX Challenge */}
                   <CarouselItem>
                     <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center justify-between shadow-sm relative cursor-pointer h-[100px]">
                       <div className="flex items-center gap-4">
@@ -217,7 +216,6 @@ export default function Dashboard() {
                     </div>
                   </CarouselItem>
 
-                  {/* Slide 2: Referral Tournament */}
                   <CarouselItem>
                     <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center justify-between shadow-sm relative cursor-pointer h-[100px]">
                       <div className="flex items-center gap-4">
@@ -236,7 +234,6 @@ export default function Dashboard() {
                     </div>
                   </CarouselItem>
 
-                  {/* Slide 3: Pending Tasks */}
                   <CarouselItem>
                     <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center justify-between shadow-sm relative cursor-pointer h-[100px]">
                       <div className="flex items-center gap-4">
@@ -258,7 +255,6 @@ export default function Dashboard() {
                 </CarouselContent>
               </Carousel>
               
-              {/* Carousel Indicators */}
               <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
                 <div className={cn("h-1 rounded-full transition-all duration-300", currentBanner === 0 ? "w-4 bg-slate-900" : "w-1.5 bg-slate-200")} />
                 <div className={cn("h-1 rounded-full transition-all duration-300", currentBanner === 1 ? "w-4 bg-slate-900" : "w-1.5 bg-slate-200")} />
@@ -266,9 +262,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Feature Grid 2x2 - All cards h-40 for symmetry */}
             <div className="grid grid-cols-2 gap-4">
-              {/* Card 1: ALIX (Convert) */}
               <div 
                 className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden group cursor-pointer h-40" 
                 onClick={() => router.push('/crypto/convert')}
@@ -288,7 +282,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Card 2: P2P */}
               <div 
                 className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer active:scale-[0.98] transition-all h-40"
                 onClick={() => router.push('/p2p/order-history')}
@@ -310,12 +303,10 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Card 3: USD SWIFT Slider - Unified height */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-40">
                 <Carousel setApi={setSwiftApi} className="w-full h-full">
                   <CarouselContent className="h-full ml-0">
-                    {/* Slide 1: Setor */}
-                    <CarouselItem className="pl-0 h-full">
+                    <CarouselItem className="pl-0 h-full" onClick={() => router.push('/crypto/deposit-methods')}>
                       <div className="p-4 h-full flex flex-col">
                         <div className="flex items-center gap-2 mb-2">
                           <div className="w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center font-bold text-xs">$</div>
@@ -329,7 +320,6 @@ export default function Dashboard() {
                       </div>
                     </CarouselItem>
                     
-                    {/* Slide 2: Tarik */}
                     <CarouselItem className="pl-0 h-full">
                       <div className="p-4 h-full flex flex-col bg-slate-50/30">
                         <div className="flex items-center gap-2 mb-2">
@@ -346,14 +336,12 @@ export default function Dashboard() {
                   </CarouselContent>
                 </Carousel>
                 
-                {/* Dots for SWIFT Card */}
                 <div className="absolute bottom-3 right-4 flex gap-1 z-10">
                   <div className={cn("h-1 rounded-full transition-all duration-300", currentSwift === 0 ? "w-3 bg-slate-900" : "w-1 bg-slate-200")} />
                   <div className={cn("h-1 rounded-full transition-all duration-300", currentSwift === 1 ? "w-3 bg-slate-900" : "w-1 bg-slate-200")} />
                 </div>
               </div>
 
-              {/* Card 4: Send Cash - Unified height */}
               <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-40">
                 <span className="text-sm font-black text-slate-400">Kirim Tunai</span>
                 <div className="absolute -right-2 top-2 bg-blue-50 text-blue-600 p-1.5 rounded-l-full">
@@ -380,7 +368,6 @@ export default function Dashboard() {
         ) : (
           /* DOMPET VIEW (WALLET) */
           <div className="space-y-6 animate-in slide-in-from-right-10 duration-500">
-            {/* Wallet Profile & Switcher */}
             <div className="flex items-center justify-between mb-2 px-1">
               <div className="flex items-center gap-2 group cursor-pointer">
                 <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center p-1">
@@ -394,7 +381,6 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* Big Balance Section */}
             <div className="flex justify-between items-center mb-8 px-1">
               <div>
                 <h1 className="text-4xl font-black tracking-tight text-slate-900 italic">
@@ -409,7 +395,6 @@ export default function Dashboard() {
               </Button>
             </div>
 
-            {/* Service Grid Icons */}
             <div className="grid grid-cols-5 gap-4 mb-8">
               {services.map((service, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-2">
@@ -421,7 +406,6 @@ export default function Dashboard() {
               ))}
             </div>
 
-            {/* Market List Section */}
             <div className="space-y-6 px-1">
               <div className="flex items-center justify-between">
                 <div className="flex gap-6 overflow-x-auto no-scrollbar pb-1">
