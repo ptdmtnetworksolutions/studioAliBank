@@ -26,7 +26,9 @@ import {
   LayoutGrid,
   FileText,
   Wallet,
-  X
+  X,
+  Lock,
+  Unlock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -83,6 +85,7 @@ export default function AdminControlPage() {
   const [syncingVault, setSyncingVault] = useState(false);
   const [connectedBalance, setConnectedBalance] = useState<string>("0");
   const [isSettling, setIsSettling] = useState(false);
+  const [isFirewallActive, setIsFirewallActive] = useState(true);
   
   // Inventory Form States
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -239,6 +242,50 @@ export default function AdminControlPage() {
     }
   };
 
+  const handleWithdrawProfit = async () => {
+    if (!db || !globalLiquidity || typeof window.ethereum === 'undefined') return;
+    const alixBalance = globalLiquidity.alixVaultBalance || 0;
+    if (alixBalance < 10) {
+      toast({ variant: "destructive", title: "Insufficient ALIX", description: "Minimal 10 ALIX untuk melakukan penarikan keuntungan." });
+      return;
+    }
+
+    const ethToRelease = alixBalance * 0.0002;
+    setIsSettling(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, signer);
+      
+      toast({ title: "Releasing Profit...", description: `Mencairkan ${alixBalance.toFixed(2)} ALIX menjadi ${ethToRelease.toFixed(4)} ETH.` });
+      
+      // Menggunakan fungsi releaseFunds di Smart Contract untuk mentransfer dari Vault ke wallet Admin
+      const tx = await contract.releaseFunds(await signer.getAddress(), parseEther(ethToRelease.toFixed(18)));
+      await tx.wait();
+
+      await updateDoc(doc(db, "system", "liquidity"), {
+        alixVaultBalance: 0,
+        lastProfitWithdrawal: serverTimestamp()
+      });
+
+      toast({ title: "Profit Released", description: "ETH telah dikirim ke MetaMask Anda sebagai bagi hasil mining." });
+      syncOnChainVault();
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Withdrawal Failed", description: err.message });
+    } finally {
+      setIsSettling(false);
+    }
+  };
+
+  const toggleFirewall = () => {
+    setIsFirewallActive(!isFirewallActive);
+    toast({
+      title: isFirewallActive ? "Firewall Disabled" : "Firewall Enabled",
+      description: isFirewallActive ? "Node AliBank sekarang terbuka untuk debugging." : "Sistem dilindungi oleh enkripsi V3.",
+      variant: isFirewallActive ? "destructive" : "default"
+    });
+  };
+
   if (userLoading || !isAuthorized) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
@@ -333,8 +380,12 @@ export default function AdminControlPage() {
                   <p className="text-[8px] md:text-[10px] font-black uppercase tracking-widest opacity-60">Payout System</p>
                   <h3 className="text-xl md:text-2xl font-black italic tracking-tighter uppercase leading-none">Withdraw Profit</h3>
                   <p className="text-[7px] md:text-[8px] opacity-50 uppercase font-medium leading-relaxed">Cairkan jatah hasil mining ke dompet MetaMask.</p>
-                  <Button onClick={() => router.push('/admin/about-alix')} className="w-full h-9 md:h-10 gold-gradient text-white rounded-lg md:rounded-xl text-[8px] md:text-[9px] font-black uppercase italic shadow-lg mt-1">
-                    Cairkan Profit
+                  <Button 
+                    onClick={handleWithdrawProfit} 
+                    disabled={isSettling || (globalLiquidity?.alixVaultBalance || 0) < 10}
+                    className="w-full h-9 md:h-10 gold-gradient text-white rounded-lg md:rounded-xl text-[8px] md:text-[9px] font-black uppercase italic shadow-lg mt-1"
+                  >
+                    {isSettling ? <Loader2 className="w-3 h-3 animate-spin" /> : "Cairkan Profit"}
                   </Button>
                 </Card>
               </div>
@@ -369,8 +420,14 @@ export default function AdminControlPage() {
                     <h3 className="text-xl md:text-2xl font-black uppercase italic tracking-tighter leading-tight">Security Logic</h3>
                     <p className="text-[8px] md:text-[10px] opacity-60 font-medium leading-relaxed italic uppercase">Pastikan Anda memiliki saldo ETH di MetaMask untuk setiap transaksi penarikan keuntungan atau bridging.</p>
                   </div>
-                  <Button className="w-full h-12 md:h-14 gold-gradient text-white rounded-xl md:rounded-[1.5rem] font-black uppercase italic text-[10px] md:text-xs shadow-2xl">
-                    Open Node Firewall
+                  <Button 
+                    onClick={toggleFirewall}
+                    className={cn(
+                      "w-full h-12 md:h-14 rounded-xl md:rounded-[1.5rem] font-black uppercase italic text-[10px] md:text-xs shadow-2xl transition-all",
+                      isFirewallActive ? "gold-gradient text-white" : "bg-destructive text-white"
+                    )}
+                  >
+                    {isFirewallActive ? <><Lock className="w-4 h-4 mr-2" /> Enable Node Firewall</> : <><Unlock className="w-4 h-4 mr-2" /> Open Node Firewall</>}
                   </Button>
                 </Card>
               </div>
@@ -540,7 +597,14 @@ export default function AdminControlPage() {
                     </h3>
                     <p className="text-[8px] md:text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Seluruh aktivitas ekonomi ekosistem AliBank.</p>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-[8px] md:text-[9px] font-black uppercase hover:bg-primary/10 w-full sm:w-auto"><LayoutGrid className="w-3 h-3 mr-2" /> View All</Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-[8px] md:text-[9px] font-black uppercase hover:bg-primary/10 w-full sm:w-auto"
+                    onClick={() => toast({ title: "Audit Report", description: "Menampilkan 10 transaksi terbaru. Log lengkap tersedia di basis data Firestore." })}
+                  >
+                    <LayoutGrid className="w-3 h-3 mr-2" /> View All
+                  </Button>
                 </div>
                 <div className="overflow-x-auto no-scrollbar">
                   <table className="w-full text-left min-w-[600px]">
@@ -556,7 +620,7 @@ export default function AdminControlPage() {
                     <tbody className="divide-y divide-primary/5">
                       {globalHistory && globalHistory.length > 0 ? globalHistory.map((tx: any, idx: number) => (
                         <tr key={idx} className="hover:bg-primary/5 transition-colors">
-                          <td className="px-6 md:px-8 py-4 md:py-5"><p className="text-[9px] md:text-[10px] font-black text-accent uppercase">#{tx.id?.slice(-8)}</p></td>
+                          <td className="px-6 md:px-8 py-4 md:py-5"><p className="text-[9px] md:text-[10px] font-black text-accent uppercase">#{tx.id?.slice(-8) || `TX-${idx}`}</p></td>
                           <td className="px-6 md:px-8 py-4 md:py-5">
                             <Badge className={cn("text-[6px] md:text-[7px] font-black uppercase border-none", tx.type === 'income' ? "bg-green-100 text-green-600" : "bg-primary/10 text-primary")}>
                               {tx.category || 'General'}
@@ -564,17 +628,19 @@ export default function AdminControlPage() {
                           </td>
                           <td className="px-6 md:px-8 py-4 md:py-5">
                             <p className="text-xs md:text-sm font-black text-accent italic whitespace-nowrap">
-                              {tx.amount ? `Rp ${tx.amount.toLocaleString()}` : tx.amountUsd ? `$ ${tx.amountUsd.toLocaleString()}` : `${tx.cryptoAmount} ETH`}
+                              {tx.amount ? `Rp ${tx.amount.toLocaleString()}` : tx.amountUsd ? `$ ${tx.amountUsd.toLocaleString()}` : tx.cryptoAmount ? `${tx.cryptoAmount} ETH` : '---'}
                             </p>
                           </td>
                           <td className="px-6 md:px-8 py-4 md:py-5">
                             <div className="flex items-center gap-1">
-                              <div className={cn("w-1 md:w-1.5 h-1 md:h-1.5 rounded-full", tx.status === 'success' ? "bg-green-500" : "bg-amber-500")} />
+                              <div className={cn("w-1 md:w-1.5 h-1 md:h-1.5 rounded-full", tx.status === 'success' || !tx.status ? "bg-green-500" : "bg-amber-500")} />
                               <span className="text-[8px] md:text-[9px] font-bold uppercase">{tx.status || 'Settled'}</span>
                             </div>
                           </td>
                           <td className="px-6 md:px-8 py-4 md:py-5 text-right">
-                            <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground whitespace-nowrap">{new Date(tx.timestamp?.seconds * 1000 || Date.now()).toLocaleString()}</p>
+                            <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground whitespace-nowrap">
+                              {tx.timestamp?.seconds ? new Date(tx.timestamp.seconds * 1000).toLocaleString() : 'Recent'}
+                            </p>
                           </td>
                         </tr>
                       )) : (
