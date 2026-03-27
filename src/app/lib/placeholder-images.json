@@ -15,7 +15,7 @@
     },
     {
       "id": "gold-card",
-      "description": "FinWave Gold Debit Card",
+      "description": "AliBank Platinum Private Card",
       "imageUrl": "https://picsum.photos/seed/gold-card/600/400",
       "imageHint": "gold card"
     },
@@ -32,8 +32,8 @@
       "imageHint": "wealth growth"
     },
     {
-      "id": "qris-mock",
-      "description": "Simulated QRIS code for payments",
+      "id": "qris-official",
+      "description": "Official QRIS Gateway for AliBank 2026",
       "imageUrl": "https://picsum.photos/seed/qris/300/300",
       "imageHint": "qris code"
     }
