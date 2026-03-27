@@ -43,7 +43,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
 import { useUser, useFirestore, useDoc, useCollection } from "@/firebase";
 import { 
   collection, 
@@ -60,7 +60,7 @@ import {
 } from "firebase/firestore";
 import { BrowserProvider, Contract, formatEther, parseEther, JsonRpcProvider } from "ethers";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
@@ -85,12 +85,14 @@ const CONTRACT_ABI = [
   "function balances(address) public view returns (uint256)"
 ];
 
-export default function AdminControlPage() {
+function AdminContent() {
   const { user, loading: userLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || "overview");
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [onChainTotal, setOnChainTotal] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
@@ -112,7 +114,7 @@ export default function AdminControlPage() {
 
   // State Manajemen Brankas
   const [vaultDepositAmount, setVaultVaultDepositAmount] = useState("");
-  const [vaultAssetType, setVaultAssetType] = useState<"BTC" | "ETH">("ETH");
+  const [vaultAssetType, setVaultAssetType] = useState<"BTC" | "ETH" | "USDT">("ETH");
 
   // Listener Data Riil
   const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
@@ -260,8 +262,8 @@ export default function AdminControlPage() {
       });
 
       // 2. Tambah likuiditas sistem (Brankas)
-      // Jika BTC, asumsikan kurs konversi internal 1 BTC = 15 ETH untuk simulasi likuiditas brankas
-      const ethEquivalent = vaultAssetType === 'BTC' ? amount * 15 : amount;
+      // Konversi estimasi ke ETH untuk dashboard status
+      const ethEquivalent = vaultAssetType === 'BTC' ? amount * 15 : vaultAssetType === 'USDT' ? amount * 0.0003 : amount;
       const liquidityRef = doc(db, "system", "liquidity");
       await updateDoc(liquidityRef, {
         totalProfitDistributed: increment(ethEquivalent)
@@ -279,7 +281,7 @@ export default function AdminControlPage() {
         timestamp: serverTimestamp()
       });
 
-      toast({ title: "Berhasil Dipindahkan", description: `${amount} ${vaultAssetType} telah diamankan ke Brankas V3.` });
+      toast({ title: "Aset Dipindahkan", description: `${amount} ${vaultAssetType} telah masuk ke likuiditas Brankas AliBank.` });
       setVaultVaultDepositAmount("");
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal Memindahkan", description: err.message });
@@ -291,7 +293,7 @@ export default function AdminControlPage() {
   const handleBridgeToVault = async () => {
     if (!db || !globalLiquidity) return;
     if (typeof window.ethereum === 'undefined') {
-      toast({ variant: "destructive", title: "MetaMask Diperlukan", description: "Untuk memindahkan dana riil ke Brankas, diperlukan otorisasi tanda tangan MetaMask." });
+      toast({ variant: "destructive", title: "MetaMask Diperlukan", description: "Gunakan browser MetaMask di HP untuk otorisasi." });
       handleOpenMetaMask();
       return;
     }
@@ -364,7 +366,7 @@ export default function AdminControlPage() {
             </div>
           </header>
 
-          <Tabs defaultValue="overview" className="space-y-6 md:space-y-8">
+          <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="space-y-6 md:space-y-8">
             <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
               <TabsList className="bg-primary/5 p-1 rounded-2xl md:rounded-[2rem] h-12 md:h-16 border border-primary/10 grid grid-cols-5 min-w-[500px] lg:w-3/4 mx-auto shadow-sm">
                 <TabsTrigger value="overview" className="rounded-xl md:rounded-[1.5rem] font-black uppercase text-[8px] md:text-[10px] italic">Ikhtisar</TabsTrigger>
@@ -570,20 +572,27 @@ export default function AdminControlPage() {
                   </div>
 
                   <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-2 md:gap-4">
                       <button 
                         onClick={() => setVaultAssetType('BTC')}
                         className={cn("p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all", vaultAssetType === 'BTC' ? "border-orange-500 bg-orange-50" : "border-primary/5")}
                       >
-                        <Bitcoin className={cn("w-8 h-8", vaultAssetType === 'BTC' ? "text-orange-500" : "text-muted-foreground")} />
-                        <span className="text-[10px] font-black uppercase">BTC</span>
+                        <Bitcoin className={cn("w-6 h-6 md:w-8 md:h-8", vaultAssetType === 'BTC' ? "text-orange-500" : "text-muted-foreground")} />
+                        <span className="text-[8px] md:text-[10px] font-black uppercase">BTC</span>
                       </button>
                       <button 
                         onClick={() => setVaultAssetType('ETH')}
                         className={cn("p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all", vaultAssetType === 'ETH' ? "border-blue-500 bg-blue-50" : "border-primary/5")}
                       >
-                        <Cpu className={cn("w-8 h-8", vaultAssetType === 'ETH' ? "text-blue-500" : "text-muted-foreground")} />
-                        <span className="text-[10px] font-black uppercase">ETH</span>
+                        <Cpu className={cn("w-6 h-6 md:w-8 md:h-8", vaultAssetType === 'ETH' ? "text-blue-500" : "text-muted-foreground")} />
+                        <span className="text-[8px] md:text-[10px] font-black uppercase">ETH</span>
+                      </button>
+                      <button 
+                        onClick={() => setVaultAssetType('USDT')}
+                        className={cn("p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all", vaultAssetType === 'USDT' ? "border-green-500 bg-green-50" : "border-primary/5")}
+                      >
+                        <ShieldCheck className={cn("w-6 h-6 md:w-8 md:h-8", vaultAssetType === 'USDT' ? "text-green-500" : "text-muted-foreground")} />
+                        <span className="text-[8px] md:text-[10px] font-black uppercase">USDT</span>
                       </button>
                     </div>
 
@@ -597,7 +606,7 @@ export default function AdminControlPage() {
                           onChange={(e) => setVaultVaultDepositAmount(e.target.value)} 
                           className="h-14 rounded-2xl liquid-glass border-none font-black italic text-lg" 
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-primary uppercase">{vaultAssetType}</span>
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary uppercase">{vaultAssetType}</span>
                       </div>
                       <p className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase px-1">
                         Tersedia di Saldo Admin: {adminData?.cryptoBalances?.[vaultAssetType] || 0} {vaultAssetType}
@@ -699,5 +708,13 @@ export default function AdminControlPage() {
         </main>
       </div>
     </TooltipProvider>
+  );
+}
+
+export default function AdminControlPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#f8f9fa]"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>}>
+      <AdminContent />
+    </Suspense>
   );
 }
