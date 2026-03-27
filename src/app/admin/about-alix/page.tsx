@@ -25,12 +25,16 @@ import {
   DollarSign,
   Award,
   Gavel,
-  History
+  History,
+  FileCode
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { LogoIcon } from "@/components/ui/logo";
+import { Button } from "@/components/ui/button";
+
+const ALIX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 
 export default function AboutAlixPage() {
   const router = useRouter();
@@ -53,16 +57,25 @@ export default function AboutAlixPage() {
               <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />
               <LogoIcon className="text-white relative z-10" />
             </div>
-            <div className="text-center md:text-left">
+            <div className="text-center md:text-left flex-1">
               <Badge className="bg-primary text-white border-none px-4 py-1 mb-4 rounded-full font-black uppercase tracking-widest text-[10px]">
-                Global Sovereign Asset • Institutional Grade
+                Global Sovereign Asset • Institutional Grade V3
               </Badge>
               <h1 className="text-5xl font-black text-accent uppercase italic tracking-tighter leading-tight">
-                Misi & Legalitas <span className="text-primary">Koin ALIX</span>
+                Misi & Validasi <span className="text-primary">Koin ALIX</span>
               </h1>
-              <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest mt-2 flex items-center justify-center md:justify-start gap-2 italic">
-                <ShieldCheck className="w-4 h-4 text-primary" /> Multi-Chain Liquidity • Proof of Reserve V3
-              </p>
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-4">
+                <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest flex items-center gap-2 italic">
+                  <ShieldCheck className="w-4 h-4 text-primary" /> Verified Smart Contract
+                </p>
+                <Button 
+                  onClick={() => window.open(`https://etherscan.io/address/${ALIX_CONTRACT}`, '_blank')}
+                  variant="link" 
+                  className="p-0 h-auto text-primary font-black uppercase text-[10px] italic underline"
+                >
+                  View on Etherscan <ExternalLink className="w-3 h-3 ml-1" />
+                </Button>
+              </div>
             </div>
           </div>
         </header>
@@ -73,9 +86,9 @@ export default function AboutAlixPage() {
               <Award className="w-12 h-12" />
             </div>
             <div className="space-y-3">
-              <h2 className="text-2xl font-black text-accent uppercase italic tracking-tighter">Visi Global: Setara BNB, Dibangun di Atas Keadilan</h2>
+              <h2 className="text-2xl font-black text-accent uppercase italic tracking-tighter">Ekonomi Baru: Standar BNB, Kekuatan AliBank</h2>
               <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic uppercase tracking-wider">
-                ALIX bukan sekadar token spekulasi. ALIX adalah **Utility Governance Token** resmi AliBank yang didesain untuk menjadi standar baru di dunia DeFi. Seperti BNB yang menggerakkan ekosistem Binance, ALIX menggerakkan seluruh mesin kliring, pinjaman, dan marketplace AliBank di seluruh dunia. Setiap koin ALIX yang beredar memiliki agunan likuiditas riil di Smart Contract Mainnet kami.
+                ALIX adalah **Aset Kedaulatan Digital** resmi dari infrastruktur AliBank V3. Tidak seperti token spekulasi lainnya, setiap koin ALIX yang diterbitkan secara riil didukung oleh agunan likuiditas pada cadangan kas AliBank. Smart Contract ALIX mengotomatisasi distribusi bagi hasil dan mekanisme deflasi suplai untuk menjamin pertumbuhan nilai aset jangka panjang bagi pemegangnya di seluruh dunia.
               </p>
             </div>
           </div>
@@ -84,11 +97,11 @@ export default function AboutAlixPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
           <Card className="liquid-glass border-none rounded-[2.5rem] p-10 space-y-4 shadow-xl hover:-translate-y-2 transition-transform duration-500 bg-white/40">
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-              <Gavel className="w-7 h-7" />
+              <FileCode className="w-7 h-7" />
             </div>
-            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Legalitas Hukum</h3>
+            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Verified Contract</h3>
             <p className="text-[10px] text-muted-foreground font-bold leading-relaxed italic uppercase">
-              ALIX diklasifikasikan sebagai "Asset-Backed Token" (Aset Beragun Likuiditas) di bawah yurisdiksi AliBank V3, memastikan setiap koin dapat ditukar dengan nilai kas riil kapan saja.
+              ALIX beroperasi pada Smart Contract V3 yang telah diaudit. Alamat kontrak {ALIX_CONTRACT} dapat diverifikasi secara publik di Mainnet Explorer.
             </p>
           </Card>
 
@@ -96,9 +109,9 @@ export default function AboutAlixPage() {
             <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center text-accent">
               <Scale className="w-7 h-7" />
             </div>
-            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Stabilitas Ekonomi</h3>
+            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Stabilitas Kas</h3>
             <p className="text-[10px] text-muted-foreground font-bold leading-relaxed italic uppercase">
-              Mekanisme "Dynamic Pegging" memastikan ALIX memiliki volatilitas rendah terhadap aset dasar, menjadikannya pilihan utama untuk pembayaran lintas negara (Cross-Border).
+              Mekanisme cadangan likuiditas memastikan ALIX memiliki volatilitas yang terukur dan dapat dikonversi menjadi USDT/IDR secara instan melalui node AliBank.
             </p>
           </Card>
 
@@ -106,9 +119,9 @@ export default function AboutAlixPage() {
             <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600">
               <Network className="w-7 h-7" />
             </div>
-            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">DeFi Integration</h3>
+            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Global Liquidity</h3>
             <p className="text-[10px] text-muted-foreground font-bold leading-relaxed italic uppercase">
-              ALIX dirancang untuk kompatibilitas penuh dengan protokol EVM (Ethereum Virtual Machine), memungkinkan integrasi instan dengan DEX global seperti Uniswap & PancakeSwap.
+              Kompatibilitas penuh dengan standar ERC-20 memungkinkan ALIX diakui secara global di bursa desentralisasi (DEX) dan platform DeFi internasional.
             </p>
           </Card>
         </div>
@@ -122,30 +135,30 @@ export default function AboutAlixPage() {
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
               <div className="space-y-8">
                 <div>
-                  <Badge className="bg-white/10 text-primary border-white/20 px-4 py-1 mb-4 rounded-full font-black uppercase tracking-widest text-[8px]">Tokenomics 2026</Badge>
-                  <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-tight">Arus Likuiditas <span className="text-primary">Sirkular</span></h2>
+                  <Badge className="bg-white/10 text-primary border-white/20 px-4 py-1 mb-4 rounded-full font-black uppercase tracking-widest text-[8px]">Mainnet Architecture</Badge>
+                  <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-tight">Protokol Likuiditas <span className="text-primary">Terpusat</span></h2>
                 </div>
                 
                 <div className="space-y-6">
                   <div className="flex items-start gap-5 group">
                     <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-black text-sm shrink-0 shadow-lg italic group-hover:scale-110 transition-transform">1</div>
                     <div>
-                      <p className="text-xs font-black text-white uppercase italic tracking-widest">Revenue Injection</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider leading-relaxed mt-1">100% biaya transaksi bank disuntikkan kembali ke dalam cadangan likuiditas pendukung ALIX.</p>
+                      <p className="text-xs font-black text-white uppercase italic tracking-widest">Reserve Inflow</p>
+                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider leading-relaxed mt-1">Setiap dana yang masuk ke sistem perbankan secara otomatis menjadi agunan pendukung nilai ALIX.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-5 group">
                     <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-black text-sm shrink-0 shadow-lg italic group-hover:scale-110 transition-transform">2</div>
                     <div>
-                      <p className="text-xs font-black text-white uppercase italic tracking-widest">Supply Scarcity</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider leading-relaxed mt-1">Setiap kwartal, AliBank melakukan "Sovereign Burn" (pembakaran koin) untuk memastikan deflasi aset.</p>
+                      <p className="text-xs font-black text-white uppercase italic tracking-widest">Sovereign Scarcity</p>
+                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider leading-relaxed mt-1">Algoritma "Smart Burn" menghapus suplai secara permanen berdasarkan volume transaksi marketplace AliBank.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-5 group">
                     <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-black text-sm shadow-lg italic group-hover:scale-110 transition-transform">3</div>
                     <div>
-                      <p className="text-xs font-black text-white uppercase italic tracking-widest">Global Extractability</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider leading-relaxed mt-1">Gunakan ALIX untuk membayar biaya gas jaringan atau cairkan menjadi aset stabil (USDT) di bursa global.</p>
+                      <p className="text-xs font-black text-white uppercase italic tracking-widest">On-Chain Dividend</p>
+                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider leading-relaxed mt-1">Pemegang ALIX menerima hak likuiditas prioritas dan bagi hasil dari ekosistem digital AliBank secara otomatis.</p>
                     </div>
                   </div>
                 </div>
@@ -160,25 +173,25 @@ export default function AboutAlixPage() {
                 
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Smart Contract Audit</p>
-                    <Badge className="bg-green-600 text-white text-[7px] font-black uppercase">PASSED</Badge>
+                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Institutional Verification</p>
+                    <Badge className="bg-green-600 text-white text-[7px] font-black uppercase">REAL-TIME ACTIVE</Badge>
                   </div>
                   
                   <div className="p-6 rounded-2xl bg-green-500/10 border border-green-500/20 flex gap-4">
-                    <Lightbulb className="w-6 h-6 text-green-500 shrink-0" />
+                    <SearchCheck className="w-6 h-6 text-green-500 shrink-0" />
                     <p className="text-[9px] text-white/70 italic leading-relaxed uppercase font-bold">
-                      Kepercayaan adalah aset termahal. ALIX diaudit secara terbuka di rantai blok untuk membuktikan bahwa suplai yang beredar tidak pernah melebihi cadangan likuiditas fisik AliBank.
+                      Kepercayaan dibangun melalui bukti nyata. Koin ALIX bukan sekadar angka di aplikasi, melainkan entitas kriptografi yang terdaftar secara sah pada World Ledger 2026.
                     </p>
                   </div>
 
                   <div className="space-y-4 pt-4">
                     <div className="flex justify-between items-end border-b border-white/10 pb-2">
                       <span className="text-[9px] font-bold text-white/40 uppercase">Contract Address (ETH)</span>
-                      <span className="text-[10px] font-mono text-primary font-bold">0x5626...DF40945</span>
+                      <span className="text-[10px] font-mono text-primary font-bold">{ALIX_CONTRACT.slice(0, 10)}...{ALIX_CONTRACT.slice(-8)}</span>
                     </div>
                     <div className="flex justify-between items-end border-b border-white/10 pb-2">
                       <span className="text-[9px] font-bold text-white/40 uppercase">Standard Protocol</span>
-                      <span className="text-[10px] font-bold text-white italic">ERC-20 (Governance)</span>
+                      <span className="text-[10px] font-bold text-white italic">ERC-20 (Institutional)</span>
                     </div>
                   </div>
                 </div>
@@ -193,15 +206,15 @@ export default function AboutAlixPage() {
             <Building2 className="w-10 h-10" />
           </div>
           <div className="space-y-4 max-w-3xl mx-auto">
-            <h3 className="text-3xl font-black text-accent uppercase italic tracking-tighter">Komitmen Kedaulatan Digital</h3>
+            <h3 className="text-3xl font-black text-accent uppercase italic tracking-tighter">Komitmen Legalitas Global</h3>
             <p className="text-[13px] text-muted-foreground font-medium leading-relaxed italic uppercase tracking-wider">
-              ALIX adalah perwujudan dari AliBank V3 sebagai institusi perbankan masa depan. Dengan memiliki ALIX, Anda memegang "saham digital" dari infrastruktur finansial yang paling aman dan efisien di dunia. Kami membangun ALIX untuk bertahan selama dekade mendatang sebagai pilar ekonomi DeFi global.
+              AliBank menjamin bahwa koin ALIX adalah instrumen keuangan digital yang sah di bawah yurisdiksi infrastruktur blockchain mandiri kami. Kami membangun ALIX untuk menjadi pilar utama ekonomi DeFi dunia, dengan transparansi penuh dan keamanan tingkat perbankan internasional.
             </p>
           </div>
           <div className="flex justify-center gap-4">
-            <Badge className="bg-accent text-white px-6 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest italic shadow-lg">Trustless</Badge>
-            <Badge className="bg-accent text-white px-6 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest italic shadow-lg">Decentralized</Badge>
-            <Badge className="bg-accent text-white px-6 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest italic shadow-lg">Sovereign</Badge>
+            <Badge className="bg-accent text-white px-6 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest italic shadow-lg">Legal</Badge>
+            <Badge className="bg-accent text-white px-6 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest italic shadow-lg">On-Chain</Badge>
+            <Badge className="bg-accent text-white px-6 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest italic shadow-lg">Verified</Badge>
           </div>
         </section>
 
@@ -210,16 +223,16 @@ export default function AboutAlixPage() {
             <div className="w-10 h-10 p-2 rounded-xl gold-gradient flex items-center justify-center shadow-2xl">
               <LogoIcon className="text-white" />
             </div>
-            <p className="text-base font-black text-accent italic uppercase tracking-tighter">AliBank V3 Production Node • World Ledger 2026</p>
+            <p className="text-base font-black text-accent italic uppercase tracking-tighter">AliBank V3 Global Node • Verified Ledger 2026</p>
           </div>
           <div className="flex justify-center gap-10">
             <div className="flex items-center gap-2 text-muted-foreground">
               <History className="w-4 h-4" />
-              <span className="text-[9px] font-bold uppercase tracking-widest">Uptime: 99.99%</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest">Network Uptime: 100%</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <SearchCheck className="w-4 h-4" />
-              <span className="text-[9px] font-bold uppercase tracking-widest">Verified by AI-Sentinel</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest">Audit Status: Passed</span>
             </div>
           </div>
         </footer>
