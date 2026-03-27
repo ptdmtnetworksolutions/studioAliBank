@@ -38,7 +38,10 @@ import {
   Cpu,
   ArrowDownToLine,
   Send,
-  Database
+  Database,
+  Link2,
+  ArrowDownRight,
+  Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -60,7 +63,7 @@ import {
   serverTimestamp,
   addDoc
 } from "firebase/firestore";
-import { BrowserProvider, Contract, formatEther, parseEther, JsonRpcProvider } from "ethers";
+import { BrowserProvider, Contract, formatEther, parseEther, JsonRpcProvider, ethers } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -91,7 +94,12 @@ function AdminContent() {
   const [syncingVault, setSyncingVault] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
   
-  // State Form Inventaris
+  // State Manajemen Brankas
+  const [vaultDepositAmount, setVaultVaultDepositAmount] = useState("");
+  const [vaultAssetType, setVaultAssetType] = useState<"BTC" | "ETH" | "USDT">("ETH");
+  const [isConsolidating, setIsConsolidating] = useState(false);
+
+  // Form Inventaris
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [newProduct, setNewProduct] = useState({
     name: "",
@@ -101,10 +109,6 @@ function AdminContent() {
     category: "Infrastruktur",
     image: ""
   });
-
-  // State Manajemen Brankas
-  const [vaultDepositAmount, setVaultVaultDepositAmount] = useState("");
-  const [vaultAssetType, setVaultAssetType] = useState<"BTC" | "ETH" | "USDT">("ETH");
 
   // Listener Data Riil dari Production Ledger
   const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
@@ -122,7 +126,6 @@ function AdminContent() {
   const adminDocRef = useMemo(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: adminData } = useDoc(adminDocRef);
 
-  // LOGIKA NODE INTEGRITY (Bukan Simulasi)
   const [isSyncingEngine, setIsSyncingEngine] = useState(false);
 
   const syncOnChainVault = useCallback(async () => {
@@ -141,7 +144,6 @@ function AdminContent() {
 
   useEffect(() => {
     if (userLoading) return;
-    // Autentikasi Admin Berbasis Email Resmi
     if (!user || user.email !== OWNER_EMAIL) {
       router.push('/');
       return;
@@ -150,12 +152,10 @@ function AdminContent() {
     syncOnChainVault();
   }, [user, userLoading, router, syncOnChainVault]);
 
-  // Fitur Rekonsiliasi Saldo (Menghitung Pendapatan Riil dari Database)
   const handleEngineSync = async () => {
     if (!db || isSyncingEngine) return;
     setIsSyncingEngine(true);
     try {
-      // Melakukan sinkronisasi integritas data antara transaksi audit dan kas global
       await syncOnChainVault();
       toast({ title: "Integrity Sync Complete", description: "Ledger Internal dan Saldo On-Chain telah disinkronkan." });
     } catch (err) {
@@ -169,7 +169,6 @@ function AdminContent() {
     if (!db || isSettling) return;
     setIsSettling(true);
     try {
-      // Eksekusi Settlement Resmi: Admin menyatakan bahwa transaksi telah disiarkan ke network luar secara manual
       const bridgeRef = doc(db, "system", "bridge", "queue", bridgeId);
       const txId = `SETTLE-${Math.random().toString(36).substring(2, 15).toUpperCase()}`;
       
@@ -179,7 +178,6 @@ function AdminContent() {
         txId: txId
       });
 
-      // Catat di Audit Global
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
         id: txId,
         category: "Bridge Settlement",
@@ -237,7 +235,6 @@ function AdminContent() {
       const adminRef = doc(db, "users", user.uid);
       await updateDoc(adminRef, { [`cryptoBalances.${vaultAssetType}`]: increment(-amount) });
 
-      // Injeksi Likuiditas Riil ke Brankas Sistem
       const ethEquivalent = vaultAssetType === 'BTC' ? amount * 15 : vaultAssetType === 'USDT' ? amount * 0.0003 : amount;
       await updateDoc(doc(db, "system", "liquidity"), { 
         totalProfitDistributed: increment(ethEquivalent),
@@ -250,6 +247,49 @@ function AdminContent() {
       toast({ variant: "destructive", title: "Execution Failed" });
     } finally {
       setIsSettling(false);
+    }
+  };
+
+  const handleMainnetConsolidation = async () => {
+    if (!db || !user || !adminData?.privateKey || !globalLiquidity?.totalProfitDistributed) return;
+    
+    const amountToSettle = globalLiquidity.totalProfitDistributed;
+    if (amountToSettle <= 0) return;
+
+    setIsConsolidating(true);
+    try {
+      const provider = new JsonRpcProvider(GLOBAL_RPC);
+      const wallet = new ethers.Wallet(adminData.privateKey, provider);
+      
+      const tx = await wallet.sendTransaction({
+        to: DEFAULT_CONTRACT,
+        value: parseEther(amountToSettle.toFixed(18))
+      });
+
+      toast({ title: "Settlement Broadcasted", description: "Menunggu konfirmasi blok Mainnet Ethereum..." });
+      await tx.wait();
+
+      await updateDoc(doc(db, "system", "liquidity"), {
+        totalProfitDistributed: 0,
+        lastMainnetConsolidation: serverTimestamp()
+      });
+
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: tx.hash,
+        category: "Mainnet Vault Consolidation",
+        cryptoAmount: amountToSettle,
+        cryptoCurrency: "ETH",
+        status: "success",
+        timestamp: serverTimestamp(),
+        recipient: DEFAULT_CONTRACT
+      });
+
+      await syncOnChainVault();
+      toast({ title: "Consolidation Success", description: "Dana telah dikunci secara permanen di Brankas V3 Smart Contract." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Consolidation Failed", description: err.message });
+    } finally {
+      setIsConsolidating(false);
     }
   };
 
@@ -332,8 +372,93 @@ function AdminContent() {
                 <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white flex flex-col justify-center shadow-xl">
                   <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Payout Gateway</p>
                   <h3 className="text-2xl font-black italic uppercase leading-none">Manage Profit</h3>
-                  <Button onClick={() => router.push('/crypto')} className="w-full h-10 gold-gradient text-white rounded-xl text-[9px] font-black uppercase italic shadow-lg mt-4">Open Terminal</Button>
+                  <Button onClick={() => setActiveTab('vault')} className="w-full h-10 gold-gradient text-white rounded-xl text-[9px] font-black uppercase italic shadow-lg mt-4">Open Terminal</Button>
                 </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="vault" className="space-y-8 animate-in slide-in-from-right-4 duration-300">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-8 shadow-2xl">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center text-accent"><Lock className="w-8 h-8" /></div>
+                    <div>
+                      <h3 className="text-2xl font-black text-accent uppercase italic">Reserve Consolidation</h3>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase">Inject digital assets into the Global Banking Vault.</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-3 gap-4">
+                      {['BTC', 'ETH', 'USDT'].map((type) => (
+                        <button key={type} onClick={() => setVaultAssetType(type as any)} className={cn("p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all", vaultAssetType === type ? "border-primary bg-primary/5" : "border-primary/5")}>
+                          {type === 'BTC' ? <Bitcoin className={vaultAssetType === 'BTC' ? "text-orange-500" : "text-muted-foreground"} /> : type === 'ETH' ? <Cpu className={vaultAssetType === 'ETH' ? "text-blue-500" : "text-muted-foreground"} /> : <ShieldCheck className={vaultAssetType === 'USDT' ? "text-green-500" : "text-muted-foreground"} />}
+                          <span className="text-[10px] font-black uppercase">{type}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Asset Injection Amount</label>
+                      <Input type="number" placeholder="0.00" value={vaultDepositAmount} onChange={(e) => setVaultVaultDepositAmount(e.target.value)} className="h-14 rounded-2xl liquid-glass border-none font-black italic text-lg" />
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase px-1">Institutional Balance: {adminData?.cryptoBalances?.[vaultAssetType] || 0} {vaultAssetType}</p>
+                    </div>
+
+                    <Button onClick={handleDepositToVault} disabled={isSettling || !vaultDepositAmount} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-sm shadow-2xl">
+                      {isSettling ? <Loader2 className="w-5 h-5 animate-spin" /> : `Execute Vault Injection`}
+                    </Button>
+                  </div>
+                </Card>
+
+                <div className="space-y-6">
+                  <Card className="liquid-glass-dark border-none rounded-[3rem] p-10 text-white space-y-6 flex flex-col justify-center shadow-2xl relative overflow-hidden">
+                    <div className="absolute -right-10 -bottom-10 opacity-5"><LogoIcon className="w-64 h-64" /></div>
+                    <div className="text-center space-y-4 relative z-10">
+                      <div className="flex items-center justify-center gap-3">
+                        <ShieldCheck className="w-12 h-12 text-primary" />
+                        <Badge className="bg-green-600 text-white text-[8px] font-black uppercase px-2 py-0.5 animate-pulse">Mainnet Active</Badge>
+                      </div>
+                      <h3 className="text-3xl font-black uppercase italic">Official Liquidity Status</h3>
+                      <div className="space-y-2 pt-4 border-t border-white/10">
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Pending Ledger Consolidation</p>
+                        <p className="text-5xl font-black text-primary italic">{(globalLiquidity?.totalProfitDistributed || 0).toFixed(4)} ETH</p>
+                      </div>
+                      
+                      <div className="pt-6 space-y-4">
+                        <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex justify-between items-center">
+                          <div className="text-left">
+                            <p className="text-[8px] font-black uppercase text-white/40">V3 Smart Contract</p>
+                            <p className="text-[9px] font-bold">{DEFAULT_CONTRACT.slice(0,18)}...</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[8px] font-black uppercase text-white/40">On-Chain Balance</p>
+                            <p className="text-sm font-black text-primary">{parseFloat(onChainTotal).toFixed(4)} ETH</p>
+                          </div>
+                        </div>
+
+                        <Button 
+                          onClick={handleMainnetConsolidation} 
+                          disabled={isConsolidating || (globalLiquidity?.totalProfitDistributed || 0) <= 0}
+                          className="w-full h-14 bg-white text-accent rounded-2xl font-black uppercase italic text-[10px] shadow-xl hover:bg-primary hover:text-white transition-all"
+                        >
+                          {isConsolidating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <><Zap className="w-4 h-4 mr-2" /> Settle to Mainnet V3 Contract</>}
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card className="liquid-glass border-none rounded-[2.5rem] p-6 space-y-4 shadow-xl">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0"><Key className="w-5 h-5" /></div>
+                      <div>
+                        <h4 className="text-[10px] font-black text-accent uppercase italic">Institutional Signature Active</h4>
+                        <p className="text-[9px] text-muted-foreground font-medium italic mt-1 leading-relaxed">
+                          Seluruh penyelesaian aset ke Smart Contract V3 dilakukan secara non-kustodial menggunakan tanda tangan kedaulatan Admin. Pastikan saldo dompet Admin cukup untuk biaya gas Mainnet.
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
               </div>
             </TabsContent>
 
@@ -430,52 +555,6 @@ function AdminContent() {
                     </div>
                   </Card>
                 ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="vault" className="space-y-8 animate-in slide-in-from-right-4 duration-300">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-8 shadow-2xl">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center text-accent"><Lock className="w-8 h-8" /></div>
-                    <div>
-                      <h3 className="text-2xl font-black text-accent uppercase italic">Reserve Consolidation</h3>
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase">Inject digital assets into the Global Banking Vault.</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-3 gap-4">
-                      {['BTC', 'ETH', 'USDT'].map((type) => (
-                        <button key={type} onClick={() => setVaultAssetType(type as any)} className={cn("p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all", vaultAssetType === type ? "border-primary bg-primary/5" : "border-primary/5")}>
-                          {type === 'BTC' ? <Bitcoin className={vaultAssetType === 'BTC' ? "text-orange-500" : "text-muted-foreground"} /> : type === 'ETH' ? <Cpu className={vaultAssetType === 'ETH' ? "text-blue-500" : "text-muted-foreground"} /> : <ShieldCheck className={vaultAssetType === 'USDT' ? "text-green-500" : "text-muted-foreground"} />}
-                          <span className="text-[10px] font-black uppercase">{type}</span>
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Asset Injection Amount</label>
-                      <Input type="number" placeholder="0.00" value={vaultDepositAmount} onChange={(e) => setVaultVaultDepositAmount(e.target.value)} className="h-14 rounded-2xl liquid-glass border-none font-black italic text-lg" />
-                      <p className="text-[8px] font-bold text-muted-foreground uppercase px-1">Institutional Balance: {adminData?.cryptoBalances?.[vaultAssetType] || 0} {vaultAssetType}</p>
-                    </div>
-
-                    <Button onClick={handleDepositToVault} disabled={isSettling || !vaultDepositAmount} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-sm shadow-2xl">
-                      {isSettling ? <Loader2 className="w-5 h-5 animate-spin" /> : `Execute Vault Injection`}
-                    </Button>
-                  </div>
-                </Card>
-
-                <Card className="liquid-glass-dark border-none rounded-[3rem] p-10 text-white space-y-6 flex flex-col justify-center shadow-2xl">
-                  <div className="text-center space-y-4">
-                    <ShieldCheck className="w-16 h-16 text-primary mx-auto" />
-                    <h3 className="text-3xl font-black uppercase italic">Official Liquidity Status</h3>
-                    <div className="space-y-2 pt-4 border-t border-white/10">
-                      <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Total Reserves Absorbed</p>
-                      <p className="text-5xl font-black text-primary italic">{(globalLiquidity?.totalProfitDistributed || 0).toFixed(4)} ETH</p>
-                    </div>
-                  </div>
-                </Card>
               </div>
             </TabsContent>
 
