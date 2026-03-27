@@ -1,3 +1,4 @@
+
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -70,15 +71,15 @@ export default function RootLayout({
           </LanguageProvider>
         </ThemeProvider>
         
-        {/* Registration of Professional Service Worker */}
+        {/* Pendaftaran Service Worker Resmi untuk WebAPK */}
         <Script id="register-sw" strategy="afterInteractive">
           {`
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/sw.js').then(function(reg) {
-                  console.log('AliBank V3 SW Active:', reg.scope);
+                  console.log('AliBank V3 Production SW Registered:', reg.scope);
                 }).catch(function(err) {
-                  console.error('AliBank V3 SW Registration Failed:', err);
+                  console.warn('AliBank SW Registration Delayed:', err);
                 });
               });
             }
