@@ -26,7 +26,8 @@ import {
   ArrowRight,
   Landmark,
   HandCoins,
-  Globe
+  Globe,
+  Trophy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,12 @@ import { doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 
 export default function Dashboard() {
   const { user, loading: userLoading } = useUser();
@@ -45,6 +52,8 @@ export default function Dashboard() {
   
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'bursa' | 'dompet'>('bursa');
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -59,6 +68,14 @@ export default function Dashboard() {
       router.push('/login');
     }
   }, [user, userLoading, router]);
+
+  useEffect(() => {
+    if (!carouselApi) return;
+    
+    carouselApi.on("select", () => {
+      setCurrentSlide(carouselApi.selectedScrollSnap());
+    });
+  }, [carouselApi]);
 
   const copyAddress = () => {
     if (userData?.walletAddress) {
@@ -168,32 +185,61 @@ export default function Dashboard() {
               </Button>
             </div>
 
-            {/* AliBank Challenge Card */}
-            <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center justify-between shadow-sm relative group cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100">
-                  <Award className="w-6 h-6 text-slate-900" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tantangan AliBank</p>
-                  <h3 className="text-sm font-black text-slate-900">Hadiah Bersama 500.000 ALIX</h3>
-                </div>
-              </div>
-              <Button className="bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-[10px] h-8 px-4 rounded-md shadow-none">Ikuti</Button>
-              <div className="absolute top-2 right-2 text-slate-300">
-                <X className="w-4 h-4" />
-              </div>
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                <div className="w-3 h-1 bg-slate-900 rounded-full" />
-                <div className="w-1 h-1 bg-slate-200 rounded-full" />
-                <div className="w-1 h-1 bg-slate-200 rounded-full" />
+            {/* AliBank Banner Carousel */}
+            <div className="relative group">
+              <Carousel setApi={setCarouselApi} className="w-full">
+                <CarouselContent>
+                  {/* Slide 1: ALIX Challenge */}
+                  <CarouselItem>
+                    <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center justify-between shadow-sm relative cursor-pointer h-[90px]">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100 shrink-0">
+                          <Award className="w-6 h-6 text-slate-900" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tantangan AliBank</p>
+                          <h3 className="text-sm font-black text-slate-900 leading-tight">Hadiah Bersama 500.000 ALIX</h3>
+                        </div>
+                      </div>
+                      <Button className="bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-[10px] h-8 px-4 rounded-md shadow-none shrink-0">Ikuti</Button>
+                      <button className="absolute top-2 right-2 text-slate-300 hover:text-slate-500">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </CarouselItem>
+
+                  {/* Slide 2: Referral Tournament */}
+                  <CarouselItem>
+                    <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center justify-between shadow-sm relative cursor-pointer h-[90px]">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-yellow-50 flex items-center justify-center border border-yellow-100 shrink-0">
+                          <Trophy className="w-6 h-6 text-yellow-600" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Turnamen Referral Bulan Maret</p>
+                          <h3 className="text-sm font-black text-slate-900 leading-tight">Undang Teman, Raih Hadiah 3.000 USDC!</h3>
+                        </div>
+                      </div>
+                      <Button className="bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-[10px] h-8 px-4 rounded-md shadow-none shrink-0">Ikuti</Button>
+                      <button className="absolute top-2 right-2 text-slate-300 hover:text-slate-500">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </CarouselItem>
+                </CarouselContent>
+              </Carousel>
+              
+              {/* Carousel Indicators */}
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                <div className={cn("h-1 rounded-full transition-all duration-300", currentSlide === 0 ? "w-4 bg-slate-900" : "w-1.5 bg-slate-200")} />
+                <div className={cn("h-1 rounded-full transition-all duration-300", currentSlide === 1 ? "w-4 bg-slate-900" : "w-1.5 bg-slate-200")} />
               </div>
             </div>
 
             {/* Feature Grid 2x2 */}
             <div className="grid grid-cols-2 gap-4">
               {/* Card 1: ALIX */}
-              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden group cursor-pointer">
+              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden group cursor-pointer" onClick={() => router.push('/crypto/trade/alix')}>
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center p-1">
                     <LogoIcon className="text-yellow-400" />
@@ -201,10 +247,10 @@ export default function Dashboard() {
                   <span className="text-xs font-black text-slate-400">ALIX</span>
                 </div>
                 <p className="text-xl font-black text-slate-900">12.450</p>
-                <p className="text-[10px] font-black text-rose-500">- 3.02%</p>
+                <p className="text-[10px] font-black text-green-600">+ 4.85%</p>
                 <div className="mt-2 h-10 w-full opacity-30">
                   <svg viewBox="0 0 100 40" className="w-full h-full">
-                    <path d="M0 35 Q 25 10, 50 30 T 100 20" fill="none" stroke="red" strokeWidth="2" />
+                    <path d="M0 35 Q 25 10, 50 30 T 100 20" fill="none" stroke="#16a34a" strokeWidth="2" />
                   </svg>
                 </div>
               </div>
