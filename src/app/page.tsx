@@ -181,7 +181,7 @@ export default function Dashboard() {
                   <ChevronDown className="w-3 h-3" />
                 </div>
                 <h1 className="text-4xl font-black tracking-tight text-slate-900">
-                  Rp20.07
+                  Rp{(userData?.totalBalance ?? 0).toLocaleString('id-ID')}
                 </h1>
                 <div className="flex items-center gap-1.5 text-[10px] font-bold">
                   <span className="text-slate-400">PNL hari ini</span>
@@ -189,7 +189,7 @@ export default function Dashboard() {
                   <ChevronDown className="w-3 h-3 text-slate-400" />
                 </div>
               </div>
-              <Button className="bg-[#FCD535] hover:bg-[#FCD535]/90 text-slate-900 font-bold px-4 h-10 rounded-lg shadow-none text-xs">
+              <Button className="bg-[#FCD535] hover:bg-[#FCD535]/90 text-slate-900 font-bold px-4 h-10 rounded-lg shadow-none text-xs" onClick={() => router.push('/topup')}>
                 Tambah Dana
               </Button>
             </div>
@@ -266,11 +266,11 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Feature Grid 2x2 */}
+            {/* Feature Grid 2x2 - All cards h-40 for symmetry */}
             <div className="grid grid-cols-2 gap-4">
               {/* Card 1: ALIX (Convert) */}
               <div 
-                className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden group cursor-pointer" 
+                className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden group cursor-pointer h-40" 
                 onClick={() => router.push('/crypto/convert')}
               >
                 <div className="flex items-center gap-2 mb-2">
@@ -290,7 +290,7 @@ export default function Dashboard() {
 
               {/* Card 2: P2P */}
               <div 
-                className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer active:scale-[0.98] transition-all"
+                className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer active:scale-[0.98] transition-all h-40"
                 onClick={() => router.push('/p2p/order-history')}
               >
                 <div className="flex justify-between items-center mb-1">
@@ -310,8 +310,8 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Card 3: USD SWIFT Slider */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-[140px]">
+              {/* Card 3: USD SWIFT Slider - Unified height */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-40">
                 <Carousel setApi={setSwiftApi} className="w-full h-full">
                   <CarouselContent className="h-full ml-0">
                     {/* Slide 1: Setor */}
@@ -353,8 +353,8 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Card 4: Send Cash */}
-              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden">
+              {/* Card 4: Send Cash - Unified height */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-40">
                 <span className="text-sm font-black text-slate-400">Kirim Tunai</span>
                 <div className="absolute -right-2 top-2 bg-blue-50 text-blue-600 p-1.5 rounded-l-full">
                   <Zap className="w-4 h-4" />
