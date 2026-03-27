@@ -213,7 +213,7 @@ function AdminContent() {
         cryptoCurrency: "ALIX",
         status: "success",
         timestamp: serverTimestamp(),
-        description: "Token Scarcity Protocol: supply removed from circulation permanently."
+        description: "Token Scarcity Protocol (BNB Standard): supply removed from circulation permanently."
       });
 
       toast({ title: "Protocol Burn Successful", description: `${amount} ALIX burned permanently.` });

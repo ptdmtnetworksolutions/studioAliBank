@@ -19,7 +19,8 @@ import {
   HelpCircle,
   Coins,
   Percent,
-  Flame
+  Flame,
+  Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -116,7 +117,7 @@ export default function MarketplacePage() {
     setIsProcessing(product.id);
     const invoiceId = `MKT-${Math.floor(100000 + Math.random() * 900000)}`;
     
-    // Apply 5% discount if ALIX is chosen (BNB Strategy)
+    // Apply 5% discount if ALIX is chosen (Replica of BNB Strategy)
     const finalPriceIdr = useAlixForDiscount ? product.priceIdr * 0.95 : product.priceIdr;
     const finalPriceUsd = useAlixForDiscount ? (product.priceUsd || 0) * 0.95 : (product.priceUsd || 0);
 
@@ -133,7 +134,7 @@ export default function MarketplacePage() {
         createdAt: new Date().toISOString(),
         timestamp: serverTimestamp(),
         productName: product.name,
-        discountApplied: useAlixForDiscount ? "5% (ALIX Holder)" : "0%"
+        discountApplied: useAlixForDiscount ? "5% (ALIX Holder Perk)" : "0%"
       };
 
       await addDoc(invoicesColRef, payload);
@@ -157,64 +158,75 @@ export default function MarketplacePage() {
                 <ShoppingBag className="text-white w-8 h-8" />
               </div>
               <div>
-                <h1 className="text-4xl font-black text-accent uppercase italic tracking-tighter">AliBank Marketplace</h1>
-                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                  <Globe className="w-3 h-3 text-primary" /> Multi-Chain Infrastructure Store
+                <h1 className="text-4xl font-black text-accent uppercase italic tracking-tighter leading-none">Marketplace</h1>
+                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">
+                  <Globe className="w-3 h-3 text-primary" /> Integrated Sovereign Hub
                 </p>
               </div>
             </div>
 
-            {/* ALIX Sovereign Discount Banner */}
-            <div className="liquid-glass-dark p-4 rounded-2xl flex items-center gap-4 border-none shadow-xl cursor-pointer hover:scale-105 transition-transform" onClick={() => setUseAlixForDiscount(!useAlixForDiscount)}>
-              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all", useAlixForDiscount ? "gold-gradient text-white" : "bg-white/10 text-white/40")}>
+            {/* ALIX Sovereign Discount Banner - BNB Standard */}
+            <div 
+              className="liquid-glass-dark p-4 rounded-[1.5rem] flex items-center gap-4 border-none shadow-xl cursor-pointer hover:scale-105 transition-all group overflow-hidden relative" 
+              onClick={() => setUseAlixForDiscount(!useAlixForDiscount)}
+            >
+              <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center transition-all", 
+                useAlixForDiscount ? "gold-gradient text-white shadow-lg" : "bg-white/10 text-white/40"
+              )}>
                 <LogoIcon className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-[10px] font-black text-primary uppercase tracking-widest">ALIX HOLDER PERK</p>
+                <p className="text-[9px] font-black text-primary uppercase tracking-widest">ALIX Holder Benefit</p>
                 <p className="text-xs font-black text-white italic uppercase tracking-tighter">5% DISCOUNT ACTIVE</p>
               </div>
-              <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center", useAlixForDiscount ? "border-primary bg-primary text-white" : "border-white/20")}>
-                {useAlixForDiscount && <Check className="w-3 h-3" />}
+              <div className={cn(
+                "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all", 
+                useAlixForDiscount ? "border-primary bg-primary text-white" : "border-white/20"
+              )}>
+                {useAlixForDiscount && <Check className="w-3.5 h-3.5" />}
               </div>
             </div>
           </header>
 
           <Tabs defaultValue="products" className="space-y-12">
-            <TabsList className="bg-primary/5 p-1.5 rounded-[2rem] h-16 border border-primary/10 w-full md:w-auto">
-              <TabsTrigger value="products" className="rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
-                Inventory Products
-              </TabsTrigger>
-              <TabsTrigger value="market" className="rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
-                Global DeFi Pulse
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex flex-col md:flex-row justify-between gap-6">
+              <TabsList className="bg-primary/5 p-1.5 rounded-[2rem] h-16 border border-primary/10 w-full md:w-auto">
+                <TabsTrigger value="products" className="rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
+                  Active Inventory
+                </TabsTrigger>
+                <TabsTrigger value="market" className="rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
+                  Global DeFi Pulse
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="products">
-              <div className="flex flex-col md:flex-row gap-6 mb-12">
-                <div className="relative flex-1">
-                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search database inventory..." 
-                    className="h-14 pl-14 rounded-2xl liquid-glass border-none text-sm font-medium"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-                  {categories.map((cat) => (
-                    <Button
-                      key={cat}
-                      variant={activeCategory === cat ? "default" : "outline"}
-                      onClick={() => setActiveCategory(cat)}
-                      className={cn(
-                        "h-14 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all",
-                        activeCategory === cat ? "gold-gradient text-white border-none shadow-lg" : "liquid-glass border-primary/10 text-accent"
-                      )}
-                    >
-                      {cat}
-                    </Button>
-                  ))}
-                </div>
+              <div className="relative w-full md:w-96">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input 
+                  placeholder="Search database inventory..." 
+                  className="h-16 pl-14 rounded-2xl liquid-glass border-none text-sm font-bold uppercase tracking-tight"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <TabsContent value="products" className="space-y-12">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                {categories.map((cat) => (
+                  <Button
+                    key={cat}
+                    variant={activeCategory === cat ? "default" : "outline"}
+                    onClick={() => setActiveCategory(cat)}
+                    className={cn(
+                      "h-14 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all",
+                      activeCategory === cat ? "gold-gradient text-white border-none shadow-lg" : "liquid-glass border-primary/10 text-accent"
+                    )}
+                  >
+                    {cat}
+                  </Button>
+                ))}
               </div>
 
               {itemsLoading ? (
@@ -269,7 +281,7 @@ export default function MarketplacePage() {
                           <Button 
                             onClick={() => handleBuyProduct(p)}
                             disabled={!!isProcessing}
-                            className={cn("w-12 h-12 rounded-2xl text-white shadow-xl hover:scale-110 transition-all p-0 flex items-center justify-center", useAlixForDiscount ? "bg-orange-600" : "gold-gradient")}
+                            className={cn("w-12 h-12 rounded-2xl text-white shadow-xl hover:scale-110 transition-all p-0 flex items-center justify-center", useAlixForDiscount ? "bg-orange-600 shadow-orange-500/20" : "gold-gradient shadow-primary/20")}
                           >
                             {isProcessing === p.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingCart className="w-5 h-5" />}
                           </Button>
@@ -279,9 +291,10 @@ export default function MarketplacePage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-20 liquid-glass rounded-[3rem] border-dashed border-2 border-primary/5">
+                <div className="text-center py-24 liquid-glass rounded-[3rem] border-dashed border-2 border-primary/5">
                   <Package className="w-16 h-16 text-primary/10 mx-auto mb-4" />
-                  <h3 className="text-xl font-black text-accent uppercase italic">Inventory Empty</h3>
+                  <h3 className="text-xl font-black text-accent uppercase italic">Database Inventory Empty</h3>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-2">Deploy products from Command Center.</p>
                 </div>
               )}
             </TabsContent>
@@ -300,9 +313,9 @@ export default function MarketplacePage() {
                   <table className="w-full text-left">
                     <thead>
                       <tr className="bg-primary/5 text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                        <th className="px-8 py-6">Asset</th>
+                        <th className="px-8 py-6">Asset Pair</th>
                         <th className="px-8 py-6">Spot Price</th>
-                        <th className="px-8 py-6">24h Change</th>
+                        <th className="px-8 py-6">24h Pulse</th>
                         <th className="px-8 py-6 text-right">Execution</th>
                       </tr>
                     </thead>
@@ -315,10 +328,10 @@ export default function MarketplacePage() {
                         <tr key={coin.id} className="hover:bg-primary/5 transition-colors group">
                           <td className="px-8 py-5">
                             <div className="flex items-center gap-4">
-                              <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-white p-1">
+                              <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-white p-1 shadow-sm border border-primary/5">
                                 <Image src={coin.image} alt={coin.name} fill className="object-contain" />
                               </div>
-                              <div><p className="text-sm font-black text-accent">{coin.name}</p><p className="text-[9px] text-muted-foreground font-black uppercase">{coin.symbol}</p></div>
+                              <div><p className="text-sm font-black text-accent uppercase tracking-tighter">{coin.symbol}/IDR</p><p className="text-[9px] text-muted-foreground font-black uppercase">{coin.name}</p></div>
                             </div>
                           </td>
                           <td className="px-8 py-5"><p className="text-sm font-black text-accent italic">Rp {coin.current_price.toLocaleString('id-ID')}</p></td>

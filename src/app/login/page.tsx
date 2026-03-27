@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ShieldCheck, Mail, Lock, UserPlus } from 'lucide-react';
+import { Loader2, ShieldCheck, Mail, Lock, UserPlus, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { LogoIcon } from '@/components/ui/logo';
@@ -20,12 +20,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
 
     setLoading(true);
+    setErrorMessage(null);
     try {
       await signInWithEmailAndPassword(auth, email, password);
       toast({
@@ -35,10 +37,17 @@ export default function LoginPage() {
       router.push('/');
     } catch (error: any) {
       console.error('Login error:', error);
+      let msg = "Email atau kata sandi salah. Silakan coba lagi.";
+      if (error.code === 'auth/invalid-credential') {
+        msg = "Kredensial tidak sah. Periksa kembali email dan password Anda.";
+      } else if (error.code === 'auth/user-not-found') {
+        msg = "Akun tidak ditemukan. Silakan mendaftar terlebih dahulu.";
+      }
+      setErrorMessage(msg);
       toast({
         variant: "destructive",
         title: "Gagal Masuk",
-        description: "Email atau kata sandi salah. Silakan coba lagi.",
+        description: msg,
       });
     } finally {
       setLoading(false);
@@ -59,6 +68,13 @@ export default function LoginPage() {
         <p className="text-muted-foreground mb-8 text-center text-sm font-medium leading-relaxed">
           Masuk ke portal perbankan premium Anda.
         </p>
+
+        {errorMessage && (
+          <div className="w-full p-4 mb-6 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center gap-3 animate-in fade-in zoom-in">
+            <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
+            <p className="text-xs font-bold text-destructive leading-tight">{errorMessage}</p>
+          </div>
+        )}
 
         <form onSubmit={handleLogin} className="w-full space-y-4">
           <div className="space-y-2">
@@ -106,7 +122,7 @@ export default function LoginPage() {
           <p className="text-xs text-muted-foreground">
             Belum punya akun nasabah?
           </p>
-          <Link href="/register">
+          <Link href="/register" className="w-full">
             <Button variant="outline" className="w-full h-12 rounded-2xl border-primary/20 text-primary font-bold flex items-center justify-center gap-2">
               <UserPlus className="w-4 h-4" /> Buka Rekening Baru
             </Button>
