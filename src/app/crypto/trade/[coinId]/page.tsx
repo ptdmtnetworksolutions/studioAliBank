@@ -31,6 +31,7 @@ import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { LogoIcon } from "@/components/ui/logo";
 
 declare global {
   interface Window {
@@ -60,19 +61,37 @@ export default function CryptoTradePage() {
   // Refs for TradingView
   const container = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setMounted(true);
-    fetchCoinDetail();
-    fetchMarketCoins();
-  }, [coinId]);
-
   const fetchCoinDetail = async () => {
+    // Handle ALIX Sovereign Coin specifically
+    if (coinId === 'alix') {
+      setCoinData({
+        id: 'alix',
+        symbol: 'ALIX',
+        name: 'AliBank Sovereign Coin',
+        image: { small: '' }, // Handled by LogoIcon
+        market_data: {
+          current_price: { idr: 12450 },
+          price_change_percentage_24h: 4.85,
+          high_24h: { idr: 12800 },
+          low_24h: { idr: 11900 },
+          total_volume: { idr: 1500000000000 }
+        }
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch(`https://api.coingecko.com/api/v3/coins/${coinId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false`);
       const data = await res.json();
-      setCoinData(data);
+      if (data && !data.error) {
+        setCoinData(data);
+      } else {
+        throw new Error("Coin not found");
+      }
     } catch (err) {
       console.error("Coin detail ledger sync interrupted");
+      router.push('/crypto');
     } finally {
       setLoading(false);
     }
@@ -87,6 +106,12 @@ export default function CryptoTradePage() {
   };
 
   useEffect(() => {
+    setMounted(true);
+    fetchCoinDetail();
+    fetchMarketCoins();
+  }, [coinId]);
+
+  useEffect(() => {
     if (mounted && coinData && container.current) {
       const script = document.createElement("script");
       script.src = "https://s3.tradingview.com/tv.js";
@@ -96,7 +121,7 @@ export default function CryptoTradePage() {
         if (window.TradingView) {
           new window.TradingView.widget({
             "autosize": true,
-            "symbol": `BINANCE:${coinData.symbol.toUpperCase()}USDT`,
+            "symbol": coinId === 'alix' ? "BINANCE:ETHUSDT" : `BINANCE:${coinData.symbol.toUpperCase()}USDT`,
             "interval": "15",
             "timezone": "Asia/Jakarta",
             "theme": "light",
@@ -112,7 +137,7 @@ export default function CryptoTradePage() {
       };
       document.head.appendChild(script);
     }
-  }, [mounted, coinData]);
+  }, [mounted, coinData, coinId]);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -213,7 +238,15 @@ export default function CryptoTradePage() {
             </Button>
             <div className="flex items-center gap-3">
               <div className="relative w-10 h-10">
-                <Image src={coinData.image.small} alt={coinData.name} fill className="object-contain" />
+                {coinId === 'alix' ? (
+                  <div className="w-full h-full bg-accent flex items-center justify-center p-2 rounded-xl">
+                    <LogoIcon className="text-primary" />
+                  </div>
+                ) : (
+                  coinData.image?.small && (
+                    <Image src={coinData.image.small} alt={coinData.name} fill className="object-contain" />
+                  )
+                )}
               </div>
               <div>
                 <h1 className="text-lg font-black text-accent uppercase tracking-tighter">{coinData.symbol}/IDR</h1>
@@ -233,15 +266,15 @@ export default function CryptoTradePage() {
             </div>
             <div className="hidden md:block shrink-0">
               <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-0.5">High Mark</p>
-              <p className="text-xs font-black text-accent italic">Rp {coinData.market_data.high_24h.idr.toLocaleString()}</p>
+              <p className="text-xs font-black text-accent italic">Rp {coinData.market_data?.high_24h?.idr?.toLocaleString() || "---"}</p>
             </div>
             <div className="hidden md:block shrink-0">
               <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-0.5">Low Mark</p>
-              <p className="text-xs font-black text-accent italic">Rp {coinData.market_data.low_24h.idr.toLocaleString()}</p>
+              <p className="text-xs font-black text-accent italic">Rp {coinData.market_data?.low_24h?.idr?.toLocaleString() || "---"}</p>
             </div>
             <div className="hidden lg:block shrink-0">
               <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-0.5">24h Vol Position</p>
-              <p className="text-xs font-black text-accent italic">Rp {(coinData.market_data.total_volume.idr / 1e12).toFixed(2)}T</p>
+              <p className="text-xs font-black text-accent italic">Rp {( (coinData.market_data?.total_volume?.idr || 0) / 1e12).toFixed(2)}T</p>
             </div>
           </div>
           
@@ -261,7 +294,6 @@ export default function CryptoTradePage() {
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
               <div className="space-y-1">
-                {/* Order Ledger Depth (Asks) - Calculated based on real price */}
                 {[...Array(10)].map((_, i) => (
                   <div key={i} className="flex justify-between text-[10px] text-destructive font-bold italic">
                     <span>{(priceIdr * (1 + (10-i) * 0.0005)).toLocaleString('id-ID')}</span>
@@ -274,7 +306,6 @@ export default function CryptoTradePage() {
                 <p className="text-[8px] font-bold text-muted-foreground uppercase">Real-Time Spot</p>
               </div>
               <div className="space-y-1">
-                {/* Order Ledger Depth (Buys) - Calculated based on real price */}
                 {[...Array(10)].map((_, i) => (
                   <div key={i} className="flex justify-between text-[10px] text-green-600 font-bold italic">
                     <span>{(priceIdr * (1 - (i+1) * 0.0005)).toLocaleString('id-ID')}</span>
@@ -391,7 +422,7 @@ export default function CryptoTradePage() {
                   disabled={isProcessing || !orderAmount}
                   className="w-full h-16 bg-green-600 hover:bg-green-700 text-white font-black uppercase italic text-lg rounded-[2rem] shadow-xl transition-all mt-4"
                 >
-                  {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : `Confirm Institutional Buy: ${coinData.symbol}`}
+                  {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : `Confirm Institutional Buy: ${coinData.symbol}`}
                 </Button>
               </TabsContent>
 
@@ -454,7 +485,7 @@ export default function CryptoTradePage() {
                   disabled={isProcessing || !orderQty}
                   className="w-full h-16 bg-destructive hover:bg-destructive/90 text-white font-black uppercase italic text-lg rounded-[2rem] shadow-xl transition-all mt-4"
                 >
-                  {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : `Confirm Asset Liquidation: ${coinData.symbol}`}
+                  {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : `Confirm Asset Liquidation: ${coinData.symbol}`}
                 </Button>
               </TabsContent>
             </Tabs>
