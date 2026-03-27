@@ -46,11 +46,11 @@ import {
   Area, 
   XAxis, 
   YAxis, 
-  Tooltip as ChartTooltip,
+  ChartTooltip,
   CartesianGrid 
 } from "recharts";
 import { LogoIcon } from "@/components/ui/logo";
-import { useRouter } from "navigation";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   Tooltip,
