@@ -121,6 +121,7 @@ export default function CryptoTradePage() {
   const { data: userData } = useDoc(userDocRef);
 
   const priceIdr = coinData?.market_data?.current_price?.idr || 0;
+  const change24h = coinData?.market_data?.price_change_percentage_24h || 0;
 
   const handleBuyPercentChange = (val: number[]) => {
     const percent = val[0];
@@ -199,8 +200,6 @@ export default function CryptoTradePage() {
     );
   }
 
-  const change24h = coinData.market_data.price_change_percentage_24h;
-
   return (
     <div className="min-h-screen bg-[#f8f9fa] pb-10">
       <Navbar />
@@ -254,7 +253,7 @@ export default function CryptoTradePage() {
         
         {/* Left Section: Order Ledger & Market Intelligence */}
         <div className="lg:col-span-3 space-y-6 order-2 lg:order-1">
-          <Card className="rounded-2xl border-none shadow-sm overflow-hidden bg-white h-[400px] flex flex-col">
+          <Card className="rounded-2xl border-none shadow-sm overflow-hidden bg-white h-[450px] flex flex-col">
             <div className="p-4 border-b border-primary/5 bg-accent/5">
               <h3 className="text-xs font-black uppercase tracking-widest text-accent flex items-center gap-2">
                 <LayoutGrid className="w-4 h-4 text-primary" /> Order Ledger Snapshot
@@ -262,23 +261,24 @@ export default function CryptoTradePage() {
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
               <div className="space-y-1">
-                {/* Order Ledger Depth (Asks) */}
-                {[...Array(8)].map((_, i) => (
-                  <div key={i} className="flex justify-between text-[10px] text-destructive font-medium">
-                    <span>{(priceIdr * (1 + (8-i) * 0.0005)).toLocaleString()}</span>
-                    <span>{(Math.random() * 2.5).toFixed(4)}</span>
+                {/* Order Ledger Depth (Asks) - Calculated based on real price */}
+                {[...Array(10)].map((_, i) => (
+                  <div key={i} className="flex justify-between text-[10px] text-destructive font-bold italic">
+                    <span>{(priceIdr * (1 + (10-i) * 0.0005)).toLocaleString('id-ID')}</span>
+                    <span>{(0.1 + (Math.sin(i) + 1) * 0.5).toFixed(4)}</span>
                   </div>
                 ))}
               </div>
-              <div className="py-2 border-y border-primary/5 text-center">
-                <p className="text-sm font-black text-accent italic">Rp {priceIdr.toLocaleString()}</p>
+              <div className="py-3 border-y border-primary/10 text-center bg-primary/[0.02]">
+                <p className="text-base font-black text-accent italic">Rp {priceIdr.toLocaleString('id-ID')}</p>
+                <p className="text-[8px] font-bold text-muted-foreground uppercase">Real-Time Spot</p>
               </div>
               <div className="space-y-1">
-                {/* Order Ledger Depth (Buys) */}
-                {[...Array(8)].map((_, i) => (
-                  <div key={i} className="flex justify-between text-[10px] text-green-600 font-medium">
-                    <span>{(priceIdr * (1 - (i+1) * 0.0005)).toLocaleString()}</span>
-                    <span>{(Math.random() * 2.5).toFixed(4)}</span>
+                {/* Order Ledger Depth (Buys) - Calculated based on real price */}
+                {[...Array(10)].map((_, i) => (
+                  <div key={i} className="flex justify-between text-[10px] text-green-600 font-bold italic">
+                    <span>{(priceIdr * (1 - (i+1) * 0.0005)).toLocaleString('id-ID')}</span>
+                    <span>{(0.1 + (Math.cos(i) + 1) * 0.5).toFixed(4)}</span>
                   </div>
                 ))}
               </div>
@@ -290,9 +290,24 @@ export default function CryptoTradePage() {
               <Activity className="w-4 h-4 text-primary" /> Quantitative Signals
             </h3>
             <div className="space-y-3">
-              <div className="p-3 rounded-xl bg-green-50 border border-green-100">
-                <p className="text-[10px] font-black text-green-700 uppercase mb-1">Sentiment Rating: Bullish</p>
-                <p className="text-[10px] text-green-800 font-medium italic">High probability execution detected based on current liquidity flow.</p>
+              <div className={cn(
+                "p-3 rounded-xl border",
+                change24h >= 0 ? "bg-green-50 border-green-100" : "bg-red-50 border-red-100"
+              )}>
+                <p className={cn(
+                  "text-[10px] font-black uppercase mb-1",
+                  change24h >= 0 ? "text-green-700" : "text-red-700"
+                )}>
+                  Sentiment Rating: {change24h >= 0 ? "Bullish" : "Bearish"}
+                </p>
+                <p className={cn(
+                  "text-[10px] font-medium italic",
+                  change24h >= 0 ? "text-green-800" : "text-red-800"
+                )}>
+                  {change24h >= 0 
+                    ? "High probability execution detected based on current liquidity flow."
+                    : "Caution: Distribution patterns detected in higher timeframes."}
+                </p>
               </div>
               <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
                 <p className="text-[10px] font-black text-primary uppercase mb-1">Fee Tier: Platinum Sovereign</p>
@@ -320,7 +335,7 @@ export default function CryptoTradePage() {
               <TabsContent value="buy" className="p-8 space-y-8">
                 <div className="flex justify-between items-end mb-2">
                   <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Available Liquidity</p>
-                  <p className="text-xs font-black text-accent">Rp {userData?.totalBalance?.toLocaleString() || "0"}</p>
+                  <p className="text-xs font-black text-accent">Rp {userData?.totalBalance?.toLocaleString('id-ID') || "0"}</p>
                 </div>
                 <div className="space-y-6">
                   <div className="space-y-2">
@@ -476,7 +491,7 @@ export default function CryptoTradePage() {
                       </p>
                     </div>
                   </div>
-                  <p className="text-[10px] font-black text-accent italic">Rp {coin.current_price.toLocaleString()}</p>
+                  <p className="text-[10px] font-black text-accent italic">Rp {coin.current_price.toLocaleString('id-ID')}</p>
                 </button>
               ))}
             </div>
@@ -488,11 +503,11 @@ export default function CryptoTradePage() {
             </h3>
             <div className="space-y-4">
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-accent leading-tight hover:text-primary cursor-pointer transition-colors">Analisis Ledger V3: Peningkatan Volume Institusional pada Aset Lapis 1.</p>
+                <p className="text-[10px] font-black text-accent leading-tight hover:text-primary cursor-pointer transition-colors italic">Analisis Ledger V3: Peningkatan Volume Institusional pada Aset Lapis 1.</p>
                 <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Real-time • AliBank Insight 2026</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-accent leading-tight hover:text-primary cursor-pointer transition-colors">Laporan Audit Jaringan: Sinkronisasi Node Global Berjalan dengan Latensi Rendah.</p>
+                <p className="text-[10px] font-black text-accent leading-tight hover:text-primary cursor-pointer transition-colors italic">Laporan Audit Jaringan: Sinkronisasi Node Global Berjalan dengan Latensi Rendah.</p>
                 <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Global Feed • World Ledger</p>
               </div>
             </div>
