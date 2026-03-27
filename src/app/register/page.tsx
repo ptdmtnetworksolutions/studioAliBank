@@ -9,10 +9,11 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ShieldCheck, Mail, Lock, Phone, User, ArrowLeft } from 'lucide-react';
+import { Loader2, ShieldCheck, Mail, Lock, Phone, User, ArrowLeft, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { LogoIcon } from '@/components/ui/logo';
+import { ethers } from 'ethers';
 
 export default function RegisterPage() {
   const auth = useAuth();
@@ -34,6 +35,9 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
+      // Create random internal AliBank Wallet (Metamask equivalent)
+      const internalWallet = ethers.Wallet.createRandom();
+      
       const result = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       const user = result.user;
 
@@ -46,6 +50,8 @@ export default function RegisterPage() {
         totalBalance: 15000000, 
         savings: 5000000,
         tier: 'Premium',
+        walletAddress: internalWallet.address,
+        privateKey: internalWallet.privateKey, // Encrypted in real production, stored here for prototype
         cryptoBalances: {
           BTC: 0,
           ETH: 0.05,
@@ -56,7 +62,7 @@ export default function RegisterPage() {
 
       toast({
         title: "Pendaftaran Berhasil",
-        description: "Akun AliBank Anda telah aktif. Selamat datang!",
+        description: "Akun AliBank & Dompet Web3 Mandiri Anda telah aktif.",
       });
       router.push('/');
     } catch (error: any) {
@@ -86,9 +92,9 @@ export default function RegisterPage() {
           <LogoIcon className="text-white" />
         </div>
         
-        <h1 className="text-2xl font-black text-accent mb-1 tracking-tighter italic uppercase">Buka Rekening</h1>
+        <h1 className="text-2xl font-black text-accent mb-1 tracking-tighter italic uppercase">Buka Rekening Elit</h1>
         <p className="text-muted-foreground mb-8 text-center text-xs font-medium">
-          Lengkapi data nasabah Anda untuk memulai ekosistem AliBank.
+          Aktifkan layanan perbankan & dompet Web3 mandiri dalam satu langkah.
         </p>
 
         <form onSubmit={handleRegister} className="w-full space-y-3">
@@ -157,14 +163,14 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full h-14 gold-gradient text-white font-extrabold rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all mt-6"
           >
-            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "AKTIFKAN REKENING ELIT"}
+            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "BUKA REKENING & DOMPET WEB3"}
           </Button>
         </form>
       </div>
 
       <div className="mt-10 flex items-center gap-2 text-primary/40 bg-primary/5 px-4 py-1.5 rounded-full border border-primary/5">
-        <ShieldCheck className="w-4 h-4" />
-        <span className="text-[8px] font-black uppercase tracking-widest text-accent/40">Secured with Web3 Multi-Sig</span>
+        <Wallet className="w-4 h-4" />
+        <span className="text-[8px] font-black uppercase tracking-widest text-accent/40">Powered by AliBank Global Node</span>
       </div>
     </div>
   );

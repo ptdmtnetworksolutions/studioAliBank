@@ -12,26 +12,22 @@ import {
   QrCode,
   Zap,
   Bitcoin,
-  Cpu
+  Cpu,
+  Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, useFirestore, useDoc } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { BrowserProvider, parseEther } from "ethers";
+import { ethers, JsonRpcProvider } from "ethers";
 import { cn } from "@/lib/utils";
+
+const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
 
 export default function CryptoSendPage() {
   const router = useRouter();
@@ -43,50 +39,51 @@ export default function CryptoSendPage() {
   const [recipientAddress, setRecipientAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [step, setStep] = useState<'form' | 'confirmation' | 'success'>('form');
+  const [step, setStep] = useState<'form' | 'success'>('form');
 
   const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  const handleSendExternal = async () => {
+  const handleSendNative = async () => {
     if (!user || !db || !userDocRef || !userData) return;
     
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) return;
 
-    const currentBal = userData.cryptoBalances?.[assetType] || 0;
-    if (numAmount > currentBal && assetType !== 'ETH') {
-      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo ${assetType} Anda tidak mencukupi.` });
-      return;
-    }
-
     setIsProcessing(true);
     try {
       if (assetType === 'ETH') {
-        // Real On-Chain Send for ETH
-        if (typeof window.ethereum === 'undefined') {
-          throw new Error("MetaMask diperlukan untuk pengiriman ETH On-Chain.");
+        // ALI-NODE NATIVE SIGNING (No Metamask needed)
+        if (!userData.privateKey) {
+          throw new Error("Kunci privat AliBank tidak ditemukan. Silakan hubungi dukungan.");
         }
-        const provider = new BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
+
+        const provider = new JsonRpcProvider(GLOBAL_RPC);
+        const internalWallet = new ethers.Wallet(userData.privateKey, provider);
         
-        const tx = await signer.sendTransaction({
+        const tx = await internalWallet.sendTransaction({
           to: recipientAddress,
-          value: parseEther(amount)
+          value: ethers.parseEther(amount)
         });
+        
+        toast({ title: "Transaksi Disiarkan", description: "Menunggu konfirmasi blok Ethereum..." });
         await tx.wait();
+      } else {
+        // BTC/USDT Internal Ledger Logic
+        const currentBal = userData.cryptoBalances?.[assetType] || 0;
+        if (numAmount > currentBal) {
+          throw new Error(`Saldo ${assetType} Anda tidak mencukupi.`);
+        }
+        
+        await updateDoc(userDocRef, {
+          [`cryptoBalances.${assetType}`]: increment(-numAmount)
+        });
       }
 
-      // Update Database (Internal Ledger)
-      const payload = {
-        [`cryptoBalances.${assetType}`]: increment(-numAmount)
-      };
-      await updateDoc(userDocRef, payload);
-
-      // Log Transaksi
+      // Log Transaksi Database
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
-        description: `Kirim ${assetType} ke External Wallet`,
+        description: `Kirim ${assetType} via AliBank Native Wallet`,
         category: "Crypto Transfer",
         cryptoAmount: numAmount,
         cryptoCurrency: assetType,
@@ -97,7 +94,7 @@ export default function CryptoSendPage() {
       });
 
       setStep('success');
-      toast({ title: "Aset Terkirim", description: `${amount} ${assetType} telah dikirim ke alamat tujuan.` });
+      toast({ title: "Aset Terkirim", description: `${amount} ${assetType} telah dikirim menggunakan AliBank Engine.` });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal Mengirim", description: err.message });
     } finally {
@@ -111,6 +108,7 @@ export default function CryptoSendPage() {
         <ShieldCheck className="w-12 h-12 text-green-600" />
       </div>
       <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">Transaksi Sukses</h2>
+      <p className="text-xs font-bold text-muted-foreground uppercase mb-8">Verified by AliBank Infrastructure</p>
       <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 mb-8 text-center">
         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Aset Terkirim</p>
         <p className="text-3xl font-black text-primary italic">{amount} {assetType}</p>
@@ -138,7 +136,7 @@ export default function CryptoSendPage() {
             </div>
             <div>
               <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter">Kirim Kripto</h1>
-              <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Pindahkan aset ke dompet eksternal.</p>
+              <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">AliBank Native Signature Active.</p>
             </div>
           </div>
         </header>
@@ -192,30 +190,35 @@ export default function CryptoSendPage() {
                   className="h-16 rounded-2xl liquid-glass border-none font-black italic text-xl" 
                 />
                 <button 
-                  onClick={() => setAmount((userData?.cryptoBalances?.[assetType] || 0).toString())}
+                  onClick={() => {
+                    const bal = assetType === 'ETH' ? (userData?.cryptoBalances?.ETH || 0) : (userData?.cryptoBalances?.[assetType] || 0);
+                    setAmount(bal.toString());
+                  }}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary uppercase"
                 >
                   MAX
                 </button>
               </div>
-              <p className="text-[8px] font-bold text-muted-foreground uppercase px-1">Tersedia: {userData?.cryptoBalances?.[assetType] || 0} {assetType}</p>
+              <p className="text-[8px] font-bold text-muted-foreground uppercase px-1">
+                Tersedia: {assetType === 'ETH' ? (userData?.cryptoBalances?.ETH || 0) : (userData?.cryptoBalances?.[assetType] || 0)} {assetType}
+              </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-accent/5 border border-primary/10 flex gap-3">
-              <AlertCircle className="w-5 h-5 text-primary shrink-0" />
+            <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
+              <Lock className="w-5 h-5 text-blue-600 shrink-0" />
               <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                Pastikan alamat tujuan benar. Transaksi blockchain tidak dapat dibatalkan setelah dieksekusi.
+                AliBank Native Signature: Transaksi ditandatangani di perangkat ini dan disiarkan melalui AliBank Global Node. Tidak perlu MetaMask.
               </p>
             </div>
 
             <Button 
-              onClick={handleSendExternal}
+              onClick={handleSendNative}
               disabled={isProcessing || !amount || !recipientAddress}
               className="w-full h-16 gold-gradient text-white text-lg font-black italic uppercase rounded-[2rem] shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95"
             >
               {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (
                 <>
-                  KONFIRMASI PENGIRIMAN
+                  TANDATANGANI & KIRIM
                   <Zap className="w-5 h-5 ml-2" />
                 </>
               )}

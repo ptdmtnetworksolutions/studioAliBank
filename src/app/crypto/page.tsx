@@ -9,10 +9,8 @@ import {
   RefreshCw, 
   Wallet,
   Loader2,
-  ArrowDownCircle,
   Globe,
   Zap,
-  Sparkles,
   ArrowRightLeft,
   Lock,
   TrendingUp,
@@ -30,7 +28,8 @@ import {
   ExternalLink,
   ShieldAlert,
   Send,
-  Download
+  Download,
+  Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,20 +37,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { BrowserProvider, formatEther, Contract, parseEther, JsonRpcProvider } from "ethers";
+import { formatEther, JsonRpcProvider, ethers } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useUser, useDoc, useFirestore, useCollection } from "@/firebase";
-import { doc, updateDoc, increment, addDoc, collection, serverTimestamp, query, limit } from "firebase/firestore";
-import { 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  ChartTooltip,
-  CartesianGrid 
-} from "recharts";
+import { useUser, useDoc, useFirestore } from "@/firebase";
+import { doc, updateDoc } from "firebase/firestore";
 import { LogoIcon } from "@/components/ui/logo";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -65,14 +55,6 @@ import {
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
 const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
-
-const CONTRACT_ABI = [
-  "function deposit() public payable",
-  "function withdraw(uint256 _amount) public",
-  "function balances(address) public view returns (uint256)",
-  "function getTotalVaultBalance() public view returns (uint256)",
-  "function owner() public view returns (address)"
-];
 
 type CoinData = {
   id: string;
@@ -92,14 +74,12 @@ export default function CryptoDeFiPage() {
   
   const [mounted, setMounted] = useState(false);
   const [coins, setCoins] = useState<CoinData[]>([]);
-  const [selectedCoin, setSelectedCoin] = useState<CoinData | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  // Wallet states
-  const [address, setAddress] = useState<string | null>(null);
-  const [vaultBalance, setVaultBalance] = useState("0");
-  const [walletBalance, setWalletBalance] = useState("0");
-  const [usingGlobalNode, setUsingGlobalNode] = useState(true);
+  const [onChainEth, setOnChainEth] = useState("0");
+  const [isActivatingWallet, setIsActivatingWallet] = useState(false);
+
+  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const { data: userData } = useDoc(userDocRef);
 
   const fetchMarketData = useCallback(async () => {
     try {
@@ -109,85 +89,52 @@ export default function CryptoDeFiPage() {
       const data = await response.json();
       if (Array.isArray(data)) {
         setCoins(data);
-        if (!selectedCoin) setSelectedCoin(data[0]);
       }
     } catch (err) {} finally { setLoading(false); }
-  }, [selectedCoin]);
+  }, []);
+
+  const fetchInternalBalance = useCallback(async (addr: string) => {
+    if (!addr) return;
+    try {
+      const provider = new JsonRpcProvider(GLOBAL_RPC);
+      const balance = await provider.getBalance(addr);
+      setOnChainEth(formatEther(balance));
+    } catch (err) {
+      console.warn("RPC fetch failed", err);
+    }
+  }, []);
 
   useEffect(() => {
     setMounted(true);
     fetchMarketData();
   }, [fetchMarketData]);
 
-  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
-  const { data: userData } = useDoc(userDocRef);
-
-  const checkBalances = useCallback(async (walletAddr: string) => {
-    if (!walletAddr) return;
-    try {
-      let provider;
-      if (typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask) {
-        provider = new BrowserProvider(window.ethereum);
-        setUsingGlobalNode(false);
-      } else {
-        provider = new JsonRpcProvider(GLOBAL_RPC);
-        setUsingGlobalNode(true);
-      }
-
-      const ethBalance = await provider.getBalance(walletAddr).catch(() => 0n);
-      setWalletBalance(formatEther(ethBalance));
-      
-      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
-      const vBalance = await contract.balances(walletAddr).catch(() => 0n);
-      setVaultBalance(formatEther(vBalance));
-    } catch (err) {
-      console.warn("Gagal mengecek saldo via RPC:", err);
-    }
-  }, []);
-
   useEffect(() => {
-    if (mounted && user) {
-      if (userData?.walletAddress) {
-        setAddress(userData.walletAddress);
-        checkBalances(userData.walletAddress);
-      } else if (typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask) {
-        window.ethereum.request({ method: 'eth_accounts' }).then(accounts => {
-          if (Array.isArray(accounts) && accounts.length > 0) {
-            setAddress(accounts[0]);
-            checkBalances(accounts[0]);
-          }
-        }).catch(() => {});
-      }
+    if (userData?.walletAddress) {
+      fetchInternalBalance(userData.walletAddress);
     }
-  }, [mounted, user, userData?.walletAddress, checkBalances]);
+  }, [userData?.walletAddress, fetchInternalBalance]);
 
-  const handleConnectWallet = async () => {
-    if (typeof window.ethereum === 'undefined') {
-      toast({ variant: "destructive", title: "MetaMask Diperlukan", description: "Gunakan browser MetaMask di HP untuk otorisasi transaksi." });
-      return;
-    }
+  const handleActivateNativeWallet = async () => {
+    if (!userDocRef || isActivatingWallet) return;
+    setIsActivatingWallet(true);
     try {
-      const provider = new BrowserProvider(window.ethereum);
-      const accounts = await provider.send("eth_requestAccounts", []);
-      if (accounts.length > 0) {
-        const addr = accounts[0];
-        setAddress(addr);
-        if (userDocRef) {
-          await updateDoc(userDocRef, { walletAddress: addr });
-        }
-        await checkBalances(addr);
-      }
-    } catch (err: any) {}
+      const newWallet = ethers.Wallet.createRandom();
+      await updateDoc(userDocRef, {
+        walletAddress: newWallet.address,
+        privateKey: newWallet.privateKey
+      });
+      toast({ title: "Native Wallet Aktif", description: "Dompet internal AliBank berhasil dibuat." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal", description: err.message });
+    } finally {
+      setIsActivatingWallet(false);
+    }
   };
 
-  const handleKelolaBrankas = () => {
-    if (user?.email === OWNER_EMAIL) {
-      router.push('/admin?tab=vault');
-    } else {
-      toast({ 
-        title: "Akses Terbatas", 
-        description: "Brankas V3 adalah fitur infrastruktur elit. Silakan hubungi admin AliBank untuk partisipasi staking institusional." 
-      });
+  const showPrivateKey = () => {
+    if (userData?.privateKey) {
+      alert(`PRIVATE KEY ANDA (RAHASIA):\n\n${userData.privateKey}\n\nJangan pernah bagikan ini kepada siapa pun!`);
     }
   };
 
@@ -206,11 +153,11 @@ export default function CryptoDeFiPage() {
                   <LogoIcon className="text-white" />
                 </div>
                 <h1 className="text-4xl font-black text-accent italic uppercase tracking-tighter flex items-center gap-3">
-                  Exchange Center <Globe className={cn("w-6 h-6 text-primary", usingGlobalNode ? "animate-pulse" : "")} />
+                  Exchange Center <Globe className="w-6 h-6 text-primary animate-pulse" />
                 </h1>
               </div>
               <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest pl-1">
-                AliBank Global Liquidity Engine • Real-Time Market Execution
+                AliBank Sovereign Infrastructure • Independent Web3 Node 2026
               </p>
             </div>
             
@@ -218,10 +165,10 @@ export default function CryptoDeFiPage() {
               <Button onClick={() => router.push('/crypto/trade/bitcoin')} className="h-12 px-8 rounded-2xl bg-accent text-white font-black uppercase italic shadow-xl">
                 <Zap className="mr-2 w-4 h-4" /> Buka Terminal Pro
               </Button>
-              {address ? (
+              {userData?.walletAddress ? (
                 <div className="flex items-center gap-2">
-                  <Badge className="h-12 px-6 rounded-2xl font-black text-[11px] uppercase tracking-tighter shadow-lg bg-green-600 text-white border-none">
-                    {address.slice(0, 6)}...{address.slice(-4)}
+                  <Badge className="h-12 px-6 rounded-2xl font-black text-[11px] uppercase tracking-tighter shadow-lg bg-primary text-white border-none flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4" /> {userData.walletAddress.slice(0, 6)}...{userData.walletAddress.slice(-4)}
                   </Badge>
                   <Button onClick={() => router.push('/crypto/send')} variant="outline" className="h-12 w-12 rounded-2xl border-primary/20 text-primary flex items-center justify-center shadow-md">
                     <Send className="w-5 h-5" />
@@ -231,8 +178,8 @@ export default function CryptoDeFiPage() {
                   </Button>
                 </div>
               ) : (
-                <Button onClick={handleConnectWallet} className="h-12 px-8 rounded-2xl gold-gradient text-white font-black uppercase italic shadow-xl">
-                  <Wallet className="mr-2 w-4 h-4" /> Konek Wallet
+                <Button onClick={handleActivateNativeWallet} disabled={isActivatingWallet} className="h-12 px-8 rounded-2xl gold-gradient text-white font-black uppercase italic shadow-xl">
+                  {isActivatingWallet ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : <Wallet2 className="mr-2 w-4 h-4" />} Aktifkan Native Wallet
                 </Button>
               )}
             </div>
@@ -240,6 +187,39 @@ export default function CryptoDeFiPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8 space-y-8">
+              {/* Wallet Header - Meta-style */}
+              <Card className="rounded-[2.5rem] gold-gradient border-none p-10 text-white shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-10"><LogoIcon className="w-40 h-40" /></div>
+                <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">AliBank Sovereign Asset</p>
+                      <h2 className="text-5xl font-black italic tracking-tighter mt-1">{parseFloat(onChainEth).toFixed(4)} ETH</h2>
+                      <p className="text-xs font-bold opacity-80 mt-2 flex items-center gap-2">
+                        <Activity className="w-3 h-3 text-green-400" /> Mainnet Sync: Connected
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <Button onClick={() => router.push('/crypto/send')} className="bg-white text-primary rounded-xl font-black uppercase italic text-[10px] px-6 h-10 shadow-lg">Kirim Aset</Button>
+                      <Button onClick={() => router.push('/crypto/receive')} className="bg-white/10 text-white border border-white/20 rounded-xl font-black uppercase italic text-[10px] px-6 h-10">Terima</Button>
+                    </div>
+                  </div>
+                  <div className="bg-black/10 backdrop-blur-md rounded-3xl p-6 border border-white/5 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Native Web3 Node</p>
+                      <ShieldCheck className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-[8px] font-bold uppercase opacity-40">Alamat Dompet Mandiri</p>
+                      <p className="text-[10px] font-black break-all leading-relaxed">{userData?.walletAddress || "Generating..."}</p>
+                    </div>
+                    <Button onClick={showPrivateKey} variant="ghost" className="w-full h-8 text-[8px] font-black uppercase text-white/40 hover:text-white hover:bg-white/5">
+                      <Key className="w-3 h-3 mr-2" /> Backup Private Key
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
               <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white">
                 <div className="p-8 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
                   <h3 className="text-xl font-black italic uppercase text-accent flex items-center gap-3">
@@ -300,26 +280,41 @@ export default function CryptoDeFiPage() {
                   </table>
                 </div>
               </Card>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-4">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                    <ShieldCheck className="w-6 h-6" />
-                  </div>
-                  <h4 className="text-lg font-black text-accent uppercase italic tracking-tighter">Custody Aman V3</h4>
-                  <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">Aset Anda diamankan dengan teknologi smart contract multi-sig yang terverifikasi di Mainnet.</p>
-                </Card>
-                <Card className="liquid-glass border-none rounded-[2rem] p-8 space-y-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600">
-                    <Zap className="w-6 h-6" />
-                  </div>
-                  <h4 className="text-lg font-black text-accent uppercase italic tracking-tighter">Eksekusi Instan</h4>
-                  <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">Terminal trading pro AliBank menggunakan orderbook hybrid untuk likuiditas tak terbatas.</p>
-                </Card>
-              </div>
             </div>
 
             <div className="lg:col-span-4 space-y-8">
+              <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-accent uppercase italic">AliBank Signature</h4>
+                    <p className="text-[8px] font-bold text-muted-foreground uppercase">Independent Infrastructure</p>
+                  </div>
+                </div>
+                
+                <div className="p-6 rounded-2xl bg-accent/5 border border-primary/5 space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-black uppercase text-muted-foreground">Status Jaringan</p>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-xs font-black text-accent italic uppercase">Global Node Aktif</span>
+                    </div>
+                  </div>
+                  <p className="text-[9px] text-muted-foreground font-medium italic leading-relaxed">
+                    Aplikasi ini menggunakan teknologi signing mandiri. Anda tidak lagi membutuhkan MetaMask untuk menandatangani transaksi. Semua dikelola aman oleh AliBank V3 Node.
+                  </p>
+                </div>
+
+                <Button 
+                  onClick={() => router.push('/admin?tab=vault')}
+                  className="w-full h-12 bg-accent text-white font-black uppercase italic rounded-xl shadow-lg hover:bg-accent/90"
+                >
+                  Kelola Brankas V3
+                </Button>
+              </Card>
+
               <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10"><PieChart className="w-20 h-20" /></div>
                 <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-8">Portofolio Saya</h3>
@@ -349,51 +344,7 @@ export default function CryptoDeFiPage() {
                       </div>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button onClick={() => router.push('/crypto/send')} className="h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl">
-                      Kirim
-                    </Button>
-                    <Button onClick={() => router.push('/crypto/receive')} className="h-14 bg-white/10 text-white border border-white/20 rounded-2xl font-black uppercase italic shadow-xl hover:bg-white/20">
-                      Terima
-                    </Button>
-                  </div>
                 </div>
-              </Card>
-
-              <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-                    <Lock className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-black text-accent uppercase italic">Brankas V3</h4>
-                    <p className="text-[8px] font-bold text-muted-foreground uppercase">On-Chain Yield Bearing</p>
-                  </div>
-                </div>
-                
-                <div className="p-6 rounded-2xl bg-accent/5 border border-primary/5 space-y-1 text-center">
-                  <p className="text-[9px] font-black uppercase text-muted-foreground">Saldo Staking Mainnet</p>
-                  <p className="text-2xl font-black text-accent italic">{parseFloat(vaultBalance).toFixed(4)} ETH</p>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex justify-between text-[10px] font-bold">
-                    <span className="text-muted-foreground uppercase">APY Tahunan</span>
-                    <span className="text-green-600">4.85%</span>
-                  </div>
-                  <div className="flex justify-between text-[10px] font-bold">
-                    <span className="text-muted-foreground uppercase">Status Node</span>
-                    <span className="text-primary italic">Connected</span>
-                  </div>
-                </div>
-
-                <Button 
-                  onClick={handleKelolaBrankas}
-                  className="w-full h-12 bg-accent text-white font-black uppercase italic rounded-xl shadow-lg hover:bg-accent/90"
-                >
-                  Kelola Brankas
-                </Button>
               </Card>
             </div>
           </div>
