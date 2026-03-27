@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -68,7 +67,7 @@ import { LogoIcon } from "@/components/ui/logo";
 import Image from "next/image";
 
 // Konfigurasi RPC Global (Fasilitas Web3 Infrastructure)
-const GLOBAL_RPC = "https://cloudflare-eth.com"; // Bisa diganti dengan Google Cloud Web3 RPC URL Anda
+const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
 const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
@@ -127,11 +126,12 @@ export default function AdminControlPage() {
   };
 
   const syncOnChainVault = useCallback(async () => {
+    if (syncingVault) return;
     setSyncingVault(true);
     try {
       let provider;
       // Gunakan MetaMask jika ada, jika tidak gunakan Global Node RPC
-      if (typeof window.ethereum !== 'undefined') {
+      if (typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask) {
         provider = new BrowserProvider(window.ethereum);
         setUsingGlobalNode(false);
       } else {
@@ -139,29 +139,26 @@ export default function AdminControlPage() {
         setUsingGlobalNode(true);
       }
 
-      const balance = await provider.getBalance(DEFAULT_CONTRACT);
+      // Pastikan address valid sebelum getBalance
+      const balance = await provider.getBalance(DEFAULT_CONTRACT).catch((e) => {
+        console.warn("RPC fetch failed, using fallback 0", e);
+        return 0n;
+      });
       setOnChainTotal(formatEther(balance));
 
-      if (typeof window.ethereum !== 'undefined') {
+      if (typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask) {
         const accounts = await (provider as BrowserProvider).listAccounts();
         if (accounts.length > 0) {
           const walletBal = await provider.getBalance(accounts[0].address);
           setConnectedBalance(formatEther(walletBal));
         }
       }
-
-      if (!syncingVault) {
-        toast({ 
-          title: "Sinkronisasi Berhasil", 
-          description: usingGlobalNode ? "Data ditarik melalui AliBank Global Node." : "Data ditarik melalui Provider Lokal." 
-        });
-      }
     } catch (err: any) {
       console.error("Kesalahan Sinkronisasi Brankas:", err);
     } finally {
       setSyncingVault(false);
     }
-  }, [toast, usingGlobalNode, syncingVault]);
+  }, [syncingVault]);
 
   useEffect(() => {
     if (userLoading) return;
@@ -187,7 +184,7 @@ export default function AdminControlPage() {
             alixVaultBalance: increment(reward),
             totalAlixMinted: increment(reward),
             lastMintingPulse: new Date().toISOString()
-          });
+          }).catch(() => {});
         }
       }, 1500);
     } else {

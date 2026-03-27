@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -51,7 +50,7 @@ import {
   CartesianGrid 
 } from "recharts";
 import { LogoIcon } from "@/components/ui/logo";
-import { useRouter } from "next/navigation";
+import { useRouter } from "navigation";
 import Image from "next/image";
 import {
   Tooltip,
@@ -62,7 +61,7 @@ import {
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 
-const GLOBAL_RPC = "https://cloudflare-eth.com";
+const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
 const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
 
 const CONTRACT_ABI = [
@@ -127,9 +126,10 @@ export default function CryptoDeFiPage() {
   const { data: userData } = useDoc(userDocRef);
 
   const checkBalances = useCallback(async (walletAddr: string) => {
+    if (!walletAddr) return;
     try {
       let provider;
-      if (typeof window.ethereum !== 'undefined' && walletAddr) {
+      if (typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask) {
         provider = new BrowserProvider(window.ethereum);
         setUsingGlobalNode(false);
       } else {
@@ -137,16 +137,14 @@ export default function CryptoDeFiPage() {
         setUsingGlobalNode(true);
       }
 
-      if (walletAddr) {
-        const ethBalance = await provider.getBalance(walletAddr);
-        setWalletBalance(formatEther(ethBalance));
-        
-        const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
-        const vBalance = await contract.balances(walletAddr).catch(() => 0n);
-        setVaultBalance(formatEther(vBalance));
-      }
+      const ethBalance = await provider.getBalance(walletAddr).catch(() => 0n);
+      setWalletBalance(formatEther(ethBalance));
+      
+      const contract = new Contract(DEFAULT_CONTRACT, CONTRACT_ABI, provider);
+      const vBalance = await contract.balances(walletAddr).catch(() => 0n);
+      setVaultBalance(formatEther(vBalance));
     } catch (err) {
-      console.error("Balance Check Error:", err);
+      console.warn("Gagal mengecek saldo via RPC:", err);
     }
   }, []);
 
@@ -156,13 +154,13 @@ export default function CryptoDeFiPage() {
       if (userData?.walletAddress) {
         setAddress(userData.walletAddress);
         checkBalances(userData.walletAddress);
-      } else if (typeof window.ethereum !== 'undefined') {
+      } else if (typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask) {
         window.ethereum.request({ method: 'eth_accounts' }).then(accounts => {
-          if (accounts.length > 0) {
+          if (Array.isArray(accounts) && accounts.length > 0) {
             setAddress(accounts[0]);
             checkBalances(accounts[0]);
           }
-        });
+        }).catch(() => {});
       }
     }
   }, [mounted, user, userData?.walletAddress, checkBalances]);
