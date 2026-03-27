@@ -53,7 +53,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
-import { useUser, useDoc, useCollection } from "@/firebase";
+import { useUser, useDoc, useCollection, useFirestore } from "@/firebase";
 import { 
   collection, 
   doc, 
@@ -163,7 +163,7 @@ function AdminContent() {
     setIsSyncingEngine(true);
     try {
       await syncOnChainVault();
-      toast({ title: "Integrity Sync Complete", description: "Ledger Internal dan Saldo On-Chain telah disinkronkan." });
+      toast({ title: t ? t('integrity_sync_complete') : "Integrity Sync Complete", description: "Ledger Internal dan Saldo On-Chain telah disinkronkan." });
     } catch (err) {
       toast({ variant: "destructive", title: "Sync Failed" });
     } finally {
@@ -175,7 +175,6 @@ function AdminContent() {
     if (!db || isReconciling) return;
     setIsReconciling(true);
     try {
-      // Protokol Rekonsiliasi Nyata: Memindai seluruh mutasi invoice sukses untuk memperbarui Likuiditas Global
       const q = query(collection(db, "system", "audit", "global_transactions"));
       const snapshot = await getDocs(q);
       
