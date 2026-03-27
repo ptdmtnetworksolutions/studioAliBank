@@ -14,13 +14,14 @@ import {
   Bitcoin,
   Cpu,
   Lock,
-  Key
+  Key,
+  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, useFirestore, useDoc } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
@@ -42,20 +43,33 @@ export default function CryptoSendPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
   const [step, setStep] = useState<'form' | 'success'>('form');
+  const [onChainBal, setOnChainBal] = useState("0");
 
   const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
   const hasPrivateKey = !!userData?.privateKey;
 
+  // Sync on-chain balance for better accuracy
+  useEffect(() => {
+    async function sync() {
+      if (userData?.walletAddress) {
+        try {
+          const provider = new JsonRpcProvider(GLOBAL_RPC);
+          const bal = await provider.getBalance(userData.walletAddress);
+          setOnChainBal(ethers.formatEther(bal));
+        } catch (e) {
+          console.warn("Balance sync failed", e);
+        }
+      }
+    }
+    sync();
+  }, [userData?.walletAddress]);
+
   const handleActivateSignature = async () => {
     if (!userDocRef || isActivating) return;
     setIsActivating(true);
     try {
-      // Jika user sudah punya walletAddress tapi gapunya privateKey (kasus migrasi)
-      // Kita buatkan wallet baru yang sinkron. 
-      // PERHATIAN: Di sistem produksi nyata, kita tidak boleh mengganti wallet yang sudah ada isinya.
-      // Namun untuk prototype, kita pastikan user punya akses kirim.
       const newWallet = ethers.Wallet.createRandom();
       await updateDoc(userDocRef, {
         walletAddress: newWallet.address,
@@ -66,6 +80,26 @@ export default function CryptoSendPage() {
       toast({ variant: "destructive", title: "Gagal Aktivasi", description: err.message });
     } finally {
       setIsActivating(false);
+    }
+  };
+
+  const handleMaxAmount = () => {
+    if (assetType === 'ETH') {
+      // Sediakan buffer untuk Gas Fee (rata-rata 0.0005 - 0.001 ETH)
+      const currentBal = parseFloat(onChainBal);
+      const safeMax = Math.max(0, currentBal - 0.0006); 
+      setAmount(safeMax.toFixed(18).replace(/\.?0+$/, ""));
+      
+      if (currentBal < 0.0006) {
+        toast({ 
+          variant: "destructive", 
+          title: "Saldo Terlalu Kecil", 
+          description: "Anda membutuhkan setidaknya 0.0006 ETH untuk membayar biaya jaringan (Gas Fee)." 
+        });
+      }
+    } else {
+      const bal = userData?.cryptoBalances?.[assetType] || 0;
+      setAmount(bal.toString());
     }
   };
 
@@ -86,9 +120,26 @@ export default function CryptoSendPage() {
         const provider = new JsonRpcProvider(GLOBAL_RPC);
         const internalWallet = new ethers.Wallet(userData.privateKey, provider);
         
+        // Cek gas secara proaktif
+        const feeData = await provider.getFeeData();
+        const gasPrice = feeData.gasPrice || ethers.parseUnits('20', 'gwei');
+        const gasLimit = 21000n;
+        const totalFee = gasPrice * gasLimit;
+        const valueToSend = ethers.parseEther(amount);
+        const totalNeeded = valueToSend + totalFee;
+
+        const currentBalance = await provider.getBalance(userData.walletAddress);
+        
+        if (currentBalance < totalNeeded) {
+          const needed = ethers.formatEther(totalNeeded - currentBalance);
+          throw new Error(`Saldo tidak cukup untuk Biaya Gas. Anda membutuhkan tambahan ${parseFloat(needed).toFixed(6)} ETH.`);
+        }
+
         const tx = await internalWallet.sendTransaction({
           to: recipientAddress,
-          value: ethers.parseEther(amount)
+          value: valueToSend,
+          gasLimit: gasLimit,
+          gasPrice: gasPrice
         });
         
         toast({ title: "Transaksi Disiarkan", description: "Menunggu konfirmasi blok Ethereum..." });
@@ -119,7 +170,11 @@ export default function CryptoSendPage() {
       setStep('success');
       toast({ title: "Aset Terkirim", description: `${amount} ${assetType} telah dikirim menggunakan AliBank Engine.` });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Gagal Mengirim", description: err.message });
+      let msg = err.message;
+      if (err.code === 'INSUFFICIENT_FUNDS') {
+        msg = "Saldo tidak cukup untuk membayar jumlah transfer + Biaya Gas jaringan.";
+      }
+      toast({ variant: "destructive", title: "Gagal Mengirim", description: msg });
     } finally {
       setIsProcessing(false);
     }
@@ -213,18 +268,22 @@ export default function CryptoSendPage() {
                   className="h-16 rounded-2xl liquid-glass border-none font-black italic text-xl" 
                 />
                 <button 
-                  onClick={() => {
-                    const bal = assetType === 'ETH' ? (userData?.cryptoBalances?.ETH || 0) : (userData?.cryptoBalances?.[assetType] || 0);
-                    setAmount(bal.toString());
-                  }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary uppercase"
+                  onClick={handleMaxAmount}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary uppercase bg-primary/10 px-2 py-1 rounded-md"
                 >
                   MAX
                 </button>
               </div>
-              <p className="text-[8px] font-bold text-muted-foreground uppercase px-1">
-                Tersedia: {assetType === 'ETH' ? (userData?.cryptoBalances?.ETH || 0) : (userData?.cryptoBalances?.[assetType] || 0)} {assetType}
-              </p>
+              <div className="flex justify-between items-center px-1">
+                <p className="text-[8px] font-bold text-muted-foreground uppercase">
+                  Tersedia: {assetType === 'ETH' ? parseFloat(onChainBal).toFixed(8) : (userData?.cryptoBalances?.[assetType] || 0)} {assetType}
+                </p>
+                {assetType === 'ETH' && (
+                  <div className="flex items-center gap-1 text-[7px] font-black text-primary uppercase">
+                    <Info className="w-2.5 h-2.5" /> Estimasi Gas: ~0.0005 ETH
+                  </div>
+                )}
+              </div>
             </div>
 
             {assetType === 'ETH' && !hasPrivateKey ? (
@@ -248,7 +307,7 @@ export default function CryptoSendPage() {
               <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
                 <Lock className="w-5 h-5 text-blue-600 shrink-0" />
                 <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                  AliBank Native Signature: Transaksi ditandatangani di perangkat ini dan disiarkan melalui AliBank Global Node. Tidak perlu MetaMask.
+                  AliBank Native Signature: Transaksi ditandatangani secara lokal dan disiarkan melalui Global Node. Pastikan saldo ETH Anda menyisakan Biaya Gas.
                 </p>
               </div>
             )}
