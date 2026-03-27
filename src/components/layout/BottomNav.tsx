@@ -5,9 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   Home, 
-  BarChart2, 
-  ArrowLeftRight, 
-  Compass, 
+  TrendingUp, 
+  Repeat, 
+  FileText, 
   Wallet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,9 +15,9 @@ import { useState, useEffect } from "react";
 
 const navItems = [
   { name: "Beranda", href: "/", icon: Home },
-  { name: "Pasar", href: "/crypto", icon: BarChart2 },
-  { name: "Dagang", href: "/crypto/trade/alix", icon: ArrowLeftRight },
-  { name: "Discover", href: "/marketplace", icon: Compass },
+  { name: "Pasar", href: "/crypto", icon: TrendingUp },
+  { name: "Perdagangan", href: "/crypto/trade/alix", icon: Repeat },
+  { name: "Futures", href: "/marketplace", icon: FileText },
   { name: "Aset", href: "/transactions", icon: Wallet },
 ];
 

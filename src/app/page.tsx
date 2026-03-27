@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useUser, useDoc, useFirestore, useCollection } from "@/firebase";
+import { useUser, useDoc, useFirestore } from "@/firebase";
 import { useRouter } from "next/navigation";
 import { 
   Menu, 
@@ -14,18 +14,24 @@ import {
   LayoutGrid,
   TrendingUp,
   TrendingDown,
-  Sparkles,
   Zap,
   Award,
+  Bell,
+  Scan,
+  User,
+  X,
+  CreditCard,
+  ArrowRightLeft,
   CirclePlay,
-  ArrowRight
+  ArrowRight,
+  Landmark,
+  HandCoins,
+  Globe
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect, useMemo } from "react";
-import Image from "next/image";
 import { doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
@@ -38,7 +44,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState("bursa");
+  const [activeTab, setActiveTab] = useState<'bursa' | 'dompet'>('bursa');
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -72,34 +78,40 @@ export default function Dashboard() {
   }
 
   const services = [
-    { name: "Alpha", icon: "/icons/alpha.svg", color: "bg-blue-50 text-blue-600" },
-    { name: "Sekuritas", icon: "/icons/security.svg", color: "bg-purple-50 text-purple-600" },
-    { name: "Earn", icon: "/icons/earn.svg", color: "bg-yellow-50 text-yellow-600" },
-    { name: "Referral", icon: "/icons/referral.svg", color: "bg-green-50 text-green-600" },
-    { name: "Lainnya", icon: "/icons/more.svg", color: "bg-gray-50 text-gray-600" },
+    { name: "Alpha", color: "bg-blue-50 text-blue-600" },
+    { name: "Sekuritas", color: "bg-purple-50 text-purple-600" },
+    { name: "Earn", color: "bg-yellow-50 text-yellow-600" },
+    { name: "Referral", color: "bg-green-50 text-green-600" },
+    { name: "Lainnya", color: "bg-gray-50 text-gray-600" },
   ];
 
   const marketData = [
     { name: "ALIX", symbol: "ALIX", price: "12.450", change: "+4.85", isUp: true, tags: ["Sovereign", "AI"] },
     { name: "PIXEL", symbol: "PIXEL", price: "0,50607", change: "-10,19", isUp: false, tags: ["AI"] },
-    { name: "扭羊歌", symbol: "KAT", price: "4,7939", change: "-13,17", isUp: false, tags: ["AI", "Meme"] },
+    { name: "KAT", symbol: "KAT", price: "4,7939", change: "-13,17", isUp: false, tags: ["AI", "Meme"] },
   ];
 
   return (
-    <div className="min-h-screen bg-white pb-24 text-slate-900 selection:bg-yellow-200">
+    <div className="min-h-screen bg-[#F7F7F7] pb-24 text-slate-900 selection:bg-yellow-200">
       {/* Top Header Navigation */}
-      <header className="px-4 pt-4 pb-2 sticky top-0 z-50 bg-white border-b border-slate-50">
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <Button variant="ghost" size="icon" className="text-slate-900 h-8 w-8">
-            <Menu className="w-6 h-6" />
-          </Button>
+      <header className="px-4 pt-4 pb-2 sticky top-0 z-50 bg-[#F7F7F7]">
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center">
+              <User className="w-5 h-5 text-slate-500" />
+            </div>
+            <div className="relative">
+              <Bell className="w-6 h-6 text-slate-700" />
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#FCD535] text-slate-900 text-[9px] font-black rounded-full flex items-center justify-center border-2 border-[#F7F7F7]">18</span>
+            </div>
+          </div>
           
-          <div className="flex bg-slate-100 p-1 rounded-lg">
+          <div className="flex bg-slate-200/60 p-1 rounded-lg">
             <button 
               onClick={() => setActiveTab('bursa')}
               className={cn(
                 "px-6 py-1.5 text-xs font-bold rounded-md transition-all",
-                activeTab === 'bursa' ? "bg-white shadow-sm text-slate-900" : "text-slate-400"
+                activeTab === 'bursa' ? "bg-white shadow-sm text-slate-900" : "text-slate-500"
               )}
             >
               Bursa
@@ -108,7 +120,7 @@ export default function Dashboard() {
               onClick={() => setActiveTab('dompet')}
               className={cn(
                 "px-6 py-1.5 text-xs font-bold rounded-md transition-all",
-                activeTab === 'dompet' ? "bg-white shadow-sm text-slate-900" : "text-slate-400"
+                activeTab === 'dompet' ? "bg-white shadow-sm text-slate-900" : "text-slate-500"
               )}
             >
               Dompet
@@ -116,12 +128,8 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Headset className="w-5 h-5 text-slate-600" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Maximize className="w-5 h-5 text-slate-600" />
-            </Button>
+            <Headset className="w-6 h-6 text-slate-700" />
+            <Scan className="w-6 h-6 text-slate-700" />
           </div>
         </div>
 
@@ -129,151 +137,229 @@ export default function Dashboard() {
         <div className="relative mb-2">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input 
-            placeholder="Pencarian Teratas: PIXEL" 
-            className="h-11 pl-11 pr-4 bg-slate-50 border-none rounded-full text-sm font-medium placeholder:text-slate-400"
+            placeholder={activeTab === 'bursa' ? "BTC Turun 5% Geopolitik" : "Cari Koin..."}
+            className="h-11 pl-11 pr-4 bg-white border-none rounded-md text-sm font-medium placeholder:text-slate-400 shadow-sm"
           />
         </div>
       </header>
 
       <main className="px-4 pt-2">
-        {/* Profile & Wallet Switcher */}
-        <div className="flex items-center justify-between mb-2 px-1">
-          <div className="flex items-center gap-2 group cursor-pointer">
-            <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center p-1">
-              <LogoIcon className="text-white" />
-            </div>
-            <span className="text-sm font-bold text-slate-900">AliBank</span>
-            <ChevronDown className="w-4 h-4 text-slate-400" />
-          </div>
-          <button onClick={copyAddress} className="p-1 hover:bg-slate-100 rounded">
-            <Copy className="w-4 h-4 text-slate-400" />
-          </button>
-        </div>
-
-        {/* Big Balance Section */}
-        <div className="flex justify-between items-center mb-8 px-1">
-          <div>
-            <h1 className="text-4xl font-black tracking-tight text-slate-900 italic">
-              Rp{(userData?.totalBalance ?? 0).toLocaleString('id-ID')}
-            </h1>
-          </div>
-          <Button 
-            onClick={() => router.push('/crypto/receive')}
-            className="bg-[#FCD535] hover:bg-[#FCD535]/90 text-slate-900 font-bold px-8 h-11 rounded-lg border-none shadow-none text-sm"
-          >
-            Terima
-          </Button>
-        </div>
-
-        {/* Service Grid Icons */}
-        <div className="grid grid-cols-5 gap-4 mb-8">
-          {services.map((service, idx) => (
-            <div key={idx} className="flex flex-col items-center gap-2">
-              <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shadow-sm active:scale-95 transition-transform">
-                <LayoutGrid className="w-6 h-6 text-slate-700" />
+        {activeTab === 'bursa' ? (
+          /* BURSA VIEW (EXCHANGE) */
+          <div className="space-y-6 animate-in fade-in duration-500">
+            {/* Balance Section */}
+            <div className="flex justify-between items-start mb-2">
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  <span className="text-xs font-bold">Estimasi Total Nilai(IDR)</span>
+                  <ChevronDown className="w-3 h-3" />
+                </div>
+                <h1 className="text-4xl font-black tracking-tight text-slate-900">
+                  Rp20.07
+                </h1>
+                <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                  <span className="text-slate-400">PNL hari ini</span>
+                  <span className="text-rose-500">-Rp0.04042939 (-0.20%)</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </div>
               </div>
-              <span className="text-[10px] font-bold text-slate-600">{service.name}</span>
+              <Button className="bg-[#FCD535] hover:bg-[#FCD535]/90 text-slate-900 font-bold px-4 h-10 rounded-lg shadow-none text-xs">
+                Tambah Dana
+              </Button>
             </div>
-          ))}
-        </div>
 
-        {/* Promo Carousel Card */}
-        <div className="bg-white border border-slate-100 rounded-2xl p-5 mb-6 flex items-center justify-between shadow-sm relative overflow-hidden group cursor-pointer">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-xl italic shadow-lg">K</div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 leading-tight">Berbagi 35 Juta KAT bersama Katana</h3>
+            {/* AliBank Challenge Card */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center justify-between shadow-sm relative group cursor-pointer">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100">
+                  <Award className="w-6 h-6 text-slate-900" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tantangan AliBank</p>
+                  <h3 className="text-sm font-black text-slate-900">Hadiah Bersama 500.000 ALIX</h3>
+                </div>
+              </div>
+              <Button className="bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-[10px] h-8 px-4 rounded-md shadow-none">Ikuti</Button>
+              <div className="absolute top-2 right-2 text-slate-300">
+                <X className="w-4 h-4" />
+              </div>
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                <div className="w-3 h-1 bg-slate-900 rounded-full" />
+                <div className="w-1 h-1 bg-slate-200 rounded-full" />
+                <div className="w-1 h-1 bg-slate-200 rounded-full" />
+              </div>
             </div>
-          </div>
-          <Button className="bg-[#FCD535] hover:bg-[#FCD535]/90 text-slate-900 font-bold text-[10px] h-8 px-4 rounded-md shadow-none">Ikuti</Button>
-          
-          {/* Carousel dots indicator */}
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-            <div className="w-3 h-1 bg-slate-900 rounded-full" />
-            <div className="w-1 h-1 bg-slate-200 rounded-full" />
-          </div>
-        </div>
 
-        {/* Quick Earn Cards Grid */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 group cursor-pointer">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-bold text-slate-500 italic">Meme Rush</span>
-              <ChevronRight className="w-3 h-3 text-slate-400" />
-            </div>
-            <p className="text-xl font-black text-slate-900 tracking-tighter">2,66K <span className="text-[10px] font-bold text-slate-400 block uppercase">token baru dalam 1 jam</span></p>
-            <div className="flex items-center gap-1 mt-3">
-              <div className="w-5 h-5 rounded-full bg-orange-500 border border-white" />
-              <div className="w-5 h-5 rounded-full bg-blue-500 -ml-2 border border-white" />
-              <div className="w-5 h-5 rounded-full bg-green-500 -ml-2 border border-white" />
-            </div>
-          </div>
+            {/* Feature Grid 2x2 */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Card 1: ALIX */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden group cursor-pointer">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center p-1">
+                    <LogoIcon className="text-yellow-400" />
+                  </div>
+                  <span className="text-xs font-black text-slate-400">ALIX</span>
+                </div>
+                <p className="text-xl font-black text-slate-900">12.450</p>
+                <p className="text-[10px] font-black text-rose-500">- 3.02%</p>
+                <div className="mt-2 h-10 w-full opacity-30">
+                  <svg viewBox="0 0 100 40" className="w-full h-full">
+                    <path d="M0 35 Q 25 10, 50 30 T 100 20" fill="none" stroke="red" strokeWidth="2" />
+                  </svg>
+                </div>
+              </div>
 
-          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 group cursor-pointer">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-bold text-slate-500 italic">Earn</span>
-              <ChevronRight className="w-3 h-3 text-slate-400" />
-            </div>
-            <p className="text-xl font-black text-green-600 tracking-tighter">9% <span className="text-[10px] font-bold text-slate-400 block uppercase">APY</span></p>
-            <div className="flex items-center gap-2 mt-2">
-              <div className="w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center text-[8px] text-white font-bold italic border border-white shadow-sm">W</div>
-              <span className="text-[10px] font-black text-slate-900 italic">WETH</span>
-            </div>
-          </div>
-        </div>
+              {/* Card 2: P2P */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm font-black text-slate-400">Order P2P</span>
+                  <ChevronRight className="w-4 h-4 text-slate-300" />
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 leading-tight">Beli/Jual Kripto dengan IDR</p>
+                <div className="mt-4 flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <HandCoins className="w-6 h-6 text-slate-900 mb-1" />
+                    <span className="text-[10px] font-black">P2P</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <Search className="w-6 h-6 text-slate-900 mb-1" />
+                    <span className="text-[10px] font-black text-center leading-none">Temukan<br/>Penawaran</span>
+                  </div>
+                </div>
+              </div>
 
-        {/* Market List Section */}
-        <div className="space-y-6 px-1">
-          <div className="flex items-center justify-between">
-            <div className="flex gap-6 overflow-x-auto no-scrollbar pb-1">
-              <button className="text-sm font-bold text-slate-400 shrink-0">Daftar Pantauan</button>
-              <button className="text-sm font-black text-slate-900 border-b-2 border-slate-900 pb-1 shrink-0">Pencarian Populer</button>
-              <button className="text-sm font-bold text-slate-400 shrink-0">Sedang Tren</button>
-            </div>
-          </div>
+              {/* Card 3: USD SWIFT */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer relative">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center font-bold text-xs">$</div>
+                  <span className="text-xs font-black text-slate-400">USD</span>
+                </div>
+                <Badge className="bg-green-100 text-green-600 text-[8px] font-black h-4 px-1.5 mb-2 border-none">Setor</Badge>
+                <h4 className="text-sm font-black text-slate-900 leading-tight">Transfer Bank (SWIFT)</h4>
+                <div className="mt-4">
+                  <Landmark className="w-6 h-6 text-slate-900" />
+                </div>
+                <div className="absolute bottom-2 right-4 flex gap-1">
+                  <div className="w-1.5 h-1 bg-slate-900 rounded-full" />
+                  <div className="w-1 h-1 bg-slate-200 rounded-full" />
+                </div>
+              </div>
 
-          <div className="flex gap-2 overflow-x-auto no-scrollbar">
-            <Badge className="bg-slate-900 text-white rounded-lg px-3 py-1.5 text-[10px] border-none font-bold uppercase italic"><LayoutGrid className="w-3 h-3 mr-1" /> Semua</Badge>
-            <Badge variant="outline" className="bg-white text-slate-400 rounded-lg px-3 py-1.5 text-[10px] border-slate-100 font-bold uppercase">BSC</Badge>
-            <Badge variant="outline" className="bg-white text-slate-400 rounded-lg px-3 py-1.5 text-[10px] border-slate-100 font-bold uppercase">Solana</Badge>
-            <Badge variant="outline" className="bg-white text-slate-400 rounded-lg px-3 py-1.5 text-[10px] border-slate-100 font-bold uppercase">Ethereum</Badge>
-          </div>
-
-          <div className="space-y-6 pt-2">
-            {marketData.map((coin, idx) => (
-              <div key={idx} onClick={() => router.push(`/crypto/trade/${coin.symbol.toLowerCase()}`)} className="flex items-center justify-between group cursor-pointer active:bg-slate-50 p-1 rounded-xl transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="relative w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm">
-                    {coin.symbol === 'ALIX' ? <LogoIcon className="text-yellow-400 p-2" /> : <div className="text-white font-black italic">{coin.symbol[0]}</div>}
-                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-yellow-400 rounded-full border-2 border-white flex items-center justify-center p-0.5">
-                      <LogoIcon className="text-slate-900" />
+              {/* Card 4: Send Cash */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden">
+                <span className="text-sm font-black text-slate-400">Kirim Tunai</span>
+                <div className="absolute -right-2 top-2 bg-blue-50 text-blue-600 p-1.5 rounded-l-full">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <p className="text-[11px] font-black text-slate-900 mt-2 leading-tight">Kirim Kripto dan Terima Fiat</p>
+                <div className="mt-4">
+                  <p className="text-[8px] font-bold text-slate-400 uppercase">Kurs Ref.</p>
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <p className="text-xs font-black text-slate-900">Rp17,062</p>
+                      <p className="text-[8px] font-bold text-slate-400">USDT/IDR</p>
+                    </div>
+                    <div className="h-6 w-12">
+                      <svg viewBox="0 0 100 40" className="w-full h-full">
+                        <path d="M0 30 Q 30 10, 60 30 T 100 10" fill="none" stroke="green" strokeWidth="2" />
+                      </svg>
                     </div>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-black text-slate-900 italic tracking-tight">{coin.name}</span>
-                      <div className="flex gap-1">
-                        {coin.tags.map((tag, tIdx) => (
-                          <Badge key={tIdx} className="bg-green-50 text-green-600 text-[7px] px-1 py-0 border-none font-black h-3">{tag}</Badge>
-                        ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* DOMPET VIEW (WALLET) */
+          <div className="space-y-6 animate-in slide-in-from-right-10 duration-500">
+            {/* Wallet Profile & Switcher */}
+            <div className="flex items-center justify-between mb-2 px-1">
+              <div className="flex items-center gap-2 group cursor-pointer">
+                <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center p-1">
+                  <LogoIcon className="text-white" />
+                </div>
+                <span className="text-sm font-bold text-slate-900">AliBank Private</span>
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </div>
+              <button onClick={copyAddress} className="p-1 hover:bg-slate-100 rounded">
+                <Copy className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+
+            {/* Big Balance Section */}
+            <div className="flex justify-between items-center mb-8 px-1">
+              <div>
+                <h1 className="text-4xl font-black tracking-tight text-slate-900 italic">
+                  Rp{(userData?.totalBalance ?? 0).toLocaleString('id-ID')}
+                </h1>
+              </div>
+              <Button 
+                onClick={() => router.push('/crypto/receive')}
+                className="bg-[#FCD535] hover:bg-[#FCD535]/90 text-slate-900 font-bold px-8 h-11 rounded-lg border-none shadow-none text-sm"
+              >
+                Terima
+              </Button>
+            </div>
+
+            {/* Service Grid Icons */}
+            <div className="grid grid-cols-5 gap-4 mb-8">
+              {services.map((service, idx) => (
+                <div key={idx} className="flex flex-col items-center gap-2">
+                  <div className="w-12 h-12 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm active:scale-95 transition-transform">
+                    <LayoutGrid className="w-6 h-6 text-slate-700" />
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-600">{service.name}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Market List Section */}
+            <div className="space-y-6 px-1">
+              <div className="flex items-center justify-between">
+                <div className="flex gap-6 overflow-x-auto no-scrollbar pb-1">
+                  <button className="text-sm font-bold text-slate-400 shrink-0">Daftar Pantauan</button>
+                  <button className="text-sm font-black text-slate-900 border-b-2 border-slate-900 pb-1 shrink-0">Pencarian Populer</button>
+                  <button className="text-sm font-bold text-slate-400 shrink-0">Sedang Tren</button>
+                </div>
+              </div>
+
+              <div className="space-y-6 pt-2">
+                {marketData.map((coin, idx) => (
+                  <div key={idx} onClick={() => router.push(`/crypto/trade/${coin.symbol.toLowerCase()}`)} className="flex items-center justify-between group cursor-pointer active:bg-slate-50 p-1 rounded-xl transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm">
+                        {coin.symbol === 'ALIX' ? <LogoIcon className="text-yellow-400 p-2" /> : <div className="text-white font-black italic">{coin.symbol[0]}</div>}
+                        <div className="absolute bottom-0 right-0 w-4 h-4 bg-yellow-400 rounded-full border-2 border-white flex items-center justify-center p-0.5">
+                          <LogoIcon className="text-slate-900" />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-black text-slate-900 italic tracking-tight">{coin.name}</span>
+                          <div className="flex gap-1">
+                            {coin.tags.map((tag, tIdx) => (
+                              <Badge key={tIdx} className="bg-green-50 text-green-600 text-[7px] px-1 py-0 border-none font-black h-3">{tag}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">Vol 24h: Rp503,38M</p>
                       </div>
                     </div>
-                    <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">Rp17,93M | Rp503,38M</p>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-slate-900 italic tracking-tighter">Rp{coin.price}</p>
+                      <p className={cn(
+                        "text-xs font-black italic tracking-tighter mt-0.5",
+                        coin.isUp ? "text-green-600" : "text-rose-500"
+                      )}>
+                        {coin.change}%
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-black text-slate-900 italic tracking-tighter">Rp{coin.price}</p>
-                  <p className={cn(
-                    "text-xs font-black italic tracking-tighter mt-0.5",
-                    coin.isUp ? "text-green-600" : "text-rose-500"
-                  )}>
-                    {coin.change}%
-                  </p>
-                </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );
