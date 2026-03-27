@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -61,6 +62,7 @@ import {
 
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
 const DEFAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
+const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
 const CONTRACT_ABI = [
   "function deposit() public payable",
@@ -170,6 +172,17 @@ export default function CryptoDeFiPage() {
         await checkBalances(accounts[0]);
       }
     } catch (err: any) {}
+  };
+
+  const handleKelolaBrankas = () => {
+    if (user?.email === OWNER_EMAIL) {
+      router.push('/admin?tab=vault');
+    } else {
+      toast({ 
+        title: "Akses Terbatas", 
+        description: "Brankas V3 adalah fitur infrastruktur elit. Silakan hubungi admin AliBank untuk partisipasi staking institusional." 
+      });
+    }
   };
 
   if (!mounted) return null;
@@ -361,7 +374,10 @@ export default function CryptoDeFiPage() {
                   </div>
                 </div>
 
-                <Button variant="outline" className="w-full h-12 border-primary/20 text-primary font-black uppercase italic rounded-xl">
+                <Button 
+                  onClick={handleKelolaBrankas}
+                  className="w-full h-12 bg-accent text-white font-black uppercase italic rounded-xl shadow-lg hover:bg-accent/90"
+                >
                   Kelola Brankas
                 </Button>
               </Card>
