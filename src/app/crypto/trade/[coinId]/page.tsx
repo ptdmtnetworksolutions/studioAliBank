@@ -538,7 +538,7 @@ export default function CryptoTradePage() {
             </div>
           </div>
           <div className="pt-6 border-t border-primary/5 text-center">
-            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">AliBank Terminal • Powered by TradingView Technology & CoinGecko Data • 2024</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">AliBank Terminal • Powered by TradingView Technology & CoinGecko Data • 2026</p>
           </div>
         </div>
       </footer>

@@ -324,7 +324,7 @@ export default function AdminControlPage() {
                     <Badge className="bg-primary/10 text-primary uppercase text-[7px] md:text-[8px] font-black">Kas Gateway</Badge>
                   </div>
                   <div>
-                    <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Saldo PayPal Tersedia</p>
+                    <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Saldo Gateway Tersedia</p>
                     <p className="text-2xl md:text-3xl font-black text-accent italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
                   </div>
                   <div className="pt-2 border-t border-primary/10">
@@ -496,14 +496,14 @@ export default function AdminControlPage() {
                     <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-lg"><ArrowRightLeft className="w-6 h-6 md:w-8 md:h-8" /></div>
                     <div>
                       <h3 className="text-xl md:text-2xl font-black text-accent uppercase italic tracking-tighter leading-none">Jembatan Gateway</h3>
-                      <p className="text-[8px] md:text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Pindahkan Kas PayPal ke Brankas On-Chain.</p>
+                      <p className="text-[8px] md:text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Pindahkan Kas Gateway ke Brankas On-Chain.</p>
                     </div>
                   </div>
 
                   <div className="space-y-4 md:space-y-6">
                     <div className="p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] bg-accent/5 border border-primary/10 space-y-3 md:space-y-4 text-center">
                       <div className="space-y-1">
-                        <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground">Akumulasi Dana PayPal</p>
+                        <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground">Akumulasi Dana Gateway</p>
                         <p className="text-3xl md:text-5xl font-black text-accent italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
                       </div>
                       <div className="flex items-center justify-center gap-2 md:gap-3">
@@ -514,7 +514,7 @@ export default function AdminControlPage() {
 
                     <div className="flex flex-col items-center gap-3 md:gap-4 py-2 md:py-4">
                       <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary animate-bounce shadow-md"><ArrowUpRight className="w-5 h-5 md:w-6 md:h-6 rotate-45" /></div>
-                      <p className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground text-center max-w-[200px] md:max-w-xs italic leading-relaxed">Dana PayPal akan dikonversi menjadi deposit ETH riil pada Smart Contract AliBank V3.</p>
+                      <p className="text-[8px] md:text-[9px] font-black uppercase text-muted-foreground text-center max-w-[200px] md:max-w-xs italic leading-relaxed">Dana Gateway akan dikonversi menjadi deposit ETH riil pada Smart Contract AliBank V3.</p>
                     </div>
 
                     <div className="p-4 md:p-6 rounded-xl md:rounded-[2rem] liquid-glass-dark text-white text-center shadow-lg">
@@ -570,7 +570,6 @@ export default function AdminControlPage() {
             </TabsContent>
 
             <TabsContent value="audit" className="animate-in fade-in duration-300">
-              {/* Log Audit content remains same as previous version but with Bahasa Indonesia */}
               <Card className="liquid-glass border-none rounded-2xl md:rounded-[3rem] overflow-hidden shadow-2xl">
                 <div className="p-6 md:p-8 border-b border-primary/5 bg-accent/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
@@ -637,7 +636,7 @@ export default function AdminControlPage() {
               <div className="w-5 h-5 md:w-6 md:h-6 p-1 rounded-lg gold-gradient flex items-center justify-center"><LogoIcon className="text-white" /></div>
               <p className="text-[10px] md:text-xs font-black text-accent italic uppercase tracking-tighter">Pusat Komando AliBank</p>
             </div>
-            <p className="text-[6px] md:text-[8px] font-black uppercase text-muted-foreground tracking-[0.2em] md:tracking-[0.3em]">Official Web3 Node Infrastructure • Google Cloud Powered • 2024</p>
+            <p className="text-[6px] md:text-[8px] font-black uppercase text-muted-foreground tracking-[0.2em] md:tracking-[0.3em]">Official Web3 Node Infrastructure • Google Cloud Powered • 2026</p>
           </footer>
         </main>
       </div>

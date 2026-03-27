@@ -395,7 +395,7 @@ export default function Dashboard() {
                 </Link>
                 <div className="pt-3 md:pt-4 border-t border-primary/5 mt-1 md:mt-2">
                   <p className="text-[6px] md:text-[8px] font-black uppercase text-muted-foreground tracking-widest text-center">
-                    AliBank V3 Production Node • 2024
+                    AliBank V3 Production Node • 2026
                   </p>
                 </div>
               </div>
