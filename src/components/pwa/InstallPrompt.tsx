@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { X, Download, Smartphone, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogoIcon } from "@/components/ui/logo";
@@ -13,20 +12,24 @@ export function InstallPrompt() {
   const [isIOS, setIsIOS] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  const checkStandalone = useCallback(() => {
+    return window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+  }, []);
+
   useEffect(() => {
     setMounted(true);
     
     // Jangan munculkan jika sudah dalam mode standalone (terinstall)
-    if (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) {
+    if (checkStandalone()) {
       return;
     }
 
     const handleBeforeInstallPrompt = (e: any) => {
-      // Mencegah mini-infobar default muncul di Android
+      // Mencegah mini-infobar default muncul
       e.preventDefault();
       // Simpan event agar bisa dipicu nanti
       setDeferredPrompt(e);
-      // Tampilkan banner kustom kita
+      // Tampilkan banner kustom
       setShowPrompt(true);
     };
 
@@ -34,10 +37,9 @@ export function InstallPrompt() {
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
 
-    if (isIOSDevice) {
+    if (isIOSDevice && !checkStandalone()) {
       const hasSeenPrompt = localStorage.getItem("ios-pwa-prompt-seen");
       if (!hasSeenPrompt) {
-        // Beri jeda sedikit agar tidak mengagetkan user
         const timer = setTimeout(() => setShowPrompt(true), 3000);
         return () => clearTimeout(timer);
       }
@@ -48,7 +50,7 @@ export function InstallPrompt() {
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     };
-  }, []);
+  }, [checkStandalone]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -60,27 +62,28 @@ export function InstallPrompt() {
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === "accepted") {
       setShowPrompt(false);
+      localStorage.setItem("pwa-installed", "true");
     }
     setDeferredPrompt(null);
   };
 
   const closePrompt = () => {
     setShowPrompt(false);
-    // Simpan di local storage agar tidak muncul terus menerus jika di-dismiss
-    localStorage.setItem("pwa-prompt-dismissed", "true");
+    // Simpan di local storage dengan masa berlaku (misal 24 jam)
+    localStorage.setItem("pwa-prompt-dismissed-at", Date.now().toString());
     if (isIOS) localStorage.setItem("ios-pwa-prompt-seen", "true");
   };
 
   if (!mounted || !showPrompt) return null;
 
   return (
-    <div className="fixed top-24 left-4 right-4 z-[9999] animate-in slide-in-from-top-10 fade-in duration-700 max-w-lg mx-auto">
+    <div className="fixed top-24 left-4 right-4 z-[9999] animate-in slide-in-from-top-10 fade-in duration-700 max-w-lg mx-auto pointer-events-auto">
       <div className="liquid-glass-dark bg-black/95 border-primary/20 p-5 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden group">
         <div className="absolute inset-0 gold-gradient opacity-10" />
         
         <button 
           onClick={closePrompt}
-          className="absolute top-3 right-3 p-1.5 rounded-full bg-white/10 text-white/60 hover:text-white transition-colors"
+          className="absolute top-3 right-3 p-1.5 rounded-full bg-white/10 text-white/60 hover:text-white transition-colors z-20"
         >
           <X className="w-3.5 h-3.5" />
         </button>

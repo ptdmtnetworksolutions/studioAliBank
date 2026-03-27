@@ -1,37 +1,38 @@
-/**
- * AliBank V3 Production Service Worker
- * Memberikan kemampuan offline dan validasi instalasi Native PWA.
- */
-
+// AliBank Official Service Worker
 const CACHE_NAME = 'alibank-v3-cache-v1';
-const OFFLINE_URL = '/offline.html';
-
-// File minimal yang perlu di-cache untuk validasi PWA
-const PRECACHE_ASSETS = [
+const ASSETS_TO_CACHE = [
   '/',
   '/manifest.webmanifest',
-  '/globals.css'
+  'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Crect x=\'0\' y=\'0\' width=\'100\' height=\'100\' fill=\'black\'/%3E%3Cpath d=\'M50 20C52 48 80 50 80 50C80 50 52 52 50 80C48 52 20 50 20 50C20 50 48 48 50 20Z\' fill=\'%23B8860B\'/%3E%3C/svg%3E'
 ];
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS);
+      return cache.addAll(ASSETS_TO_CACHE);
     })
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+  self.clients.claim();
 });
 
-/**
- * Fetch handler wajib ada agar browser memicu dialog "Install App" 
- * alih-alih hanya "Add to Home Screen".
- */
 self.addEventListener('fetch', (event) => {
-  // Strategi Network-First untuk data perbankan yang sensitif
+  // Biarkan browser menangani fetch standar
+  // Namun fetch handler ini wajib ada agar PWA dianggap Installable oleh Chrome
   event.respondWith(
     fetch(event.request).catch(() => {
       return caches.match(event.request);

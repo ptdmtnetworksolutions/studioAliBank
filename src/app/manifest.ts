@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'AliBank V3 Production',
+    name: 'AliBank',
     short_name: 'AliBank',
     description: 'Infrastruktur perbankan mandiri dan terminal aset digital global.',
     start_url: '/',

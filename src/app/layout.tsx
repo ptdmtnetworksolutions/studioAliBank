@@ -9,8 +9,8 @@ import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
-  title: 'AliBank - Bintang Kejora Perbankan Riil',
-  description: 'Ekosistem perbankan elit dengan integrasi aset kripto Mainnet dan manajemen kekayaan cerdas.',
+  title: 'AliBank',
+  description: 'Infrastruktur perbankan elit dengan integrasi aset kripto Mainnet dan manajemen kekayaan cerdas.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
