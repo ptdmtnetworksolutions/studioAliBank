@@ -71,15 +71,15 @@ export default function RootLayout({
           </LanguageProvider>
         </ThemeProvider>
         
-        {/* Pendaftaran Service Worker Resmi untuk WebAPK */}
+        {/* Registrasi Service Worker Wajib untuk WebAPK Native */}
         <Script id="register-sw" strategy="afterInteractive">
           {`
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/sw.js').then(function(reg) {
-                  console.log('AliBank V3 Production SW Registered:', reg.scope);
+                  console.log('AliBank WebAPK SW Registered:', reg.scope);
                 }).catch(function(err) {
-                  console.warn('AliBank SW Registration Delayed:', err);
+                  console.error('AliBank SW Registration Failed:', err);
                 });
               });
             }

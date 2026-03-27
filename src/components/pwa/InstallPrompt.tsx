@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { X, Download, Smartphone, Sparkles } from "lucide-react";
+import { X, Download, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogoIcon } from "@/components/ui/logo";
 import { Badge } from "@/components/ui/badge";
@@ -21,15 +21,16 @@ export function InstallPrompt() {
   useEffect(() => {
     setMounted(true);
     
+    // Jangan munculkan jika aplikasi sudah terinstal (Standalone)
     if (checkStandalone()) return;
 
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      // Cek apakah user pernah menutup banner dalam 24 jam terakhir
+      
       const lastDismissed = localStorage.getItem("pwa-prompt-dismissed-at");
-      const dayInMs = 24 * 60 * 60 * 1000;
-      if (!lastDismissed || Date.now() - parseInt(lastDismissed) > dayInMs) {
+      const hourInMs = 60 * 60 * 1000; // Muncul kembali setelah 1 jam jika belum diinstal
+      if (!lastDismissed || Date.now() - parseInt(lastDismissed) > hourInMs) {
         setShowPrompt(true);
       }
     };
@@ -54,8 +55,11 @@ export function InstallPrompt() {
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
+    
+    // Memicu dialog instalasi native Android
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
+    
     if (outcome === "accepted") {
       setShowPrompt(false);
     }
@@ -89,13 +93,13 @@ export function InstallPrompt() {
           
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-0.5">
-              <Badge className="bg-primary text-white text-[6px] font-black h-3 px-1 leading-none">NATIVE APK</Badge>
-              <h3 className="text-[11px] font-black text-white uppercase tracking-tighter italic">Install AliBank</h3>
+              <Badge className="bg-primary text-white text-[6px] font-black h-3 px-1 leading-none uppercase tracking-widest">Official App</Badge>
+              <h3 className="text-[11px] font-black text-white uppercase tracking-tighter italic">Pasang AliBank</h3>
             </div>
             <p className="text-[9px] text-white/70 font-medium leading-tight line-clamp-2">
               {isIOS 
-                ? "Tap 'Bagikan' lalu 'Tambah ke Layar Utama' untuk pengalaman aplikasi utuh." 
-                : "Pasang AliBank ke layar utama untuk akses instan tanpa browser."}
+                ? "Tap 'Bagikan' lalu 'Tambah ke Layar Utama' untuk pengalaman aplikasi native." 
+                : "Instal aplikasi resmi untuk akses cepat tanpa badge browser."}
             </p>
           </div>
 
@@ -104,7 +108,7 @@ export function InstallPrompt() {
               onClick={handleInstallClick}
               className="bg-primary text-white font-black text-[9px] rounded-full px-4 h-8 hover:bg-primary/90 shadow-lg uppercase tracking-widest border-none shrink-0"
             >
-              INSTALL <Download className="w-3 h-3 ml-1.5" />
+              PASANG <Download className="w-3 h-3 ml-1.5" />
             </Button>
           ) : (
             <div className="flex items-center justify-center p-2 rounded-xl bg-white/10 text-primary shrink-0">

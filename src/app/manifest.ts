@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'AliBank',
     description: 'Infrastruktur perbankan mandiri dan terminal aset digital global.',
     start_url: '/',
-    id: 'com.alibank.v3.production', // ID Unik untuk identitas WebAPK Native
+    id: 'com.alibank.v3.official', // ID Unik untuk identitas WebAPK Native
     scope: '/',
     display: 'standalone',
     display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
@@ -19,7 +19,7 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='0' y='0' width='100' height='100' fill='black'/%3E%3Cpath d='M50 20C52 48 80 50 80 50C80 50 52 52 50 80C48 52 20 50 20 50C20 50 48 48 50 20Z' fill='%23B8860B'/%3E%3C/svg%3E",
         sizes: '192x192',
         type: 'image/svg+xml',
-        purpose: 'maskable' // Penting: Menghilangkan badge browser pada Android
+        purpose: 'maskable' // Menghilangkan badge browser pada Android
       },
       {
         src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='0' y='0' width='100' height='100' fill='black'/%3E%3Cpath d='M50 20C52 48 80 50 80 50C80 50 52 52 50 80C48 52 20 50 20 50C20 50 48 48 50 20Z' fill='%23B8860B'/%3E%3C/svg%3E",
