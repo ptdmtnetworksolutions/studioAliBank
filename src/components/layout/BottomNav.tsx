@@ -34,8 +34,8 @@ export function BottomNav() {
   if (!mounted || isAuthPage) return null;
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8 pt-2 max-w-2xl mx-auto pointer-events-none">
-      <div className="liquid-glass-dark bg-accent/95 rounded-[3rem] grid grid-cols-5 items-center h-20 shadow-2xl px-3 border-white/10 pointer-events-auto dark:bg-black/95">
+    <footer className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 pt-1 max-w-lg mx-auto pointer-events-none">
+      <div className="liquid-glass-dark bg-accent/95 rounded-[2rem] grid grid-cols-5 items-center h-16 shadow-2xl px-3 border-white/10 pointer-events-auto dark:bg-black/95">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -43,10 +43,10 @@ export function BottomNav() {
           if (item.isCenter) {
             return (
               <div key={item.name} className="flex items-center justify-center relative h-full">
-                <div className="absolute -top-10 left-1/2 -translate-x-1/2">
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2">
                   <Link href={item.href}>
-                    <button className="gold-gradient w-20 h-20 rounded-[2.2rem] flex items-center justify-center shadow-2xl border-4 border-accent dark:border-black hover:scale-105 active:scale-95 transition-all p-4">
-                      <Icon className="w-12 h-12 text-white" />
+                    <button className="gold-gradient w-16 h-16 rounded-[1.8rem] flex items-center justify-center shadow-2xl border-4 border-accent dark:border-black hover:scale-105 active:scale-95 transition-all p-3">
+                      <Icon className="w-8 h-8 text-white" />
                     </button>
                   </Link>
                 </div>
@@ -60,10 +60,10 @@ export function BottomNav() {
               href={item.href} 
               className={cn(
                 "flex items-center justify-center transition-all duration-300 h-full",
-                isActive ? "opacity-100 scale-125" : "opacity-40 hover:opacity-100"
+                isActive ? "opacity-100 scale-110" : "opacity-40 hover:opacity-100"
               )}
             >
-              <Icon className={cn("w-7 h-7", isActive ? "text-primary" : "text-white")} />
+              <Icon className={cn("w-6 h-6", isActive ? "text-primary" : "text-white")} />
             </Link>
           );
         })}
