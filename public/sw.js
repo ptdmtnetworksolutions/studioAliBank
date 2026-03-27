@@ -1,46 +1,24 @@
 
 /**
- * AliBank V3 Production Service Worker
- * Syarat utama untuk instalasi WebAPK Native dan penghapusan badge browser.
+ * AliBank Service Worker - Versi Produksi 3.0
+ * Diperlukan untuk validasi WebAPK Native dan penghapusan badge browser.
  */
 
-const CACHE_NAME = 'alibank-v3-cache-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/manifest.webmanifest',
-];
+const CACHE_NAME = 'alibank-v3-cache';
 
-// Instalasi Service Worker
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
-  );
   self.skipWaiting();
 });
 
-// Aktivasi dan Pembersihan Cache Lama
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
-  self.clients.claim();
+  event.waitUntil(clients.claim());
 });
 
-// Fetch Handler (Wajib ada agar dianggap 'Installable' oleh Chrome)
+// Handler fetch minimal wajib untuk memicu 'Installable' status di Chrome/Android
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request);
-    })
-  );
+  if (event.request.mode === 'navigate') {
+    event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+  } else {
+    event.respondWith(fetch(event.request));
+  }
 });
