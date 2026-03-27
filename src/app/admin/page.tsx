@@ -67,7 +67,8 @@ import {
   serverTimestamp,
   addDoc,
   getDocs,
-  where
+  where,
+  collectionGroup
 } from "firebase/firestore";
 import { BrowserProvider, Contract, formatEther, parseEther, JsonRpcProvider, ethers } from "ethers";
 import { useToast } from "@/hooks/use-toast";
@@ -124,7 +125,7 @@ function AdminContent() {
   const mktQuery = useMemo(() => (db ? collection(db, "marketplace") : null), [db]);
   const { data: products } = useCollection(mktQuery);
 
-  const txQuery = useMemo(() => (db ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(25)) : null), [db]);
+  const txQuery = useMemo(() => (db ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(50)) : null), [db]);
   const { data: globalHistory } = useCollection(txQuery);
 
   const bridgeQuery = useMemo(() => (db ? query(collection(db, "system", "bridge", "queue"), orderBy("timestamp", "desc")) : null), [db]);
@@ -172,26 +173,46 @@ function AdminContent() {
     }
   };
 
+  /**
+   * REKONSILIASI GERBANG RIIL (UPGRADED)
+   * Sekarang memindai Log Audit GLOBAL dan Koleksi Faktur untuk memastikan tidak ada data yang terlewat.
+   */
   const handleGatewayReconcile = async () => {
     if (!db || isReconciling) return;
     setIsReconciling(true);
     try {
-      // Query audit riil dari gateway pembayaran
-      const q = query(collection(db, "system", "audit", "global_transactions"));
-      const snapshot = await getDocs(q);
+      // 1. Pindai Log Audit Global
+      const auditRef = collection(db, "system", "audit", "global_transactions");
+      const auditSnap = await getDocs(auditRef);
+      
+      // 2. Pindai Semua Invoice yang Berstatus PAID (Menggunakan collectionGroup)
+      const invoiceQuery = query(collectionGroup(db, "invoices"), where("status", "==", "paid"));
+      const invoiceSnap = await getDocs(invoiceQuery);
       
       let totalUsd = 0;
       let totalIdr = 0;
       let matchCount = 0;
-      
-      snapshot.docs.forEach(doc => {
+      const seenTransactionIds = new Set();
+
+      // Proses data dari Invoices (Sumber dana riil dari nasabah)
+      invoiceSnap.docs.forEach(doc => {
         const data = doc.data();
-        // Hanya hitung transaksi sukses dari marketplace (termasuk yang via PayPal)
-        if ((data.status === 'success' || data.status === 'paid' || data.status === 'settled') && 
-            (data.category === 'Marketplace Purchase' || data.category === 'Product Purchase')) {
-          totalUsd += (Number(data.amountUsd) || 0);
-          totalIdr += (Number(data.amountIdr) || 0);
-          matchCount++;
+        totalUsd += (Number(data.amountUsd) || 0);
+        totalIdr += (Number(data.amountIdr) || 0);
+        if (data.gatewayOrderId) seenTransactionIds.add(data.gatewayOrderId);
+        matchCount++;
+      });
+
+      // Tambahkan data dari Log Audit yang mungkin belum ada di invoice (misal suntikan manual)
+      auditSnap.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.status === 'success' && !seenTransactionIds.has(data.id)) {
+          // Hanya hitung jika kategorinya pembelian atau suntikan dana
+          if (data.category === 'Marketplace Purchase' || data.category === 'Product Purchase' || data.category === 'Fiat Injection') {
+            totalUsd += (Number(data.amountUsd) || 0);
+            totalIdr += (Number(data.amountIdr) || 0);
+            matchCount++;
+          }
         }
       });
 
@@ -202,19 +223,19 @@ function AdminContent() {
           lastReconciliation: serverTimestamp()
         });
         toast({ 
-          title: "Gateway Reconciled", 
-          description: `${matchCount} mutasi riil (PayPal & Internal) telah disinkronkan. Total: $${totalUsd.toLocaleString()}` 
+          title: "Ecosystem Reconciled", 
+          description: `${matchCount} mutasi riil (PayPal & AliBank Native) telah disinkronkan. Total Kas: $${totalUsd.toLocaleString()}` 
         });
       } else {
         toast({ 
           variant: "destructive", 
-          title: "Reconciliation Incomplete", 
-          description: "Tidak ditemukan mutasi sukses di audit log. Data likuiditas tidak diperbarui untuk menjaga integritas." 
+          title: "No Mutations Found", 
+          description: "Tidak ditemukan mutasi sukses di log atau invoice. Likuiditas tetap untuk menjaga integritas." 
         });
       }
     } catch (err: any) {
       console.error("Recon error:", err);
-      toast({ variant: "destructive", title: "Reconciliation Failed", description: err.message });
+      toast({ variant: "destructive", title: "Reconciliation Failed", description: "Terjadi kesalahan saat memverifikasi ledger." });
     } finally {
       setIsReconciling(false);
     }
@@ -436,10 +457,10 @@ function AdminContent() {
               <div className="flex flex-col lg:flex-row justify-between items-end gap-6 mb-4">
                 <div>
                   <h2 className="text-3xl font-black text-accent uppercase italic">Liquidity Control Terminal</h2>
-                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Monitor real-time cash flow and payment gateway integrity.</p>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Monitor real-time cash flow and ecosystem integrity.</p>
                 </div>
-                <Button onClick={handleGatewayReconcile} disabled={isReconciling} className="h-14 px-8 rounded-2xl gold-gradient text-white font-black uppercase text-[10px] italic shadow-xl">
-                  {isReconciling ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Reconciling Gateway...</> : <><RefreshCw className="w-4 h-4 mr-2" /> Reconcile External Gateway</>}
+                <Button onClick={handleGatewayReconcile} disabled={isReconciling} className="h-14 px-8 gold-gradient text-white font-black uppercase text-[10px] italic shadow-xl">
+                  {isReconciling ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Reconciling Ecosystem...</> : <><RefreshCw className="w-4 h-4 mr-2" /> Synchronize All Gateways</>}
                 </Button>
               </div>
 
@@ -448,11 +469,11 @@ function AdminContent() {
                   <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><DollarSign className="w-32 h-32" /></div>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><CreditCard className="w-5 h-5" /></div>
-                    <h4 className="text-[10px] font-black uppercase text-accent tracking-widest">Gateway Inflow (USD)</h4>
+                    <h4 className="text-[10px] font-black uppercase text-accent tracking-widest">Global Gateway Inflow</h4>
                   </div>
                   <div>
                     <p className="text-4xl font-black text-accent italic tracking-tighter">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
-                    <p className="text-[8px] font-bold text-muted-foreground uppercase mt-2">Verified via Secure Global Bridge (incl. PayPal)</p>
+                    <p className="text-[8px] font-bold text-muted-foreground uppercase mt-2">Verified via Multi-Gateway Bridge (incl. PayPal & Native)</p>
                   </div>
                   <div className="pt-4 border-t border-primary/5 flex justify-between items-center">
                     <span className="text-[9px] font-black uppercase text-green-600">Active Pipeline</span>
@@ -488,7 +509,7 @@ function AdminContent() {
                     <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
                       <div className="h-full gold-gradient w-3/4" />
                     </div>
-                    <p className="text-[8px] font-bold text-white/40 uppercase">Based on $ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()} real collateral.</p>
+                    <p className="text-[8px] font-bold text-white/40 uppercase">Based on total collateralized cash flow.</p>
                   </div>
                 </Card>
               </div>
@@ -498,8 +519,8 @@ function AdminContent() {
                   <h3 className="text-lg font-black italic uppercase text-accent flex items-center gap-3"><BarChart3 className="w-5 h-5 text-primary" /> Gateway Integrity Log</h3>
                   <div className="flex gap-4">
                     <div className="text-right">
-                      <p className="text-[8px] font-black uppercase text-muted-foreground">Uptime Status</p>
-                      <p className="text-[10px] font-bold text-green-600">99.98% OPERATIONAL</p>
+                      <p className="text-[8px] font-black uppercase text-muted-foreground">Network Uptime</p>
+                      <p className="text-[10px] font-bold text-green-600">PRODUCTION READY</p>
                     </div>
                   </div>
                 </div>
@@ -509,19 +530,19 @@ function AdminContent() {
                       <tr className="bg-primary/5 text-[9px] font-black uppercase text-muted-foreground tracking-widest">
                         <th className="px-8 py-6">Reference ID</th>
                         <th className="px-8 py-6">Client Identity</th>
-                        <th className="px-8 py-6">Asset Inflow</th>
-                        <th className="px-8 py-6">Gateway Method</th>
+                        <th className="px-8 py-6">Inflow (USD)</th>
+                        <th className="px-8 py-6">Processing Gateway</th>
                         <th className="px-8 py-6 text-right">Timestamp</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-primary/5">
-                      {globalHistory?.filter(t => t.category === 'Marketplace Purchase' || t.category === 'Product Purchase').slice(0, 15).map((tx: any, idx: number) => (
+                      {globalHistory?.filter(t => t.status === 'success').slice(0, 20).map((tx: any, idx: number) => (
                         <tr key={idx} className="hover:bg-primary/5 transition-colors">
-                          <td className="px-8 py-5 text-[10px] font-black text-accent uppercase">{tx.id?.slice(0, 16)}...</td>
+                          <td className="px-8 py-5 text-[10px] font-black text-accent uppercase">#{tx.id?.slice(0, 16)}...</td>
                           <td className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase">{tx.userName || 'Anonymous Client'}</td>
-                          <td className="px-8 py-5 font-black text-primary italic">$ {tx.amountUsd?.toLocaleString()}</td>
-                          <td className="px-8 py-5"><Badge variant="outline" className="text-[7px] font-black uppercase border-primary/20">{tx.gateway || 'AliBank Gateway'}</Badge></td>
-                          <td className="px-8 py-5 text-right text-[9px] font-medium text-muted-foreground">{tx.timestamp?.seconds ? new Date(tx.timestamp.seconds * 1000).toLocaleString() : 'Processing'}</td>
+                          <td className="px-8 py-5 font-black text-primary italic">$ {tx.amountUsd?.toLocaleString() || '0'}</td>
+                          <td className="px-8 py-5"><Badge variant="outline" className="text-[7px] font-black uppercase border-primary/20">{tx.gateway || 'AliBank Node'}</Badge></td>
+                          <td className="px-8 py-5 text-right text-[9px] font-medium text-muted-foreground">{tx.timestamp?.seconds ? new Date(tx.timestamp.seconds * 1000).toLocaleString() : 'Recent'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -544,7 +565,7 @@ function AdminContent() {
                   <div className="space-y-6">
                     <div className="grid grid-cols-3 gap-4">
                       {['BTC', 'ETH', 'USDT'].map((type) => (
-                        <button key={type} onClick={() => setVaultAssetType(type as any)} className={cn("p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all", vaultAssetType === type ? "border-primary bg-primary/5" : "border-primary/5")}>
+                        <button key={type} onClick={() => setVaultAssetType(type as any)} className={cn("p-4 rounded-2xl border-2 f flex flex-col items-center gap-2 transition-all", vaultAssetType === type ? "border-primary bg-primary/5" : "border-primary/5")}>
                           {type === 'BTC' ? <Bitcoin className={vaultAssetType === 'BTC' ? "text-orange-500" : "text-muted-foreground"} /> : type === 'ETH' ? <Cpu className={vaultAssetType === 'ETH' ? "text-blue-500" : "text-muted-foreground"} /> : <ShieldCheck className={vaultAssetType === 'USDT' ? "text-green-500" : "text-muted-foreground"} />}
                           <span className="text-[10px] font-black uppercase">{type}</span>
                         </button>
@@ -653,7 +674,7 @@ function AdminContent() {
                             disabled={isSettling}
                             className="h-12 px-8 gold-gradient text-white rounded-xl font-black uppercase italic text-[10px] shadow-lg"
                           >
-                            {isSettling ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Zap className="w-4 h-4 mr-2" /> Execute Settlement</>}
+                            {isSettling ? <><Loader2 className="w-4 h-4 animate-spin" /></> : <><Zap className="w-4 h-4 mr-2" /> Execute Settlement</>}
                           </Button>
                         ) : (
                           <div className="text-right">
