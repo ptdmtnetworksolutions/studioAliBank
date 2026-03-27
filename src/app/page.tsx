@@ -53,8 +53,10 @@ export default function Dashboard() {
   
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'bursa' | 'dompet'>('bursa');
-  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [bannerApi, setBannerApi] = useState<CarouselApi>();
+  const [swiftApi, setSwiftApi] = useState<CarouselApi>();
+  const [currentBanner, setCurrentBanner] = useState(0);
+  const [currentSwift, setCurrentSwift] = useState(0);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -71,12 +73,18 @@ export default function Dashboard() {
   }, [user, userLoading, router]);
 
   useEffect(() => {
-    if (!carouselApi) return;
-    
-    carouselApi.on("select", () => {
-      setCurrentSlide(carouselApi.selectedScrollSnap());
+    if (!bannerApi) return;
+    bannerApi.on("select", () => {
+      setCurrentBanner(bannerApi.selectedScrollSnap());
     });
-  }, [carouselApi]);
+  }, [bannerApi]);
+
+  useEffect(() => {
+    if (!swiftApi) return;
+    swiftApi.on("select", () => {
+      setCurrentSwift(swiftApi.selectedScrollSnap());
+    });
+  }, [swiftApi]);
 
   const copyAddress = () => {
     if (userData?.walletAddress) {
@@ -188,7 +196,7 @@ export default function Dashboard() {
 
             {/* AliBank Banner Carousel */}
             <div className="relative group">
-              <Carousel setApi={setCarouselApi} className="w-full">
+              <Carousel setApi={setBannerApi} className="w-full">
                 <CarouselContent>
                   {/* Slide 1: ALIX Challenge */}
                   <CarouselItem>
@@ -228,7 +236,7 @@ export default function Dashboard() {
                     </div>
                   </CarouselItem>
 
-                  {/* Slide 3: Pending Tasks (Tugas yang Menunggu) */}
+                  {/* Slide 3: Pending Tasks */}
                   <CarouselItem>
                     <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center justify-between shadow-sm relative cursor-pointer h-[100px]">
                       <div className="flex items-center gap-4">
@@ -252,9 +260,9 @@ export default function Dashboard() {
               
               {/* Carousel Indicators */}
               <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-                <div className={cn("h-1 rounded-full transition-all duration-300", currentSlide === 0 ? "w-4 bg-slate-900" : "w-1.5 bg-slate-200")} />
-                <div className={cn("h-1 rounded-full transition-all duration-300", currentSlide === 1 ? "w-4 bg-slate-900" : "w-1.5 bg-slate-200")} />
-                <div className={cn("h-1 rounded-full transition-all duration-300", currentSlide === 2 ? "w-4 bg-slate-900" : "w-1.5 bg-slate-200")} />
+                <div className={cn("h-1 rounded-full transition-all duration-300", currentBanner === 0 ? "w-4 bg-slate-900" : "w-1.5 bg-slate-200")} />
+                <div className={cn("h-1 rounded-full transition-all duration-300", currentBanner === 1 ? "w-4 bg-slate-900" : "w-1.5 bg-slate-200")} />
+                <div className={cn("h-1 rounded-full transition-all duration-300", currentBanner === 2 ? "w-4 bg-slate-900" : "w-1.5 bg-slate-200")} />
               </div>
             </div>
 
@@ -302,20 +310,46 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Card 3: USD SWIFT */}
-              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer relative">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center font-bold text-xs">$</div>
-                  <span className="text-xs font-black text-slate-400">USD</span>
-                </div>
-                <Badge className="bg-green-100 text-green-600 text-[8px] font-black h-4 px-1.5 mb-2 border-none">Setor</Badge>
-                <h4 className="text-sm font-black text-slate-900 leading-tight">Transfer Bank (SWIFT)</h4>
-                <div className="mt-4">
-                  <Landmark className="w-6 h-6 text-slate-900" />
-                </div>
-                <div className="absolute bottom-2 right-4 flex gap-1">
-                  <div className="w-1.5 h-1 bg-slate-900 rounded-full" />
-                  <div className="w-1 h-1 bg-slate-200 rounded-full" />
+              {/* Card 3: USD SWIFT Slider */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-[140px]">
+                <Carousel setApi={setSwiftApi} className="w-full h-full">
+                  <CarouselContent className="h-full ml-0">
+                    {/* Slide 1: Setor */}
+                    <CarouselItem className="pl-0 h-full">
+                      <div className="p-4 h-full flex flex-col">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center font-bold text-xs">$</div>
+                          <span className="text-xs font-black text-slate-400">USD</span>
+                        </div>
+                        <Badge className="bg-green-100 text-green-600 text-[8px] font-black h-4 px-1.5 mb-2 border-none w-fit uppercase">Setor</Badge>
+                        <h4 className="text-sm font-black text-slate-900 leading-tight">Transfer Bank (SWIFT)</h4>
+                        <div className="mt-auto">
+                          <Landmark className="w-6 h-6 text-slate-900" />
+                        </div>
+                      </div>
+                    </CarouselItem>
+                    
+                    {/* Slide 2: Tarik */}
+                    <CarouselItem className="pl-0 h-full">
+                      <div className="p-4 h-full flex flex-col bg-slate-50/30">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center font-bold text-xs">$</div>
+                          <span className="text-xs font-black text-slate-400">USD</span>
+                        </div>
+                        <Badge className="bg-red-100 text-red-600 text-[8px] font-black h-4 px-1.5 mb-2 border-none w-fit uppercase">Tarik</Badge>
+                        <h4 className="text-sm font-black text-slate-900 leading-tight">Transfer Bank (SWIFT)</h4>
+                        <div className="mt-auto">
+                          <Landmark className="w-6 h-6 text-slate-900 opacity-60" />
+                        </div>
+                      </div>
+                    </CarouselItem>
+                  </CarouselContent>
+                </Carousel>
+                
+                {/* Dots for SWIFT Card */}
+                <div className="absolute bottom-3 right-4 flex gap-1 z-10">
+                  <div className={cn("h-1 rounded-full transition-all duration-300", currentSwift === 0 ? "w-3 bg-slate-900" : "w-1 bg-slate-200")} />
+                  <div className={cn("h-1 rounded-full transition-all duration-300", currentSwift === 1 ? "w-3 bg-slate-900" : "w-1 bg-slate-200")} />
                 </div>
               </div>
 
