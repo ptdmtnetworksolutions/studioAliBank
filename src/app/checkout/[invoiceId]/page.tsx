@@ -240,7 +240,7 @@ export default function CheckoutPage() {
         createOrder: (data: any, actions: any) => {
           return actions.order.create({
             purchase_units: [{
-              description: `AliBank: ${invoice.productName || "Infrastructure Access"}`,
+              description: `AliBank: ${invoice?.productName || "Infrastructure Access"}`,
               amount: {
                 currency_code: "USD",
                 value: totalWithGatewayFee.toString()
@@ -275,6 +275,15 @@ export default function CheckoutPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
       <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
       <p className="text-xs font-black uppercase tracking-widest text-muted-foreground italic">Syncing AliBank Gateway...</p>
+    </div>
+  );
+
+  if (!invoice && !loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 text-center">
+      <AlertCircle className="w-16 h-16 text-destructive/20 mb-6" />
+      <h2 className="text-2xl font-black text-accent uppercase italic tracking-tighter">Invoice Not Found</h2>
+      <p className="text-xs text-muted-foreground mt-2 font-medium max-w-xs">Tagihan tidak ditemukan atau telah kedaluwarsa dalam sistem AliBank.</p>
+      <Button className="mt-8 rounded-xl gold-gradient text-white font-bold px-8 h-12" onClick={() => router.push('/')}>Return to Dashboard</Button>
     </div>
   );
 
@@ -320,7 +329,7 @@ export default function CheckoutPage() {
 
           <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl mb-6">
             <CardHeader className="bg-accent/5 p-8 border-b border-primary/5 text-center">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Checkout: {invoice.productName || "Production Asset"}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Checkout: {invoice?.productName || "Production Asset"}</p>
               <h2 className="text-4xl font-black text-accent italic tracking-tighter">
                 $ {baseAmount.toLocaleString('en-US')}
               </h2>
