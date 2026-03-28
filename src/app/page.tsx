@@ -10,6 +10,7 @@ import {
   Search, 
   Copy, 
   ChevronDown, 
+  ChevronUp,
   ChevronRight,
   LayoutGrid,
   TrendingUp,
@@ -30,7 +31,8 @@ import {
   Trophy,
   ListTodo,
   ShoppingBag,
-  Download
+  Download,
+  Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +69,7 @@ export default function Dashboard() {
   const [currentBanner, setCurrentBanner] = useState(0);
   const [currentSwift, setCurrentSwift] = useState(0);
   const [isTambahDanaOpen, setIsTambahDanaOpen] = useState(false);
+  const [isTambahDanaExpanded, setIsTambahDanaExpanded] = useState(false);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -465,7 +468,7 @@ export default function Dashboard() {
       </main>
 
       {/* Bottom Sheet Tambah Dana */}
-      <Sheet open={isTambahDanaOpen} onOpenChange={setIsTambahDanaOpen}>
+      <Sheet open={isTambahDanaOpen} onOpenChange={(open) => { setIsTambahDanaOpen(open); if (!open) setIsTambahDanaExpanded(false); }}>
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-white h-auto pb-10">
           <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 mb-6" />
           <div className="px-6 space-y-8">
@@ -507,10 +510,47 @@ export default function Dashboard() {
                   <p className="text-xs font-bold text-slate-400 mt-1.5 leading-tight">Setor kripto dari bursa/dompet lain ke AliBank</p>
                 </div>
               </div>
+
+              {isTambahDanaExpanded && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <div 
+                    className="p-6 rounded-[1.5rem] border border-slate-100 bg-white flex items-center gap-5 active:bg-slate-50 transition-all cursor-pointer group shadow-sm"
+                    onClick={() => { setIsTambahDanaOpen(false); router.push('/p2p/order-history'); }}
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100 group-hover:scale-110 transition-transform">
+                      <Users className="w-6 h-6 text-slate-900" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-slate-900 italic uppercase tracking-tight leading-none">Beli Kripto dari P2P</h3>
+                      <p className="text-xs font-bold text-slate-400 mt-1.5 leading-tight">Transfer Bank, Transfer Dompet Digital, Pembayaran Seluler, dan banyak lagi</p>
+                    </div>
+                  </div>
+
+                  <div 
+                    className="p-6 rounded-[1.5rem] border border-slate-100 bg-white flex items-center gap-5 active:bg-slate-50 transition-all cursor-pointer group shadow-sm"
+                    onClick={() => { setIsTambahDanaOpen(false); router.push('/crypto/receive'); }}
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100 group-hover:scale-110 transition-transform">
+                      <HandCoins className="w-6 h-6 text-slate-900" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-slate-900 italic uppercase tracking-tight leading-none">Terima melalui AliBank Pay</h3>
+                      <p className="text-xs font-bold text-slate-400 mt-1.5 leading-tight">Terima kripto dari pengguna AliBank lain.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <button className="w-full flex items-center justify-center gap-1 text-[10px] font-black text-slate-400 py-2 hover:text-slate-600 transition-colors uppercase tracking-widest">
-              Tampilkan Selengkapnya <ChevronDown className="w-4 h-4" />
+            <button 
+              onClick={() => setIsTambahDanaExpanded(!isTambahDanaExpanded)}
+              className="w-full flex items-center justify-center gap-1 text-[10px] font-black text-slate-400 py-2 hover:text-slate-600 transition-colors uppercase tracking-widest"
+            >
+              {isTambahDanaExpanded ? (
+                <>Lihat Lebih Sedikit <ChevronUp className="w-4 h-4" /></>
+              ) : (
+                <>Tampilkan Selengkapnya <ChevronDown className="w-4 h-4" /></>
+              )}
             </button>
           </div>
         </SheetContent>
