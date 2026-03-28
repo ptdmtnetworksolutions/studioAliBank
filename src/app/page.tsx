@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useUser, useDoc, useFirestore } from "@/firebase";
+import { useUser, useDoc, useFirestore, useCollection } from "@/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Headset, 
@@ -38,7 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect, useMemo, Suspense, useCallback } from "react";
-import { doc } from "firebase/firestore";
+import { doc, collection, query, where } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -70,9 +70,7 @@ function DashboardContent() {
   const [currentBanner, setCurrentBanner] = useState(0);
   const [isTambahDanaOpen, setIsTambahDanaOpen] = useState(false);
   
-  // Use search params for active tab to sync with BottomNav
   const [activeTab, setActiveTab] = useState<'bursa' | 'dompet'>('bursa');
-  
   const [marketFilter, setMarketFilter] = useState("Populer");
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
 
@@ -83,6 +81,13 @@ function DashboardContent() {
 
   const { data: userData } = useDoc(userDocRef);
 
+  // Fetch real unread notification count
+  const unreadQuery = useMemo(() => {
+    if (!db || !user) return null;
+    return query(collection(db, "users", user.uid, "notifications"), where("read", "==", false));
+  }, [db, user]);
+  const { data: unreadNotifications } = useCollection(unreadQuery);
+
   useEffect(() => {
     setMounted(true);
     if (!userLoading && !user) {
@@ -90,7 +95,6 @@ function DashboardContent() {
       return;
     }
 
-    // Persistensi Status Tab: Cek LocalStorage
     const savedMode = localStorage.getItem("alibank-active-mode") as 'bursa' | 'dompet';
     const urlTab = searchParams.get('tab') as 'bursa' | 'dompet';
 
@@ -126,7 +130,6 @@ function DashboardContent() {
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', tab);
     router.replace(`/?${params.toString()}`, { scroll: false });
-    // Dispatch event to notify BottomNav about mode change
     window.dispatchEvent(new Event('alibank-mode-change'));
   }, [router, searchParams]);
 
@@ -178,10 +181,8 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-background pb-32 text-foreground transition-colors duration-300">
-      {/* Top Header Navigation - Dynamic per Tab */}
       <header className="px-4 pt-4 pb-2 sticky top-0 z-50 bg-background/80 backdrop-blur-md">
         <div className="flex items-center justify-between gap-1 mb-4">
-          {/* Left Side Icons */}
           <div className="flex items-center gap-3 flex-1 overflow-hidden">
             {activeTab === 'bursa' ? (
               <div className="flex items-center gap-3">
@@ -191,9 +192,14 @@ function DashboardContent() {
                 >
                   <User className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <div className="relative cursor-pointer shrink-0">
+                <div 
+                  className="relative cursor-pointer shrink-0"
+                  onClick={() => router.push('/notifications')}
+                >
                   <Bell className="w-6 h-6 text-foreground" />
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center border-2 border-background">18</span>
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center border-2 border-background">
+                    {unreadNotifications?.length || 0}
+                  </span>
                 </div>
               </div>
             ) : (
@@ -203,7 +209,6 @@ function DashboardContent() {
             )}
           </div>
           
-          {/* Center Switcher */}
           <div className="flex bg-muted/60 p-1 rounded-lg shrink-0">
             <button 
               onClick={() => switchTab('bursa')}
@@ -225,14 +230,12 @@ function DashboardContent() {
             </button>
           </div>
 
-          {/* Right Side Icons */}
           <div className="flex items-center gap-3 flex-1 justify-end overflow-hidden">
             <Headset className="w-5 h-5 text-foreground cursor-pointer shrink-0" />
             <Scan className="w-5 h-5 text-foreground cursor-pointer shrink-0" />
           </div>
         </div>
 
-        {/* Search Bar */}
         <div className="relative mb-2">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
@@ -245,7 +248,6 @@ function DashboardContent() {
       <main className="px-4 pt-2 space-y-6">
         {activeTab === 'bursa' ? (
           <div className="animate-in fade-in duration-500 space-y-6">
-            {/* Balance Section */}
             <div className="flex justify-between items-start mb-2 px-1">
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -266,7 +268,6 @@ function DashboardContent() {
               </Button>
             </div>
 
-            {/* Banner Carousel */}
             <div className="relative group">
               <Carousel setApi={setBannerApi} className="w-full">
                 <CarouselContent>
@@ -288,7 +289,6 @@ function DashboardContent() {
               </Carousel>
             </div>
 
-            {/* FEATURE GRID */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/admin/about-alix')}>
                 <div className="flex justify-between items-center">
@@ -349,7 +349,6 @@ function DashboardContent() {
               </div>
             </div>
 
-            {/* MARKET LIST */}
             <div className="bg-card rounded-[2rem] p-6 shadow-sm space-y-6">
               <div className="flex items-center justify-between overflow-x-auto no-scrollbar pb-2 gap-6">
                 {["Favorit", "Populer", "Alpha", "Baru", "Tertinggi"].map((tab) => (
@@ -395,9 +394,7 @@ function DashboardContent() {
             </div>
           </div>
         ) : (
-          /* DOMPET VIEW */
           <div className="animate-in slide-in-from-right-10 duration-500 space-y-6 pb-10">
-            {/* Header Wallet */}
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2 group cursor-pointer">
                 <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center p-1">
@@ -411,7 +408,6 @@ function DashboardContent() {
               </button>
             </div>
 
-            {/* Total Balance & Terima */}
             <div className="flex justify-between items-center px-1">
               <h1 className="text-5xl font-black tracking-tighter text-foreground italic">
                 Rp{(userData?.totalBalance ?? 0).toLocaleString('id-ID')}
@@ -424,7 +420,6 @@ function DashboardContent() {
               </Button>
             </div>
 
-            {/* Quick Services Grid */}
             <div className="grid grid-cols-5 gap-4">
               {[
                 { name: "Alpha", icon: CalendarDays },
@@ -442,7 +437,6 @@ function DashboardContent() {
               ))}
             </div>
 
-            {/* Promo Banner Card */}
             <div className="bg-[#1E2329] dark:bg-card border border-white/5 rounded-2xl p-5 flex items-center justify-between shadow-xl">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center p-2">
@@ -455,7 +449,6 @@ function DashboardContent() {
               <Button className="bg-primary text-primary-foreground font-black text-[10px] h-8 px-4 rounded-md shadow-none uppercase italic">Ikuti</Button>
             </div>
 
-            {/* Status Cards (Meme Rush & Earn) */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-muted/50 rounded-2xl p-5 border border-border flex flex-col justify-between h-36">
                 <div className="flex justify-between items-center">
@@ -495,7 +488,6 @@ function DashboardContent() {
               </div>
             </div>
 
-            {/* Watchlist Section */}
             <div className="bg-card rounded-[2rem] p-6 shadow-sm space-y-6">
               <div className="flex items-center justify-between gap-4 overflow-x-auto no-scrollbar pb-2">
                 {["Daftar Pantauan", "Pencarian Populer", "Sedang Tren"].map((tab) => (
@@ -554,7 +546,6 @@ function DashboardContent() {
         )}
       </main>
 
-      {/* Floating Action Button (FAB) - AI Sparkles */}
       <div className="fixed bottom-24 right-6 z-40">
         <button 
           onClick={() => router.push('/ai-assistant')}
@@ -564,7 +555,6 @@ function DashboardContent() {
         </button>
       </div>
 
-      {/* Bottom Sheet Tambah Dana */}
       <Sheet open={isTambahDanaOpen} onOpenChange={closeAddFunds}>
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
           <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
