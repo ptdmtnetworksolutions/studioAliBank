@@ -21,13 +21,15 @@ import {
   CalendarDays,
   Target,
   Smile,
-  ShieldAlert
+  ShieldAlert,
+  LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { useUser, useDoc, useFirestore } from "@/firebase";
+import { useUser, useDoc, useFirestore, useAuth } from "@/firebase";
 import { doc } from "firebase/firestore";
+import { signOut } from "firebase/auth";
 import { useMemo, useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
@@ -38,6 +40,7 @@ const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 export default function ProfilePage() {
   const router = useRouter();
   const { user } = useUser();
+  const auth = useAuth();
   const db = useFirestore();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
@@ -58,10 +61,22 @@ export default function ProfilePage() {
     }
   };
 
+  const handleLogout = async () => {
+    if (!auth) return;
+    try {
+      await signOut(auth);
+      router.push('/login');
+      toast({ title: "Berhasil Keluar", description: "Anda telah keluar dari akun AliBank." });
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({ variant: "destructive", title: "Gagal Keluar", description: "Terjadi kesalahan saat mencoba keluar." });
+    }
+  };
+
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-10 flex flex-col font-body transition-colors duration-300">
+    <div className="min-h-screen bg-background text-foreground pb-20 flex flex-col font-body transition-colors duration-300">
       {/* Header - Icons Right */}
       <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-md z-50">
         <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors">
@@ -74,7 +89,7 @@ export default function ProfilePage() {
         </div>
       </header>
 
-      <main className="flex-1 px-5 pt-2 space-y-8 overflow-y-auto no-scrollbar">
+      <main className="flex-1 px-5 pt-2 space-y-8 overflow-y-auto no-scrollbar pb-10">
         {/* User Info Section */}
         <section className="flex items-start justify-between">
           <div className="flex items-center gap-4">
@@ -218,7 +233,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Footer Mode Switcher */}
-        <footer className="pt-6 pb-4">
+        <footer className="pt-6 space-y-4">
           <button className="w-full bg-muted/20 hover:bg-muted/40 transition-all rounded-2xl p-5 flex items-center justify-between group">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center p-1.5 shadow-sm">
@@ -233,6 +248,15 @@ export default function ProfilePage() {
               <Smile className="w-6 h-6" />
             </div>
           </button>
+
+          {/* LOGOUT BUTTON */}
+          <Button 
+            onClick={handleLogout}
+            variant="destructive" 
+            className="w-full h-14 rounded-2xl font-black uppercase italic tracking-widest gap-3 shadow-lg"
+          >
+            <LogOut className="w-5 h-5" /> KELUAR DARI APLIKASI
+          </Button>
         </footer>
       </main>
     </div>
