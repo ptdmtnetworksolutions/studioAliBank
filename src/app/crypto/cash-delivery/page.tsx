@@ -9,16 +9,42 @@ import {
   X, 
   Info, 
   ChevronDown,
-  RefreshCw
+  RefreshCw,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
+const channels = [
+  { id: 'ovo', name: "OVO", type: "P2P" },
+  { id: 'bca', name: "BCA", type: "P2P" },
+  { id: 'permata', name: "Bank Permata", type: "P2P" },
+  { id: 'bri', name: "Bank BRI", type: "P2P" },
+  { id: 'mandiri', name: "Bank Mandiri", type: "P2P" },
+];
+
+export function CashIcon({ className }: { className?: string }) {
+  return (
+    <div className={cn("relative w-16 h-16 flex items-center justify-center", className)}>
+      <div className="absolute inset-0 bg-slate-100 rounded-full border border-slate-200 shadow-inner" />
+      <div className="relative z-10 w-10 h-6 bg-yellow-400 rounded-sm border-2 border-slate-800 flex items-center justify-center shadow-lg">
+        <div className="w-6 h-3 border border-slate-800/30 rounded-full flex items-center justify-center">
+          <div className="w-1 h-1 bg-slate-800 rounded-full" />
+        </div>
+        <div className="absolute -right-1 -bottom-1 w-3 h-3 bg-slate-800 rounded-full flex items-center justify-center">
+          <div className="w-0 h-0 border-l-[3px] border-l-white border-y-[2px] border-y-transparent ml-0.5" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CashDeliveryPage() {
   const router = useRouter();
   const [showBanner, setShowBanner] = useState(true);
+  const [activeChannel, setActiveChannel] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 flex flex-col font-body">
@@ -103,38 +129,52 @@ export default function CashDeliveryPage() {
 
         {/* Channel Selection */}
         <div className="space-y-4 pt-4">
-          <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Pilih Saluran</h2>
+          <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight px-1">Pilih Saluran</h2>
           
           <div className="space-y-3">
-            {/* Channel: Bank Transfer */}
-            <div className="p-5 rounded-2xl border-2 border-slate-50 bg-white flex items-center justify-between group hover:border-yellow-400 transition-all cursor-pointer shadow-sm">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-black italic uppercase">Transfer Bank</h3>
-                  <Badge variant="outline" className="bg-slate-50 text-[8px] font-black border-none h-4 px-1.5 uppercase tracking-tighter">P2P</Badge>
+            {channels.map((channel) => (
+              <div 
+                key={channel.id}
+                onClick={() => setActiveChannel(channel.id)}
+                className={cn(
+                  "p-5 rounded-2xl border-2 bg-white flex items-center justify-between group transition-all cursor-pointer shadow-sm active:scale-[0.98]",
+                  activeChannel === channel.id ? "border-yellow-400" : "border-slate-50"
+                )}
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black italic uppercase">{channel.name}</h3>
+                    <Badge variant="outline" className="bg-slate-50 text-[8px] font-black border-none h-4 px-1.5 uppercase tracking-tighter">{channel.type}</Badge>
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-400">Transfer kepada diri Anda sendiri | Tiba secara instan</p>
                 </div>
-                <p className="text-[10px] font-bold text-slate-400">Transfer kepada diri Anda sendiri | Tiba secara instan</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-black italic text-slate-900">--</p>
-                <div className="w-5 h-5 rounded-md bg-blue-50 flex items-center justify-center ml-auto">
-                   <RefreshCw className="w-3 h-3 text-blue-500" />
+                <div className="text-right">
+                  <p className="text-sm font-black italic text-slate-900">--</p>
                 </div>
               </div>
-            </div>
+            ))}
+          </div>
+        </div>
 
-            {/* Channel: DANA */}
-            <div className="p-5 rounded-2xl border-2 border-slate-50 bg-white flex items-center justify-between group hover:border-yellow-400 transition-all cursor-pointer shadow-sm">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-black italic uppercase">DANA(Indonesia)</h3>
-                  <Badge variant="outline" className="bg-slate-50 text-[8px] font-black border-none h-4 px-1.5 uppercase tracking-tighter">P2P</Badge>
-                </div>
-                <p className="text-[10px] font-bold text-slate-400">Transfer kepada diri Anda sendiri | Tiba secara instan</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-black italic text-slate-900">--</p>
-              </div>
+        {/* Floating Help Icon */}
+        <div className="flex justify-end pr-2 pt-4">
+          <div className="w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-blue-500 border border-slate-50 active:scale-95 transition-transform cursor-pointer">
+            <Sparkles className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Tutorial Section */}
+        <div className="pt-8 pb-12 flex flex-col items-center text-center space-y-6">
+          <CashIcon />
+          <div className="space-y-1">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Tutorial Pengiriman Tunai</h3>
+          </div>
+          <div className="space-y-4 w-full px-4 text-left">
+            <div className="flex gap-4">
+              <span className="text-yellow-500 font-black italic text-xs mt-0.5">1</span>
+              <p className="text-[10px] font-bold text-slate-400 uppercase leading-relaxed tracking-tight">
+                Masukkan jumlah yang ingin Anda Bayar atau yang akan Anda Terima.
+              </p>
             </div>
           </div>
         </div>
