@@ -29,9 +29,22 @@ export function BottomNav() {
     setMounted(true);
   }, []);
 
-  const isAuthPage = pathname === "/login" || pathname === "/register";
+  if (!mounted) return null;
+
+  // Daftar halaman yang tidak boleh menampilkan Bottom Navigation
+  const excludedPaths = [
+    "/login",
+    "/register",
+    "/crypto/buy",
+    "/crypto/convert",
+    "/crypto/deposit-methods",
+    "/settings/payment-currency",
+    "/checkout"
+  ];
+
+  const shouldHide = excludedPaths.some(path => pathname?.startsWith(path));
   
-  if (!mounted || isAuthPage) return null;
+  if (shouldHide) return null;
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-100 px-2 pb-safe">
