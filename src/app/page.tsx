@@ -477,7 +477,10 @@ export default function Dashboard() {
                 <SheetTitle className="text-xl font-black text-slate-900 tracking-tight">Tambah Dana</SheetTitle>
                 <SheetDescription className="sr-only">Pilih metode untuk menambahkan dana ke akun AliBank Anda.</SheetDescription>
               </SheetHeader>
-              <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-full border border-slate-100 cursor-pointer">
+              <div 
+                className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-full border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors"
+                onClick={() => { setIsTambahDanaOpen(false); router.push('/settings/payment-currency'); }}
+              >
                 <div className="w-4 h-4 rounded-full bg-rose-600 flex items-center justify-center text-[8px] font-black text-white">Rp</div>
                 <span className="text-xs font-black text-slate-900">IDR</span>
                 <ChevronDown className="w-3 h-3 text-slate-400" />
