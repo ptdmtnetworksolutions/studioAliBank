@@ -126,7 +126,6 @@ function DashboardContent() {
 
   const openAddFunds = () => {
     setIsTambahDanaOpen(true);
-    // Optionally update URL to reflect state
     router.push('/?open=add_funds', { scroll: false });
   };
 
@@ -527,7 +526,7 @@ function DashboardContent() {
             <div className="space-y-4">
               <div 
                 className="p-6 rounded-[1.5rem] border border-slate-100 bg-white flex items-center gap-5 active:bg-slate-50 transition-all cursor-pointer group shadow-sm"
-                onClick={() => { setIsTambahDanaOpen(false); router.push('/topup'); }}
+                onClick={() => { setIsTambahDanaOpen(false); router.push('/crypto/buy'); }}
               >
                 <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100 group-hover:scale-110 transition-transform">
                   <ShoppingBag className="w-6 h-6 text-slate-900" />
