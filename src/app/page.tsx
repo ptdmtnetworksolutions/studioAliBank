@@ -38,7 +38,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect, useMemo, Suspense, useCallback } from "react";
+import { useState, useEffect, useMemo, Suspense, useCallback, useRef } from "react";
 import { doc, collection, query, where } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
@@ -101,6 +101,12 @@ function DashboardContent() {
   const [activeTab, setActiveTab] = useState<'bursa' | 'dompet'>('bursa');
   const [marketFilter, setMarketFilter] = useState("Populer");
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
+
+  // Pull-to-Marketplace Logic
+  const [pullY, setPullY] = useState(0);
+  const startY = useRef(0);
+  const isPulling = useRef(false);
+  const threshold = 120; // Jarak tarik untuk memicu navigasi
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -191,6 +197,33 @@ function DashboardContent() {
     }
   };
 
+  // Touch Handlers for Pull Gesture
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY > 0) return;
+    startY.current = e.touches[0].clientY;
+    isPulling.current = true;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isPulling.current) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - startY.current;
+    
+    if (diff > 0) {
+      // Resistance effect
+      const dampedDiff = Math.pow(diff, 0.85);
+      setPullY(dampedDiff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (pullY > threshold) {
+      router.push('/marketplace');
+    }
+    isPulling.current = false;
+    setPullY(0);
+  };
+
   if (!mounted || userLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background">
@@ -215,7 +248,12 @@ function DashboardContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-32 text-foreground transition-colors duration-300">
+    <div 
+      className="min-h-screen bg-background pb-32 text-foreground transition-colors duration-300"
+      onTouchStart={activeTab === 'bursa' ? handleTouchStart : undefined}
+      onTouchMove={activeTab === 'bursa' ? handleTouchMove : undefined}
+      onTouchEnd={activeTab === 'bursa' ? handleTouchEnd : undefined}
+    >
       <header className="px-4 pt-4 pb-2 sticky top-0 z-50 bg-background/80 backdrop-blur-md">
         <div className="flex items-center justify-between gap-1 mb-4">
           <div className="flex items-center gap-3 flex-1 overflow-hidden">
@@ -290,9 +328,23 @@ function DashboardContent() {
         </div>
       </header>
 
-      <main className="px-4 pt-2 space-y-6">
+      <main 
+        className="px-4 pt-2 space-y-6 transition-transform duration-200 ease-out"
+        style={{ transform: `translateY(${pullY}px)` }}
+      >
         {activeTab === 'bursa' ? (
           <div className="animate-in fade-in duration-500 space-y-6">
+            {/* Pull Indicator */}
+            <div 
+              className="flex flex-col items-center justify-center -mt-10 mb-4 transition-opacity"
+              style={{ opacity: Math.min(pullY / 80, 1) }}
+            >
+              <ChevronUp className="w-5 h-5 text-muted-foreground animate-bounce" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">
+                Seret ke bawah ke Marketplace
+              </span>
+            </div>
+
             <div className="flex justify-between items-start mb-2 px-1">
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
