@@ -247,7 +247,7 @@ function DashboardContent() {
   }
 
   const marketCoins = [
-    { symbol: "BNB", price: "611.94", idr: "10.390.735,08", change: "-2.83", isUp: false },
+    { symbol: "ALX", price: "611.94", idr: "10.390.735,08", change: "-2.83", isUp: false },
     { symbol: "BTC", price: "66.262,29", idr: "1.125.133.021,58", change: "-3.76", isUp: false },
     { symbol: "ETH", price: "1.987,12", idr: "33.741.277,73", change: "-3.98", isUp: false },
     { symbol: "SOL", price: "82.63", idr: "1.403.056,57", change: "-4.69", isUp: false },
@@ -436,7 +436,7 @@ function DashboardContent() {
                   <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-foreground leading-tight">Aset ALIX</h4>
+                  <h4 className="text-sm font-black text-foreground leading-tight">Aset ALX</h4>
                   <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-tight">Kedaulatan Digital</p>
                 </div>
               </div>

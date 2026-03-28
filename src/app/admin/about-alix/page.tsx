@@ -62,7 +62,7 @@ export default function AboutAlixPage() {
                 Global Sovereign Asset • Institutional Grade V3
               </Badge>
               <h1 className="text-5xl font-black text-accent uppercase italic tracking-tighter leading-tight">
-                Misi & Validasi <span className="text-primary">Koin ALIX</span>
+                Misi & Validasi <span className="text-primary">Koin ALX</span>
               </h1>
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-4">
                 <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest flex items-center gap-2 italic">
@@ -86,9 +86,9 @@ export default function AboutAlixPage() {
               <Award className="w-12 h-12" />
             </div>
             <div className="space-y-3">
-              <h2 className="text-2xl font-black text-accent uppercase italic tracking-tighter">Ekonomi Baru: Standar BNB, Kekuatan AliBank</h2>
+              <h2 className="text-2xl font-black text-accent uppercase italic tracking-tighter">Ekonomi Baru: Standar ALX, Kekuatan AliBank</h2>
               <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic uppercase tracking-wider">
-                ALIX adalah **Aset Kedaulatan Digital** resmi dari infrastruktur AliBank V3. Tidak seperti token spekulasi lainnya, setiap koin ALIX yang diterbitkan secara riil didukung oleh agunan likuiditas pada cadangan kas AliBank. Smart Contract ALIX mengotomatisasi distribusi bagi hasil dan mekanisme deflasi suplai untuk menjamin pertumbuhan nilai aset jangka panjang bagi pemegangnya di seluruh dunia.
+                ALX adalah **Aset Kedaulatan Digital** resmi dari infrastruktur AliBank V3. Tidak seperti token spekulasi lainnya, setiap koin ALX yang diterbitkan secara riil didukung oleh agunan likuiditas pada cadangan kas AliBank. Smart Contract ALX mengotomatisasi distribusi bagi hasil dan mekanisme deflasi suplai untuk menjamin pertumbuhan nilai aset jangka panjang bagi pemegangnya di seluruh dunia.
               </p>
             </div>
           </div>
@@ -101,7 +101,7 @@ export default function AboutAlixPage() {
             </div>
             <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Verified Contract</h3>
             <p className="text-[10px] text-muted-foreground font-bold leading-relaxed italic uppercase">
-              ALIX beroperasi pada Smart Contract V3 yang telah diaudit. Alamat kontrak {ALIX_CONTRACT} dapat diverifikasi secara publik di Mainnet Explorer.
+              ALX beroperasi pada Smart Contract V3 yang telah diaudit. Alamat kontrak {ALIX_CONTRACT} dapat diverifikasi secara publik di Mainnet Explorer.
             </p>
           </Card>
 
@@ -111,7 +111,7 @@ export default function AboutAlixPage() {
             </div>
             <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Stabilitas Kas</h3>
             <p className="text-[10px] text-muted-foreground font-bold leading-relaxed italic uppercase">
-              Mekanisme cadangan likuiditas memastikan ALIX memiliki volatilitas yang terukur dan dapat dikonversi menjadi USDT/IDR secara instan melalui node AliBank.
+              Mekanisme cadangan likuiditas memastikan ALX memiliki volatilitas yang terukur dan dapat dikonversi menjadi USDT/IDR secara instan melalui node AliBank.
             </p>
           </Card>
 
@@ -121,7 +121,7 @@ export default function AboutAlixPage() {
             </div>
             <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter">Global Liquidity</h3>
             <p className="text-[10px] text-muted-foreground font-bold leading-relaxed italic uppercase">
-              Kompatibilitas penuh dengan standar ERC-20 memungkinkan ALIX diakui secara global di bursa desentralisasi (DEX) dan platform DeFi internasional.
+              Kompatibilitas penuh dengan standar ERC-20 memungkinkan ALX diakui secara global di bursa desentralisasi (DEX) dan platform DeFi internasional.
             </p>
           </Card>
         </div>
@@ -144,21 +144,21 @@ export default function AboutAlixPage() {
                     <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-black text-sm shrink-0 shadow-lg italic group-hover:scale-110 transition-transform">1</div>
                     <div>
                       <p className="text-xs font-black text-white uppercase italic tracking-widest">Reserve Inflow</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider leading-relaxed mt-1">Setiap dana yang masuk ke sistem perbankan secara otomatis menjadi agunan pendukung nilai ALIX.</p>
+                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider leading-relaxed mt-1">Setiap dana yang masuk ke sistem perbankan secara otomatis menjadi agunan pendukung nilai ALX.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-5 group">
                     <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-black text-sm shrink-0 shadow-lg italic group-hover:scale-110 transition-transform">2</div>
                     <div>
                       <p className="text-xs font-black text-white uppercase italic tracking-widest">Sovereign Scarcity</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider leading-relaxed mt-1">Algoritma "Smart Burn" menghapus suplai secara permanen berdasarkan volume transaksi marketplace AliBank.</p>
+                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider leading-relaxed mt-1">Algoritma "Smart Burn" menghapus suplai secara permanen berdasarkan volume transaksi marketplace AliBank V3.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-5 group">
                     <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-black text-sm shadow-lg italic group-hover:scale-110 transition-transform">3</div>
                     <div>
                       <p className="text-xs font-black text-white uppercase italic tracking-widest">On-Chain Dividend</p>
-                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider leading-relaxed mt-1">Pemegang ALIX menerima hak likuiditas prioritas dan bagi hasil dari ekosistem digital AliBank secara otomatis.</p>
+                      <p className="text-[10px] text-white/50 italic uppercase tracking-wider leading-relaxed mt-1">Pemegang ALX menerima hak likuiditas prioritas dan bagi hasil dari ekosistem digital AliBank secara otomatis.</p>
                     </div>
                   </div>
                 </div>
@@ -180,7 +180,7 @@ export default function AboutAlixPage() {
                   <div className="p-6 rounded-2xl bg-green-500/10 border border-green-500/20 flex gap-4">
                     <SearchCheck className="w-6 h-6 text-green-500 shrink-0" />
                     <p className="text-[9px] text-white/70 italic leading-relaxed uppercase font-bold">
-                      Kepercayaan dibangun melalui bukti nyata. Koin ALIX bukan sekadar angka di aplikasi, melainkan entitas kriptografi yang terdaftar secara sah pada World Ledger 2026.
+                      Kepercayaan dibangun melalui bukti nyata. Koin ALX bukan sekadar angka di aplikasi, melainkan entitas kriptografi yang terdaftar secara sah pada World Ledger 2026.
                     </p>
                   </div>
 
@@ -208,7 +208,7 @@ export default function AboutAlixPage() {
           <div className="space-y-4 max-w-3xl mx-auto">
             <h3 className="text-3xl font-black text-accent uppercase italic tracking-tighter">Komitmen Legalitas Global</h3>
             <p className="text-[13px] text-muted-foreground font-medium leading-relaxed italic uppercase tracking-wider">
-              AliBank menjamin bahwa koin ALIX adalah instrumen keuangan digital yang sah di bawah yurisdiksi infrastruktur blockchain mandiri kami. Kami membangun ALIX untuk menjadi pilar utama ekonomi DeFi dunia, dengan transparansi penuh dan keamanan tingkat perbankan internasional.
+              AliBank menjamin bahwa koin ALX adalah instrumen keuangan digital yang sah di bawah yurisdiksi infrastruktur blockchain mandiri kami. Kami membangun ALX untuk menjadi pilar utama ekonomi DeFi dunia, dengan transparansi penuh dan keamanan tingkat perbankan internasional.
             </p>
           </div>
           <div className="flex justify-center gap-4">

@@ -105,7 +105,7 @@ function AdminContent() {
   const [onChainEth, setOnChainEth] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
   
-  // ALIX Sovereign Supply States
+  // ALX Sovereign Supply States
   const [alixMintAmount, setAlixMintAmount] = useState("");
   const [alixBurnAmount, setAlixBurnAmount] = useState("");
   const [isMinting, setIsMinting] = useState(false);
@@ -175,15 +175,15 @@ function AdminContent() {
 
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `MINT-${Date.now()}`,
-        category: "ALIX Sovereign Mint",
+        category: "ALX Sovereign Mint",
         cryptoAmount: amount,
-        cryptoCurrency: "ALIX",
+        cryptoCurrency: "ALX",
         status: "success",
         timestamp: serverTimestamp(),
         description: "Official Supply Expansion: Realized on-chain authorization."
       });
 
-      toast({ title: "Sovereign Mint Successful", description: `${amount} ALIX has been added to global circulation.` });
+      toast({ title: "Sovereign Mint Successful", description: `${amount} ALX has been added to global circulation.` });
       setAlixMintAmount("");
     } catch (err: any) {
       toast({ variant: "destructive", title: "Minting Failed", description: err.message });
@@ -208,15 +208,15 @@ function AdminContent() {
 
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `BURN-${Date.now()}`,
-        category: "ALIX Protocol Burn",
+        category: "ALX Protocol Burn",
         cryptoAmount: amount,
-        cryptoCurrency: "ALIX",
+        cryptoCurrency: "ALX",
         status: "success",
         timestamp: serverTimestamp(),
-        description: "Token Scarcity Protocol (BNB Standard): supply removed from circulation permanently."
+        description: "Token Scarcity Protocol (ALX Standard): supply removed from circulation permanently."
       });
 
-      toast({ title: "Protocol Burn Successful", description: `${amount} ALIX burned permanently.` });
+      toast({ title: "Protocol Burn Successful", description: `${amount} ALX burned permanently.` });
       setAlixBurnAmount("");
     } catch (err: any) {
       toast({ variant: "destructive", title: "Burn Failed", description: err.message });
@@ -329,7 +329,7 @@ function AdminContent() {
                   <div className="absolute inset-0 bg-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="flex items-center justify-between">
                     <LogoIcon className="w-8 h-8 text-orange-600" />
-                    <Badge className="bg-orange-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">ALIX</Badge>
+                    <Badge className="bg-orange-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">ALX</Badge>
                   </div>
                   <div>
                     <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Sovereign Supply</p>
@@ -381,7 +381,7 @@ function AdminContent() {
                     <h3 className="text-2xl font-black text-white uppercase italic">Sovereign Asset Sentinel</h3>
                   </div>
                   <p className="text-sm font-medium italic text-white/70 leading-relaxed uppercase relative z-10">
-                    Seluruh pencetakan koin ALIX didukung oleh agunan likuiditas Mainnet. Mekanisme "Smart Burn" otomatis aktif berdasarkan volume marketplace AliBank V3.
+                    Seluruh pencetakan koin ALX didukung oleh agunan likuiditas Mainnet. Mekanisme "Smart Burn" otomatis aktif berdasarkan volume marketplace AliBank V3.
                   </p>
                   <Button onClick={() => setActiveTab('audit')} className="w-full h-16 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-[2rem] font-black uppercase italic text-xs tracking-widest relative z-10 shadow-2xl">
                     View Real-Time System Records
@@ -487,7 +487,7 @@ function AdminContent() {
                       </div>
                     </div>
                     <div className="space-y-3">
-                      <label className="text-[11px] font-black uppercase text-muted-foreground ml-3">Amount to Authorize (ALIX)</label>
+                      <label className="text-[11px] font-black uppercase text-muted-foreground ml-3">Amount to Authorize (ALX)</label>
                       <div className="relative">
                         <Input type="number" placeholder="0.00" value={alixMintAmount} onChange={(e) => setAlixMintAmount(e.target.value)} className="h-20 rounded-[2rem] liquid-glass border-none font-black italic text-3xl px-10 shadow-2xl" />
                         <LogoIcon className="absolute right-10 top-1/2 -translate-y-1/2 w-10 h-10 text-orange-500 opacity-20" />
@@ -505,14 +505,14 @@ function AdminContent() {
                     <div className="w-20 h-20 rounded-[2rem] bg-destructive/10 flex items-center justify-center text-destructive shadow-inner"><Flame className="w-10 h-10" /></div>
                     <div>
                       <h3 className="text-3xl font-black text-accent uppercase italic leading-none dark:text-white">Auto-Burn Protocol</h3>
-                      <p className="text-[11px] text-muted-foreground font-black uppercase tracking-widest mt-2 italic">Deflation Mechanism: Scarcity Enforcement (BNB Std).</p>
+                      <p className="text-[11px] text-muted-foreground font-black uppercase tracking-widest mt-2 italic">Deflation Mechanism: Scarcity Enforcement (ALX Std).</p>
                     </div>
                   </div>
                   <div className="space-y-8">
                     <div className="p-8 rounded-[2.5rem] bg-destructive/5 border border-destructive/10 flex items-center justify-between">
                       <div>
                         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Permanently Burned</p>
-                        <p className="text-3xl font-black text-destructive italic tracking-tighter">{(globalLiquidity?.totalAlixBurned || 0).toLocaleString()} ALIX</p>
+                        <p className="text-3xl font-black text-destructive italic tracking-tighter">{(globalLiquidity?.totalAlixBurned || 0).toLocaleString()} ALX</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Rate</p>
@@ -520,7 +520,7 @@ function AdminContent() {
                       </div>
                     </div>
                     <div className="space-y-3">
-                      <label className="text-[11px] font-black uppercase text-muted-foreground ml-3">Amount to Incinerate (ALIX)</label>
+                      <label className="text-[11px] font-black uppercase text-muted-foreground ml-3">Amount to Incinerate (ALX)</label>
                       <div className="relative">
                         <Input type="number" placeholder="0.00" value={alixBurnAmount} onChange={(e) => setAlixBurnAmount(e.target.value)} className="h-20 rounded-[2rem] bg-destructive/5 border-none font-black italic text-3xl px-10 text-destructive shadow-inner" />
                         <Flame className="absolute right-10 top-1/2 -translate-y-1/2 w-10 h-10 text-destructive opacity-20" />
@@ -561,7 +561,7 @@ function AdminContent() {
                     <div className="space-y-6">
                       <div className="flex justify-between items-end border-b border-primary/10 pb-4">
                         <span className="text-[10px] font-black uppercase text-muted-foreground">Standard Architecture</span>
-                        <span className="text-sm font-black italic dark:text-white">BNB Sovereign Protocol</span>
+                        <span className="text-sm font-black italic dark:text-white">ALX Sovereign Protocol</span>
                       </div>
                       <div className="flex justify-between items-end border-b border-primary/10 pb-4">
                         <span className="text-[10px] font-black uppercase text-muted-foreground">Compliance Guard</span>
@@ -652,7 +652,7 @@ function AdminContent() {
                         <tr key={log.id} className="hover:bg-primary/5 transition-colors">
                           <td className="px-12 py-8 font-mono text-[10px] text-muted-foreground">{log.id}</td>
                           <td className="px-12 py-8">
-                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALIX") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
+                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
                               {log.category}
                             </Badge>
                           </td>

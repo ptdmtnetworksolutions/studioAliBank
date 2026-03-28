@@ -1,3 +1,4 @@
+
 export type Language = 'id' | 'en';
 
 export const translations = {
@@ -26,11 +27,11 @@ export const translations = {
     platinum_private: 'Platinum Privat',
     copied: 'Berhasil Disalin',
     account_copied_msg: 'Nomor rekening telah disalin ke clipboard.',
-    alix_sovereign: 'Aset Kedaulatan ALIX',
+    alix_sovereign: 'Aset Kedaulatan ALX',
     alix_description: 'Koin utilitas resmi AliBank yang didukung oleh likuiditas riil ekosistem.',
-    mint_alix: 'Cetak ALIX Baru',
-    burn_alix: 'Bakar Suplai ALIX',
-    alix_ecosystem: 'Ekosistem ALIX'
+    mint_alix: 'Cetak ALX Baru',
+    burn_alix: 'Bakar Suplai ALX',
+    alix_ecosystem: 'Ekosistem ALX'
   },
   en: {
     dashboard: 'Dashboard',
@@ -57,10 +58,10 @@ export const translations = {
     platinum_private: 'Platinum Private',
     copied: 'Copied!',
     account_copied_msg: 'Account number copied to clipboard.',
-    alix_sovereign: 'ALIX Sovereign Asset',
+    alix_sovereign: 'ALX Sovereign Asset',
     alix_description: 'Official utility coin backed by real ecosystem liquidity.',
-    mint_alix: 'Mint New ALIX',
-    burn_alix: 'Burn ALIX Supply',
-    alix_ecosystem: 'ALIX Ecosystem'
+    mint_alix: 'Mint New ALX',
+    burn_alix: 'Burn ALX Supply',
+    alix_ecosystem: 'ALX Ecosystem'
   }
 };

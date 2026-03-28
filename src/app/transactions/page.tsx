@@ -64,8 +64,8 @@ export default function AssetsPage() {
       )
     },
     { 
-      symbol: "BNB", 
-      name: "BNB", 
+      symbol: "ALX", 
+      name: "Alix Coin", 
       amount: "0.00000013", 
       idrValue: "1.36", 
       color: "bg-yellow-500",
@@ -190,8 +190,8 @@ export default function AssetsPage() {
                 </div>
 
                 {/* Conditional Extra Info */}
-                {asset.symbol === "BNB" && (
-                  <div className="space-y-1 pl-13 pr-1 opacity-80">
+                {asset.symbol === "ALX" && (
+                  <div className="space-y-1 pl-10 pr-1 opacity-80">
                     <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-tight">
                       <span>PnL Hari Ini</span>
                       <span className="text-rose-500">{asset.pnl}</span>
@@ -204,7 +204,7 @@ export default function AssetsPage() {
                 )}
 
                 {/* Row Actions */}
-                <div className="flex gap-2 pl-13 pt-1">
+                <div className="flex gap-2 pl-10 pt-1">
                   <Button variant="outline" className="h-7 px-5 bg-muted/40 border-none text-[9px] font-black italic rounded-md shadow-none uppercase">
                     Earn
                   </Button>
