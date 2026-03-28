@@ -53,12 +53,15 @@ import {
   UserCheck,
   Percent,
   Gamepad2,
-  Gift
+  Gift,
+  Network,
+  Milestone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { 
   Select, 
   SelectContent, 
@@ -309,6 +312,7 @@ function AdminContent() {
             <div className="overflow-x-auto no-scrollbar pb-4">
               <TabsList className="bg-primary/5 p-2 rounded-[3rem] h-20 border border-primary/10 flex w-max shadow-inner mx-auto gap-2">
                 <TabsTrigger value="overview" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">Executive</TabsTrigger>
+                <TabsTrigger value="alichain" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">AliChain Hub</TabsTrigger>
                 <TabsTrigger value="inventory" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">Inventory</TabsTrigger>
                 <TabsTrigger value="alix" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">Tokenomics</TabsTrigger>
                 <TabsTrigger value="vault" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">Vault V3</TabsTrigger>
@@ -405,6 +409,86 @@ function AdminContent() {
                     View Real-Time System Records
                   </Button>
                 </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="alichain" className="space-y-10 animate-in zoom-in-95 duration-500">
+              <header className="text-center max-w-2xl mx-auto space-y-4">
+                <Badge className="bg-primary text-white font-black uppercase tracking-widest text-[10px] px-4 py-1.5 rounded-full shadow-lg">Phase 2: Global Scaling</Badge>
+                <h2 className="text-4xl font-black text-accent uppercase italic tracking-tighter dark:text-white">AliChain Migration Readiness</h2>
+                <p className="text-[11px] text-muted-foreground font-black uppercase tracking-[0.3em] leading-relaxed italic">
+                  Monitoring transisi dari Token Ethereum (ERC-20) menuju Koin Native Berdaulat AliBank V3.
+                </p>
+              </header>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-10 shadow-2xl">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner"><TrendingUp className="w-8 h-8" /></div>
+                    <h3 className="text-2xl font-black text-accent uppercase italic dark:text-white">Ekonomi & Volume</h3>
+                  </div>
+                  <div className="space-y-8">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-end">
+                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Harian Volume (IDR)</p>
+                        <p className="text-xs font-black text-accent italic">Rp 1.2T / Rp 10T</p>
+                      </div>
+                      <Progress value={12} className="h-3 rounded-full bg-muted shadow-inner" />
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-end">
+                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Active Holders</p>
+                        <p className="text-xs font-black text-accent italic">125K / 1M</p>
+                      </div>
+                      <Progress value={12.5} className="h-3 rounded-full bg-muted shadow-inner" />
+                    </div>
+                    <div className="p-6 rounded-3xl bg-blue-50 border border-blue-100">
+                      <p className="text-[9px] font-black text-blue-600 uppercase leading-relaxed italic">
+                        STRATEGI: Tingkatkan utilitas koin ALX pada marketplace untuk mempercepat sirkulasi dan mencapai target volume Mainnet.
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-10 shadow-2xl">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600 shadow-inner"><Network className="w-8 h-8" /></div>
+                    <h3 className="text-2xl font-black text-accent uppercase italic dark:text-white">Infrastruktur Node</h3>
+                  </div>
+                  <div className="space-y-8">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-end">
+                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Global Validator Nodes</p>
+                        <p className="text-xs font-black text-accent italic">12 / 21 Nodes</p>
+                      </div>
+                      <Progress value={57} className="h-3 rounded-full bg-muted shadow-inner" />
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-end">
+                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Audit Security V3</p>
+                        <p className="text-xs font-black text-green-600 italic">PASSED (Ver. 1.2)</p>
+                      </div>
+                      <Progress value={100} className="h-3 rounded-full bg-muted shadow-inner" />
+                    </div>
+                    <Button className="w-full h-16 border-2 border-dashed border-primary/30 text-primary rounded-[2rem] font-black uppercase italic text-xs hover:bg-primary/5">
+                      Deploy AliChain Testnet Cluster
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+
+              <div className="liquid-glass-dark rounded-[3.5rem] p-12 text-center space-y-8 relative overflow-hidden shadow-2xl">
+                <div className="absolute inset-0 gold-gradient opacity-5" />
+                <Milestone className="w-16 h-16 text-primary mx-auto opacity-20" />
+                <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">Status Migrasi: <span className="text-primary">Staging</span></h3>
+                <p className="text-sm font-medium text-white/60 italic max-w-3xl mx-auto uppercase leading-relaxed">
+                  Blockchain Mandiri (AliChain) akan diluncurkan secara otomatis ketika volume ekosistem mencapai nilai ekuivalen Rp 10 Triliun. Seluruh Token ERC-20 akan dikonversi menjadi Koin Native melalui mekanisme Snapshot otomatis.
+                </p>
+                <div className="flex justify-center gap-6">
+                  <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">EVM Compatible</Badge>
+                  <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">Proof of Stake (PoS)</Badge>
+                  <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">Zero-Fee Layer</Badge>
+                </div>
               </div>
             </TabsContent>
 
