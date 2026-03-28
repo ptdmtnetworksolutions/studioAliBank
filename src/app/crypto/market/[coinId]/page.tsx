@@ -14,7 +14,8 @@ import {
   Info,
   MoreHorizontal,
   LayoutGrid,
-  TrendingUp
+  TrendingUp,
+  BrainCircuit
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +56,7 @@ export default function MarketDetailPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-body transition-colors duration-300">
-      {/* Header */}
+      {/* Header - Identical to Reference */}
       <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background z-50 border-b border-border/50">
         <div className="flex items-center gap-4">
           <button onClick={() => router.back()} className="p-1 hover:bg-muted rounded-full transition-colors">
@@ -67,33 +68,33 @@ export default function MarketDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <Sparkles className="w-5 h-5 text-primary" />
+          <BrainCircuit className="w-5 h-5 text-primary" />
           <Star className="w-5 h-5 text-muted-foreground" />
           <Bell className="w-5 h-5 text-muted-foreground" />
         </div>
       </header>
 
-      {/* Secondary Tabs */}
-      <div className="flex items-center gap-8 px-6 border-b border-border/50">
+      {/* Secondary Tabs - Identical to Reference */}
+      <div className="flex items-center gap-8 px-6 border-b border-border/50 overflow-x-auto no-scrollbar">
         {["Harga", "Info", "Data Perdagangan", "Trade-X"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={cn(
-              "py-3 text-[13px] font-black transition-all relative shrink-0 italic uppercase",
+              "py-3 text-[13px] font-black transition-all relative shrink-0 italic uppercase whitespace-nowrap",
               activeTab === tab ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[3px] after:bg-primary" : "text-muted-foreground"
             )}
           >
             {tab}
             {tab === "Trade-X" && (
-              <Badge className="absolute -top-1 -right-4 bg-primary text-[7px] font-black px-1 h-3 border-none">New</Badge>
+              <Badge className="absolute -top-1 -right-4 bg-primary text-primary-foreground text-[7px] font-black px-1 h-3 border-none uppercase">New</Badge>
             )}
           </button>
         ))}
       </div>
 
-      <main className="flex-1 overflow-y-auto no-scrollbar">
-        {/* Main Stats */}
+      <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
+        {/* Main Stats Section */}
         <section className="px-6 pt-6 grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <h2 className="text-4xl font-black tracking-tighter italic">611.57</h2>
@@ -102,8 +103,8 @@ export default function MarketDetailPage() {
               <span className="text-[10px] font-black text-green-500">+0.37%</span>
             </div>
             <div className="flex gap-2 pt-2">
-              <Badge variant="outline" className="text-[8px] font-black uppercase border-primary/20 text-primary px-1.5 h-4">Lapisan 1 / Lapisan 2</Badge>
-              <Badge variant="outline" className="text-[8px] font-black uppercase border-primary/20 text-primary px-1.5 h-4">Vol</Badge>
+              <span className="text-[8px] font-black uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">Lapisan 1 / Lapisan 2</span>
+              <span className="text-[8px] font-black uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">Vol</span>
             </div>
           </div>
           
@@ -127,7 +128,7 @@ export default function MarketDetailPage() {
           </div>
         </section>
 
-        {/* Timeframes */}
+        {/* Timeframes Bar */}
         <div className="px-6 pt-6 flex items-center justify-between border-b border-border/20">
           <div className="flex gap-5 overflow-x-auto no-scrollbar pb-2">
             {["Waktu", "15m", "1j", "4j", "1H", "Lainnya", "Kedalaman"].map((t) => (
@@ -149,7 +150,7 @@ export default function MarketDetailPage() {
           </div>
         </div>
 
-        {/* Professional Chart */}
+        {/* Chart Area - Identical to Reference */}
         <div className="h-80 w-full relative pt-4">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={mockData}>
@@ -176,7 +177,7 @@ export default function MarketDetailPage() {
           </div>
         </div>
 
-        {/* Technical Indicators Selection */}
+        {/* Technical Indicators */}
         <div className="px-6 py-4 flex items-center gap-6 overflow-x-auto no-scrollbar border-y border-border/20">
           {["MA", "EMA", "BOLL", "SAR", "AVL", "SUPER", "VOL"].map((ind) => (
             <button key={ind} className={cn(
@@ -189,7 +190,7 @@ export default function MarketDetailPage() {
           <TrendingUp className="w-4 h-4 text-muted-foreground ml-auto" />
         </div>
 
-        {/* Performance Stats Table */}
+        {/* Performance Grid */}
         <section className="px-6 py-8 space-y-6">
           <div className="grid grid-cols-6 gap-2 text-[9px] font-black text-muted-foreground uppercase italic text-center">
             <div>Hari Ini</div>
@@ -209,7 +210,7 @@ export default function MarketDetailPage() {
           </div>
         </section>
 
-        {/* Sub Navigation */}
+        {/* Sub-tabs below chart */}
         <div className="px-6 flex gap-8 border-b border-border/20">
           {["Book", "Perdagangan", "Jaringan"].map(tab => (
             <button key={tab} className={cn(
@@ -220,33 +221,33 @@ export default function MarketDetailPage() {
         </div>
       </main>
 
-      {/* Action Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border px-4 py-4 flex items-center gap-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+      {/* FIXED ACTION FOOTER - Exact match to Reference */}
+      <footer className="fixed bottom-0 left-0 right-0 z-[60] bg-background border-t border-border px-4 py-4 flex items-center gap-4 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
         <div className="flex gap-6 px-2">
-          <div className="flex flex-col items-center gap-1 cursor-pointer">
+          <div className="flex flex-col items-center gap-1 cursor-pointer hover:text-primary transition-colors">
             <MoreHorizontal className="w-5 h-5 text-muted-foreground" />
-            <span className="text-[8px] font-bold uppercase italic">Lainnya</span>
+            <span className="text-[8px] font-black uppercase italic">Lainnya</span>
           </div>
-          <div className="flex flex-col items-center gap-1 cursor-pointer">
+          <div className="flex flex-col items-center gap-1 cursor-pointer hover:text-primary transition-colors">
             <LayoutGrid className="w-5 h-5 text-muted-foreground" />
-            <span className="text-[8px] font-bold uppercase italic">Hub</span>
+            <span className="text-[8px] font-black uppercase italic">Hub</span>
           </div>
-          <div className="flex flex-col items-center gap-1 cursor-pointer">
+          <div className="flex flex-col items-center gap-1 cursor-pointer hover:text-primary transition-colors">
             <TrendingUp className="w-5 h-5 text-muted-foreground" />
-            <span className="text-[8px] font-bold uppercase italic">Margin</span>
+            <span className="text-[8px] font-black uppercase italic">Margin</span>
           </div>
         </div>
         
         <div className="flex-1 flex gap-3">
           <Button 
             onClick={() => router.push(`/crypto/trade/${coinId}`)}
-            className="flex-1 h-12 bg-green-500 hover:bg-green-600 text-white font-black italic uppercase rounded-lg shadow-lg border-none"
+            className="flex-1 h-12 bg-green-500 hover:bg-green-600 text-white font-black italic uppercase rounded-lg shadow-lg border-none text-base"
           >
             Beli
           </Button>
           <Button 
             onClick={() => router.push(`/crypto/trade/${coinId}`)}
-            className="flex-1 h-12 bg-rose-500 hover:bg-rose-600 text-white font-black italic uppercase rounded-lg shadow-lg border-none"
+            className="flex-1 h-12 bg-rose-500 hover:bg-rose-600 text-white font-black italic uppercase rounded-lg shadow-lg border-none text-base"
           >
             Jual
           </Button>

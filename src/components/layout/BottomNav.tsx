@@ -26,7 +26,6 @@ export function BottomNav() {
   useEffect(() => {
     setMounted(true);
     
-    // Fungsi untuk mensinkronisasi mode dari localStorage
     const syncMode = () => {
       const savedMode = localStorage.getItem("alibank-active-mode") as 'bursa' | 'dompet';
       const urlTab = searchParams.get('tab') as 'bursa' | 'dompet';
@@ -40,7 +39,6 @@ export function BottomNav() {
 
     syncMode();
 
-    // Dengarkan event perubahan mode kustom (jika ada)
     window.addEventListener('alibank-mode-change', syncMode);
     return () => window.removeEventListener('alibank-mode-change', syncMode);
   }, [searchParams]);
@@ -55,13 +53,13 @@ export function BottomNav() {
     "/crypto/deposit-methods",
     "/crypto/cash-delivery",
     "/settings/payment-currency",
-    "/checkout"
+    "/checkout",
+    "/crypto/market" // Sembunyikan di halaman detail pasar
   ];
 
   const shouldHide = excludedPaths.some(path => pathname?.startsWith(path));
   if (shouldHide) return null;
 
-  // Bursa Tab Menu
   const bursaItems = [
     { name: "Beranda", href: "/?tab=bursa", icon: Home, isLogo: true },
     { name: "Pasar", href: "/crypto", icon: TrendingUp },
@@ -70,7 +68,6 @@ export function BottomNav() {
     { name: "Aset", href: "/transactions", icon: Wallet },
   ];
 
-  // Dompet Tab Menu
   const dompetItems = [
     { name: "Beranda", href: "/?tab=dompet", icon: Home },
     { name: "Pasar", href: "/crypto", icon: TrendingUp },
@@ -90,22 +87,14 @@ export function BottomNav() {
           const isHome = item.href.startsWith('/?tab=');
           const itemTab = item.href.includes('dompet') ? 'dompet' : 'bursa';
           
-          // Logika Active yang diperketat:
           const isActive = (() => {
-            // Jika menu Beranda, cek mode bursa/dompet
             if (isHome) return pathname === '/' && mode === itemTab;
-            
-            // Khusus menu Pasar di bursa agar tidak tabrakan dengan Perdagangan (sama-sama mulai dari /crypto)
             if (item.href === '/crypto' && mode === 'bursa') {
               return pathname === '/crypto';
             }
-
-            // Jika Perdagangan, cek apakah di sub-path trade
             if (item.href.includes('/trade/') && !item.href.includes('futures')) {
               return pathname?.startsWith('/crypto/trade/') && !pathname?.includes('futures');
             }
-
-            // Default startsWith
             return pathname?.startsWith(item.href);
           })();
 
