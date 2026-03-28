@@ -292,7 +292,10 @@ function DashboardContent() {
                 </div>
               </div>
             ) : (
-              <div className="p-1 cursor-pointer shrink-0">
+              <div 
+                className="p-1 cursor-pointer shrink-0"
+                onClick={() => router.push('/settings/wallet')}
+              >
                 <Menu className="w-6 h-6 text-foreground" />
               </div>
             )}
