@@ -10,11 +10,12 @@ import {
   Info, 
   ChevronDown,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  Delete
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 
@@ -48,6 +49,40 @@ export default function CashDeliveryPage() {
   const router = useRouter();
   const [showBanner, setShowBanner] = useState(true);
   const [activeChannel, setActiveChannel] = useState<string | null>(null);
+  
+  // Input states
+  const [amountMenerima, setAmountMenerima] = useState("0");
+  const [amountBayar, setAmountBayar] = useState("0.00");
+  const [showKeypad, setShowKeypad] = useState(false);
+  const [activeInput, setActiveInput] = useState<'menerima' | 'bayar'>('menerima');
+
+  const minAmount = 10000;
+  const currentAmount = parseFloat(amountMenerima.replace(',', '.'));
+  const isAmountTooLow = currentAmount > 0 && currentAmount < minAmount;
+
+  const handleKeyPress = (num: string) => {
+    if (activeInput === 'menerima') {
+      setAmountMenerima(prev => prev === "0" ? num : prev + num);
+    } else {
+      setAmountBayar(prev => prev === "0.00" ? num : prev + num);
+    }
+  };
+
+  const handleDelete = () => {
+    if (activeInput === 'menerima') {
+      setAmountMenerima(prev => prev.length > 1 ? prev.slice(0, -1) : "0");
+    } else {
+      setAmountBayar(prev => prev.length > 1 ? prev.slice(0, -1) : "0.00");
+    }
+  };
+
+  const handleComma = () => {
+    if (activeInput === 'menerima' && !amountMenerima.includes(",")) {
+      setAmountMenerima(prev => prev + ",");
+    } else if (activeInput === 'bayar' && !amountBayar.includes(".")) {
+      setAmountBayar(prev => prev + ".");
+    }
+  };
 
   return (
     <div className="h-screen bg-white text-slate-900 flex flex-col font-body overflow-hidden">
@@ -63,8 +98,8 @@ export default function CashDeliveryPage() {
       </header>
 
       {/* Main Scrollable Area */}
-      <main className="flex-1 px-6 pt-2 space-y-6 overflow-y-auto no-scrollbar pb-10">
-        {/* Banner - Professional Compliance Info */}
+      <main className="flex-1 px-6 pt-2 space-y-6 overflow-y-auto no-scrollbar pb-20">
+        {/* Banner */}
         {showBanner && (
           <div className="bg-[#FFFBEB] border border-yellow-100 rounded-2xl p-4 flex items-start gap-3 relative animate-in fade-in slide-in-from-top-2">
             <Info className="w-4 h-4 text-slate-700 shrink-0 mt-0.5" />
@@ -92,29 +127,42 @@ export default function CashDeliveryPage() {
         <div className="space-y-6">
           <div className="space-y-3">
             <label className="text-xs font-black text-slate-400 uppercase tracking-wider">Akan Menerima</label>
-            <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-transparent focus-within:border-yellow-400 transition-all shadow-sm">
-              <input 
-                type="number" 
-                placeholder="0.00" 
-                className="bg-transparent border-none focus:ring-0 text-2xl font-black italic tracking-tighter w-1/2 placeholder:text-slate-300"
-              />
-              <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl shadow-sm border border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors">
+            <div 
+              onClick={() => { setShowKeypad(true); setActiveInput('menerima'); }}
+              className={cn(
+                "bg-slate-50 rounded-2xl p-4 flex items-center justify-between border-2 transition-all shadow-sm cursor-pointer",
+                activeInput === 'menerima' && showKeypad ? "border-yellow-400" : "border-transparent"
+              )}
+            >
+              <div className="text-2xl font-black italic tracking-tighter w-1/2">
+                {amountMenerima}
+                {activeInput === 'menerima' && showKeypad && <span className="w-0.5 h-6 bg-yellow-400 animate-pulse ml-0.5 inline-block align-middle" />}
+              </div>
+              <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl shadow-sm border border-slate-100">
                 <div className="w-5 h-5 rounded-full bg-rose-600 flex items-center justify-center text-[8px] font-black text-white">ID</div>
                 <span className="text-sm font-black italic">IDR | ID</span>
                 <ChevronDown className="w-4 h-4 text-slate-400" />
               </div>
             </div>
+            {isAmountTooLow && (
+              <p className="text-[10px] font-bold text-rose-500 italic mt-1 px-1">Jumlah minimum adalah {minAmount} IDR</p>
+            )}
           </div>
 
           <div className="space-y-3">
             <label className="text-xs font-black text-slate-400 uppercase tracking-wider">Anda Bayar</label>
-            <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-transparent focus-within:border-yellow-400 transition-all shadow-sm">
-              <input 
-                type="number" 
-                placeholder="0.00" 
-                className="bg-transparent border-none focus:ring-0 text-2xl font-black italic tracking-tighter w-1/2 placeholder:text-slate-300"
-              />
-              <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl shadow-sm border border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors">
+            <div 
+              onClick={() => { setShowKeypad(true); setActiveInput('bayar'); }}
+              className={cn(
+                "bg-slate-50 rounded-2xl p-4 flex items-center justify-between border-2 transition-all shadow-sm cursor-pointer",
+                activeInput === 'bayar' && showKeypad ? "border-yellow-400" : "border-transparent"
+              )}
+            >
+              <div className="text-2xl font-black italic tracking-tighter w-1/2 text-slate-300">
+                {amountBayar}
+                {activeInput === 'bayar' && showKeypad && <span className="w-0.5 h-6 bg-yellow-400 animate-pulse ml-0.5 inline-block align-middle" />}
+              </div>
+              <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl shadow-sm border border-slate-100">
                 <div className="w-5 h-5 rounded-full bg-[#0D9488] flex items-center justify-center text-white p-1">
                   <RefreshCw className="w-full h-full" />
                 </div>
@@ -132,12 +180,11 @@ export default function CashDeliveryPage() {
         {/* Channel Selection */}
         <div className="space-y-4 pt-4">
           <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight px-1">Pilih Saluran</h2>
-          
           <div className="space-y-3">
             {channels.map((channel) => (
               <div 
                 key={channel.id}
-                onClick={() => setActiveChannel(channel.id)}
+                onClick={() => { setActiveChannel(channel.id); setShowKeypad(false); }}
                 className={cn(
                   "p-5 rounded-2xl border-2 bg-white flex items-center justify-between group transition-all cursor-pointer shadow-sm active:scale-[0.98]",
                   activeChannel === channel.id ? "border-yellow-400 bg-yellow-50/10" : "border-slate-50"
@@ -165,32 +212,22 @@ export default function CashDeliveryPage() {
               <Sparkles className="w-5 h-5" />
             </div>
           </div>
-          
           <CashIcon />
           <div className="space-y-1">
             <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Tutorial Pengiriman Tunai</h3>
           </div>
           <div className="space-y-4 w-full px-4 text-left">
-            <div className="flex gap-4">
-              <span className="text-yellow-500 font-black italic text-sm mt-0.5">1</span>
-              <p className="text-[11px] font-bold text-slate-400 uppercase leading-relaxed tracking-tight">
-                Masukkan jumlah yang ingin Anda Bayar atau yang akan Anda Terima
-              </p>
-            </div>
-            <div className="flex gap-4">
-              <span className="text-yellow-500 font-black italic text-sm mt-0.5">2</span>
-              <p className="text-[11px] font-bold text-slate-400 uppercase leading-relaxed tracking-tight">
-                Pilih saluran dan pilih akun penerima
-              </p>
-            </div>
-            <div className="flex gap-4">
-              <span className="text-yellow-500 font-black italic text-sm mt-0.5">3</span>
-              <p className="text-[11px] font-bold text-slate-400 uppercase leading-relaxed tracking-tight">
-                Tunggu hingga uang tiba
-              </p>
-            </div>
+            {[
+              "Masukkan jumlah yang ingin Anda Bayar atau yang akan Anda Terima",
+              "Pilih saluran dan pilih akun penerima",
+              "Tunggu hingga uang tiba"
+            ].map((text, i) => (
+              <div key={i} className="flex gap-4">
+                <span className="text-yellow-500 font-black italic text-sm mt-0.5">{i + 1}</span>
+                <p className="text-[11px] font-bold text-slate-400 uppercase leading-relaxed tracking-tight">{text}</p>
+              </div>
+            ))}
           </div>
-
           <div className="pt-10 space-y-4 w-full text-center">
             <div className="flex items-center justify-center gap-2 text-slate-300">
               <LogoIcon className="w-4 h-4 grayscale opacity-50" />
@@ -205,19 +242,35 @@ export default function CashDeliveryPage() {
         </div>
       </main>
 
-      {/* Fixed Sticky Footer */}
-      <footer className="p-6 bg-white border-t border-slate-50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-50 shrink-0 pb-safe">
-        <Button 
-          disabled={!activeChannel}
-          className={cn(
-            "w-full h-14 font-black italic uppercase rounded-2xl border-none shadow-none text-base tracking-widest transition-all",
-            activeChannel 
-              ? "bg-[#FCD535] text-slate-900 hover:bg-[#FCD535]/90 shadow-lg" 
-              : "bg-[#FCD535]/20 text-slate-300"
-          )}
-        >
-          Dapatkan Kuotasi
-        </Button>
+      {/* Sticky Bottom Area */}
+      <footer className="bg-white border-t border-slate-50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-50 shrink-0">
+        <div className="p-6">
+          <Button 
+            disabled={!activeChannel || isAmountTooLow || currentAmount === 0}
+            className={cn(
+              "w-full h-14 font-black italic uppercase rounded-2xl border-none shadow-none text-base tracking-widest transition-all",
+              (activeChannel && !isAmountTooLow && currentAmount > 0)
+                ? "bg-[#FCD535] text-slate-900 hover:bg-[#FCD535]/90 shadow-lg" 
+                : "bg-[#FCD535]/30 text-slate-400"
+            )}
+          >
+            Dapatkan Kuotasi
+          </Button>
+        </div>
+
+        {/* Custom Numeric Keypad */}
+        {showKeypad && (
+          <div className="bg-white border-t border-slate-100 grid grid-cols-3 gap-y-1 pb-8 animate-in slide-in-from-bottom-10 duration-300">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+              <button key={n} onClick={() => handleKeyPress(n.toString())} className="text-2xl font-bold active:bg-slate-50 py-4 transition-colors">{n}</button>
+            ))}
+            <button onClick={handleComma} className="text-2xl font-bold active:bg-slate-50 py-4 transition-colors">.</button>
+            <button onClick={() => handleKeyPress("0")} className="text-2xl font-bold active:bg-slate-50 py-4 transition-colors">0</button>
+            <button onClick={handleDelete} className="flex items-center justify-center active:bg-slate-50 py-4 transition-colors">
+              <Delete className="w-6 h-6 text-slate-700" />
+            </button>
+          </div>
+        )}
       </footer>
     </div>
   );
