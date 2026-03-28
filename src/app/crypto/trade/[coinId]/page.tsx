@@ -75,7 +75,7 @@ export default function TradePage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20 flex flex-col font-body select-none transition-colors duration-300">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-body select-none transition-colors duration-300">
       {/* Top Header Tabs */}
       <header className="px-4 h-14 flex items-center justify-between border-b border-border sticky top-0 bg-background z-50">
         <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
@@ -99,7 +99,7 @@ export default function TradePage() {
 
       {activeTopTab === 'Beli/Jual' ? (
         /* UI BELI/JUAL (FIAT TO CRYPTO) */
-        <main className="flex-1 flex flex-col animate-in fade-in duration-500">
+        <main className="flex-1 flex flex-col animate-in fade-in duration-500 overflow-y-auto no-scrollbar">
           <div className="px-6 pt-6 space-y-8 flex-1">
             {/* Pill Switcher */}
             <div className="flex items-center justify-between">
@@ -184,21 +184,21 @@ export default function TradePage() {
             </div>
           </div>
 
-          {/* Keypad */}
-          <div className="bg-background border-t border-border grid grid-cols-3 gap-y-1 pb-10 pt-4 animate-in slide-in-from-bottom-10">
+          {/* Keypad - Fixed at bottom with proper padding */}
+          <div className="bg-background border-t border-border grid grid-cols-3 gap-y-1 pb-24 pt-4 animate-in slide-in-from-bottom-10 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-              <button key={n} onClick={() => handleKeyPress(n.toString())} className="text-2xl font-black italic active:bg-muted py-4 transition-colors">{n}</button>
+              <button key={n} onClick={() => handleKeyPress(n.toString())} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">{n}</button>
             ))}
-            <button onClick={() => handleKeyPress(",")} className="text-2xl font-black italic active:bg-muted py-4 transition-colors">,</button>
-            <button onClick={() => handleKeyPress("0")} className="text-2xl font-black italic active:bg-muted py-4 transition-colors">0</button>
-            <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-4 transition-colors">
-              <Delete className="w-6 h-6 text-foreground" />
+            <button onClick={() => handleKeyPress(",")} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">,</button>
+            <button onClick={() => handleKeyPress("0")} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">0</button>
+            <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-3 transition-colors">
+              <Delete className="w-7 h-7 text-foreground" />
             </button>
           </div>
         </main>
       ) : (
         /* UI SPOT TRADING (EXCHANGE) */
-        <main className="flex-1 px-4 pt-4 flex flex-col gap-4 animate-in fade-in duration-500">
+        <main className="flex-1 px-4 pt-4 flex flex-col gap-4 animate-in fade-in duration-500 overflow-y-auto no-scrollbar pb-32">
           {/* Market Info Bar */}
           <div className="flex items-center justify-between mb-1">
             <div className="flex flex-col">

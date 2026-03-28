@@ -61,7 +61,7 @@ export function BottomNav() {
   const shouldHide = excludedPaths.some(path => pathname?.startsWith(path));
   if (shouldHide) return null;
 
-  // Bursa Tab Menu (Per user request image)
+  // Bursa Tab Menu
   const bursaItems = [
     { name: "Beranda", href: "/?tab=bursa", icon: Home, isLogo: true },
     { name: "Pasar", href: "/crypto", icon: TrendingUp },
@@ -70,7 +70,7 @@ export function BottomNav() {
     { name: "Aset", href: "/transactions", icon: Wallet },
   ];
 
-  // Dompet Tab Menu (Per previous state)
+  // Dompet Tab Menu
   const dompetItems = [
     { name: "Beranda", href: "/?tab=dompet", icon: Home },
     { name: "Pasar", href: "/crypto", icon: TrendingUp },
@@ -87,15 +87,27 @@ export function BottomNav() {
         {navItems.map((item) => {
           const Icon = item.icon;
           
-          // Logika Active: 
-          // 1. Jika itu Beranda, cek apakah kita di '/' dan parameter tab sesuai
-          // 2. Jika bukan Beranda, cek apakah pathname dimulai dengan href
           const isHome = item.href.startsWith('/?tab=');
           const itemTab = item.href.includes('dompet') ? 'dompet' : 'bursa';
           
-          const isActive = isHome 
-            ? (pathname === '/' && mode === itemTab)
-            : pathname?.startsWith(item.href);
+          // Logika Active yang diperketat:
+          const isActive = (() => {
+            // Jika menu Beranda, cek mode bursa/dompet
+            if (isHome) return pathname === '/' && mode === itemTab;
+            
+            // Khusus menu Pasar di bursa agar tidak tabrakan dengan Perdagangan (sama-sama mulai dari /crypto)
+            if (item.href === '/crypto' && mode === 'bursa') {
+              return pathname === '/crypto';
+            }
+
+            // Jika Perdagangan, cek apakah di sub-path trade
+            if (item.href.includes('/trade/') && !item.href.includes('futures')) {
+              return pathname?.startsWith('/crypto/trade/') && !pathname?.includes('futures');
+            }
+
+            // Default startsWith
+            return pathname?.startsWith(item.href);
+          })();
 
           return (
             <Link 
