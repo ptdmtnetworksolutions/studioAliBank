@@ -34,7 +34,8 @@ import {
   Download,
   Users,
   Flame,
-  Sparkles
+  Sparkles,
+  Repeat
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -312,7 +313,37 @@ function DashboardContent() {
               </div>
             </div>
 
+            {/* FEATURE CARDS GRID (4 CARDS) */}
             <div className="grid grid-cols-2 gap-4">
+              {/* Card 1: ALIX Sovereign */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-40 flex flex-col justify-between" onClick={() => router.push('/crypto/trade/alix')}>
+                <div className="flex justify-between items-center">
+                  <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center p-1.5">
+                    <LogoIcon className="text-yellow-400" />
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-300" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-slate-900 leading-tight">Aset Kedaulatan ALIX</h4>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">Investasi Masa Depan</p>
+                </div>
+              </div>
+
+              {/* Card 2: P2P */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-40 flex flex-col justify-between" onClick={() => router.push('/p2p/order-history')}>
+                <div className="flex justify-between items-center">
+                  <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
+                    <Users className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-300" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-slate-900 leading-tight">P2P Trading</h4>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">Beli & Jual Aman</p>
+                </div>
+              </div>
+
+              {/* Card 3: SWIFT (Setor/Tarik) */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-40">
                 <Carousel setApi={setSwiftApi} className="w-full h-full">
                   <CarouselContent className="h-full ml-0">
@@ -352,6 +383,7 @@ function DashboardContent() {
                 </div>
               </div>
 
+              {/* Card 4: Kirim Tunai */}
               <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-40">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-black text-slate-400">Kirim Tunai</span>
@@ -375,7 +407,7 @@ function DashboardContent() {
               </div>
             </div>
 
-            {/* NEW SECTION: Market List (As seen in reference image) */}
+            {/* MARKET LIST SECTION */}
             <div className="bg-white rounded-[2rem] p-6 shadow-sm space-y-6">
               <div className="flex items-center justify-between overflow-x-auto no-scrollbar pb-2 gap-6">
                 {["Favorit", "Populer", "Alpha", "Baru", "Tertinggi"].map((tab) => (
@@ -415,7 +447,7 @@ function DashboardContent() {
 
               <div className="space-y-6">
                 {marketCoins.map((coin) => (
-                  <div key={coin.symbol} className="grid grid-cols-3 items-center group cursor-pointer active:opacity-70 transition-opacity">
+                  <div key={coin.symbol} className="grid grid-cols-3 items-center group cursor-pointer active:opacity-70 transition-opacity" onClick={() => router.push(`/crypto/trade/${coin.symbol.toLowerCase()}`)}>
                     <div className="flex items-center gap-1">
                       <span className="text-sm font-black italic tracking-tight text-slate-900">{coin.symbol}</span>
                       <Flame className="w-3.5 h-3.5 text-yellow-500" />
@@ -441,7 +473,7 @@ function DashboardContent() {
               </button>
             </div>
 
-            {/* Announcement Section */}
+            {/* ANNOUNCEMENT SECTION */}
             <div className="space-y-4 pt-4">
               <h2 className="text-xl font-black italic tracking-tight text-slate-900">Pengumuman</h2>
               <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm min-h-[100px] flex items-center justify-center text-center">
