@@ -428,7 +428,7 @@ function DashboardContent() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer group active:scale-[0.98] transition-transform" onClick={() => router.push('/crypto/convert')}>
+              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer group active:scale-[0.98] transition-transform" onClick={() => router.push('/crypto/market/alx')}>
                 <div className="flex justify-between items-center">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <LogoIcon className="text-primary p-1 w-6 h-6" />
@@ -542,7 +542,7 @@ function DashboardContent() {
               </div>
               <div className="space-y-6">
                 {marketCoins.map((coin) => (
-                  <div key={coin.symbol} className="grid grid-cols-3 items-center group cursor-pointer active:opacity-70 transition-opacity" onClick={() => router.push(`/crypto/trade/${coin.symbol.toLowerCase()}`)}>
+                  <div key={coin.symbol} className="grid grid-cols-3 items-center group cursor-pointer active:opacity-70 transition-opacity" onClick={() => router.push(`/crypto/market/${coin.symbol.toLowerCase()}`)}>
                     <div className="flex items-center gap-1">
                       <span className="text-sm font-black italic tracking-tight text-foreground">{coin.symbol}</span>
                       <Flame className="w-3.5 h-3.5 text-orange-500" />
@@ -593,7 +593,7 @@ function DashboardContent() {
 
             <div className="grid grid-cols-5 gap-4">
               {[
-                { name: "Alpha", icon: CalendarDays, href: "/crypto/trade/btc" },
+                { name: "Alpha", icon: CalendarDays, href: "/crypto/market/btc" },
                 { name: "Sekuritas", icon: TrendingUp, href: "/crypto" },
                 { name: "Earn", icon: Briefcase, href: "/deposits" },
                 { name: "Referral", icon: UserPlus, href: "/profile" },
@@ -685,7 +685,7 @@ function DashboardContent() {
 
               <div className="space-y-6">
                 {popularSearches.map((asset, i) => (
-                  <div key={i} className="flex items-center justify-between group cursor-pointer active:opacity-70 transition-opacity" onClick={() => router.push('/crypto')}>
+                  <div key={i} className="flex items-center justify-between group cursor-pointer active:opacity-70 transition-opacity" onClick={() => router.push('/crypto/market/btc')}>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center p-1 relative">
                         <Image src={`https://picsum.photos/seed/${asset.symbol}/40/40`} alt="p" width={40} height={40} className="rounded-full object-cover" />
