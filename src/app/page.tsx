@@ -16,6 +16,7 @@ import {
   Bell,
   Scan,
   User,
+  Menu,
   X,
   Landmark,
   HandCoins,
@@ -98,8 +99,6 @@ function DashboardContent() {
       localStorage.setItem("alibank-active-mode", urlTab);
     } else if (savedMode) {
       setActiveTab(savedMode);
-      // Update URL silently without adding history entry if possible, 
-      // but for simplicity we just set the state and next navigations will use it
     }
 
     const savedCurrency = localStorage.getItem("alibank-payment-currency");
@@ -179,24 +178,34 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-background pb-32 text-foreground transition-colors duration-300">
-      {/* Top Header Navigation */}
+      {/* Top Header Navigation - Dynamic per Tab */}
       <header className="px-4 pt-4 pb-2 sticky top-0 z-50 bg-background/80 backdrop-blur-md">
         <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-              <User className="w-5 h-5 text-muted-foreground" />
-            </div>
-            <div className="relative">
-              <Bell className="w-6 h-6 text-foreground" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center border-2 border-background">18</span>
-            </div>
+          {/* Left Side Icons */}
+          <div className="flex items-center gap-3 min-w-[80px]">
+            {activeTab === 'bursa' ? (
+              <>
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center cursor-pointer">
+                  <User className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div className="relative cursor-pointer">
+                  <Bell className="w-6 h-6 text-foreground" />
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center border-2 border-background">18</span>
+                </div>
+              </>
+            ) : (
+              <div className="p-1 cursor-pointer">
+                <Menu className="w-6 h-6 text-foreground" />
+              </div>
+            )}
           </div>
           
+          {/* Center Switcher */}
           <div className="flex bg-muted/60 p-1 rounded-lg">
             <button 
               onClick={() => switchTab('bursa')}
               className={cn(
-                "px-6 py-1.5 text-xs font-bold rounded-md transition-all",
+                "px-6 py-1.5 text-[11px] font-bold rounded-md transition-all",
                 activeTab === 'bursa' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
               )}
             >
@@ -205,7 +214,7 @@ function DashboardContent() {
             <button 
               onClick={() => switchTab('dompet')}
               className={cn(
-                "px-6 py-1.5 text-xs font-bold rounded-md transition-all",
+                "px-6 py-1.5 text-[11px] font-bold rounded-md transition-all",
                 activeTab === 'dompet' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
               )}
             >
@@ -213,9 +222,10 @@ function DashboardContent() {
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Headset className="w-6 h-6 text-foreground" />
-            <Scan className="w-6 h-6 text-foreground" />
+          {/* Right Side Icons */}
+          <div className="flex items-center gap-3 min-w-[80px] justify-end">
+            <Headset className="w-5 h-5 text-foreground cursor-pointer" />
+            <Scan className="w-5 h-5 text-foreground cursor-pointer" />
           </div>
         </div>
 
@@ -223,8 +233,8 @@ function DashboardContent() {
         <div className="relative mb-2">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
-            placeholder={activeTab === 'bursa' ? "ZEC pencarian terpopuler" : "Alpha Terpopuler: SWTCH"}
-            className="h-11 pl-11 pr-4 bg-muted border-none rounded-md text-sm font-medium placeholder:text-muted-foreground shadow-sm"
+            placeholder={activeTab === 'bursa' ? "ZEC pencarian terpopuler" : "Pencarian Teratas: 扭羊歌"}
+            className="h-10 pl-11 pr-4 bg-muted border-none rounded-md text-xs font-medium placeholder:text-muted-foreground shadow-sm"
           />
         </div>
       </header>
