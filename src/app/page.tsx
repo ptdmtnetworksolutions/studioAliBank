@@ -2,7 +2,7 @@
 "use client";
 
 import { useUser, useDoc, useFirestore } from "@/firebase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Menu, 
   Headset, 
@@ -37,7 +37,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
@@ -57,10 +57,11 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 
-export default function Dashboard() {
+function DashboardContent() {
   const { user, loading: userLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   
   const [mounted, setMounted] = useState(false);
@@ -95,7 +96,12 @@ export default function Dashboard() {
         setSelectedCurrency(JSON.parse(savedCurrency));
       } catch (e) {}
     }
-  }, [user, userLoading, router]);
+
+    // Check if we should re-open the bottom sheet
+    if (searchParams.get('open') === 'add_funds') {
+      setIsTambahDanaOpen(true);
+    }
+  }, [user, userLoading, router, searchParams]);
 
   useEffect(() => {
     if (!bannerApi) return;
@@ -115,6 +121,20 @@ export default function Dashboard() {
     if (userData?.walletAddress) {
       navigator.clipboard.writeText(userData.walletAddress);
       toast({ title: "Alamat Disalin", description: "Alamat dompet telah disalin ke clipboard." });
+    }
+  };
+
+  const openAddFunds = () => {
+    setIsTambahDanaOpen(true);
+    // Optionally update URL to reflect state
+    router.push('/?open=add_funds', { scroll: false });
+  };
+
+  const closeAddFunds = (open: boolean) => {
+    setIsTambahDanaOpen(open);
+    if (!open) {
+      setIsTambahDanaExpanded(false);
+      router.push('/', { scroll: false });
     }
   };
 
@@ -214,7 +234,7 @@ export default function Dashboard() {
                   <ChevronDown className="w-3 h-3 text-slate-400" />
                 </div>
               </div>
-              <Button className="bg-[#FCD535] hover:bg-[#FCD535]/90 text-slate-900 font-bold px-4 h-10 rounded-lg shadow-none text-xs" onClick={() => setIsTambahDanaOpen(true)}>
+              <Button className="bg-[#FCD535] hover:bg-[#FCD535]/90 text-slate-900 font-bold px-4 h-10 rounded-lg shadow-none text-xs" onClick={openAddFunds}>
                 Tambah Dana
               </Button>
             </div>
@@ -480,7 +500,7 @@ export default function Dashboard() {
       </main>
 
       {/* Bottom Sheet Tambah Dana */}
-      <Sheet open={isTambahDanaOpen} onOpenChange={(open) => { setIsTambahDanaOpen(open); if (!open) setIsTambahDanaExpanded(false); }}>
+      <Sheet open={isTambahDanaOpen} onOpenChange={closeAddFunds}>
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-white h-auto pb-10">
           <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 mb-6" />
           <div className="px-6 space-y-8">
@@ -491,7 +511,7 @@ export default function Dashboard() {
               </SheetHeader>
               <div 
                 className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-full border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors"
-                onClick={() => { setIsTambahDanaOpen(false); router.push('/settings/payment-currency'); }}
+                onClick={() => { router.push('/settings/payment-currency'); }}
               >
                 <div className={cn(
                   "w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black text-white",
@@ -576,5 +596,13 @@ export default function Dashboard() {
         </SheetContent>
       </Sheet>
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={null}>
+      <DashboardContent />
+    </Suspense>
   );
 }

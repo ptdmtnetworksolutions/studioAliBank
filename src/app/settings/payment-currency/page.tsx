@@ -33,7 +33,8 @@ export default function PaymentCurrencyPage() {
 
   const handleSelectCurrency = (currency: Currency) => {
     localStorage.setItem("alibank-payment-currency", JSON.stringify(currency));
-    router.back();
+    // Navigate back to home and tell it to re-open the bottom sheet
+    router.push('/?open=add_funds');
   };
 
   return (
