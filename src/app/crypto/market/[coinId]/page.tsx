@@ -10,7 +10,7 @@ import {
   Sparkles, 
   ChevronDown, 
   Maximize2, 
-  ChevronRight,
+  ChevronRight, 
   Info,
   MoreHorizontal,
   LayoutGrid,
@@ -37,6 +37,7 @@ export default function MarketDetailPage() {
   const { coinId } = useParams();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("Harga");
+  const [subTab, setSubTab] = useState("Book");
   const [timeframe, setTimeframe] = useState("15m");
   const [mounted, setMounted] = useState(false);
 
@@ -46,7 +47,7 @@ export default function MarketDetailPage() {
 
   const symbol = (coinId as string).toUpperCase();
 
-  // Logika Data Koin Dinamis berdasarkan Diskusi Harga ALX
+  // Logika Data Koin Dinamis berdasarkan Diskusi Harga ALX (12.24 USDT)
   const coinInfo = useMemo(() => {
     if (symbol === "ALX") {
       return {
@@ -61,28 +62,16 @@ export default function MarketDetailPage() {
         isUp: true
       };
     }
-    if (symbol === "BTC") {
-      return {
-        price: "66.476,91",
-        idr: "1.053.659.023,35",
-        change: "-3.08%",
-        high: "67.120,00",
-        low: "65.800,00",
-        volCoin: "45.2K",
-        volUsdt: "2.9B",
-        base: 66476,
-        isUp: false
-      };
-    }
+    // Fallback untuk koin lain jika ada
     return {
-      price: "611.57",
-      idr: "10.382.336,45",
-      change: "+0.37%",
-      high: "614.61",
-      low: "605.86",
-      volCoin: "100,485.79",
-      volUsdt: "61.39M",
-      base: 611,
+      price: "12.24",
+      idr: "194.004,00",
+      change: "+1.14%",
+      high: "12.45",
+      low: "11.98",
+      volCoin: "1.85M",
+      volUsdt: "22.6M",
+      base: 12.24,
       isUp: true
     };
   }, [symbol]);
@@ -95,6 +84,21 @@ export default function MarketDetailPage() {
       volume: 100 + Math.random() * 500
     }));
   }, [coinInfo]);
+
+  // Simulasi Data Order Book
+  const orderBookData = useMemo(() => {
+    const bids = Array.from({ length: 15 }, (_, i) => ({
+      price: (12.24 - (i * 0.01)).toFixed(2),
+      amount: (Math.random() * 50).toFixed(3),
+      depth: Math.random() * 100
+    }));
+    const asks = Array.from({ length: 15 }, (_, i) => ({
+      price: (12.25 + (i * 0.01)).toFixed(2),
+      amount: (Math.random() * 50).toFixed(3),
+      depth: Math.random() * 100
+    }));
+    return { bids, asks };
+  }, []);
 
   if (!mounted) return null;
 
@@ -118,7 +122,7 @@ export default function MarketDetailPage() {
         </div>
       </header>
 
-      {/* Secondary Tabs - Identical to Reference */}
+      {/* Secondary Tabs */}
       <div className="flex items-center gap-8 px-6 border-b border-border/50 overflow-x-auto no-scrollbar">
         {["Harga", "Info", "Data Perdagangan", "Trade-X"].map((tab) => (
           <button
@@ -149,7 +153,7 @@ export default function MarketDetailPage() {
               </span>
             </div>
             <div className="flex gap-2 pt-2">
-              <span className="text-[8px] font-black uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">Lapisan 1 / Lapisan 2</span>
+              <span className="text-[8px] font-black uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">Layer 1 / Layer 2</span>
               <span className="text-[8px] font-black uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">Vol</span>
             </div>
           </div>
@@ -196,8 +200,8 @@ export default function MarketDetailPage() {
           </div>
         </div>
 
-        {/* Chart Area - Identical to Reference */}
-        <div className="h-80 w-full relative pt-4">
+        {/* Chart Area */}
+        <div className="h-64 w-full relative pt-4">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={mockData}>
               <defs>
@@ -217,10 +221,6 @@ export default function MarketDetailPage() {
               <Bar dataKey="volume" fill="hsl(var(--muted))" opacity={0.2} />
             </ComposedChart>
           </ResponsiveContainer>
-          
-          <div className="absolute top-4 left-6 pointer-events-none">
-            <p className="text-[10px] font-black text-muted-foreground uppercase italic">MA60 {coinInfo.price}</p>
-          </div>
         </div>
 
         {/* Technical Indicators */}
@@ -236,8 +236,77 @@ export default function MarketDetailPage() {
           <TrendingUp className="w-4 h-4 text-muted-foreground ml-auto" />
         </div>
 
+        {/* Order Book Section */}
+        <section className="mt-4 border-t border-border/50">
+          <div className="flex gap-8 px-6 border-b border-border/20">
+            {["Book", "Perdagangan", "Jaringan"].map(tab => (
+              <button 
+                key={tab} 
+                onClick={() => setSubTab(tab)}
+                className={cn(
+                  "py-3 text-[11px] font-black italic uppercase relative",
+                  subTab === tab ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-primary" : "text-muted-foreground"
+                )}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="px-6 py-4 space-y-4">
+            {/* Sentiment Bar */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[9px] font-bold text-muted-foreground">
+                <span className="text-green-500">30.72%</span>
+                <span className="text-rose-500">69.28%</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full flex overflow-hidden bg-muted/30">
+                <div className="bg-green-500/80 h-full" style={{ width: '30.72%' }} />
+                <div className="bg-rose-500/80 h-full flex-1" />
+              </div>
+            </div>
+
+            {/* Book Headers */}
+            <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase italic tracking-widest pb-2">
+              <div className="flex-1 flex justify-between pr-4">
+                <span>Bid</span>
+                <span className="text-right">Price</span>
+              </div>
+              <div className="flex-1 flex justify-between pl-4 border-l border-border/20">
+                <span>Price</span>
+                <span className="text-right">Ask</span>
+              </div>
+            </div>
+
+            {/* Book Content - Side by Side Grid */}
+            <div className="grid grid-cols-2 gap-0">
+              {/* LEFT: Bids (Green) */}
+              <div className="space-y-0.5 pr-2">
+                {orderBookData.bids.map((bid, i) => (
+                  <div key={i} className="flex justify-between items-center relative h-5 px-1 group cursor-default">
+                    <div className="absolute right-0 top-0 bottom-0 bg-green-500/10 transition-all group-hover:bg-green-500/20" style={{ width: `${bid.depth}%` }} />
+                    <span className="text-[10px] font-bold text-foreground relative z-10">{bid.amount}</span>
+                    <span className="text-[10px] font-black text-green-500 relative z-10">{bid.price}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* RIGHT: Asks (Red) */}
+              <div className="space-y-0.5 pl-2 border-l border-border/20">
+                {orderBookData.asks.map((ask, i) => (
+                  <div key={i} className="flex justify-between items-center relative h-5 px-1 group cursor-default">
+                    <div className="absolute left-0 top-0 bottom-0 bg-rose-500/10 transition-all group-hover:bg-rose-500/20" style={{ width: `${ask.depth}%` }} />
+                    <span className="text-[10px] font-black text-rose-500 relative z-10">{ask.price}</span>
+                    <span className="text-[10px] font-bold text-foreground relative z-10">{ask.amount}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Performance Grid */}
-        <section className="px-6 py-8 space-y-6">
+        <section className="px-6 py-8 space-y-6 border-t border-border/20">
           <div className="grid grid-cols-6 gap-2 text-[9px] font-black text-muted-foreground uppercase italic text-center">
             <div>Hari Ini</div>
             <div>7 Hari</div>
@@ -255,16 +324,6 @@ export default function MarketDetailPage() {
             <div className="text-rose-500">-3.71%</div>
           </div>
         </section>
-
-        {/* Sub-tabs below chart */}
-        <div className="px-6 flex gap-8 border-b border-border/20">
-          {["Book", "Perdagangan", "Jaringan"].map(tab => (
-            <button key={tab} className={cn(
-              "py-3 text-[11px] font-black italic uppercase",
-              tab === "Book" ? "text-foreground border-b-2 border-primary" : "text-muted-foreground"
-            )}>{tab}</button>
-          ))}
-        </div>
       </main>
 
       {/* FIXED ACTION FOOTER */}
