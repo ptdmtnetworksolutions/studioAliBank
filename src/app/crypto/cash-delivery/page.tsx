@@ -51,38 +51,66 @@ export default function CashDeliveryPage() {
   const [activeChannel, setActiveChannel] = useState<string | null>(null);
   
   // Input states
-  const [amountMenerima, setAmountMenerima] = useState("0");
+  const [amountMenerima, setAmountMenerima] = useState("0.00");
   const [amountBayar, setAmountBayar] = useState("0.00");
   const [showKeypad, setShowKeypad] = useState(false);
   const [activeInput, setActiveInput] = useState<'menerima' | 'bayar'>('menerima');
 
-  const minAmount = 10000;
-  const currentAmount = parseFloat(amountMenerima.replace(',', '.'));
-  const isAmountTooLow = currentAmount > 0 && currentAmount < minAmount;
+  // Track if user has modified the value (for bold black color logic)
+  const [menerimaModified, setMenerimaModified] = useState(false);
+  const [bayarModified, setBayarModified] = useState(false);
+
+  const minIdr = 10000;
+  const minUsdt = 1.5905;
+
+  const currentMenerima = parseFloat(amountMenerima.replace(',', '.'));
+  const currentBayar = parseFloat(amountBayar);
+
+  const isMenerimaTooLow = menerimaModified && currentMenerima > 0 && currentMenerima < minIdr;
+  const isBayarTooLow = bayarModified && currentBayar > 0 && currentBayar < minUsdt;
 
   const handleKeyPress = (num: string) => {
     if (activeInput === 'menerima') {
-      setAmountMenerima(prev => prev === "0" ? num : prev + num);
+      setMenerimaModified(true);
+      setAmountMenerima(prev => (prev === "0.00" || prev === "0") ? num : prev + num);
     } else {
-      setAmountBayar(prev => prev === "0.00" ? num : prev + num);
+      setBayarModified(true);
+      setAmountBayar(prev => (prev === "0.00" || prev === "0") ? num : prev + num);
     }
   };
 
   const handleDelete = () => {
     if (activeInput === 'menerima') {
-      setAmountMenerima(prev => prev.length > 1 ? prev.slice(0, -1) : "0");
+      if (amountMenerima.length > 1) {
+        setAmountMenerima(amountMenerima.slice(0, -1));
+      } else {
+        setAmountMenerima("0.00");
+        setMenerimaModified(false);
+      }
     } else {
-      setAmountBayar(prev => prev.length > 1 ? prev.slice(0, -1) : "0.00");
+      if (amountBayar.length > 1) {
+        setAmountBayar(amountBayar.slice(0, -1));
+      } else {
+        setAmountBayar("0.00");
+        setBayarModified(false);
+      }
     }
   };
 
   const handleComma = () => {
     if (activeInput === 'menerima' && !amountMenerima.includes(",")) {
+      setMenerimaModified(true);
       setAmountMenerima(prev => prev + ",");
     } else if (activeInput === 'bayar' && !amountBayar.includes(".")) {
+      setBayarModified(true);
       setAmountBayar(prev => prev + ".");
     }
   };
+
+  // Button logic: enabled only if channel selected, amount > 0, and meets minimum rules
+  const isButtonEnabled = activeChannel && 
+    ((activeInput === 'menerima' && currentMenerima >= minIdr) || 
+     (activeInput === 'bayar' && currentBayar >= minUsdt));
 
   return (
     <div className="h-screen bg-white text-slate-900 flex flex-col font-body overflow-hidden">
@@ -136,7 +164,7 @@ export default function CashDeliveryPage() {
             >
               <div className={cn(
                 "text-2xl font-black italic tracking-tighter w-1/2",
-                amountMenerima === "0" ? "text-slate-300" : "text-slate-900"
+                !menerimaModified ? "text-slate-300" : "text-slate-900"
               )}>
                 {amountMenerima}
                 {activeInput === 'menerima' && showKeypad && <span className="w-0.5 h-6 bg-yellow-400 animate-pulse ml-0.5 inline-block align-middle" />}
@@ -147,8 +175,8 @@ export default function CashDeliveryPage() {
                 <ChevronDown className="w-4 h-4 text-slate-400" />
               </div>
             </div>
-            {isAmountTooLow && (
-              <p className="text-[10px] font-bold text-rose-500 italic mt-1 px-1">Jumlah minimum adalah {minAmount} IDR</p>
+            {isMenerimaTooLow && (
+              <p className="text-[10px] font-bold text-rose-500 italic mt-1 px-1">Jumlah minimum adalah {minIdr} IDR</p>
             )}
           </div>
 
@@ -163,7 +191,7 @@ export default function CashDeliveryPage() {
             >
               <div className={cn(
                 "text-2xl font-black italic tracking-tighter w-1/2 transition-colors",
-                amountBayar === "0.00" ? "text-slate-300" : "text-slate-900"
+                !bayarModified ? "text-slate-300" : "text-slate-900"
               )}>
                 {amountBayar}
                 {activeInput === 'bayar' && showKeypad && <span className="w-0.5 h-6 bg-yellow-400 animate-pulse ml-0.5 inline-block align-middle" />}
@@ -176,9 +204,14 @@ export default function CashDeliveryPage() {
                 <ChevronDown className="w-4 h-4 text-slate-400" />
               </div>
             </div>
-            <div className="flex justify-between items-center px-1">
-              <p className="text-[10px] font-bold text-slate-400">Saldo Spot & Pendanaan: 0.001 USDT</p>
-              <button className="text-[10px] font-black text-yellow-600 uppercase hover:underline">Maks.</button>
+            <div className="flex flex-col gap-1 px-1">
+              {isBayarTooLow && (
+                <p className="text-[10px] font-bold text-rose-500 italic">Jumlah minimum adalah {minUsdt} USDT</p>
+              )}
+              <div className="flex justify-between items-center">
+                <p className="text-[10px] font-bold text-slate-400">Saldo Spot & Pendanaan: 0.001 USDT</p>
+                <button className="text-[10px] font-black text-yellow-600 uppercase hover:underline">Maks.</button>
+              </div>
             </div>
           </div>
         </div>
@@ -250,14 +283,14 @@ export default function CashDeliveryPage() {
 
       {/* Sticky Bottom Area */}
       <footer className="bg-white border-t border-slate-50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-50 shrink-0">
-        <div className="p-6">
+        <div className="px-6 py-4">
           <Button 
-            disabled={!activeChannel || isAmountTooLow || (activeInput === 'menerima' ? currentAmount === 0 : parseFloat(amountBayar) === 0)}
+            disabled={!isButtonEnabled}
             className={cn(
               "w-full h-14 font-black italic uppercase rounded-2xl border-none shadow-none text-base tracking-widest transition-all",
-              (activeChannel && !isAmountTooLow && (activeInput === 'menerima' ? currentAmount > 0 : parseFloat(amountBayar) > 0))
+              isButtonEnabled
                 ? "bg-[#FCD535] text-slate-900 hover:bg-[#FCD535]/90 shadow-lg" 
-                : "bg-[#FCD535]/30 text-slate-400"
+                : "bg-slate-100 text-slate-300 cursor-not-allowed"
             )}
           >
             Dapatkan Kuotasi
