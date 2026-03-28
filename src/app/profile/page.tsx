@@ -20,7 +20,8 @@ import {
   ArrowRightLeft,
   CalendarDays,
   Target,
-  Smile
+  Smile,
+  ShieldAlert
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,8 @@ import { useMemo, useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
+
+const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -45,6 +48,8 @@ export default function ProfilePage() {
 
   const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
+
+  const isAdmin = user?.email === OWNER_EMAIL;
 
   const copyUid = () => {
     if (userData?.accountNumber) {
@@ -73,7 +78,6 @@ export default function ProfilePage() {
         {/* User Info Section */}
         <section className="flex items-start justify-between">
           <div className="flex items-center gap-4">
-            {/* Custom Avatar Styled as per image */}
             <div className="w-20 h-20 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-2 border-border relative">
               <div className="absolute inset-0 bg-yellow-400 rounded-full scale-90" />
               <User className="w-12 h-12 text-slate-100 dark:text-slate-900 relative z-10 mt-2" />
@@ -98,6 +102,27 @@ export default function ProfilePage() {
           </div>
           <ChevronRight className="w-5 h-5 text-muted-foreground/40 mt-6" />
         </section>
+
+        {/* ADMIN ACCESS - SPECIAL BUTTON FOR OWNER */}
+        {isAdmin && (
+          <section className="animate-in fade-in zoom-in duration-500">
+            <Button 
+              onClick={() => router.push('/admin')}
+              className="w-full h-16 gold-gradient text-white rounded-2xl flex items-center justify-between px-6 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                  <ShieldAlert className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-left">
+                  <p className="text-[10px] font-black uppercase tracking-widest leading-none opacity-80">Security Protocol</p>
+                  <p className="text-sm font-black uppercase italic tracking-tight">Access Command Center</p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 opacity-60" />
+            </Button>
+          </section>
+        )}
 
         {/* Promo Cards Grid */}
         <div className="grid grid-cols-2 gap-4">
@@ -166,11 +191,11 @@ export default function ProfilePage() {
                     </div>
                   ) : item.hasBadge ? (
                     <div className="relative">
-                      <item.icon className={cn("w-6 h-6", item.color, item.rotate && `rotate-[${item.rotate}deg]`)} />
+                      <item.icon className={cn("w-6 h-6", item.color)} />
                       <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded flex items-center justify-center text-[6px] font-black text-background">α</div>
                     </div>
                   ) : (
-                    <item.icon className={cn("w-6 h-6", item.color, item.rotate && `rotate-[${item.rotate}deg]`)} />
+                    <item.icon className={cn("w-6 h-6", item.color)} />
                   )}
                 </div>
                 <span className="text-[10px] font-bold text-foreground text-center leading-tight">{item.name}</span>
