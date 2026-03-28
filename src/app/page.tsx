@@ -180,32 +180,32 @@ function DashboardContent() {
     <div className="min-h-screen bg-background pb-32 text-foreground transition-colors duration-300">
       {/* Top Header Navigation - Dynamic per Tab */}
       <header className="px-4 pt-4 pb-2 sticky top-0 z-50 bg-background/80 backdrop-blur-md">
-        <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="flex items-center justify-between gap-1 mb-4">
           {/* Left Side Icons */}
-          <div className="flex items-center gap-3 min-w-[80px]">
+          <div className="flex items-center gap-3 flex-1 overflow-hidden">
             {activeTab === 'bursa' ? (
-              <>
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center cursor-pointer">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center cursor-pointer shrink-0">
                   <User className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <div className="relative cursor-pointer">
+                <div className="relative cursor-pointer shrink-0">
                   <Bell className="w-6 h-6 text-foreground" />
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center border-2 border-background">18</span>
                 </div>
-              </>
+              </div>
             ) : (
-              <div className="p-1 cursor-pointer">
+              <div className="p-1 cursor-pointer shrink-0">
                 <Menu className="w-6 h-6 text-foreground" />
               </div>
             )}
           </div>
           
           {/* Center Switcher */}
-          <div className="flex bg-muted/60 p-1 rounded-lg">
+          <div className="flex bg-muted/60 p-1 rounded-lg shrink-0">
             <button 
               onClick={() => switchTab('bursa')}
               className={cn(
-                "px-6 py-1.5 text-[11px] font-bold rounded-md transition-all",
+                "px-4 py-1.5 text-[11px] font-bold rounded-md transition-all",
                 activeTab === 'bursa' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
               )}
             >
@@ -214,7 +214,7 @@ function DashboardContent() {
             <button 
               onClick={() => switchTab('dompet')}
               className={cn(
-                "px-6 py-1.5 text-[11px] font-bold rounded-md transition-all",
+                "px-4 py-1.5 text-[11px] font-bold rounded-md transition-all",
                 activeTab === 'dompet' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
               )}
             >
@@ -223,9 +223,9 @@ function DashboardContent() {
           </div>
 
           {/* Right Side Icons */}
-          <div className="flex items-center gap-3 min-w-[80px] justify-end">
-            <Headset className="w-5 h-5 text-foreground cursor-pointer" />
-            <Scan className="w-5 h-5 text-foreground cursor-pointer" />
+          <div className="flex items-center gap-3 flex-1 justify-end overflow-hidden">
+            <Headset className="w-5 h-5 text-foreground cursor-pointer shrink-0" />
+            <Scan className="w-5 h-5 text-foreground cursor-pointer shrink-0" />
           </div>
         </div>
 
