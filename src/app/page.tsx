@@ -377,15 +377,42 @@ function DashboardContent() {
                 </div>
               </div>
 
-              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/crypto/deposit-methods?type=setor')}>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center font-black text-[10px] text-primary-foreground">$</div>
-                  <span className="text-xs font-bold text-foreground">USD</span>
-                </div>
-                <div>
-                  <Badge className="bg-green-500/10 text-green-500 text-[8px] font-black h-4 px-1.5 mb-2 border-none uppercase">Setor</Badge>
-                  <h4 className="text-sm font-black text-foreground leading-tight">Transfer Bank (SWIFT)</h4>
-                </div>
+              {/* SWIFT CAROUSEL - SETOR & TARIK */}
+              <div className="h-40">
+                <Carousel className="w-full h-full">
+                  <CarouselContent>
+                    <CarouselItem>
+                      <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/crypto/deposit-methods?type=setor')}>
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center font-black text-[10px] text-primary-foreground">$</div>
+                            <span className="text-xs font-bold text-foreground">USD</span>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+                        </div>
+                        <div>
+                          <Badge className="bg-blue-500/10 text-blue-500 text-[8px] font-black h-4 px-1.5 mb-2 border-none uppercase">Setor</Badge>
+                          <h4 className="text-sm font-black text-foreground leading-tight">Transfer Bank (SWIFT)</h4>
+                        </div>
+                      </div>
+                    </CarouselItem>
+                    <CarouselItem>
+                      <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/crypto/deposit-methods?type=tarik')}>
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center font-black text-[10px] text-primary-foreground">$</div>
+                            <span className="text-xs font-bold text-foreground">USD</span>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+                        </div>
+                        <div>
+                          <Badge className="bg-rose-500/10 text-rose-500 text-[8px] font-black h-4 px-1.5 mb-2 border-none uppercase">Tarik</Badge>
+                          <h4 className="text-sm font-black text-foreground leading-tight">Transfer Bank (SWIFT)</h4>
+                        </div>
+                      </div>
+                    </CarouselItem>
+                  </CarouselContent>
+                </Carousel>
               </div>
 
               <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/crypto/cash-delivery')}>
