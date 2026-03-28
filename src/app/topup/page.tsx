@@ -1,254 +1,206 @@
+
 "use client";
 
-import { Navbar } from "@/components/layout/Navbar";
+import { useRouter } from "next/navigation";
 import { 
+  ArrowLeft, 
+  Maximize, 
+  Settings, 
   Copy, 
-  Plus, 
-  ShieldCheck,
-  Zap,
-  ArrowRight
+  ArrowUpFromLine, 
+  ArrowUpRight, 
+  Download, 
+  Gift, 
+  Banknote, 
+  Smartphone, 
+  RefreshCw, 
+  Zap, 
+  LayoutGrid, 
+  Calendar,
+  ChevronRight,
+  Flame,
+  Mail,
+  Loader2,
+  Hexagon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
-import { useState, useMemo } from "react";
-import { useUser, useDoc, useFirestore } from "@/firebase";
-import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useState, useMemo, useEffect } from "react";
+import { useUser, useDoc, useFirestore, useCollection } from "@/firebase";
+import { doc, collection, query, orderBy, limit } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 
-const bankAccounts = [
-  { bank: "BCA", name: "AliBank Virtual Account", number: "80008", suffix: true, color: "bg-blue-600" },
-  { bank: "Mandiri", name: "AliBank VA Transfer", number: "8829", suffix: true, color: "bg-yellow-600" },
-  { bank: "BNI", name: "AliBank Deposito", number: "9210", suffix: true, color: "bg-orange-600" },
-  { bank: "BRI", name: "AliBank BRIVA", number: "10294", suffix: true, color: "bg-blue-800" },
-];
-
-export default function TopUpPage() {
+export default function AliBankPayPage() {
+  const router = useRouter();
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
-  const [amount, setAmount] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  const userDocRef = useMemo(() => {
-    if (!db || !user) return null;
-    return doc(db, "users", user.uid);
-  }, [db, user]);
+  useEffect(() => { setMounted(true); }, []);
 
+  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: "Copied!",
-      description: "Account number copied to clipboard.",
-    });
+  const txQuery = useMemo(() => (!db || !user) ? null : query(
+    collection(db, "users", user.uid, "transactions"),
+    orderBy("timestamp", "desc"),
+    limit(10)
+  ), [db, user]);
+  const { data: transactions, loading: txLoading } = useCollection(txQuery);
+
+  const copyId = () => {
+    if (userData?.accountNumber) {
+      navigator.clipboard.writeText(userData.accountNumber);
+      toast({ title: "ID Disalin", description: "ID AliBank Anda telah disalin." });
+    }
   };
 
-  const handleProcessDeposit = () => {
-    if (!user || !db || !amount) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Please enter a valid amount.",
-      });
-      return;
-    }
+  if (!mounted) return null;
 
-    setIsProcessing(true);
-    const numAmount = parseFloat(amount);
-
-    const txRef = collection(db, "users", user.uid, "transactions");
-    const txData = {
-      date: new Date().toISOString(),
-      description: `Deposit via Digital Banking Gateway`,
-      category: "Top Up",
-      amount: numAmount,
-      type: "income",
-      timestamp: serverTimestamp()
-    };
-
-    addDoc(txRef, txData).catch(async (err) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: txRef.path,
-        operation: 'create',
-        requestResourceData: txData
-      }));
-    });
-
-    if (userDocRef) {
-      updateDoc(userDocRef, {
-        totalBalance: increment(numAmount)
-      }).catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: userDocRef.path,
-          operation: 'update',
-          requestResourceData: { totalBalance: increment(numAmount) }
-        }));
-      });
-    }
-
-    // Pemicu Notifikasi
-    const notifRef = collection(db, "users", user.uid, "notifications");
-    const notifData = {
-      title: "Top Up Berhasil",
-      message: `Saldo sebesar Rp ${numAmount.toLocaleString('id-ID')} telah ditambahkan ke akun Anda.`,
-      type: "success",
-      read: false,
-      createdAt: new Date().toISOString()
-    };
-    addDoc(notifRef, notifData).catch(async (err) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: notifRef.path,
-        operation: 'create',
-        requestResourceData: notifData
-      }));
-    });
-
-    toast({
-      title: "Deposit Successful!",
-      description: `Rp ${numAmount.toLocaleString('id-ID')} has been credited to your account.`,
-    });
-    
-    setTimeout(() => {
-      setAmount("");
-      setShowConfirmation(false);
-      setIsProcessing(false);
-    }, 1500);
-  };
+  const quickActions = [
+    { name: "Terima", icon: Download, href: "/crypto/receive" },
+    { name: "Angpau", icon: Gift, href: "#" },
+    { name: "Kirim Tunai", icon: Banknote, href: "/crypto/cash-delivery" },
+    { name: "Isi Ulang Seluler", icon: Smartphone, href: "#" },
+    { name: "Convert", icon: RefreshCw, href: "/crypto/convert" },
+    { name: "Earn Fleksibel", icon: Zap, href: "/deposits" },
+    { name: "Kirim Beberapa", icon: LayoutGrid, href: "/transfer" },
+    { name: "Pengiriman Berulang", icon: Calendar, href: "#", badge: true },
+  ];
 
   return (
-    <div className="min-h-screen pb-20">
-      <Navbar />
-      
-      <main className="container mx-auto px-4 max-w-4xl">
-        <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
-            <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter dark:text-primary">Deposit Gateway</h1>
-            <p className="text-muted-foreground text-sm font-medium">Seamless methods to fund your premium AliBank account.</p>
-          </div>
-          <Badge className="bg-primary/10 text-primary border-primary/20 px-4 py-2 rounded-full font-bold uppercase tracking-widest text-[10px]">
-            Production Ready
-          </Badge>
-        </header>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-8 space-y-6">
-            <Tabs defaultValue="va" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 h-14 bg-primary/5 rounded-2xl p-1.5 border border-primary/10">
-                <TabsTrigger value="va" className="rounded-xl font-bold uppercase text-[10px] tracking-widest data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
-                  Bank Transfer
-                </TabsTrigger>
-                <TabsTrigger value="instant" className="rounded-xl font-bold uppercase text-[10px] tracking-widest data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
-                  Instant Credit
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="va" className="mt-6 space-y-4">
-                <div className="liquid-glass p-6 rounded-[2rem] border-primary/20 bg-primary/5 mb-6">
-                  <div className="flex items-center gap-3 mb-2">
-                    <ShieldCheck className="w-5 h-5 text-primary" />
-                    <h3 className="font-bold text-accent dark:text-primary">Transfer Instructions</h3>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground leading-relaxed uppercase tracking-widest font-bold">
-                    Use these dedicated Virtual Account numbers in your preferred banking app.
-                  </p>
-                </div>
-
-                {bankAccounts.map((item) => (
-                  <div key={item.bank} className="liquid-glass p-6 rounded-[2rem] flex items-center justify-between group hover:border-primary/40 transition-all cursor-pointer shadow-sm">
-                    <div className="flex items-center gap-4">
-                      <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-xs shadow-lg", item.color)}>
-                        {item.bank}
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{item.name}</p>
-                        <p className="text-lg font-black text-accent dark:text-primary">
-                          {item.number}{userData?.accountNumber?.slice(-5) || "00000"}
-                        </p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => copyToClipboard(`${item.number}${userData?.accountNumber?.slice(-5) || "00000"}`)}
-                      className="rounded-xl hover:bg-primary/10 text-primary"
-                    >
-                      <Copy className="w-5 h-5" />
-                    </Button>
-                  </div>
-                ))}
-              </TabsContent>
-
-              <TabsContent value="instant" className="mt-6">
-                <div className="liquid-glass p-8 rounded-[2.5rem] border-primary/20 space-y-8">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Deposit Amount</label>
-                      <div className="relative">
-                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-primary/30">Rp</span>
-                        <Input 
-                          type="number" 
-                          placeholder="0"
-                          value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
-                          className="h-20 pl-16 text-3xl font-black italic rounded-3xl liquid-glass border-none focus:ring-primary/20 transition-all"
-                        />
-                      </div>
-                    </div>
-
-                    {!showConfirmation ? (
-                      <Button 
-                        onClick={() => setShowConfirmation(true)}
-                        disabled={!amount || parseFloat(amount) <= 0}
-                        className="w-full h-16 gold-gradient text-white text-lg font-black italic uppercase tracking-tighter rounded-3xl shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all"
-                      >
-                        REVIEW DEPOSIT REQUEST <ArrowRight className="w-5 h-5" />
-                      </Button>
-                    ) : (
-                      <div className="space-y-4 p-6 rounded-3xl bg-primary/5 border border-primary/10 animate-in fade-in slide-in-from-bottom-2">
-                        <div className="flex justify-between items-center py-2 border-b border-primary/5">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase">Service Provider</span>
-                          <span className="text-sm font-black text-accent">AliBank Internal Gateway</span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 border-b border-primary/5">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase">Processing Fee</span>
-                          <span className="text-sm font-black text-green-600">Free (Premium)</span>
-                        </div>
-                        <div className="flex justify-between items-center py-4">
-                          <span className="text-sm font-black text-accent uppercase">Total Credit</span>
-                          <span className="text-xl font-black text-primary">Rp {parseFloat(amount).toLocaleString('id-ID')}</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 pt-2">
-                          <Button 
-                            variant="ghost" 
-                            onClick={() => setShowConfirmation(false)}
-                            className="h-14 rounded-2xl font-bold uppercase text-[10px] tracking-widest"
-                          >
-                            Cancel
-                          </Button>
-                          <Button 
-                            onClick={handleProcessDeposit}
-                            disabled={isProcessing}
-                            className="h-14 gold-gradient text-white font-black italic uppercase tracking-tighter rounded-2xl shadow-lg"
-                          >
-                            {isProcessing ? <Zap className="w-5 h-5 animate-spin" /> : "CONFIRM DEPOSIT"}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
+    <div className="min-h-screen bg-[#1E2329] text-white flex flex-col font-body selection:bg-primary/30">
+      {/* Header */}
+      <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-[#1E2329] z-50">
+        <button onClick={() => router.back()} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+        <div className="flex items-center gap-4">
+          <Maximize className="w-5 h-5 text-slate-400 cursor-pointer" />
+          <Hexagon className="w-5 h-5 text-slate-400 cursor-pointer" />
         </div>
+      </header>
+
+      <main className="flex-1 px-5 pt-2 pb-10 space-y-8 overflow-y-auto no-scrollbar">
+        {/* Title & ID */}
+        <section className="space-y-1">
+          <h1 className="text-3xl font-black tracking-tight">Pay</h1>
+          <div className="flex items-center gap-2 text-slate-500" onClick={copyId}>
+            <span className="text-xs font-bold uppercase tracking-widest">ID AliBank: {userData?.accountNumber || "--- --- ---"}</span>
+            <Copy className="w-3.5 h-3.5 cursor-pointer active:scale-90 transition-transform" />
+          </div>
+        </section>
+
+        {/* Top Action Cards */}
+        <section className="grid grid-cols-2 gap-4">
+          <Card className="bg-[#2B3139] border-none p-5 rounded-2xl flex flex-col justify-between h-36 relative overflow-hidden group cursor-pointer hover:bg-[#363D47] transition-colors">
+            <Badge className="absolute top-3 right-3 bg-transparent text-yellow-500 font-black text-[8px] uppercase p-0">Bonus</Badge>
+            <p className="text-sm font-black leading-tight italic max-w-[80%]">Kirim kepada pengguna AliBank</p>
+            <div className="self-end">
+              <ArrowUpFromLine className="w-6 h-6 text-slate-300" />
+            </div>
+          </Card>
+
+          <Card className="bg-[#2B3139] border-none p-5 rounded-2xl flex items-center justify-between h-36 cursor-pointer hover:bg-[#363D47] transition-colors">
+            <p className="text-sm font-black leading-tight italic">Kirim On-Chain</p>
+            <div className="w-8 h-8 rounded-full border border-slate-500 flex items-center justify-center">
+              <ArrowUpRight className="w-4 h-4 text-slate-300" />
+            </div>
+          </Card>
+        </section>
+
+        {/* Quick Actions Grid */}
+        <section className="grid grid-cols-4 gap-y-8 gap-x-2">
+          {quickActions.map((action, idx) => (
+            <div 
+              key={idx} 
+              onClick={() => action.href !== "#" && router.push(action.href)}
+              className="flex flex-col items-center gap-3 cursor-pointer group active:scale-95 transition-transform"
+            >
+              <div className="relative w-12 h-12 rounded-xl bg-[#2B3139] flex items-center justify-center border border-white/5 shadow-sm group-hover:bg-[#363D47]">
+                <action.icon className="w-5 h-5 text-slate-300" />
+                {action.badge && (
+                  <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-[#1E2329]" />
+                )}
+              </div>
+              <span className="text-[10px] font-bold text-slate-400 text-center leading-tight">{action.name}</span>
+            </div>
+          ))}
+        </section>
+
+        {/* Collapsible Arrow */}
+        <div className="flex justify-center pt-2">
+          <ChevronRight className="w-5 h-5 text-slate-700 rotate-90" />
+        </div>
+
+        <div className="h-px bg-white/5 w-full" />
+
+        {/* Rewards Section */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-black tracking-tight italic">Dapatkan Reward!</h2>
+            <div className="w-8 h-8 rounded-full bg-[#2B3139] flex items-center justify-center">
+              <span className="text-lg">🤖</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Card className="bg-[#2B3139] border-none p-5 rounded-2xl flex items-center justify-between h-24 cursor-pointer group hover:bg-[#363D47] transition-colors">
+              <span className="text-xs font-black italic">Kampanye Pay</span>
+              <div className="w-10 h-10 bg-rose-500 rounded-lg flex items-center justify-center shadow-lg transform group-hover:rotate-12 transition-transform">
+                <Mail className="w-5 h-5 text-white" />
+              </div>
+            </Card>
+            <Card className="bg-[#2B3139] border-none p-5 rounded-2xl flex items-center justify-between h-24 cursor-pointer group hover:bg-[#363D47] transition-colors">
+              <span className="text-xs font-black italic">Hot Deals</span>
+              <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Flame className="w-6 h-6 text-orange-500" />
+              </div>
+            </Card>
+          </div>
+        </section>
+
+        {/* Transactions Section */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between cursor-pointer" onClick={() => router.push('/transactions')}>
+            <h2 className="text-lg font-black tracking-tight italic">Transaksi</h2>
+            <ChevronRight className="w-5 h-5 text-slate-600" />
+          </div>
+
+          <div className="space-y-6">
+            {txLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="w-6 h-6 animate-spin text-primary/40" />
+              </div>
+            ) : transactions && transactions.length > 0 ? (
+              transactions.map((tx: any) => (
+                <div key={tx.id} className="flex justify-between items-center group">
+                  <div className="space-y-1">
+                    <p className="text-sm font-black italic text-slate-100 uppercase tracking-tight">{tx.description}</p>
+                    <p className="text-[10px] font-bold text-slate-500">
+                      {tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleString('id-ID') : tx.date}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className={cn(
+                      "text-sm font-black italic tracking-tighter",
+                      tx.type === 'income' ? "text-green-500" : "text-slate-100"
+                    )}>
+                      {tx.type === 'income' ? '+' : '-'}{tx.amount ? `Rp${tx.amount.toLocaleString()}` : `${tx.cryptoAmount} ${tx.cryptoCurrency}`}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-10">
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-widest">Belum ada aktivitas pembayaran</p>
+              </div>
+            )}
+          </div>
+        </section>
       </main>
     </div>
   );
