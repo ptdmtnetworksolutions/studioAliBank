@@ -5,9 +5,9 @@
 
 @layer base {
   :root {
-    /* Pure Professional Palette */
-    --primary: 43 89% 38%;
-    --primary-foreground: 0 0% 100%;
+    /* Pure Professional Palette - Light */
+    --primary: 45 93% 60%; /* #FCD535 AliBank Yellow */
+    --primary-foreground: 222 47% 11%;
 
     --background: 0 0% 100%;
     --foreground: 222 47% 11%;
@@ -38,19 +38,31 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* AliBank Professional Dark Palette */
+    --background: 216 11% 14%; /* #1E2329 Dark */
+    --foreground: 0 0% 100%;
     
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 84% 4.9%;
+    --primary: 45 93% 60%; /* #FCD535 Yellow */
+    --primary-foreground: 216 11% 14%;
     
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 216 11% 16%;
+    --card-foreground: 0 0% 100%;
     
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --popover: 216 11% 12%;
+    --popover-foreground: 0 0% 100%;
     
-    --border: 217.2 32.6% 17.5%;
+    --secondary: 216 11% 20%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 216 11% 25%;
+    --muted-foreground: 216 11% 65%;
+    
+    --accent: 216 11% 30%;
+    --accent-foreground: 0 0% 100%;
+    
+    --border: 216 11% 20%;
+    --input: 216 11% 20%;
+    --ring: 45 93% 60%;
   }
 }
 
@@ -60,13 +72,21 @@
     -webkit-tap-highlight-color: transparent;
   }
   body {
-    @apply bg-background text-foreground font-body antialiased;
+    @apply bg-background text-foreground font-body antialiased transition-colors duration-300;
     overscroll-behavior-y: none;
   }
 }
 
 .gold-gradient {
-  background: linear-gradient(135deg, #B8860B 0%, #D4AF37 50%, #B8860B 100%);
+  background: linear-gradient(135deg, #B8860B 0%, #FCD535 50%, #B8860B 100%);
+}
+
+.liquid-glass {
+  @apply bg-white/80 dark:bg-card/80 backdrop-blur-md border border-white/20 dark:border-white/5;
+}
+
+.liquid-glass-dark {
+  @apply bg-black/90 dark:bg-black/95 backdrop-blur-xl border border-white/10;
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -77,7 +97,6 @@
   scrollbar-width: none;
 }
 
-/* Safe area for bottom navigation on iPhone */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }

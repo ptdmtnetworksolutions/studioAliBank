@@ -31,7 +31,6 @@ export function BottomNav() {
 
   if (!mounted) return null;
 
-  // Daftar halaman yang tidak boleh menampilkan Bottom Navigation
   const excludedPaths = [
     "/login",
     "/register",
@@ -48,7 +47,7 @@ export function BottomNav() {
   if (shouldHide) return null;
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-100 px-2 pb-safe">
+    <footer className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border px-2 pb-safe transition-colors duration-300">
       <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -60,7 +59,7 @@ export function BottomNav() {
               href={item.href} 
               className={cn(
                 "flex flex-col items-center justify-center gap-1 w-full h-full transition-all duration-300",
-                isActive ? "text-slate-900" : "text-slate-400"
+                isActive ? "text-primary" : "text-muted-foreground"
               )}
             >
               <Icon className={cn("w-5 h-5 transition-transform", isActive && "scale-110")} />
