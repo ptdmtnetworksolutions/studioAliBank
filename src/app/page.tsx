@@ -32,7 +32,9 @@ import {
   ListTodo,
   ShoppingBag,
   Download,
-  Users
+  Users,
+  Flame,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +75,10 @@ function DashboardContent() {
   const [isTambahDanaOpen, setIsTambahDanaOpen] = useState(false);
   const [isTambahDanaExpanded, setIsTambahDanaExpanded] = useState(false);
   
+  // Market Tabs State
+  const [marketFilter, setMarketFilter] = useState("Populer");
+  const [assetCategory, setAssetCategory] = useState("Kripto");
+
   // Dynamic Currency State
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
 
@@ -89,7 +95,6 @@ function DashboardContent() {
       router.push('/login');
     }
 
-    // Load saved currency preference
     const savedCurrency = localStorage.getItem("alibank-payment-currency");
     if (savedCurrency) {
       try {
@@ -97,7 +102,6 @@ function DashboardContent() {
       } catch (e) {}
     }
 
-    // Check if we should re-open the bottom sheet
     if (searchParams.get('open') === 'add_funds') {
       setIsTambahDanaOpen(true);
     }
@@ -155,14 +159,16 @@ function DashboardContent() {
     { name: "Lainnya", color: "bg-gray-50 text-gray-600" },
   ];
 
-  const marketData = [
-    { name: "ALIX", symbol: "ALIX", price: "12.450", change: "+4.85", isUp: true, tags: ["Sovereign", "AI"] },
-    { name: "PIXEL", symbol: "PIXEL", price: "0,50607", change: "-10,19", isUp: false, tags: ["AI"] },
-    { name: "KAT", symbol: "KAT", price: "4,7939", change: "-13,17", isUp: false, tags: ["AI", "Meme"] },
+  const marketCoins = [
+    { symbol: "BNB", price: "611.94", idr: "10.390.735,08", change: "-2.83", isUp: false },
+    { symbol: "BTC", price: "66.262,29", idr: "1.125.133.021,58", change: "-3.76", isUp: false },
+    { symbol: "ETH", price: "1.987,12", idr: "33.741.277,73", change: "-3.98", isUp: false },
+    { symbol: "SOL", price: "82.63", idr: "1.403.056,57", change: "-4.69", isUp: false },
+    { symbol: "WLD", price: "0.2480", idr: "4.211,04", change: "-15.04", isUp: false },
   ];
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] pb-24 text-slate-900 selection:bg-yellow-200">
+    <div className="min-h-screen bg-[#F7F7F7] pb-32 text-slate-900 selection:bg-yellow-200">
       {/* Top Header Navigation */}
       <header className="px-4 pt-4 pb-2 sticky top-0 z-50 bg-[#F7F7F7]">
         <div className="flex items-center justify-between gap-2 mb-4">
@@ -307,46 +313,6 @@ function DashboardContent() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div 
-                className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden group cursor-pointer h-40" 
-                onClick={() => router.push('/crypto/convert')}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center p-1">
-                    <LogoIcon className="text-yellow-400" />
-                  </div>
-                  <span className="text-xs font-black text-slate-400">ALIX</span>
-                </div>
-                <p className="text-xl font-black text-slate-900">12.450</p>
-                <p className="text-[10px] font-black text-green-600">+ 4.85%</p>
-                <div className="mt-2 h-10 w-full opacity-30">
-                  <svg viewBox="0 0 100 40" className="w-full h-full">
-                    <path d="M0 35 Q 25 10, 50 30 T 100 20" fill="none" stroke="#16a34a" strokeWidth="2" />
-                  </svg>
-                </div>
-              </div>
-
-              <div 
-                className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer active:scale-[0.98] transition-all h-40"
-                onClick={() => router.push('/p2p/order-history')}
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-black text-slate-400">Order P2P</span>
-                  <ChevronRight className="w-4 h-4 text-slate-300" />
-                </div>
-                <p className="text-[10px] font-bold text-slate-400 leading-tight">Beli/Jual Kripto dengan IDR</p>
-                <div className="mt-4 flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <HandCoins className="w-6 h-6 text-slate-900 mb-1" />
-                    <span className="text-[10px] font-black">P2P</span>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <Search className="w-6 h-6 text-slate-900 mb-1" />
-                    <span className="text-[10px] font-black text-center leading-none">Temukan<br/>Penawaran</span>
-                  </div>
-                </div>
-              </div>
-
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-40">
                 <Carousel setApi={setSwiftApi} className="w-full h-full">
                   <CarouselContent className="h-full ml-0">
@@ -387,9 +353,9 @@ function DashboardContent() {
               </div>
 
               <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-40">
-                <span className="text-sm font-black text-slate-400">Kirim Tunai</span>
-                <div className="absolute -right-2 top-2 bg-blue-50 text-blue-600 p-1.5 rounded-l-full">
-                  <Zap className="w-4 h-4" />
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-black text-slate-400">Kirim Tunai</span>
+                  <ChevronRight className="w-4 h-4 text-slate-300" />
                 </div>
                 <p className="text-[11px] font-black text-slate-900 mt-2 leading-tight">Kirim Kripto dan Terima Fiat</p>
                 <div className="mt-4">
@@ -401,11 +367,85 @@ function DashboardContent() {
                     </div>
                     <div className="h-6 w-12">
                       <svg viewBox="0 0 100 40" className="w-full h-full">
-                        <path d="M0 30 Q 30 10, 60 30 T 100 10" fill="none" stroke="green" strokeWidth="2" />
+                        <path d="M0 30 Q 30 10, 60 30 T 100 10" fill="none" stroke="#16a34a" strokeWidth="2" />
                       </svg>
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* NEW SECTION: Market List (As seen in reference image) */}
+            <div className="bg-white rounded-[2rem] p-6 shadow-sm space-y-6">
+              <div className="flex items-center justify-between overflow-x-auto no-scrollbar pb-2 gap-6">
+                {["Favorit", "Populer", "Alpha", "Baru", "Tertinggi"].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setMarketFilter(tab)}
+                    className={cn(
+                      "text-sm font-bold transition-all shrink-0",
+                      marketFilter === tab ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "text-slate-400"
+                    )}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-6">
+                <button 
+                  onClick={() => setAssetCategory("Kripto")}
+                  className={cn("text-sm font-black italic tracking-tight transition-colors", assetCategory === "Kripto" ? "text-slate-900" : "text-slate-300")}
+                >
+                  Kripto
+                </button>
+                <button 
+                  onClick={() => setAssetCategory("Futures")}
+                  className={cn("text-sm font-black italic tracking-tight transition-colors", assetCategory === "Futures" ? "text-slate-900" : "text-slate-300")}
+                >
+                  Futures
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 text-[10px] font-bold text-slate-300 uppercase tracking-widest px-1">
+                <span>Nama</span>
+                <span className="text-right">Harga Terakhir</span>
+                <span className="text-right">Prbh% 24j</span>
+              </div>
+
+              <div className="space-y-6">
+                {marketCoins.map((coin) => (
+                  <div key={coin.symbol} className="grid grid-cols-3 items-center group cursor-pointer active:opacity-70 transition-opacity">
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-black italic tracking-tight text-slate-900">{coin.symbol}</span>
+                      <Flame className="w-3.5 h-3.5 text-yellow-500" />
+                    </div>
+                    <div className="text-right space-y-0.5">
+                      <p className="text-sm font-black italic tracking-tight text-slate-900">{coin.price}</p>
+                      <p className="text-[9px] font-bold text-slate-300">Rp{coin.idr}</p>
+                    </div>
+                    <div className="flex justify-end">
+                      <div className={cn(
+                        "w-20 py-1.5 rounded-lg flex items-center justify-center text-[11px] font-black italic shadow-sm",
+                        coin.isUp ? "bg-green-500 text-white" : "bg-rose-500 text-white"
+                      )}>
+                        {coin.change}%
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button className="w-full text-center py-2 text-[11px] font-bold text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">
+                Tampilkan Selengkapnya
+              </button>
+            </div>
+
+            {/* Announcement Section */}
+            <div className="space-y-4 pt-4">
+              <h2 className="text-xl font-black italic tracking-tight text-slate-900">Pengumuman</h2>
+              <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm min-h-[100px] flex items-center justify-center text-center">
+                <p className="text-xs font-bold text-slate-400">Belum ada pengumuman terbaru.</p>
               </div>
             </div>
           </div>
@@ -460,7 +500,7 @@ function DashboardContent() {
               </div>
 
               <div className="space-y-6 pt-2">
-                {marketData.map((coin, idx) => (
+                {marketCoins.slice(0, 3).map((coin, idx) => (
                   <div key={idx} onClick={() => router.push(`/crypto/trade/${coin.symbol.toLowerCase()}`)} className="flex items-center justify-between group cursor-pointer active:bg-slate-50 p-1 rounded-xl transition-colors">
                     <div className="flex items-center gap-3">
                       <div className="relative w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm">
@@ -471,12 +511,7 @@ function DashboardContent() {
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-black text-slate-900 italic tracking-tight">{coin.name}</span>
-                          <div className="flex gap-1">
-                            {coin.tags.map((tag, tIdx) => (
-                              <Badge key={tIdx} className="bg-green-50 text-green-600 text-[7px] px-1 py-0 border-none font-black h-3">{tag}</Badge>
-                            ))}
-                          </div>
+                          <span className="text-sm font-black text-slate-900 italic tracking-tight">{coin.symbol}</span>
                         </div>
                         <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">Vol 24h: Rp503,38M</p>
                       </div>
@@ -497,6 +532,16 @@ function DashboardContent() {
           </div>
         )}
       </main>
+
+      {/* Floating Action Button (FAB) - AI Sparkles */}
+      <div className="fixed bottom-24 right-6 z-40">
+        <button 
+          onClick={() => router.push('/ai-assistant')}
+          className="w-14 h-14 gold-gradient rounded-2xl shadow-[0_15px_30px_rgba(184,134,11,0.3)] flex items-center justify-center text-white active:scale-90 transition-transform group"
+        >
+          <Sparkles className="w-7 h-7 group-hover:rotate-12 transition-transform" />
+        </button>
+      </div>
 
       {/* Bottom Sheet Tambah Dana */}
       <Sheet open={isTambahDanaOpen} onOpenChange={closeAddFunds}>
