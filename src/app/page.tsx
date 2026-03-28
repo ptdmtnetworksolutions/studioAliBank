@@ -301,6 +301,7 @@ function DashboardContent() {
               </Button>
             </div>
 
+            {/* Banner Carousel with Dots */}
             <div className="relative group">
               <Carousel setApi={setBannerApi} className="w-full">
                 <CarouselContent>
@@ -318,8 +319,28 @@ function DashboardContent() {
                       <Button className="bg-muted hover:bg-muted/80 text-foreground font-bold text-[10px] h-8 px-4 rounded-md shadow-none shrink-0">Ikuti</Button>
                     </div>
                   </CarouselItem>
+                  <CarouselItem>
+                    <div className="bg-card rounded-2xl p-5 border border-border flex items-center justify-between shadow-sm relative cursor-pointer h-[100px]">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                          <Zap className="w-6 h-6 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">AliBank Earn</p>
+                          <h3 className="text-sm font-black text-foreground leading-tight">Dapatkan Hingga 15% APY di Stablecoin!</h3>
+                        </div>
+                      </div>
+                      <Button className="bg-primary text-primary-foreground font-bold text-[10px] h-8 px-4 rounded-md shadow-none shrink-0">Mulai</Button>
+                    </div>
+                  </CarouselItem>
                 </CarouselContent>
               </Carousel>
+              {/* Dot Indicators */}
+              <div className="flex justify-center gap-1.5 mt-4">
+                {[0, 1].map((i) => (
+                  <div key={i} className={cn("h-1 rounded-full transition-all duration-300", currentBanner === i ? "w-4 bg-primary" : "w-1 bg-muted")} />
+                ))}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
