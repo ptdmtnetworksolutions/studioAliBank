@@ -1,365 +1,242 @@
 
 "use client";
 
-import { Navbar } from "@/components/layout/Navbar";
+import { useRouter } from "next/navigation";
 import { 
-  Bitcoin, 
-  Cpu, 
-  ShieldCheck, 
-  RefreshCw, 
-  Wallet,
-  Loader2,
-  Globe,
-  Zap,
-  ArrowRightLeft,
-  Lock,
-  TrendingUp,
-  Activity,
-  History,
-  Coins,
-  ChevronRight,
-  LayoutGrid,
-  BarChart3,
+  Search, 
+  MoreHorizontal, 
+  ChevronRight, 
   ArrowUpRight,
-  HelpCircle,
-  ArrowUpDown,
-  Wallet2,
-  PieChart,
-  ExternalLink,
-  ShieldAlert,
-  Send,
-  Download,
-  Key,
-  AlertTriangle,
+  Info,
   Sparkles,
-  Award
+  Zap,
+  TrendingUp,
+  LayoutGrid
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { formatEther, JsonRpcProvider, ethers } from "ethers";
-import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { useUser, useDoc, useFirestore } from "@/firebase";
-import { doc, updateDoc } from "firebase/firestore";
 import { LogoIcon } from "@/components/ui/logo";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 
-const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
+const traders = [
+  { id: 1, name: "你的那双眼还能看多远", badge: "Futures", roi: "+61.1%", sub: "ROI 7H", color: "bg-slate-100" },
+  { id: 2, name: "abccan", badge: "Futures", roi: "+59.42%", sub: "ROI 7H", color: "bg-yellow-100" },
+  { id: 3, name: "MasterTrader_Alpha", badge: "Futures", roi: "+58.21%", sub: "ROI 7H", color: "bg-blue-100" },
+];
 
-type CoinData = {
-  id: string;
-  symbol: string;
-  name: string;
-  image: string;
-  current_price: number;
-  price_change_percentage_24h: number;
-  market_cap: number;
-};
-
-export default function CryptoDeFiPage() {
+export default function CryptoMarketPage() {
   const router = useRouter();
-  const { toast } = useToast();
-  const { user } = useUser();
-  const db = useFirestore();
-  
   const [mounted, setMounted] = useState(false);
-  const [coins, setCoins] = useState<CoinData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [onChainEth, setOnChainEth] = useState("0");
-  const [isActivatingWallet, setIsActivatingWallet] = useState(false);
-
-  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
-  const { data: userData } = useDoc(userDocRef);
-
-  const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
-  const { data: globalLiquidity } = useDoc(liquidityDocRef);
-
-  const fetchMarketData = useCallback(async () => {
-    try {
-      const response = await fetch(
-        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=idr&order=market_cap_desc&per_page=15&page=1&sparkline=false"
-      );
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        setCoins(data);
-      }
-    } catch (err) {
-      console.error("Market data sync interrupted");
-    } finally { setLoading(false); }
-  }, []);
-
-  const fetchInternalBalance = useCallback(async (addr: string) => {
-    if (!addr) return;
-    try {
-      const provider = new JsonRpcProvider(GLOBAL_RPC);
-      const balance = await provider.getBalance(addr);
-      setOnChainEth(formatEther(balance));
-    } catch (err) {
-      console.warn("Mainnet ledger sync interrupted");
-    }
-  }, []);
+  const [activeTab, setActiveTab] = useState("Grow");
+  const [bannerApi, setBannerApi] = useState<CarouselApi>();
+  const [currentBanner, setCurrentBanner] = useState(0);
 
   useEffect(() => {
     setMounted(true);
-    fetchMarketData();
-  }, [fetchMarketData]);
+  }, []);
 
   useEffect(() => {
-    if (userData?.walletAddress) {
-      fetchInternalBalance(userData.walletAddress);
-    }
-  }, [userData?.walletAddress, fetchInternalBalance]);
+    if (!bannerApi) return;
+    bannerApi.on("select", () => {
+      setCurrentBanner(bannerApi.selectedScrollSnap());
+    });
+  }, [bannerApi]);
 
   if (!mounted) return null;
 
   return (
-    <TooltipProvider>
-      <div className="min-h-screen pb-32 bg-[#f8f9fa]">
-        <Navbar />
-        
-        <main className="container mx-auto px-4 max-w-7xl pt-4">
-          <header className="mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <div className="w-14 h-14 rounded-2xl gold-gradient flex items-center justify-center shadow-2xl p-3">
-                  <LogoIcon className="text-white" />
+    <div className="min-h-screen bg-white text-slate-900 pb-24 flex flex-col font-body">
+      {/* Header - Search & Menu */}
+      <header className="px-4 pt-4 pb-2 sticky top-0 bg-white z-50">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              placeholder="Cari Coin/Pasangan/Derivatif"
+              className="w-full h-10 pl-10 pr-4 bg-slate-50 border-none rounded-md text-sm font-medium placeholder:text-slate-400 focus:ring-1 focus:ring-yellow-400 outline-none"
+            />
+          </div>
+          <button className="p-2 hover:bg-slate-100 rounded-full">
+            <MoreHorizontal className="w-5 h-5 text-slate-700" />
+          </button>
+        </div>
+
+        {/* Secondary Tabs */}
+        <div className="flex items-center justify-between border-b border-slate-50 px-1">
+          <div className="flex gap-6 overflow-x-auto no-scrollbar">
+            {["Favorit", "Pasar", "Alpha", "Grow", "Data"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={cn(
+                  "py-2 text-sm font-black transition-all relative shrink-0",
+                  activeTab === tab ? "text-slate-900" : "text-slate-400"
+                )}
+              >
+                {tab}
+                {activeTab === tab && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-yellow-400 rounded-full" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 px-4 pt-4 space-y-8 overflow-y-auto no-scrollbar">
+        {/* Hero Carousel */}
+        <div className="relative">
+          <Carousel setApi={setBannerApi} className="w-full">
+            <CarouselContent>
+              <CarouselItem>
+                <div className="bg-[#F8F9FA] rounded-2xl p-6 flex items-center justify-between min-h-[140px] relative overflow-hidden">
+                  <div className="space-y-3 max-w-[65%] relative z-10">
+                    <h2 className="text-sm font-black text-slate-900 leading-tight">
+                      Pinjam Koin untuk Berdagang guna Mendapatkan APY Tinggi
+                    </h2>
+                    <button className="text-[11px] font-black text-yellow-600 hover:underline">
+                      Tampilkan Selengkapnya
+                    </button>
+                  </div>
+                  <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-slate-200/50 rounded-full blur-xl scale-125" />
+                    <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg relative z-10 border-2 border-white">
+                      <Zap className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="absolute -right-2 top-0 w-6 h-6 bg-slate-100 rounded-full border border-slate-200" />
+                  </div>
                 </div>
-                <h1 className="text-4xl font-black text-accent italic uppercase tracking-tighter flex items-center gap-3">
-                  Sovereign Exchange <Globe className="w-6 h-6 text-primary animate-pulse" />
-                </h1>
+              </CarouselItem>
+              <CarouselItem>
+                <div className="bg-[#F8F9FA] rounded-2xl p-6 flex items-center justify-between min-h-[140px]">
+                  <div className="space-y-2">
+                    <h2 className="text-sm font-black text-slate-900 leading-tight">Program Loyalitas AliBank V3</h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Dapatkan Rewards Harian</p>
+                  </div>
+                  <Sparkles className="w-12 h-12 text-yellow-400 opacity-20" />
+                </div>
+              </CarouselItem>
+            </CarouselContent>
+          </Carousel>
+          <div className="flex justify-center gap-1.5 mt-4">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className={cn("h-1 rounded-full transition-all", currentBanner === i ? "w-4 bg-slate-900" : "w-1 bg-slate-200")} />
+            ))}
+          </div>
+        </div>
+
+        {/* Mulai Hasilkan Sekarang Juga */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-black text-slate-900">Mulai Hasilkan Sekarang Juga</h3>
+            <ChevronRight className="w-4 h-4 text-slate-300" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {/* Left Big Card */}
+            <div className="bg-[#F8F9FA] rounded-2xl p-5 border border-slate-50 flex flex-col justify-between relative overflow-hidden group active:scale-[0.98] transition-transform">
+              <div className="flex justify-between items-start">
+                <span className="text-sm font-black text-slate-900 italic tracking-tight">USDC</span>
+                <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white p-1">
+                  <LogoIcon />
+                </div>
               </div>
-              <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest pl-1">
-                AliBank V3 Node • Institutional Global Liquidity • Production Environment
-              </p>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-3">
-              <Button onClick={() => router.push('/admin/about-alix')} className="h-12 px-8 rounded-2xl bg-white border border-primary/20 text-accent font-black uppercase italic shadow-xl hover:bg-primary/5 transition-all">
-                <Award className="mr-2 w-4 h-4 text-primary" /> ALIX Whitepaper
-              </Button>
-              <Button onClick={() => router.push('/crypto/trade/bitcoin')} className="h-12 px-8 rounded-2xl gold-gradient text-white font-black uppercase italic shadow-xl">
-                <Zap className="mr-2 w-4 h-4" /> Professional Terminal
-              </Button>
-            </div>
-          </header>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-8 space-y-8">
-              {/* ALIX Sovereign Asset Card */}
-              <Card className="rounded-[3rem] bg-accent border-none p-10 text-white shadow-2xl relative overflow-hidden group">
-                <div className="absolute -right-20 -top-20 w-96 h-96 bg-primary/20 rounded-full blur-[100px] group-hover:bg-primary/30 transition-all duration-700" />
-                <div className="absolute top-0 right-0 p-10 opacity-10 rotate-12 group-hover:scale-110 transition-transform"><LogoIcon className="w-48 h-48" /></div>
-                
-                <div className="relative z-10 flex flex-col md:flex-row justify-between gap-10">
-                  <div className="space-y-8 flex-1">
-                    <div>
-                      <Badge className="bg-primary text-white border-none px-4 py-1.5 rounded-full font-black uppercase tracking-widest text-[9px] mb-4">
-                        Utility Token • Eco-Backing Active
-                      </Badge>
-                      <h2 className="text-5xl font-black italic tracking-tighter leading-tight uppercase">Koin <span className="text-primary underline decoration-primary/30 underline-offset-8">ALIX</span></h2>
-                      <p className="text-xs font-bold text-white/60 mt-4 leading-relaxed italic uppercase tracking-wider">
-                        Aset kripto resmi AliBank yang didukung oleh 100% likuiditas kas riil dan bagi hasil marketplace.
-                      </p>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-4 pt-4">
-                      <Button onClick={() => router.push('/crypto/trade/alix')} className="bg-white text-accent rounded-xl font-black uppercase italic text-[10px] px-8 h-12 shadow-xl hover:bg-primary hover:text-white transition-all">
-                        Buy ALIX
-                      </Button>
-                      <Button onClick={() => router.push('/admin/about-alix')} variant="ghost" className="text-white/60 hover:text-white font-black uppercase italic text-[10px] border border-white/10 rounded-xl h-12 px-6">
-                        Learn Tokenomics
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="w-full md:w-72 space-y-4">
-                    <div className="bg-white/5 backdrop-blur-xl rounded-[2rem] p-6 border border-white/10 space-y-6">
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">Circulating Balance</p>
-                        <p className="text-3xl font-black italic tracking-tighter">{(userData?.cryptoBalances?.ALIX || 0).toLocaleString()} <span className="text-sm">ALIX</span></p>
-                      </div>
-                      <div className="pt-4 border-t border-white/5 space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[8px] font-bold text-white/40 uppercase">Internal Value</span>
-                          <span className="text-[10px] font-black text-green-400">Rp 12,450 / ALIX</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-[8px] font-bold text-white/40 uppercase">Liquidity Rights</span>
-                          <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Mainnet Assets & Market Pulse */}
-              <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white">
-                <div className="p-8 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
-                  <h3 className="text-xl font-black italic uppercase text-accent flex items-center gap-3">
-                    <BarChart3 className="w-6 h-6 text-primary" /> Institutional Markets
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Mainnet Node Online</span>
-                  </div>
-                </div>
-                <div className="overflow-x-auto no-scrollbar">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-primary/5 text-[10px] font-black uppercase text-muted-foreground tracking-widest">
-                        <th className="px-8 py-6">Asset Pair</th>
-                        <th className="px-8 py-6">Spot Price</th>
-                        <th className="px-8 py-6">24h Pulse</th>
-                        <th className="px-8 py-6 text-right">Execution</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-primary/5">
-                      <tr className="hover:bg-primary/5 transition-colors group bg-orange-500/5">
-                        <td className="px-8 py-5">
-                          <div className="flex items-center gap-4">
-                            <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-accent flex items-center justify-center p-2 shadow-lg">
-                              <LogoIcon className="text-primary" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-black text-accent uppercase tracking-tighter">ALIX/IDR</p>
-                              <Badge className="bg-orange-600 text-white text-[6px] font-black uppercase h-3 px-1 border-none leading-none">SOVEREIGN</Badge>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-8 py-5">
-                          <p className="text-sm font-black text-accent italic">Rp 12,450.00</p>
-                        </td>
-                        <td className="px-8 py-5">
-                          <div className="flex items-center gap-1 text-[10px] font-black uppercase text-green-600">
-                            +4.85%
-                          </div>
-                        </td>
-                        <td className="px-8 py-5 text-right">
-                          <Button onClick={() => router.push('/crypto/trade/alix')} className="h-10 px-6 rounded-xl gold-gradient text-white font-black italic uppercase text-[10px] shadow-lg">Trade Now</Button>
-                        </td>
-                      </tr>
-                      {coins.map((coin) => (
-                        <tr key={coin.id} className="hover:bg-primary/5 transition-colors group">
-                          <td className="px-8 py-5">
-                            <div className="flex items-center gap-4">
-                              <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-white p-1 shadow-sm border border-primary/5">
-                                <Image src={coin.image} alt={coin.name} fill className="object-contain" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-black text-accent uppercase tracking-tighter">{coin.symbol}/IDR</p>
-                                <p className="text-[9px] text-muted-foreground font-black uppercase">{coin.name}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-8 py-5">
-                            <p className="text-sm font-black text-accent italic">Rp {coin.current_price.toLocaleString('id-ID')}</p>
-                          </td>
-                          <td className="px-8 py-5">
-                            <div className={cn(
-                              "flex items-center gap-1 text-[10px] font-black uppercase",
-                              coin.price_change_percentage_24h >= 0 ? "text-green-600" : "text-destructive"
-                            )}>
-                              {coin.price_change_percentage_24h.toFixed(2)}%
-                            </div>
-                          </td>
-                          <td className="px-8 py-5 text-right">
-                            <Button 
-                              onClick={() => router.push(`/crypto/trade/${coin.id}`)}
-                              className="h-10 px-6 rounded-xl bg-white border border-primary/20 text-accent font-black italic uppercase text-[10px] shadow-md group-hover:gold-gradient group-hover:text-white transition-all"
-                            >
-                              Open Order
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
+              <div className="h-16 w-full my-4">
+                <svg viewBox="0 0 100 40" className="w-full h-full opacity-30">
+                  <path d="M0 35 Q 25 30, 50 20 T 100 5" fill="none" stroke="#16a34a" strokeWidth="2" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xl font-black text-slate-900 italic tracking-tighter">5.73%</p>
+                <p className="text-[10px] font-bold text-slate-400">APR Maks.</p>
+              </div>
             </div>
 
-            <div className="lg:col-span-4 space-y-8">
-              {/* Sovereign Signature Activation */}
-              <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6 border-t-4 border-primary">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-                    <ShieldCheck className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-black text-accent uppercase italic leading-tight">Verified Signature</h4>
-                    <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">Production Environment 2026</p>
-                  </div>
+            {/* Right Stacked Cards */}
+            <div className="space-y-3">
+              <div className="bg-[#F8F9FA] rounded-2xl p-4 border border-slate-50 flex justify-between items-center group active:scale-[0.98] transition-transform">
+                <div>
+                  <span className="text-xs font-black text-slate-900 italic tracking-tight">ETH</span>
+                  <p className="text-base font-black text-slate-900 italic tracking-tighter mt-1">195.81%</p>
+                  <p className="text-[9px] font-bold text-slate-400">APR Maks.</p>
                 </div>
-                
-                <div className="p-6 rounded-2xl bg-accent/5 border border-primary/5 space-y-4">
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-black uppercase text-muted-foreground">Security Protocol</p>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                      <span className="text-xs font-black text-accent italic uppercase">ECDSA p256 Active</span>
-                    </div>
-                  </div>
-                  <p className="text-[9px] text-muted-foreground font-medium italic leading-relaxed uppercase">
-                    Seluruh eksekusi koin ALIX menggunakan tanda tangan kedaulatan non-kustodial yang diverifikasi oleh node global AliBank.
-                  </p>
+                <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-white p-1">
+                  <LogoIcon />
                 </div>
-
-                <Button 
-                  onClick={() => router.push('/admin?tab=tokenomics')}
-                  className="w-full h-14 bg-accent text-white font-black uppercase italic rounded-2xl shadow-xl hover:bg-accent/90"
-                >
-                  Manage Supply Ledger
-                </Button>
-              </Card>
-
-              {/* Verified Portfolio Card */}
-              <Card className="liquid-glass-dark border-none rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10"><PieChart className="w-20 h-20" /></div>
-                <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-8">Asset Breakdown</h3>
-                
-                <div className="space-y-8 relative z-10">
-                  <div>
-                    <p className="text-[9px] font-bold text-white/60 uppercase">Consolidated Market Value</p>
-                    <p className="text-4xl font-black italic tracking-tighter">Rp {(userData?.totalBalance || 0).toLocaleString()}</p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <p className="text-[10px] font-black uppercase text-white/40 tracking-widest">Sovereign Holdings</p>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center p-4 rounded-2xl bg-white/5 border border-white/10 group hover:border-primary/40 transition-all cursor-default">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg gold-gradient flex items-center justify-center p-1.5"><LogoIcon className="text-white" /></div>
-                          <span className="text-xs font-black italic">ALIX</span>
-                        </div>
-                        <span className="text-sm font-black italic">{(userData?.cryptoBalances?.ALIX || 0).toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-4 rounded-2xl bg-white/5 border border-white/10">
-                        <div className="flex items-center gap-3">
-                          <Cpu className="w-8 h-8 text-blue-400 bg-blue-400/10 rounded-lg p-1.5" />
-                          <span className="text-xs font-black italic">ETH</span>
-                        </div>
-                        <span className="text-sm font-black italic">{parseFloat(onChainEth).toFixed(4)}</span>
-                      </div>
-                    </div>
-                  </div>
+              </div>
+              <div className="bg-[#F8F9FA] rounded-2xl p-4 border border-slate-50 flex justify-between items-center group active:scale-[0.98] transition-transform">
+                <div>
+                  <span className="text-xs font-black text-slate-900 italic tracking-tight">SOL</span>
+                  <p className="text-base font-black text-slate-900 italic tracking-tighter mt-1">93.7%</p>
+                  <p className="text-[9px] font-bold text-slate-400">APR Maks.</p>
                 </div>
-              </Card>
+                <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center text-white p-1.5">
+                  <LogoIcon className="text-cyan-400" />
+                </div>
+              </div>
             </div>
           </div>
-        </main>
+        </section>
+
+        {/* Pedagang Teratas */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-black text-slate-900">Pedagang Teratas yang Dapat Disalin</h3>
+            <ChevronRight className="w-4 h-4 text-slate-300" />
+          </div>
+
+          <div className="space-y-6">
+            {traders.map((trader) => (
+              <div key={trader.id} className="flex items-center justify-between group cursor-pointer active:bg-slate-50 rounded-xl p-1 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shadow-sm", trader.color)}>
+                    <UserIcon className="w-6 h-6 text-slate-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-slate-900 leading-tight">{trader.name}</p>
+                    <Badge variant="outline" className="bg-slate-50 text-[8px] font-black h-4 px-1.5 mt-1 border-none uppercase tracking-tighter">
+                      {trader.badge}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-black text-green-500 italic tracking-tighter">{trader.roi}</p>
+                  <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">{trader.sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      {/* Floating Action Button - Quick Convert */}
+      <div className="fixed bottom-24 right-6 z-40">
+        <button 
+          onClick={() => router.push('/crypto/convert')}
+          className="w-12 h-12 bg-white rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] flex items-center justify-center text-blue-500 border border-slate-50 active:scale-90 transition-transform"
+        >
+          <div className="relative">
+            <LayoutGrid className="w-6 h-6" />
+            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-400 rounded-full border-2 border-white" />
+          </div>
+        </button>
       </div>
-    </TooltipProvider>
+    </div>
+  );
+}
+
+function UserIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
   );
 }
