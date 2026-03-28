@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Info,
   MoreHorizontal,
-  LayoutGrid
+  LayoutGrid,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
