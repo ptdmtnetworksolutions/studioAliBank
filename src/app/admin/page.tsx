@@ -51,12 +51,21 @@ import {
   SearchCheck,
   ShoppingBag,
   UserCheck,
-  Percent
+  Percent,
+  Gamepad2,
+  Gift
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
 import { useUser, useDoc, useCollection, useFirestore } from "@/firebase";
@@ -93,6 +102,15 @@ const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
 const ALIX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
+const PRODUCT_CATEGORIES = [
+  "Layanan Seluler",
+  "Kartu Hadiah",
+  "Game",
+  "Security",
+  "Infrastructure",
+  "Digital Asset"
+];
+
 function AdminContent() {
   const { user, loading: userLoading } = useUser();
   const db = useFirestore();
@@ -112,7 +130,7 @@ function AdminContent() {
   const [isBurning, setIsBurning] = useState(false);
 
   // Marketplace Management States
-  const [newProduct, setNewProduct] = useState({ name: "", description: "", priceIdr: "", priceUsd: "", category: "Security", image: "" });
+  const [newProduct, setNewProduct] = useState({ name: "", description: "", priceIdr: "", priceUsd: "", category: "Layanan Seluler", image: "" });
   const [isAddingProduct, setIsAddingProduct] = useState(false);
 
   // Firestore Data Listeners
@@ -238,7 +256,7 @@ function AdminContent() {
         createdAt: new Date().toISOString()
       });
       toast({ title: "Product Added", description: `${newProduct.name} is now live in the marketplace.` });
-      setNewProduct({ name: "", description: "", priceIdr: "", priceUsd: "", category: "Security", image: "" });
+      setNewProduct({ name: "", description: "", priceIdr: "", priceUsd: "", category: "Layanan Seluler", image: "" });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message });
     } finally {
@@ -413,7 +431,16 @@ function AdminContent() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Category Sector</label>
-                      <Input value={newProduct.category} onChange={(e) => setNewProduct({...newProduct, category: e.target.value})} className="h-14 rounded-2xl liquid-glass border-none font-black italic px-6 shadow-inner" />
+                      <Select value={newProduct.category} onValueChange={(val) => setNewProduct({...newProduct, category: val})}>
+                        <SelectTrigger className="h-14 rounded-2xl liquid-glass border-none font-black italic px-6 shadow-inner">
+                          <SelectValue placeholder="Pilih Kategori" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-2xl border-none liquid-glass">
+                          {PRODUCT_CATEGORIES.map((cat) => (
+                            <SelectItem key={cat} value={cat} className="font-bold text-xs uppercase italic">{cat}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <Button onClick={handleAddProduct} disabled={isAddingProduct} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-sm mt-6 shadow-2xl hover:scale-105 transition-all">
                       {isAddingProduct ? <Loader2 className="animate-spin w-6 h-6" /> : "Authorize Deployment"}

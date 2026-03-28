@@ -1,358 +1,215 @@
 
 "use client";
 
-import { Navbar } from "@/components/layout/Navbar";
-import { 
-  ShoppingBag, 
-  Search, 
-  Cpu, 
-  Zap, 
-  ShoppingCart,
-  Loader2,
-  Package,
-  Sparkles,
-  TrendingUp,
-  TrendingDown,
-  BarChart3,
-  Globe,
-  RefreshCw,
-  HelpCircle,
-  Coins,
-  Percent,
-  Flame,
-  Check
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { 
+  X, 
+  Search, 
+  History, 
+  Smartphone, 
+  Gift, 
+  Gamepad2, 
+  ChevronRight, 
+  TicketPercent, 
+  ShoppingBag,
+  MessageSquare,
+  Sparkles,
+  ArrowLeft,
+  Home,
+  Loader2
+} from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
 import { useUser, useFirestore, useCollection } from "@/firebase";
-import { collection, addDoc, serverTimestamp, query } from "firebase/firestore";
-import { MOCK_MERCHANT } from "@/app/lib/mock-data";
-import Image from "next/image";
+import { collection, query, orderBy } from "firebase/firestore";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
-type CoinData = {
-  id: string;
-  symbol: string;
-  name: string;
-  image: string;
-  current_price: number;
-  price_change_percentage_24h: number;
-  market_cap: number;
-};
+const CATEGORIES = [
+  { id: "Layanan Seluler", name: "Layanan Seluler", icon: Smartphone },
+  { id: "Kartu Hadiah", name: "Kartu Hadiah", icon: Gift },
+  { id: "Game", name: "Game", icon: Gamepad2 },
+];
 
 export default function MarketplacePage() {
   const router = useRouter();
   const { user } = useUser();
   const db = useFirestore();
-  const { toast } = useToast();
-  
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [useAlixForDiscount, setUseAlixForDiscount] = useState(true);
-  
-  const itemsQuery = useMemo(() => {
-    if (!db) return null;
-    return query(collection(db, "marketplace"));
-  }, [db]);
-  const { data: dbProducts, loading: itemsLoading } = useCollection<any>(itemsQuery);
-
-  const [coins, setCoins] = useState<CoinData[]>([]);
-  const [marketLoading, setMarketLoading] = useState(true);
-
-  const fetchMarketData = useCallback(async () => {
-    try {
-      const response = await fetch(
-        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=idr&order=market_cap_desc&per_page=20&page=1&sparkline=false"
-      );
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setCoins(data);
-        }
-      }
-    } catch (err) {
-      console.warn("Market fetch error handled");
-    } finally {
-      setMarketLoading(false);
-    }
-  }, []);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
-    fetchMarketData();
-  }, [fetchMarketData]);
+  }, []);
 
-  const categories = ["All", "Security", "Infrastructure", "Digital Asset"];
+  const itemsQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "marketplace"), orderBy("createdAt", "desc"));
+  }, [db]);
+
+  const { data: products, loading } = useCollection<any>(itemsQuery);
 
   const filteredProducts = useMemo(() => {
-    if (!dbProducts) return [];
-    return dbProducts.filter(p => {
-      const matchesSearch = (p.name || "").toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = activeCategory === "All" || p.category === activeCategory;
-      return matchesSearch && matchesCategory;
-    });
-  }, [searchTerm, activeCategory, dbProducts]);
+    if (!products) return [];
+    if (!activeCategory) return products;
+    return products.filter(p => p.category === activeCategory);
+  }, [products, activeCategory]);
 
-  const handleBuyProduct = async (product: any) => {
-    if (!user || !db) {
-      toast({ variant: "destructive", title: "Login Required", description: "Silakan login untuk berbelanja." });
-      return;
-    }
-    
-    setIsProcessing(product.id);
-    const invoiceId = `MKT-${Math.floor(100000 + Math.random() * 900000)}`;
-    
-    // Apply 5% discount if ALIX is chosen (Replica of BNB Strategy)
-    const finalPriceIdr = useAlixForDiscount ? product.priceIdr * 0.95 : product.priceIdr;
-    const finalPriceUsd = useAlixForDiscount ? (product.priceUsd || 0) * 0.95 : (product.priceUsd || 0);
-
-    try {
-      const invoicesColRef = collection(db, "merchants", MOCK_MERCHANT.merchantId, "invoices");
-      const payload = {
-        invoiceId,
-        merchantId: MOCK_MERCHANT.merchantId,
-        customerName: user.displayName || user.email,
-        amountIdr: finalPriceIdr,
-        amountUsd: finalPriceUsd,
-        cryptoCurrency: useAlixForDiscount ? "ALIX" : "ETH",
-        status: "unpaid",
-        createdAt: new Date().toISOString(),
-        timestamp: serverTimestamp(),
-        productName: product.name,
-        discountApplied: useAlixForDiscount ? "5% (ALIX Holder Perk)" : "0%"
-      };
-
-      await addDoc(invoicesColRef, payload);
-      router.push(`/checkout/${invoiceId}`);
-    } catch (err) {
-      console.error("Marketplace Error:", err);
-    } finally {
-      setIsProcessing(null);
-    }
-  };
+  if (!mounted) return null;
 
   return (
-    <TooltipProvider>
-      <div className="min-h-screen pb-32 bg-background">
-        <Navbar />
-        
-        <main className="container mx-auto px-4 max-w-7xl pt-4">
-          <header className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl gold-gradient flex items-center justify-center shadow-2xl p-3">
-                <ShoppingBag className="text-white w-8 h-8" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-black text-accent uppercase italic tracking-tighter leading-none">Marketplace</h1>
-                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">
-                  <Globe className="w-3 h-3 text-primary" /> Integrated Sovereign Hub
-                </p>
+    <div className="min-h-screen bg-[#1E2329] text-white flex flex-col font-body selection:bg-primary/30">
+      {/* Header */}
+      <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-[#1E2329] z-50">
+        <button onClick={() => router.push('/')} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+          <X className="w-6 h-6" />
+        </button>
+        <h1 className="text-lg font-black tracking-tight">Marketplace</h1>
+        <div className="flex items-center gap-2">
+          <button className="p-2 hover:bg-white/5 rounded-full transition-colors">
+            <Search className="w-5 h-5" />
+          </button>
+          <button className="p-2 hover:bg-white/5 rounded-full transition-colors">
+            <History className="w-5 h-5" />
+          </button>
+        </div>
+      </header>
+
+      <main className="flex-1 px-5 pt-4 space-y-8 overflow-y-auto no-scrollbar pb-32">
+        {/* Favorit */}
+        <section className="space-y-2">
+          <h2 className="text-base font-black italic">Favorit</h2>
+          <p className="text-[11px] font-medium text-slate-500 leading-relaxed italic">
+            Buat daftar pintasan favorit Anda dengan menambahkan ikon <span className="text-slate-400">★</span> dalam program mini yang sering Anda gunakan.
+          </p>
+        </section>
+
+        {/* Kategori */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-black italic">Kategori</h2>
+            <ChevronRight className="w-4 h-4 text-slate-600" />
+          </div>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+            {CATEGORIES.map((cat) => (
+              <button 
+                key={cat.id}
+                onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+                className={cn(
+                  "flex items-center gap-3 bg-[#2B3139] px-5 py-4 rounded-xl min-w-max border transition-all active:scale-95",
+                  activeCategory === cat.id ? "border-primary bg-[#363D47]" : "border-white/5"
+                )}
+              >
+                <cat.icon className={cn("w-5 h-5", activeCategory === cat.id ? "text-primary" : "text-slate-300")} />
+                <span className="text-xs font-black italic">{cat.name}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Spesial untuk Anda */}
+        <section className="space-y-4">
+          <h2 className="text-base font-black italic">Spesial untuk Anda</h2>
+          <div className="bg-[#2B3139] rounded-2xl p-6 flex items-center justify-between relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all">
+            <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
+            <div className="space-y-2 z-10">
+              <h3 className="text-base font-black leading-tight">Dapatkan Diskon hingga 6% de...</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Nikmati Diskon 3-6% Maksimum 20 USDC</p>
+            </div>
+            <div className="relative z-10 w-12 h-12 flex items-center justify-center">
+              <div className="absolute inset-0 bg-yellow-500/20 rounded-full blur-xl scale-125" />
+              <div className="w-10 h-8 bg-slate-700 rounded-md border border-white/10 flex items-center justify-center relative shadow-lg">
+                <div className="w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center">
+                  <span className="text-[8px] font-black text-black">%</span>
+                </div>
+                <div className="absolute -left-1 w-2 h-2 bg-[#2B3139] rounded-full border border-white/5" />
               </div>
             </div>
+          </div>
+        </section>
 
-            {/* ALIX Sovereign Discount Banner - BNB Standard */}
-            <div 
-              className="liquid-glass-dark p-4 rounded-[1.5rem] flex items-center gap-4 border-none shadow-xl cursor-pointer hover:scale-105 transition-all group overflow-hidden relative" 
-              onClick={() => setUseAlixForDiscount(!useAlixForDiscount)}
-            >
-              <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
-              <div className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all", 
-                useAlixForDiscount ? "gold-gradient text-white shadow-lg" : "bg-white/10 text-white/40"
-              )}>
-                <LogoIcon className="w-6 h-6" />
+        {/* Populer / Products */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-black italic">Populer</h2>
+            <ChevronRight className="w-4 h-4 text-slate-600" />
+          </div>
+
+          <div className="space-y-1">
+            {/* Hardcoded static items to match the image aesthetics */}
+            <div className="flex items-center gap-4 py-4 px-1 hover:bg-white/[0.03] rounded-xl transition-colors cursor-pointer group">
+              <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
+                <TicketPercent className="w-5 h-5 text-orange-500" />
               </div>
-              <div>
-                <p className="text-[9px] font-black text-primary uppercase tracking-widest">ALIX Holder Benefit</p>
-                <p className="text-xs font-black text-white italic uppercase tracking-tighter">5% DISCOUNT ACTIVE</p>
-              </div>
-              <div className={cn(
-                "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all", 
-                useAlixForDiscount ? "border-primary bg-primary text-white" : "border-white/20"
-              )}>
-                {useAlixForDiscount && <Check className="w-3.5 h-3.5" />}
-              </div>
-            </div>
-          </header>
-
-          <Tabs defaultValue="products" className="space-y-12">
-            <div className="flex flex-col md:flex-row justify-between gap-6">
-              <TabsList className="bg-primary/5 p-1.5 rounded-[2rem] h-16 border border-primary/10 w-full md:w-auto">
-                <TabsTrigger value="products" className="rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
-                  Active Inventory
-                </TabsTrigger>
-                <TabsTrigger value="market" className="rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest px-8 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">
-                  Global DeFi Pulse
-                </TabsTrigger>
-              </TabsList>
-
-              <div className="relative w-full md:w-96">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input 
-                  placeholder="Search database inventory..." 
-                  className="h-16 pl-14 rounded-2xl liquid-glass border-none text-sm font-bold uppercase tracking-tight"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <TabsContent value="products" className="space-y-12">
-              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-                {categories.map((cat) => (
-                  <Button
-                    key={cat}
-                    variant={activeCategory === cat ? "default" : "outline"}
-                    onClick={() => setActiveCategory(cat)}
-                    className={cn(
-                      "h-14 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all",
-                      activeCategory === cat ? "gold-gradient text-white border-none shadow-lg" : "liquid-glass border-primary/10 text-accent"
-                    )}
-                  >
-                    {cat}
-                  </Button>
-                ))}
-              </div>
-
-              {itemsLoading ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                  <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Syncing Database...</p>
-                </div>
-              ) : filteredProducts.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                  {filteredProducts.map((p) => (
-                    <Card key={p.id} className="liquid-glass border-none rounded-[2.5rem] overflow-hidden group hover:scale-[1.02] transition-all duration-500 shadow-xl relative">
-                      {useAlixForDiscount && (
-                        <div className="absolute top-4 right-4 z-20">
-                          <Badge className="bg-orange-600 text-white font-black text-[7px] uppercase italic px-2 py-1 border-none shadow-lg animate-bounce">
-                            -5% ALIX Price
-                          </Badge>
-                        </div>
-                      )}
-                      <div className="relative h-64 overflow-hidden bg-white/5">
-                        {p.image ? (
-                          <Image src={p.image} alt={p.name} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
-                        ) : (
-                          <div className="flex items-center justify-center h-full"><Package className="w-12 h-12 text-primary/20" /></div>
-                        )}
-                        <div className="absolute top-4 left-4 flex gap-2">
-                          <Badge className="bg-white/90 backdrop-blur-md text-accent border-none font-black text-[8px] px-3 py-1 uppercase rounded-full">
-                            {p.category}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      <CardContent className="p-6 space-y-4">
-                        <div>
-                          <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter leading-tight">{p.name}</h3>
-                          <p className="text-[10px] text-muted-foreground font-medium mt-1 leading-relaxed line-clamp-2 italic">
-                            {p.description}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-4 border-t border-primary/5">
-                          <div>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground mb-1">Unit Price</p>
-                            <div className="flex flex-col">
-                              <p className={cn("text-xl font-black italic tracking-tighter transition-colors", useAlixForDiscount ? "text-orange-600" : "text-primary")}>
-                                {useAlixForDiscount 
-                                  ? `$ ${( (p.priceUsd || 0) * 0.95 ).toFixed(2)}` 
-                                  : `$ ${(p.priceUsd || 0).toLocaleString()}`}
-                              </p>
-                              {useAlixForDiscount && <p className="text-[8px] font-bold text-muted-foreground line-through opacity-50">$ {(p.priceUsd || 0).toLocaleString()}</p>}
-                            </div>
-                          </div>
-                          <Button 
-                            onClick={() => handleBuyProduct(p)}
-                            disabled={!!isProcessing}
-                            className={cn("w-12 h-12 rounded-2xl text-white shadow-xl hover:scale-110 transition-all p-0 flex items-center justify-center", useAlixForDiscount ? "bg-orange-600 shadow-orange-500/20" : "gold-gradient shadow-primary/20")}
-                          >
-                            {isProcessing === p.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingCart className="w-5 h-5" />}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-24 liquid-glass rounded-[3rem] border-dashed border-2 border-primary/5">
-                  <Package className="w-16 h-16 text-primary/10 mx-auto mb-4" />
-                  <h3 className="text-xl font-black text-accent uppercase italic">Database Inventory Empty</h3>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-2">Deploy products from Command Center.</p>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="market">
-              <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl">
-                <div className="p-8 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3 text-accent">
-                      <BarChart3 className="w-6 h-6 text-primary" /> Institutional Flow
-                    </h3>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Real-time DeFi sector synchronization.</p>
+              <div className="flex-1 flex items-center justify-between border-b border-white/5 pb-4 group-last:border-none">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black italic">Hot Deals</h3>
+                    <Badge className="bg-yellow-500/20 text-yellow-500 text-[7px] font-black uppercase h-4 px-1.5 border-none">Hot</Badge>
                   </div>
+                  <p className="text-[10px] font-bold text-slate-500 italic mt-0.5">Belanja penawaran eksklusif dengan diskon ...</p>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-primary/5 text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                        <th className="px-8 py-6">Asset Pair</th>
-                        <th className="px-8 py-6">Spot Price</th>
-                        <th className="px-8 py-6">24h Pulse</th>
-                        <th className="px-8 py-6 text-right">Execution</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-primary/5">
-                      {marketLoading ? (
-                        Array.from({ length: 5 }).map((_, i) => (
-                          <tr key={i}><td colSpan={4} className="px-8 py-8 animate-pulse bg-primary/5" /></tr>
-                        ))
-                      ) : coins.map((coin) => (
-                        <tr key={coin.id} className="hover:bg-primary/5 transition-colors group">
-                          <td className="px-8 py-5">
-                            <div className="flex items-center gap-4">
-                              <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-white p-1 shadow-sm border border-primary/5">
-                                <Image src={coin.image} alt={coin.name} fill className="object-contain" />
-                              </div>
-                              <div><p className="text-sm font-black text-accent uppercase tracking-tighter">{coin.symbol}/IDR</p><p className="text-[9px] text-muted-foreground font-black uppercase">{coin.name}</p></div>
-                            </div>
-                          </td>
-                          <td className="px-8 py-5"><p className="text-sm font-black text-accent italic">Rp {coin.current_price.toLocaleString('id-ID')}</p></td>
-                          <td className="px-8 py-5">
-                            <div className={cn("flex items-center gap-1 text-[10px] font-black uppercase", coin.price_change_percentage_24h >= 0 ? "text-green-600" : "text-destructive")}>
-                              {coin.price_change_percentage_24h.toFixed(2)}%
-                            </div>
-                          </td>
-                          <td className="px-8 py-5 text-right">
-                            <Button onClick={() => router.push(`/crypto/trade/${coin.id}`)} className="h-10 px-6 rounded-xl gold-gradient text-white font-black italic uppercase text-[10px] shadow-lg">Open Terminal</Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <ChevronRight className="w-4 h-4 text-slate-700" />
+              </div>
+            </div>
+
+            {/* Render dynamic items from Firestore if any */}
+            {loading ? (
+              <div className="py-10 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary/20" /></div>
+            ) : filteredProducts.map((p) => (
+              <div 
+                key={p.id} 
+                onClick={() => router.push(`/checkout/${p.id}`)}
+                className="flex items-center gap-4 py-4 px-1 hover:bg-white/[0.03] rounded-xl transition-colors cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#2B3139] flex items-center justify-center shrink-0 border border-white/5">
+                  <ShoppingBag className="w-5 h-5 text-slate-300" />
                 </div>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </main>
+                <div className="flex-1 flex items-center justify-between border-b border-white/5 pb-4 group-last:border-none">
+                  <div>
+                    <h3 className="text-sm font-black italic uppercase">{p.name}</h3>
+                    <p className="text-[10px] font-bold text-slate-500 italic mt-0.5">Rp {p.priceIdr?.toLocaleString()} • {p.category}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-700" />
+                </div>
+              </div>
+            ))}
+
+            <div className="flex items-center gap-4 py-4 px-1 hover:bg-white/[0.03] rounded-xl transition-colors cursor-pointer group">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+                <MessageSquare className="w-5 h-5 text-blue-500" />
+              </div>
+              <div className="flex-1 flex items-center justify-between pb-4">
+                <h3 className="text-sm font-black italic">Ruang Obrolan</h3>
+                <ChevronRight className="w-4 h-4 text-slate-700" />
+              </div>
+            </div>
+          </div>
+
+          <div className="py-10 text-center space-y-4">
+            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em]">Tidak ada lagi data</p>
+          </div>
+        </section>
+      </main>
+
+      {/* Floating Assistant */}
+      <div className="fixed bottom-24 right-6 z-[60]">
+        <div className="w-12 h-12 bg-[#2B3139] rounded-2xl shadow-2xl border border-white/5 flex items-center justify-center text-primary active:scale-90 transition-transform cursor-pointer relative overflow-hidden group">
+          <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100" />
+          <LogoIcon className="w-6 h-6 relative z-10" />
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-[#1E2329] animate-pulse" />
+        </div>
       </div>
-    </TooltipProvider>
+
+      {/* Footer Navigation */}
+      <footer className="fixed bottom-0 left-0 right-0 p-4 bg-[#1E2329] border-t border-white/5 z-50">
+        <Button 
+          onClick={() => router.push('/')}
+          className="w-full h-12 bg-[#2B3139] hover:bg-[#363D47] text-white rounded-xl font-black italic uppercase text-xs flex items-center justify-center gap-2 shadow-xl"
+        >
+          <Home className="w-4 h-4" /> Kembali ke halaman utama
+        </Button>
+      </footer>
+    </div>
   );
 }
