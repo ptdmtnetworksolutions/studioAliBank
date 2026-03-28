@@ -134,7 +134,10 @@ export default function CashDeliveryPage() {
                 activeInput === 'menerima' && showKeypad ? "border-yellow-400" : "border-transparent"
               )}
             >
-              <div className="text-2xl font-black italic tracking-tighter w-1/2">
+              <div className={cn(
+                "text-2xl font-black italic tracking-tighter w-1/2",
+                amountMenerima === "0" ? "text-slate-300" : "text-slate-900"
+              )}>
                 {amountMenerima}
                 {activeInput === 'menerima' && showKeypad && <span className="w-0.5 h-6 bg-yellow-400 animate-pulse ml-0.5 inline-block align-middle" />}
               </div>
@@ -158,7 +161,10 @@ export default function CashDeliveryPage() {
                 activeInput === 'bayar' && showKeypad ? "border-yellow-400" : "border-transparent"
               )}
             >
-              <div className="text-2xl font-black italic tracking-tighter w-1/2 text-slate-300">
+              <div className={cn(
+                "text-2xl font-black italic tracking-tighter w-1/2 transition-colors",
+                amountBayar === "0.00" ? "text-slate-300" : "text-slate-900"
+              )}>
                 {amountBayar}
                 {activeInput === 'bayar' && showKeypad && <span className="w-0.5 h-6 bg-yellow-400 animate-pulse ml-0.5 inline-block align-middle" />}
               </div>
@@ -246,10 +252,10 @@ export default function CashDeliveryPage() {
       <footer className="bg-white border-t border-slate-50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-50 shrink-0">
         <div className="p-6">
           <Button 
-            disabled={!activeChannel || isAmountTooLow || currentAmount === 0}
+            disabled={!activeChannel || isAmountTooLow || (activeInput === 'menerima' ? currentAmount === 0 : parseFloat(amountBayar) === 0)}
             className={cn(
               "w-full h-14 font-black italic uppercase rounded-2xl border-none shadow-none text-base tracking-widest transition-all",
-              (activeChannel && !isAmountTooLow && currentAmount > 0)
+              (activeChannel && !isAmountTooLow && (activeInput === 'menerima' ? currentAmount > 0 : parseFloat(amountBayar) > 0))
                 ? "bg-[#FCD535] text-slate-900 hover:bg-[#FCD535]/90 shadow-lg" 
                 : "bg-[#FCD535]/30 text-slate-400"
             )}
