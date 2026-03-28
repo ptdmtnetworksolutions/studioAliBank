@@ -2,27 +2,24 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { 
   Home, 
   TrendingUp, 
   Repeat, 
   Compass, 
-  Wallet
+  Wallet,
+  LayoutGrid,
+  ArrowRightLeft,
+  FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
-
-const navItems = [
-  { name: "Beranda", href: "/", icon: Home },
-  { name: "Pasar", href: "/crypto", icon: TrendingUp },
-  { name: "Dagang", href: "/crypto/trade/alix", icon: Repeat },
-  { name: "Discover", href: "/marketplace", icon: Compass },
-  { name: "Aset", href: "/transactions", icon: Wallet },
-];
+import { LogoIcon } from "@/components/ui/logo";
 
 export function BottomNav() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -43,26 +40,60 @@ export function BottomNav() {
   ];
 
   const shouldHide = excludedPaths.some(path => pathname?.startsWith(path));
-  
   if (shouldHide) return null;
+
+  // Detect active tab from URL search params (synced with page.tsx)
+  const activeHomeTab = searchParams.get('tab') || 'bursa';
+
+  // Bursa Tab Menu (Per user request image)
+  const bursaItems = [
+    { name: "Beranda", href: "/?tab=bursa", icon: Home, isLogo: true },
+    { name: "Pasar", href: "/crypto", icon: TrendingUp },
+    { name: "Perdagangan", href: "/crypto/trade/btc", icon: ArrowRightLeft },
+    { name: "Futures", href: "/crypto/trade/futures", icon: FileText },
+    { name: "Aset", href: "/transactions", icon: Wallet },
+  ];
+
+  // Dompet Tab Menu (Per previous state)
+  const dompetItems = [
+    { name: "Beranda", href: "/?tab=dompet", icon: Home },
+    { name: "Pasar", href: "/crypto", icon: TrendingUp },
+    { name: "Dagang", href: "/crypto/trade/alix", icon: Repeat },
+    { name: "Discover", href: "/marketplace", icon: Compass },
+    { name: "Aset", href: "/transactions", icon: Wallet },
+  ];
+
+  const navItems = activeHomeTab === 'dompet' ? dompetItems : bursaItems;
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border px-2 pb-safe transition-colors duration-300">
       <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href));
+          // Logic to check if active: either exact match or starts with (excluding home)
+          const isHome = item.href.startsWith('/?tab=');
+          const isActive = isHome 
+            ? (pathname === '/' && activeHomeTab === (item.href.includes('dompet') ? 'dompet' : 'bursa'))
+            : pathname?.startsWith(item.href);
 
           return (
             <Link 
-              key={item.href} 
+              key={item.name + item.href} 
               href={item.href} 
               className={cn(
                 "flex flex-col items-center justify-center gap-1 w-full h-full transition-all duration-300",
                 isActive ? "text-primary" : "text-muted-foreground"
               )}
             >
-              <Icon className={cn("w-5 h-5 transition-transform", isActive && "scale-110")} />
+              <div className="relative">
+                {item.isLogo && isActive ? (
+                  <div className="w-5 h-5 gold-gradient rounded p-0.5 shadow-sm">
+                    <LogoIcon className="text-white" />
+                  </div>
+                ) : (
+                  <Icon className={cn("w-5 h-5 transition-transform", isActive && "scale-110")} />
+                )}
+              </div>
               <span className={cn("text-[9px] font-bold uppercase italic tracking-tighter", isActive ? "opacity-100" : "opacity-80")}>
                 {item.name}
               </span>

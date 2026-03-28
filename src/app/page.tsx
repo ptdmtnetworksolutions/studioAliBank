@@ -36,7 +36,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense, useCallback } from "react";
 import { doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
@@ -65,14 +65,14 @@ function DashboardContent() {
   const { toast } = useToast();
   
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'bursa' | 'dompet'>('bursa');
   const [bannerApi, setBannerApi] = useState<CarouselApi>();
   const [currentBanner, setCurrentBanner] = useState(0);
   const [isTambahDanaOpen, setIsTambahDanaOpen] = useState(false);
-  const [isTambahDanaExpanded, setIsTambahDanaExpanded] = useState(false);
+  
+  // Use search params for active tab to sync with BottomNav
+  const activeTab = searchParams.get('tab') === 'dompet' ? 'dompet' : 'bursa';
   
   const [marketFilter, setMarketFilter] = useState("Populer");
-  const [assetCategory, setAssetCategory] = useState("Kripto");
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
 
   const userDocRef = useMemo(() => {
@@ -107,6 +107,12 @@ function DashboardContent() {
     });
   }, [bannerApi]);
 
+  const switchTab = useCallback((tab: 'bursa' | 'dompet') => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', tab);
+    router.replace(`/?${params.toString()}`, { scroll: false });
+  }, [router, searchParams]);
+
   const copyAddress = () => {
     if (userData?.walletAddress) {
       navigator.clipboard.writeText(userData.walletAddress);
@@ -116,14 +122,17 @@ function DashboardContent() {
 
   const openAddFunds = () => {
     setIsTambahDanaOpen(true);
-    router.push('/?open=add_funds', { scroll: false });
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('open', 'add_funds');
+    router.push(`/?${params.toString()}`, { scroll: false });
   };
 
   const closeAddFunds = (open: boolean) => {
     setIsTambahDanaOpen(open);
     if (!open) {
-      setIsTambahDanaExpanded(false);
-      router.push('/', { scroll: false });
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('open');
+      router.push(`/?${params.toString()}`, { scroll: false });
     }
   };
 
@@ -167,7 +176,7 @@ function DashboardContent() {
           
           <div className="flex bg-muted/60 p-1 rounded-lg">
             <button 
-              onClick={() => setActiveTab('bursa')}
+              onClick={() => switchTab('bursa')}
               className={cn(
                 "px-6 py-1.5 text-xs font-bold rounded-md transition-all",
                 activeTab === 'bursa' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
@@ -176,7 +185,7 @@ function DashboardContent() {
               Bursa
             </button>
             <button 
-              onClick={() => setActiveTab('dompet')}
+              onClick={() => switchTab('dompet')}
               className={cn(
                 "px-6 py-1.5 text-xs font-bold rounded-md transition-all",
                 activeTab === 'dompet' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
@@ -250,7 +259,7 @@ function DashboardContent() {
 
             {/* FEATURE GRID */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between" onClick={() => router.push('/admin/about-alix')}>
+              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/admin/about-alix')}>
                 <div className="flex justify-between items-center">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <LogoIcon className="text-primary p-1 w-6 h-6" />
@@ -263,7 +272,7 @@ function DashboardContent() {
                 </div>
               </div>
 
-              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between" onClick={() => router.push('/p2p/order-history')}>
+              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/p2p/order-history')}>
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-black text-foreground">Order P2P</span>
                   <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
@@ -283,7 +292,7 @@ function DashboardContent() {
                 </div>
               </div>
 
-              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between" onClick={() => router.push('/crypto/deposit-methods?type=setor')}>
+              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/crypto/deposit-methods?type=setor')}>
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center font-black text-[10px] text-primary-foreground">$</div>
                   <span className="text-xs font-bold text-foreground">USD</span>
@@ -294,7 +303,7 @@ function DashboardContent() {
                 </div>
               </div>
 
-              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between" onClick={() => router.push('/crypto/cash-delivery')}>
+              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/crypto/cash-delivery')}>
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-black text-foreground">Kirim Tunai</span>
                   <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
@@ -355,7 +364,7 @@ function DashboardContent() {
             </div>
           </div>
         ) : (
-          /* DOMPET VIEW (Sesuai Referensi Gambar) */
+          /* DOMPET VIEW */
           <div className="animate-in slide-in-from-right-10 duration-500 space-y-6 pb-10">
             {/* Header Wallet */}
             <div className="flex items-center justify-between px-1">
