@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useState, useMemo, useEffect } from "react";
-import { useUser, useFirestore, useDoc } from "@/firebase";
+import { useUser, useDoc, useFirestore } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { LogoIcon } from "@/components/ui/logo";
 import { Badge } from "@/components/ui/badge";
@@ -56,7 +56,7 @@ export default function AssetsPage() {
       idrValue: "18.70", 
       color: "bg-teal-600",
       icon: (className: string) => (
-        <div className={cn("rounded-full flex items-center justify-center p-1", className)}>
+        <div className={cn("rounded-full flex items-center justify-center p-2", className)}>
           <svg viewBox="0 0 24 24" fill="white" className="w-full h-full">
             <path d="M12 2L2 12l10 10 10-10L12 2zm0 16.5L5.5 12 12 5.5 18.5 12 12 18.5z"/>
           </svg>
@@ -72,7 +72,7 @@ export default function AssetsPage() {
       pnl: "Rp0.00(-0.04%)",
       avgPrice: "Rp4,158,371.64",
       icon: (className: string) => (
-        <div className={cn("rounded-full flex items-center justify-center p-1.5", className)}>
+        <div className={cn("rounded-full flex items-center justify-center p-2.5", className)}>
           <LogoIcon className="text-white" />
         </div>
       )
@@ -81,16 +81,16 @@ export default function AssetsPage() {
 
   return (
     <div className="min-h-screen pb-32 bg-background transition-colors duration-300">
-      {/* Top Header Tabs - Scrollable */}
-      <header className="px-4 h-14 flex items-center border-b border-border sticky top-0 bg-background z-50">
-        <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
+      {/* Top Header Tabs - Scrollable & Compact */}
+      <header className="px-4 h-12 flex items-center border-b border-border sticky top-0 bg-background z-50">
+        <div className="flex items-center gap-5 overflow-x-auto no-scrollbar w-full">
           {['Ringkasan', 'Pendanaan', 'Earn', 'Spot', 'Futures'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTopTab(tab)}
               className={cn(
-                "text-base font-black transition-all relative shrink-0",
-                activeTopTab === tab ? "text-foreground after:absolute after:-bottom-[15px] after:left-0 after:right-0 after:h-[3px] after:bg-primary" : "text-muted-foreground"
+                "text-sm font-black transition-all relative shrink-0",
+                activeTopTab === tab ? "text-foreground after:absolute after:-bottom-[13px] after:left-0 after:right-0 after:h-[2.5px] after:bg-primary" : "text-muted-foreground"
               )}
             >
               {tab}
@@ -103,53 +103,53 @@ export default function AssetsPage() {
         {/* Estimasi Total Nilai Section */}
         <div className="space-y-4 px-1">
           <div className="flex justify-between items-start">
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex items-center gap-2 text-muted-foreground">
-                <span className="text-xs font-bold">Estimasi Total Nilai</span>
+                <span className="text-[11px] font-bold">Estimasi Total Nilai</span>
                 <button onClick={() => setShowBalance(!showBalance)}>
-                  <Eye className={cn("w-4 h-4 transition-colors", !showBalance && "text-primary")} />
+                  <Eye className={cn("w-3.5 h-3.5 transition-colors", !showBalance && "text-primary")} />
                 </button>
               </div>
               <div className="flex items-center gap-2">
                 <h1 className="text-4xl font-black tracking-tight italic">
-                  {showBalance ? `Rp${(userData?.totalBalance ?? 20.06).toLocaleString('id-ID')}` : '******'}
+                  {showBalance ? `Rp${(userData?.totalBalance ?? 0).toLocaleString('id-ID')}` : '******'}
                 </h1>
                 <div className="flex items-center gap-1 cursor-pointer">
-                  <span className="text-sm font-black italic">IDR</span>
+                  <span className="text-[13px] font-black italic text-muted-foreground uppercase">IDR</span>
                   <ChevronDown className="w-4 h-4 text-muted-foreground" />
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 group cursor-pointer">
-                <span className="text-[11px] font-bold text-muted-foreground">PNL hari ini</span>
-                <span className="text-[11px] font-black text-rose-500">-Rp0.00050926(-0.00%)</span>
-                <ChevronRight className="w-3 h-3 text-muted-foreground/40" />
+              <div className="flex items-center gap-1.5 group cursor-pointer pt-1">
+                <span className="text-[10px] font-bold text-muted-foreground">PNL hari ini</span>
+                <span className="text-[10px] font-black text-rose-500">-Rp0.00050926(-0.00%)</span>
+                <ChevronRight className="w-2.5 h-2.5 text-muted-foreground/40" />
               </div>
             </div>
             <div className="flex items-center gap-4 text-foreground pt-1">
-              <BarChart3 className="w-5 h-5 cursor-pointer hover:text-primary transition-colors" />
-              <History className="w-5 h-5 cursor-pointer hover:text-primary transition-colors" />
+              <BarChart3 className="w-5 h-5 cursor-pointer hover:text-primary transition-colors opacity-80" />
+              <History className="w-5 h-5 cursor-pointer hover:text-primary transition-colors opacity-80" />
             </div>
           </div>
 
           {/* Action Buttons Row */}
           <div className="grid grid-cols-3 gap-3 pt-2">
             <Button 
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-black italic text-xs h-11 rounded-lg uppercase tracking-tight shadow-none"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-black italic text-[11px] h-10 rounded-xl uppercase tracking-tighter shadow-none"
               onClick={() => router.push('/?open=add_funds')}
             >
-              Tambah Dana
+              TAMBAH DANA
             </Button>
-            <Button className="bg-muted/80 hover:bg-muted text-foreground font-black italic text-xs h-11 rounded-lg uppercase tracking-tight shadow-none">
-              Kirim
+            <Button className="bg-muted/80 hover:bg-muted text-foreground font-black italic text-[11px] h-10 rounded-xl uppercase tracking-tighter shadow-none">
+              KIRIM
             </Button>
-            <Button className="bg-muted/80 hover:bg-muted text-foreground font-black italic text-xs h-11 rounded-lg uppercase tracking-tight shadow-none">
-              Transfer
+            <Button className="bg-muted/80 hover:bg-muted text-foreground font-black italic text-[11px] h-10 rounded-xl uppercase tracking-tighter shadow-none">
+              TRANSFER
             </Button>
           </div>
         </div>
 
         {/* Content Tabs (Kripto / Akun) */}
-        <div className="space-y-6">
+        <div className="space-y-6 pt-4">
           <div className="flex items-center justify-between border-b border-border/50 px-1">
             <div className="flex gap-8">
               {['Kripto', 'Akun'].map((tab) => (
@@ -158,26 +158,26 @@ export default function AssetsPage() {
                   onClick={() => setActiveSubTab(tab)}
                   className={cn(
                     "pb-3 text-sm font-black transition-all relative italic",
-                    activeSubTab === tab ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[3px] after:bg-primary" : "text-muted-foreground"
+                    activeSubTab === tab ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2.5px] after:bg-primary" : "text-muted-foreground"
                   )}
                 >
                   {tab}
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-5 text-muted-foreground pb-2">
+            <div className="flex items-center gap-5 text-muted-foreground pb-2 opacity-60">
               <Search className="w-5 h-5 cursor-pointer" />
               <Settings className="w-5 h-5 cursor-pointer" />
             </div>
           </div>
 
-          {/* Asset List */}
-          <div className="space-y-8 pb-10">
+          {/* Asset List - Compact Version */}
+          <div className="space-y-10 pb-10">
             {assets.map((asset) => (
               <div key={asset.symbol} className="space-y-4 px-1 group">
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-3">
-                    <asset.icon className={cn("w-8 h-8 shadow-sm", asset.color)} />
+                    <asset.icon className={cn("w-10 h-10 shadow-sm shrink-0", asset.color)} />
                     <div>
                       <h3 className="text-sm font-black italic tracking-tight">{asset.symbol}</h3>
                       <p className="text-[10px] font-bold text-muted-foreground leading-none">{asset.name}</p>
@@ -185,30 +185,30 @@ export default function AssetsPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-black italic tracking-tight">{asset.amount}</p>
-                    <p className="text-[10px] font-bold text-muted-foreground mt-0.5">Rp{asset.idrValue}</p>
+                    <p className="text-[10px] font-bold text-muted-foreground mt-0.5 opacity-60">Rp{asset.idrValue}</p>
                   </div>
                 </div>
 
-                {/* Conditional Extra Info (like BNB in reference) */}
+                {/* Conditional Extra Info */}
                 {asset.symbol === "BNB" && (
-                  <div className="space-y-1 pl-11 opacity-80">
+                  <div className="space-y-1 pl-13 pr-1 opacity-80">
                     <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-tight">
                       <span>PnL Hari Ini</span>
                       <span className="text-rose-500">{asset.pnl}</span>
                     </div>
                     <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-tight">
                       <span>Harga Rata-Rata</span>
-                      <span>{asset.avgPrice}</span>
+                      <span className="text-foreground">{asset.avgPrice}</span>
                     </div>
                   </div>
                 )}
 
                 {/* Row Actions */}
-                <div className="flex gap-3 pl-11">
-                  <Button variant="outline" className="h-8 px-6 bg-muted/30 border-none text-[10px] font-black italic rounded-md shadow-none">
+                <div className="flex gap-2 pl-13 pt-1">
+                  <Button variant="outline" className="h-7 px-5 bg-muted/40 border-none text-[9px] font-black italic rounded-md shadow-none uppercase">
                     Earn
                   </Button>
-                  <Button variant="outline" className="h-8 px-6 bg-muted/30 border-none text-[10px] font-black italic rounded-md shadow-none">
+                  <Button variant="outline" className="h-7 px-5 bg-muted/40 border-none text-[9px] font-black italic rounded-md shadow-none uppercase">
                     Perdagangan
                   </Button>
                 </div>
@@ -218,11 +218,11 @@ export default function AssetsPage() {
         </div>
       </main>
 
-      {/* Floating Assistant Icon (from Reference) */}
+      {/* Floating Assistant Icon - Smaller & Precise */}
       <div className="fixed bottom-24 right-6 z-40">
-        <div className="w-12 h-12 bg-card rounded-2xl shadow-xl border border-border flex items-center justify-center text-primary active:scale-90 transition-transform cursor-pointer relative">
-          <SmileIcon className="w-6 h-6" />
-          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full border-2 border-background animate-pulse" />
+        <div className="w-10 h-10 bg-card rounded-xl shadow-xl border border-border flex items-center justify-center text-primary active:scale-90 transition-transform cursor-pointer relative">
+          <SmileIcon className="w-5 h-5" />
+          <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border-2 border-background animate-pulse" />
         </div>
       </div>
     </div>
