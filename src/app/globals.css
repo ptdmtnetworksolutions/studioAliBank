@@ -71,9 +71,13 @@
     @apply border-border;
     -webkit-tap-highlight-color: transparent;
   }
-  body {
+  
+  /* CRITICAL FIX: Prevent browser pull-to-refresh from colliding with app gestures */
+  html, body {
     @apply bg-background text-foreground font-body antialiased transition-colors duration-300;
     overscroll-behavior-y: none;
+    height: 100%;
+    overflow-x: hidden;
   }
 }
 

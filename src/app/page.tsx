@@ -106,7 +106,7 @@ function DashboardContent() {
   const [pullY, setPullY] = useState(0);
   const startY = useRef(0);
   const isPulling = useRef(false);
-  const threshold = 120; // Jarak tarik untuk memicu navigasi
+  const threshold = 140; // Jarak tarik untuk memicu navigasi
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -209,16 +209,28 @@ function DashboardContent() {
     const currentY = e.touches[0].clientY;
     const diff = currentY - startY.current;
     
-    if (diff > 0) {
-      // Resistance effect
-      const dampedDiff = Math.pow(diff, 0.85);
+    // Jika sedang menarik ke bawah di posisi scroll teratas
+    if (diff > 0 && window.scrollY <= 0) {
+      // Resistance effect (efek pegas)
+      const dampedDiff = Math.pow(diff, 0.82);
       setPullY(dampedDiff);
+      
+      // Mencegah reload browser default pada Android Chrome saat ditarik
+      if (diff > 10) {
+        if (e.cancelable) e.preventDefault();
+      }
+    } else {
+      setPullY(0);
+      isPulling.current = false;
     }
   };
 
   const handleTouchEnd = () => {
     if (pullY > threshold) {
-      router.push('/marketplace');
+      // Trigger navigation with slight delay for visual satisfaction
+      setTimeout(() => {
+        router.push('/marketplace');
+      }, 100);
     }
     isPulling.current = false;
     setPullY(0);
@@ -249,7 +261,7 @@ function DashboardContent() {
 
   return (
     <div 
-      className="min-h-screen bg-background pb-32 text-foreground transition-colors duration-300"
+      className="min-h-screen bg-background pb-32 text-foreground transition-colors duration-300 relative overflow-x-hidden"
       onTouchStart={activeTab === 'bursa' ? handleTouchStart : undefined}
       onTouchMove={activeTab === 'bursa' ? handleTouchMove : undefined}
       onTouchEnd={activeTab === 'bursa' ? handleTouchEnd : undefined}
@@ -329,19 +341,24 @@ function DashboardContent() {
       </header>
 
       <main 
-        className="px-4 pt-2 space-y-6 transition-transform duration-200 ease-out"
-        style={{ transform: `translateY(${pullY}px)` }}
+        className="px-4 pt-2 space-y-6 will-change-transform"
+        style={{ transform: `translateY(${pullY}px)`, transition: isPulling.current ? 'none' : 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' }}
       >
         {activeTab === 'bursa' ? (
           <div className="animate-in fade-in duration-500 space-y-6">
-            {/* Pull Indicator */}
+            {/* Pull Indicator - Enhanced Visibility */}
             <div 
-              className="flex flex-col items-center justify-center -mt-10 mb-4 transition-opacity"
-              style={{ opacity: Math.min(pullY / 80, 1) }}
+              className="flex flex-col items-center justify-center absolute left-0 right-0 -top-16 mb-4 transition-opacity pointer-events-none"
+              style={{ opacity: Math.min(pullY / 60, 1), transform: `scale(${Math.min(0.5 + pullY/140, 1)})` }}
             >
-              <ChevronUp className="w-5 h-5 text-muted-foreground animate-bounce" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">
-                Seret ke bawah ke Marketplace
+              <div className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center transition-colors mb-2",
+                pullY > threshold ? "bg-primary text-black" : "bg-muted text-muted-foreground"
+              )}>
+                <ChevronUp className={cn("w-6 h-6 transition-transform", pullY > threshold ? "rotate-180" : "rotate-0")} />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground italic text-center">
+                {pullY > threshold ? "Lepaskan untuk Marketplace" : "Seret ke bawah ke Marketplace"}
               </span>
             </div>
 
