@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useDoc, useFirestore, useCollection } from "@/firebase";
@@ -32,7 +33,8 @@ import {
   Grid3X3,
   CalendarDays,
   UserPlus,
-  MessageSquareText
+  MessageSquareText,
+  Send
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -568,11 +570,11 @@ function DashboardContent() {
         ) : (
           <div className="animate-in slide-in-from-right-10 duration-500 space-y-6 pb-10">
             <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2 group cursor-pointer">
+              <div className="flex items-center gap-2 group cursor-pointer" onClick={() => router.push('/settings/wallet')}>
                 <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center p-1">
                   <LogoIcon className="text-white" />
                 </div>
-                <span className="text-sm font-black text-foreground italic uppercase tracking-tighter">AliBank</span>
+                <span className="text-sm font-black text-foreground italic uppercase tracking-tighter">AliBank Native</span>
                 <ChevronDown className="w-4 h-4 text-muted-foreground" />
               </div>
               <button onClick={copyAddress} className="p-1 hover:bg-muted rounded transition-colors">
@@ -584,12 +586,21 @@ function DashboardContent() {
               <h1 className="text-5xl font-black tracking-tighter text-foreground italic">
                 Rp{(userData?.totalBalance ?? 0).toLocaleString('id-ID')}
               </h1>
-              <Button 
-                onClick={() => router.push('/crypto/receive')}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-black px-8 h-11 rounded-lg border-none shadow-none text-sm italic uppercase"
-              >
-                Terima
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => router.push('/crypto/send')}
+                  variant="outline"
+                  className="border-primary/20 text-primary font-black px-6 h-11 rounded-lg shadow-none text-sm italic uppercase"
+                >
+                  Kirim
+                </Button>
+                <Button 
+                  onClick={() => router.push('/crypto/receive')}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-black px-6 h-11 rounded-lg border-none shadow-none text-sm italic uppercase"
+                >
+                  Terima
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-5 gap-4">
@@ -685,30 +696,32 @@ function DashboardContent() {
               </div>
 
               <div className="space-y-6">
-                {popularSearches.map((asset, i) => (
-                  <div key={i} className="flex items-center justify-between group cursor-pointer active:opacity-70 transition-opacity" onClick={() => router.push('/crypto/market/btc')}>
+                {marketCoins.slice(0, 3).map((asset, i) => (
+                  <div key={i} className="flex items-center justify-between group cursor-pointer active:opacity-70 transition-opacity" onClick={() => router.push(`/crypto/market/${asset.symbol.toLowerCase()}`)}>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center p-1 relative">
-                        <Image src={`https://picsum.photos/seed/${asset.symbol}/40/40`} alt="p" width={40} height={40} className="rounded-full object-cover" />
+                        <div className="w-10 h-10 rounded-full gold-gradient p-2">
+                          <LogoIcon className="text-white" />
+                        </div>
                         <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded bg-primary flex items-center justify-center">
                           <LogoIcon className="text-primary-foreground p-0.5" />
                         </div>
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-black text-foreground italic uppercase tracking-tighter">{asset.name}</span>
+                          <span className="text-sm font-black text-foreground italic uppercase tracking-tighter">{asset.symbol}</span>
                           <div className="w-4 h-4 bg-green-500/10 text-green-500 rounded flex items-center justify-center text-[8px] font-black">AI</div>
                         </div>
                         <div className="flex items-center gap-2 text-[9px] font-bold text-muted-foreground uppercase italic">
-                          <span>{asset.vol}</span>
+                          <span>Vol Rp6,24B</span>
                           <span className="opacity-30">|</span>
-                          <span>{asset.cap}</span>
+                          <span>Cap Rp16,6B</span>
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-black text-foreground italic tracking-tighter">{asset.price}</p>
-                      <p className={cn("text-[10px] font-black italic", asset.color)}>{asset.change}</p>
+                      <p className="text-sm font-black text-foreground italic tracking-tighter">{asset.price.toFixed(2)}</p>
+                      <p className={cn("text-[10px] font-black italic", asset.isUp ? "text-green-500" : "text-rose-500")}>{asset.change.toFixed(2)}%</p>
                     </div>
                   </div>
                 ))}
