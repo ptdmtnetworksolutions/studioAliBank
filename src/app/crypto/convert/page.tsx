@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -11,63 +12,158 @@ import {
   Gift, 
   Sparkles,
   RefreshCw,
-  X
+  X,
+  PlusCircle,
+  Loader2,
+  CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { LogoIcon } from "@/components/ui/logo";
 import { 
   LineChart, 
   Line, 
   ResponsiveContainer,
+  YAxis
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { useUser, useDoc, useFirestore } from "@/firebase";
+import { doc, updateDoc, increment, addDoc, serverTimestamp } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 const mockChartData = [
-  { time: '00:00', price: 620 },
-  { time: '01:00', price: 625 },
-  { time: '02:00', price: 622 },
-  { time: '03:00', price: 631 },
-  { time: '04:00', price: 628 },
-  { time: '05:00', price: 615 },
-  { time: '06:00', price: 606 },
-  { time: '07:00', price: 611 },
+  { time: '00:00', price: 615 },
+  { time: '01:00', price: 618 },
+  { time: '02:00', price: 610 },
+  { time: '03:00', price: 606 },
+  { time: '04:00', price: 612 },
+  { time: '05:00', price: 611 },
+  { time: '06:00', price: 614 },
+  { time: '07:00', price: 612 },
+  { time: '08:00', price: 613 },
 ];
 
 export default function ConvertPage() {
   const router = useRouter();
+  const { user } = useUser();
+  const db = useFirestore();
+  const { toast } = useToast();
+  
   const [mounted, setMounted] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(true);
+  const [amount, setAmount] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [step, setStep] = useState<'input' | 'preview' | 'success'>('input');
+
+  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const { data: userData } = useDoc(userDocRef);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  const ALX_PRICE_USDT = 612.24;
+  const convertedValue = useMemo(() => {
+    const num = parseFloat(amount);
+    return isNaN(num) ? "0.01" : (num * ALX_PRICE_USDT).toFixed(2);
+  }, [amount]);
+
+  const handleConvert = async () => {
+    if (!user || !db || !userDocRef || !userData) return;
+    const numAmount = parseFloat(amount);
+    
+    if (isNaN(numAmount) || numAmount <= 0) return;
+    if (numAmount > (userData.cryptoBalances?.ALX || 0)) {
+      toast({ variant: "destructive", title: "Saldo ALX Tidak Cukup" });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // 1. Eksekusi Pertukaran Aset Riil
+      await updateDoc(userDocRef, {
+        "cryptoBalances.ALX": increment(-numAmount),
+        "cryptoBalances.USDT": increment(parseFloat(convertedValue))
+      });
+
+      // 2. Log Riwayat Transaksi
+      await addDoc(collection(db, "users", user.uid, "transactions"), {
+        date: new Date().toISOString(),
+        description: `Konversi ALX ke USDT`,
+        category: "Crypto Swap",
+        cryptoAmount: numAmount,
+        cryptoCurrency: "ALX",
+        resultAmount: parseFloat(convertedValue),
+        resultCurrency: "USDT",
+        type: "expense",
+        status: "success",
+        timestamp: serverTimestamp()
+      });
+
+      setStep('success');
+      toast({ title: "Konversi Berhasil", description: "Aset ALX telah berhasil dikonversi ke USDT." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Konversi", description: err.message });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   if (!mounted) return null;
 
+  if (step === 'success') {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-500">
+        <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mb-6">
+          <CheckCircle2 className="w-12 h-12 text-green-600" />
+        </div>
+        <h2 className="text-2xl font-black italic uppercase tracking-tight text-slate-900 mb-2">Konversi Berhasil</h2>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-10 italic">Tervalidasi oleh AliBank V3 Mainnet</p>
+        
+        <div className="w-full bg-slate-50 rounded-3xl p-8 mb-10 space-y-4">
+          <div>
+            <p className="text-[10px] font-black uppercase text-slate-400">Total Diterima</p>
+            <p className="text-3xl font-black italic text-slate-900">{convertedValue} USDT</p>
+          </div>
+          <div className="h-px bg-slate-200" />
+          <div className="flex justify-between items-center text-[10px] font-bold uppercase">
+            <span className="text-slate-400">Dari</span>
+            <span className="text-slate-900">{amount} ALX</span>
+          </div>
+        </div>
+
+        <Button 
+          className="w-full h-14 bg-[#FCD535] text-slate-900 font-black italic uppercase rounded-2xl shadow-lg"
+          onClick={() => router.push('/')}
+        >
+          Kembali ke Beranda
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-white text-slate-900 pb-24 relative flex flex-col">
+    <div className="min-h-screen bg-white text-slate-900 pb-24 relative flex flex-col font-body">
       {/* Header */}
       <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-white z-50">
         <button onClick={() => router.back()} className="p-1 hover:bg-slate-100 rounded-full transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </button>
-        <h1 className="text-lg font-black tracking-tight">Convert</h1>
+        <h1 className="text-lg font-black tracking-tight italic uppercase">Convert</h1>
         <div className="w-8" /> 
       </header>
 
       <main className="flex-1 px-4 py-2 space-y-6 overflow-y-auto no-scrollbar">
-        {/* Promo Banner */}
+        {/* Banner Promo */}
         <div className="bg-[#FFFBEB] border border-yellow-100 rounded-xl p-4 flex items-start gap-3">
           <Gift className="w-5 h-5 text-slate-700 shrink-0 mt-0.5" />
           <p className="text-xs font-bold text-slate-700 leading-tight">
-            Berdagang untuk Berbagi Reward USDC senilai 50.000 USDC
+            Dapatkan Rabat dengan Konversi Berulang
           </p>
         </div>
 
-        {/* Mode Selector & Icons */}
+        {/* Instan Dropdown & Icons */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-sm font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg cursor-pointer">
+          <div className="flex items-center gap-1.5 text-sm font-black text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg cursor-pointer">
             Instan <ChevronDown className="w-4 h-4" />
           </div>
           <div className="flex items-center gap-4 text-slate-700">
@@ -76,27 +172,26 @@ export default function ConvertPage() {
           </div>
         </div>
 
-        {/* Rate Info */}
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-bold text-slate-900">
-              1 ALIX = 12.450,00 IDR <span className="text-rose-500 font-black">-2.62%</span>
-            </p>
-            <RefreshCw className="w-3 h-3 text-slate-400" />
-          </div>
+        {/* Harga Info */}
+        <div className="flex items-center gap-2 px-1">
+          <p className="text-sm font-black text-slate-900 italic">
+            1 ALX = {ALX_PRICE_USDT} USDT <span className="text-rose-500">-1.14%</span>
+          </p>
+          <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
         </div>
 
         {/* Chart Area */}
         <div className="h-48 w-full relative">
-          <div className="absolute top-0 left-0 text-[10px] font-black text-slate-300">631,68</div>
-          <div className="absolute bottom-4 right-0 text-[10px] font-black text-slate-300">606,02</div>
+          <div className="absolute top-0 left-0 text-[10px] font-black text-slate-300">619,61</div>
+          <div className="absolute bottom-4 left-0 text-[10px] font-black text-slate-300">606,02</div>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={mockChartData}>
+              <YAxis domain={[600, 625]} hide />
               <Line 
                 type="monotone" 
                 dataKey="price" 
                 stroke="#FCD535" 
-                strokeWidth={2} 
+                strokeWidth={2.5} 
                 dot={false} 
                 animationDuration={1500}
               />
@@ -104,7 +199,7 @@ export default function ConvertPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Time Selectors */}
+        {/* Timeframe Toggles */}
         <div className="flex items-center justify-center gap-8 py-2">
           {['1H', '1M', '1B'].map(t => (
             <button key={t} className={cn(
@@ -116,65 +211,69 @@ export default function ConvertPage() {
         </div>
 
         {/* Conversion Form */}
-        <div className="relative pt-6">
-          {/* Tooltip box */}
-          {showTooltip && (
-            <div className="absolute -top-2 left-0 bg-[#475569] text-white text-[10px] px-3 py-2 rounded-lg z-30 flex items-center gap-2 font-bold shadow-lg animate-in fade-in slide-in-from-bottom-1">
-              <span>Anda dapat memilih hingga 5 mata uang sekarang</span>
-              <button 
-                onClick={() => setShowTooltip(false)}
-                className="ml-1 p-0.5 hover:bg-white/10 rounded-full transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
-              <div className="absolute -bottom-1 left-4 w-2 h-2 bg-[#475569] rotate-45" />
+        <div className="space-y-1 pt-4">
+          {/* Dari */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center px-1">
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Dari</label>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] font-black text-slate-400 italic">Dompet {(userData?.cryptoBalances?.ALX ?? 0).toLocaleString()} ALX</span>
+                <PlusCircle className="w-3 h-3 text-[#FCD535]" />
+              </div>
             </div>
-          )}
-
-          <div className="space-y-1">
-            {/* From */}
-            <div className="bg-[#F8FAFC] rounded-2xl p-5 flex items-center justify-between border-2 border-transparent focus-within:border-[#FCD535] transition-all">
+            <div className="bg-[#F8FAFC] rounded-2xl p-5 flex items-center justify-between border-2 border-transparent focus-within:border-[#FCD535] transition-all shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center p-2 shadow-sm">
+                <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center p-2.5 shadow-sm">
                   <LogoIcon className="text-[#FCD535]" />
                 </div>
                 <div className="flex items-center gap-1 cursor-pointer">
-                  <span className="text-xl font-black italic tracking-tight">ALIX</span>
+                  <span className="text-xl font-black italic tracking-tight uppercase">ALX</span>
                   <ChevronDown className="w-4 h-4 text-slate-400" />
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-black text-slate-200 italic tracking-tighter">0.000016</p>
+                <input 
+                  type="number"
+                  placeholder="0.000016"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="w-full bg-transparent text-right text-2xl font-black italic text-slate-900 outline-none placeholder:text-slate-200 tracking-tighter"
+                />
               </div>
             </div>
+          </div>
 
-            {/* Swap Button */}
-            <div className="flex justify-center -my-4 relative z-20">
-              <button className="w-10 h-10 bg-white border border-slate-100 rounded-full shadow-lg flex items-center justify-center text-slate-900 active:scale-90 transition-transform hover:bg-slate-50">
-                <ArrowUpDown className="w-5 h-5" />
-              </button>
-            </div>
+          {/* Swap Button */}
+          <div className="flex justify-center -my-4 relative z-20">
+            <button className="w-10 h-10 bg-white border border-slate-100 rounded-full shadow-lg flex items-center justify-center text-slate-900 active:scale-90 transition-transform hover:bg-slate-50">
+              <ArrowUpDown className="w-5 h-5" />
+            </button>
+          </div>
 
-            {/* To */}
-            <div className="bg-[#F8FAFC] rounded-2xl p-5 flex items-center justify-between border-2 border-transparent focus-within:border-[#FCD535] transition-all">
+          {/* Ke */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Ke</label>
+            <div className="bg-[#F8FAFC] rounded-2xl p-5 flex items-center justify-between border-2 border-transparent shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#0D9488] flex items-center justify-center text-white p-2 shadow-sm">
-                  <RefreshCw className="w-full h-full" />
+                <div className="w-10 h-10 rounded-full bg-[#0D9488] flex items-center justify-center text-white p-2.5 shadow-sm">
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+                    <path d="M12 2L2 12l10 10 10-10L12 2zm0 16.5L5.5 12 12 5.5 18.5 12 12 18.5z"/>
+                  </svg>
                 </div>
                 <div className="flex items-center gap-1 cursor-pointer">
-                  <span className="text-xl font-black italic tracking-tight">IDR</span>
+                  <span className="text-xl font-black italic tracking-tight uppercase">USDT</span>
                   <ChevronDown className="w-4 h-4 text-slate-400" />
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-black text-slate-200 italic tracking-tighter">0.01</p>
+                <p className="text-2xl font-black text-slate-200 italic tracking-tighter">{convertedValue}</p>
               </div>
             </div>
           </div>
 
           {/* Magic Button */}
           <div className="flex justify-end mt-4 pr-2">
-            <div className="p-2 rounded-xl bg-blue-50 text-blue-500 shadow-sm animate-pulse cursor-pointer">
+            <div className="p-2.5 rounded-xl bg-blue-50 text-blue-500 shadow-sm animate-pulse cursor-pointer">
               <Sparkles className="w-6 h-6" />
             </div>
           </div>
@@ -183,8 +282,12 @@ export default function ConvertPage() {
 
       {/* Footer Action */}
       <div className="p-4 bg-white sticky bottom-0 border-t border-slate-50">
-        <Button className="w-full h-14 bg-[#FFFBEB] hover:bg-[#FEF3C7] text-[#D97706] font-black italic uppercase rounded-2xl border-none shadow-none text-base tracking-widest transition-all">
-          Pratinjau
+        <Button 
+          disabled={!amount || isProcessing}
+          onClick={handleConvert}
+          className="w-full h-14 bg-[#FFFBEB] hover:bg-[#FEF3C7] text-[#D97706] font-black italic uppercase rounded-2xl border-none shadow-none text-base tracking-widest transition-all"
+        >
+          {isProcessing ? <Loader2 className="animate-spin w-6 h-6" /> : "Pratinjau"}
         </Button>
       </div>
     </div>

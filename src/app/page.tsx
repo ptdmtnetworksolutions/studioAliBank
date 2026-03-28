@@ -428,7 +428,7 @@ function DashboardContent() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/admin/about-alix')}>
+              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/crypto/convert')}>
                 <div className="flex justify-between items-center">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <LogoIcon className="text-primary p-1 w-6 h-6" />
@@ -513,7 +513,7 @@ function DashboardContent() {
                 <div>
                   <p className="text-[11px] font-bold text-muted-foreground mt-2 leading-tight">Kirim Kripto dan Terima Fiat</p>
                   <div className="mt-4">
-                    <p className="text-[8px] font-bold text-muted-foreground uppercase">Kurs Ref.</p>
+                    <p className="text-8px] font-bold text-muted-foreground uppercase">Kurs Ref.</p>
                     <p className="text-xs font-black text-foreground">Rp17,052</p>
                   </div>
                 </div>
