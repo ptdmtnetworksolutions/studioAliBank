@@ -152,14 +152,6 @@ function DashboardContent() {
     );
   }
 
-  const services = [
-    { name: "Alpha", color: "bg-blue-50 text-blue-600" },
-    { name: "Sekuritas", color: "bg-purple-50 text-purple-600" },
-    { name: "Earn", color: "bg-yellow-50 text-yellow-600" },
-    { name: "Referral", color: "bg-green-50 text-green-600" },
-    { name: "Lainnya", color: "bg-gray-50 text-gray-600" },
-  ];
-
   const marketCoins = [
     { symbol: "BNB", price: "611.94", idr: "10.390.735,08", change: "-2.83", isUp: false },
     { symbol: "BTC", price: "66.262,29", idr: "1.125.133.021,58", change: "-3.76", isUp: false },
@@ -384,12 +376,17 @@ function DashboardContent() {
               </div>
 
               {/* Card 4: Kirim Tunai */}
-              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-40">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-black text-slate-400">Kirim Tunai</span>
-                  <ChevronRight className="w-4 h-4 text-slate-300" />
+              <div 
+                className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm group cursor-pointer relative overflow-hidden h-40 flex flex-col justify-between"
+                onClick={() => router.push('/crypto/cash-delivery')}
+              >
+                <div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-black text-slate-400">Kirim Tunai</span>
+                    <ChevronRight className="w-4 h-4 text-slate-300" />
+                  </div>
+                  <p className="text-[11px] font-black text-slate-900 mt-2 leading-tight">Kirim Kripto dan Terima Fiat</p>
                 </div>
-                <p className="text-[11px] font-black text-slate-900 mt-2 leading-tight">Kirim Kripto dan Terima Fiat</p>
                 <div className="mt-4">
                   <p className="text-[8px] font-bold text-slate-400 uppercase">Kurs Ref.</p>
                   <div className="flex justify-between items-end">
@@ -512,12 +509,12 @@ function DashboardContent() {
             </div>
 
             <div className="grid grid-cols-5 gap-4 mb-8">
-              {services.map((service, idx) => (
+              {["Alpha", "Sekuritas", "Earn", "Referral", "Lainnya"].map((service, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-2">
                   <div className="w-12 h-12 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm active:scale-95 transition-transform">
                     <LayoutGrid className="w-6 h-6 text-slate-700" />
                   </div>
-                  <span className="text-[10px] font-bold text-slate-600">{service.name}</span>
+                  <span className="text-[10px] font-bold text-slate-600">{service}</span>
                 </div>
               ))}
             </div>
