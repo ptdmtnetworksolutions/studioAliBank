@@ -59,9 +59,6 @@ import {
 } from "@/components/ui/sheet";
 import Image from "next/image";
 
-/**
- * Ikon Kustom "Tangan Menadah Koin" untuk tab Bursa.
- */
 function HandCoinIcon({ className }: { className?: string }) {
   return (
     <svg 
@@ -81,6 +78,14 @@ function HandCoinIcon({ className }: { className?: string }) {
   );
 }
 
+const INITIAL_COINS = [
+  { symbol: "ALX", price: 12.24, baseIdr: 194000, change: -2.83, isUp: false },
+  { symbol: "BTC", price: 66262.29, baseIdr: 1125133021, change: -3.76, isUp: false },
+  { symbol: "ETH", price: 1987.12, baseIdr: 33741277, change: -3.98, isUp: false },
+  { symbol: "SOL", price: 82.63, baseIdr: 1403056, change: -4.69, isUp: false },
+  { symbol: "WLD", price: 0.2480, baseIdr: 4211, change: -15.04, isUp: false },
+];
+
 function DashboardContent() {
   const { user, loading: userLoading } = useUser();
   const db = useFirestore();
@@ -91,22 +96,20 @@ function DashboardContent() {
   const [mounted, setMounted] = useState(false);
   const [bannerApi, setBannerApi] = useState<CarouselApi>();
   const [currentBanner, setCurrentBanner] = useState(0);
-
-  // SWIFT Carousel State
   const [swiftApi, setSwiftApi] = useState<CarouselApi>();
   const [currentSwiftBanner, setCurrentSwiftBanner] = useState(0);
-  
   const [isTambahDanaOpen, setIsTambahDanaOpen] = useState(false);
-  
   const [activeTab, setActiveTab] = useState<'bursa' | 'dompet'>('bursa');
   const [marketFilter, setMarketFilter] = useState("Populer");
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
+  
+  // LIVE MARKET STATE
+  const [marketCoins, setMarketCoins] = useState(INITIAL_COINS);
 
-  // Pull-to-Marketplace Logic
   const [pullY, setPullY] = useState(0);
   const startY = useRef(0);
   const isPulling = useRef(false);
-  const threshold = 140; // Jarak tarik untuk memicu navigasi
+  const threshold = 140;
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -115,7 +118,6 @@ function DashboardContent() {
 
   const { data: userData } = useDoc(userDocRef);
 
-  // Fetch real unread notification count
   const unreadQuery = useMemo(() => {
     if (!db || !user) return null;
     return query(collection(db, "users", user.uid, "notifications"), where("read", "==", false));
@@ -150,6 +152,25 @@ function DashboardContent() {
       setIsTambahDanaOpen(true);
     }
   }, [user, userLoading, router, searchParams]);
+
+  // MARKET TICKER EFFECT
+  useEffect(() => {
+    if (!mounted) return;
+    const interval = setInterval(() => {
+      setMarketCoins(prev => prev.map(coin => {
+        const move = (Math.random() * 0.002 - 0.001); // 0.2% max move
+        const newPrice = coin.price * (1 + move);
+        const newChange = coin.change + (Math.random() * 0.1 - 0.05);
+        return {
+          ...coin,
+          price: newPrice,
+          change: newChange,
+          isUp: newChange >= 0
+        };
+      }));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [mounted]);
 
   useEffect(() => {
     if (!bannerApi) return;
@@ -197,7 +218,6 @@ function DashboardContent() {
     }
   };
 
-  // Touch Handlers for Pull Gesture
   const handleTouchStart = (e: React.TouchEvent) => {
     if (window.scrollY > 0) return;
     startY.current = e.touches[0].clientY;
@@ -208,17 +228,10 @@ function DashboardContent() {
     if (!isPulling.current) return;
     const currentY = e.touches[0].clientY;
     const diff = currentY - startY.current;
-    
-    // Jika sedang menarik ke bawah di posisi scroll teratas
     if (diff > 0 && window.scrollY <= 0) {
-      // Resistance effect (efek pegas)
       const dampedDiff = Math.pow(diff, 0.82);
       setPullY(dampedDiff);
-      
-      // Mencegah reload browser default pada Android Chrome saat ditarik
-      if (diff > 10) {
-        if (e.cancelable) e.preventDefault();
-      }
+      if (diff > 10 && e.cancelable) e.preventDefault();
     } else {
       setPullY(0);
       isPulling.current = false;
@@ -227,7 +240,6 @@ function DashboardContent() {
 
   const handleTouchEnd = () => {
     if (pullY > threshold) {
-      // Trigger navigation with slight delay for visual satisfaction
       setTimeout(() => {
         router.push('/marketplace');
       }, 100);
@@ -246,18 +258,12 @@ function DashboardContent() {
     );
   }
 
-  const marketCoins = [
-    { symbol: "ALX", price: "611.94", idr: "10.390.735,08", change: "-2.83", isUp: false },
-    { symbol: "BTC", price: "66.262,29", idr: "1.125.133.021,58", change: "-3.76", isUp: false },
-    { symbol: "ETH", price: "1.987,12", idr: "33.741.277,73", change: "-3.98", isUp: false },
-    { symbol: "SOL", price: "82.63", idr: "1.403.056,57", change: "-4.69", isUp: false },
-    { symbol: "WLD", price: "0.2480", idr: "4.211,04", change: "-15.04", isUp: false },
-  ];
-
   const popularSearches = [
     { name: "扭羊歌", symbol: "NYG", price: "Rp16,72", change: "+13,77%", color: "text-green-500", vol: "Rp6,24B", cap: "Rp16,6B" },
     { name: "PIXEL", symbol: "PIXEL", price: "Rp0,3968", change: "+3,67%", color: "text-green-500", vol: "Rp89,78M", cap: "Rp396,85M" },
   ];
+
+  const IDR_RATE = 15850;
 
   return (
     <div 
@@ -349,7 +355,6 @@ function DashboardContent() {
       >
         {activeTab === 'bursa' ? (
           <div className="animate-in fade-in duration-500 space-y-6">
-            {/* Pull Indicator - Enhanced Visibility */}
             <div 
               className="flex flex-col items-center justify-center absolute left-0 right-0 -top-16 mb-4 transition-opacity pointer-events-none"
               style={{ opacity: Math.min(pullY / 60, 1), transform: `scale(${Math.min(0.5 + pullY/140, 1)})` }}
@@ -385,7 +390,6 @@ function DashboardContent() {
               </Button>
             </div>
 
-            {/* Banner Carousel with Dots */}
             <div className="relative group">
               <Carousel setApi={setBannerApi} className="w-full">
                 <CarouselContent>
@@ -419,7 +423,6 @@ function DashboardContent() {
                   </CarouselItem>
                 </CarouselContent>
               </Carousel>
-              {/* Dot Indicators */}
               <div className="flex justify-center gap-1.5 mt-4">
                 {[0, 1].map((i) => (
                   <div key={i} className={cn("h-1 rounded-full transition-all duration-300", currentBanner === i ? "w-4 bg-primary" : "w-1 bg-muted")} />
@@ -461,7 +464,6 @@ function DashboardContent() {
                 </div>
               </div>
 
-              {/* SWIFT CAROUSEL - SETOR & TARIK */}
               <div className="h-40 relative group active:scale-[0.98] transition-transform">
                 <Carousel setApi={setSwiftApi} className="w-full h-full">
                   <CarouselContent>
@@ -497,7 +499,6 @@ function DashboardContent() {
                     </CarouselItem>
                   </CarouselContent>
                 </Carousel>
-                {/* Dot Indicators inside the card for Sub-Carousel */}
                 <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1 z-10 pointer-events-none">
                   {[0, 1].map((i) => (
                     <div key={i} className={cn("h-1 rounded-full transition-all duration-300", currentSwiftBanner === i ? "w-3 bg-primary" : "w-1 bg-muted")} />
@@ -548,15 +549,15 @@ function DashboardContent() {
                       <Flame className="w-3.5 h-3.5 text-orange-500" />
                     </div>
                     <div className="text-right space-y-0.5">
-                      <p className="text-sm font-black italic tracking-tight text-foreground">{coin.price}</p>
-                      <p className="text-[9px] font-bold text-muted-foreground">Rp{coin.idr}</p>
+                      <p className="text-sm font-black italic tracking-tight text-foreground">{coin.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
+                      <p className="text-[9px] font-bold text-muted-foreground">Rp{(coin.price * IDR_RATE).toLocaleString('id-ID')}</p>
                     </div>
                     <div className="flex justify-end">
                       <div className={cn(
-                        "w-20 py-1.5 rounded-lg flex items-center justify-center text-[11px] font-black italic shadow-sm",
+                        "w-20 py-1.5 rounded-lg flex items-center justify-center text-[11px] font-black italic shadow-sm transition-colors duration-500",
                         coin.isUp ? "bg-green-500 text-white" : "bg-rose-500 text-white"
                       )}>
-                        {coin.change}%
+                        {coin.change >= 0 ? '+' : ''}{coin.change.toFixed(2)}%
                       </div>
                     </div>
                   </div>
