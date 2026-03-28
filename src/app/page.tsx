@@ -185,7 +185,10 @@ function DashboardContent() {
           <div className="flex items-center gap-3 flex-1 overflow-hidden">
             {activeTab === 'bursa' ? (
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center cursor-pointer shrink-0">
+                <div 
+                  className="w-8 h-8 rounded-full bg-muted flex items-center justify-center cursor-pointer shrink-0"
+                  onClick={() => router.push('/profile')}
+                >
                   <User className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <div className="relative cursor-pointer shrink-0">
