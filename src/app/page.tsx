@@ -25,7 +25,13 @@ import {
   Download,
   Users,
   Flame,
-  Sparkles
+  Sparkles,
+  Briefcase,
+  TrendingUp,
+  PieChart,
+  Grid3X3,
+  CalendarDays,
+  UserPlus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +55,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import Image from "next/image";
 
 function DashboardContent() {
   const { user, loading: userLoading } = useUser();
@@ -60,9 +67,7 @@ function DashboardContent() {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'bursa' | 'dompet'>('bursa');
   const [bannerApi, setBannerApi] = useState<CarouselApi>();
-  const [swiftApi, setSwiftApi] = useState<CarouselApi>();
   const [currentBanner, setCurrentBanner] = useState(0);
-  const [currentSwift, setCurrentSwift] = useState(0);
   const [isTambahDanaOpen, setIsTambahDanaOpen] = useState(false);
   const [isTambahDanaExpanded, setIsTambahDanaExpanded] = useState(false);
   
@@ -102,13 +107,6 @@ function DashboardContent() {
     });
   }, [bannerApi]);
 
-  useEffect(() => {
-    if (!swiftApi) return;
-    swiftApi.on("select", () => {
-      setCurrentSwift(swiftApi.selectedScrollSnap());
-    });
-  }, [swiftApi]);
-
   const copyAddress = () => {
     if (userData?.walletAddress) {
       navigator.clipboard.writeText(userData.walletAddress);
@@ -145,6 +143,11 @@ function DashboardContent() {
     { symbol: "ETH", price: "1.987,12", idr: "33.741.277,73", change: "-3.98", isUp: false },
     { symbol: "SOL", price: "82.63", idr: "1.403.056,57", change: "-4.69", isUp: false },
     { symbol: "WLD", price: "0.2480", idr: "4.211,04", change: "-15.04", isUp: false },
+  ];
+
+  const popularSearches = [
+    { name: "扭羊歌", symbol: "NYG", price: "Rp16,72", change: "+13,77%", color: "text-green-500", vol: "Rp6,24B", cap: "Rp16,6B" },
+    { name: "PIXEL", symbol: "PIXEL", price: "Rp0,3968", change: "+3,67%", color: "text-green-500", vol: "Rp89,78M", cap: "Rp396,85M" },
   ];
 
   return (
@@ -193,15 +196,15 @@ function DashboardContent() {
         <div className="relative mb-2">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
-            placeholder={activeTab === 'bursa' ? "ZEC pencarian terpopuler" : "Cari Koin..."}
+            placeholder={activeTab === 'bursa' ? "ZEC pencarian terpopuler" : "Alpha Terpopuler: SWTCH"}
             className="h-11 pl-11 pr-4 bg-muted border-none rounded-md text-sm font-medium placeholder:text-muted-foreground shadow-sm"
           />
         </div>
       </header>
 
-      <main className="px-4 pt-2">
+      <main className="px-4 pt-2 space-y-6">
         {activeTab === 'bursa' ? (
-          <div className="space-y-6 animate-in fade-in duration-500">
+          <div className="animate-in fade-in duration-500 space-y-6">
             {/* Balance Section */}
             <div className="flex justify-between items-start mb-2 px-1">
               <div className="space-y-1">
@@ -223,7 +226,7 @@ function DashboardContent() {
               </Button>
             </div>
 
-            {/* AliBank Banner Carousel */}
+            {/* Banner Carousel */}
             <div className="relative group">
               <Carousel setApi={setBannerApi} className="w-full">
                 <CarouselContent>
@@ -239,27 +242,18 @@ function DashboardContent() {
                         </div>
                       </div>
                       <Button className="bg-muted hover:bg-muted/80 text-foreground font-bold text-[10px] h-8 px-4 rounded-md shadow-none shrink-0">Ikuti</Button>
-                      <button className="absolute top-2 right-2 text-muted-foreground/40">
-                        <X className="w-4 h-4" />
-                      </button>
                     </div>
                   </CarouselItem>
                 </CarouselContent>
               </Carousel>
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-                <div className={cn("h-1 rounded-full transition-all duration-300", currentBanner === 0 ? "w-4 bg-foreground" : "w-1.5 bg-muted")} />
-                <div className={cn("h-1 rounded-full transition-all duration-300", currentBanner === 1 ? "w-4 bg-foreground" : "w-1.5 bg-muted")} />
-              </div>
             </div>
 
-            {/* FEATURE CARDS GRID (4 CARDS) */}
+            {/* FEATURE GRID */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm group cursor-pointer relative overflow-hidden h-40 flex flex-col justify-between">
+              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between" onClick={() => router.push('/admin/about-alix')}>
                 <div className="flex justify-between items-center">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                      <LogoIcon className="text-primary-foreground p-1" />
-                    </div>
+                    <LogoIcon className="text-primary p-1 w-6 h-6" />
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
                 </div>
@@ -269,7 +263,7 @@ function DashboardContent() {
                 </div>
               </div>
 
-              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm group cursor-pointer relative overflow-hidden h-40 flex flex-col justify-between" onClick={() => router.push('/p2p/order-history')}>
+              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between" onClick={() => router.push('/p2p/order-history')}>
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-black text-foreground">Order P2P</span>
                   <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
@@ -289,56 +283,33 @@ function DashboardContent() {
                 </div>
               </div>
 
-              <div className="bg-card rounded-2xl border border-border shadow-sm group cursor-pointer relative overflow-hidden h-40">
-                <Carousel setApi={setSwiftApi} className="w-full h-full">
-                  <CarouselContent className="h-full ml-0">
-                    <CarouselItem className="pl-0 h-full" onClick={() => router.push('/crypto/deposit-methods?type=setor')}>
-                      <div className="p-4 h-full flex flex-col">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center font-black text-[10px] text-primary-foreground">$</div>
-                          <span className="text-xs font-bold text-foreground">USD</span>
-                        </div>
-                        <Badge className="bg-green-500/10 text-green-500 text-[8px] font-black h-4 px-1.5 mb-2 border-none w-fit uppercase">Setor</Badge>
-                        <h4 className="text-sm font-black text-foreground leading-tight">Transfer Bank (SWIFT)</h4>
-                        <div className="mt-auto">
-                          <Landmark className="w-6 h-6 text-foreground/60" />
-                        </div>
-                      </div>
-                    </CarouselItem>
-                  </CarouselContent>
-                </Carousel>
-                <div className="absolute bottom-3 right-4 flex gap-1 z-10">
-                  <div className="w-3 h-1 bg-foreground rounded-full" />
-                  <div className="w-1.5 h-1 bg-muted rounded-full" />
+              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between" onClick={() => router.push('/crypto/deposit-methods?type=setor')}>
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center font-black text-[10px] text-primary-foreground">$</div>
+                  <span className="text-xs font-bold text-foreground">USD</span>
+                </div>
+                <div>
+                  <Badge className="bg-green-500/10 text-green-500 text-[8px] font-black h-4 px-1.5 mb-2 border-none uppercase">Setor</Badge>
+                  <h4 className="text-sm font-black text-foreground leading-tight">Transfer Bank (SWIFT)</h4>
                 </div>
               </div>
 
-              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm group cursor-pointer relative overflow-hidden h-40 flex flex-col justify-between" onClick={() => router.push('/crypto/cash-delivery')}>
-                <div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-black text-foreground">Kirim Tunai</span>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
-                  </div>
-                  <p className="text-[11px] font-bold text-muted-foreground mt-2 leading-tight">Kirim Kripto dan Terima Fiat</p>
+              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between" onClick={() => router.push('/crypto/cash-delivery')}>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-black text-foreground">Kirim Tunai</span>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
                 </div>
-                <div className="mt-4">
-                  <p className="text-[8px] font-bold text-muted-foreground uppercase">Kurs Ref.</p>
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <p className="text-xs font-black text-foreground">Rp17,052</p>
-                      <p className="text-[8px] font-bold text-muted-foreground">USDT/IDR</p>
-                    </div>
-                    <div className="h-6 w-12">
-                      <svg viewBox="0 0 100 40" className="w-full h-full">
-                        <path d="M0 30 Q 30 10, 60 30 T 100 10" fill="none" stroke="#16a34a" strokeWidth="2" />
-                      </svg>
-                    </div>
+                <div>
+                  <p className="text-[11px] font-bold text-muted-foreground mt-2 leading-tight">Kirim Kripto dan Terima Fiat</p>
+                  <div className="mt-4">
+                    <p className="text-[8px] font-bold text-muted-foreground uppercase">Kurs Ref.</p>
+                    <p className="text-xs font-black text-foreground">Rp17,052</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* MARKET LIST SECTION */}
+            {/* MARKET LIST */}
             <div className="bg-card rounded-[2rem] p-6 shadow-sm space-y-6">
               <div className="flex items-center justify-between overflow-x-auto no-scrollbar pb-2 gap-6">
                 {["Favorit", "Populer", "Alpha", "Baru", "Tertinggi"].map((tab) => (
@@ -354,28 +325,11 @@ function DashboardContent() {
                   </button>
                 ))}
               </div>
-
-              <div className="flex items-center gap-6">
-                <button 
-                  onClick={() => setAssetCategory("Kripto")}
-                  className={cn("text-sm font-black italic tracking-tight transition-colors", assetCategory === "Kripto" ? "text-foreground" : "text-muted-foreground")}
-                >
-                  Kripto
-                </button>
-                <button 
-                  onClick={() => setAssetCategory("Futures")}
-                  className={cn("text-sm font-black italic tracking-tight transition-colors", assetCategory === "Futures" ? "text-foreground" : "text-muted-foreground")}
-                >
-                  Futures
-                </button>
-              </div>
-
               <div className="grid grid-cols-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">
                 <span>Nama</span>
                 <span className="text-right">Harga Terakhir</span>
                 <span className="text-right">Prbh% 24j</span>
               </div>
-
               <div className="space-y-6">
                 {marketCoins.map((coin) => (
                   <div key={coin.symbol} className="grid grid-cols-3 items-center group cursor-pointer active:opacity-70 transition-opacity" onClick={() => router.push(`/crypto/trade/${coin.symbol.toLowerCase()}`)}>
@@ -401,44 +355,160 @@ function DashboardContent() {
             </div>
           </div>
         ) : (
-          /* DOMPET VIEW (WALLET) */
-          <div className="space-y-6 animate-in slide-in-from-right-10 duration-500">
-            <div className="flex items-center justify-between mb-2 px-1">
+          /* DOMPET VIEW (Sesuai Referensi Gambar) */
+          <div className="animate-in slide-in-from-right-10 duration-500 space-y-6 pb-10">
+            {/* Header Wallet */}
+            <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2 group cursor-pointer">
                 <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center p-1">
                   <LogoIcon className="text-white" />
                 </div>
-                <span className="text-sm font-bold text-foreground">AliBank Private</span>
+                <span className="text-sm font-black text-foreground italic uppercase tracking-tighter">AliBank</span>
                 <ChevronDown className="w-4 h-4 text-muted-foreground" />
               </div>
-              <button onClick={copyAddress} className="p-1 hover:bg-muted rounded">
+              <button onClick={copyAddress} className="p-1 hover:bg-muted rounded transition-colors">
                 <Copy className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
 
-            <div className="flex justify-between items-center mb-8 px-1">
-              <div>
-                <h1 className="text-4xl font-black tracking-tight text-foreground italic">
-                  Rp{(userData?.totalBalance ?? 0).toLocaleString('id-ID')}
-                </h1>
-              </div>
+            {/* Total Balance & Terima */}
+            <div className="flex justify-between items-center px-1">
+              <h1 className="text-5xl font-black tracking-tighter text-foreground italic">
+                Rp{(userData?.totalBalance ?? 0).toLocaleString('id-ID')}
+              </h1>
               <Button 
                 onClick={() => router.push('/crypto/receive')}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-8 h-11 rounded-lg border-none shadow-none text-sm"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-black px-8 h-11 rounded-lg border-none shadow-none text-sm italic uppercase"
               >
                 Terima
               </Button>
             </div>
 
-            <div className="grid grid-cols-5 gap-4 mb-8">
-              {["Alpha", "Sekuritas", "Earn", "Referral", "Lainnya"].map((service, idx) => (
+            {/* Quick Services Grid */}
+            <div className="grid grid-cols-5 gap-4">
+              {[
+                { name: "Alpha", icon: CalendarDays },
+                { name: "Sekuritas", icon: TrendingUp },
+                { name: "Earn", icon: Briefcase },
+                { name: "Referral", icon: UserPlus },
+                { name: "Lainnya", icon: Grid3X3 },
+              ].map((service, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-2">
-                  <div className="w-12 h-12 rounded-xl bg-card border border-border flex items-center justify-center shadow-sm active:scale-95 transition-transform">
-                    <LayoutGrid className="w-6 h-6 text-muted-foreground" />
+                  <div className="w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center shadow-sm active:scale-95 transition-transform">
+                    <service.icon className="w-6 h-6 text-foreground" />
                   </div>
-                  <span className="text-[10px] font-bold text-muted-foreground">{service}</span>
+                  <span className="text-[10px] font-bold text-muted-foreground">{service.name}</span>
                 </div>
               ))}
+            </div>
+
+            {/* Promo Banner Card */}
+            <div className="bg-[#1E2329] dark:bg-card border border-white/5 rounded-2xl p-5 flex items-center justify-between shadow-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center p-2">
+                  <LogoIcon className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white italic leading-tight">Berbagi 35 Juta KAT bersama Katana</h3>
+                </div>
+              </div>
+              <Button className="bg-primary text-primary-foreground font-black text-[10px] h-8 px-4 rounded-md shadow-none uppercase italic">Ikuti</Button>
+            </div>
+
+            {/* Status Cards (Meme Rush & Earn) */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-muted/50 rounded-2xl p-5 border border-border flex flex-col justify-between h-36">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-black text-muted-foreground uppercase tracking-tight">Meme Rush</span>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+                </div>
+                <div>
+                  <p className="text-xl font-black text-foreground italic tracking-tighter leading-none">2,53K</p>
+                  <p className="text-[9px] font-bold text-muted-foreground mt-1 uppercase">token baru dalam 1 jam</p>
+                </div>
+                <div className="flex gap-1 mt-2">
+                  <div className="w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center text-[6px] text-white font-bold">B</div>
+                  <div className="w-4 h-4 rounded-full bg-teal-500 flex items-center justify-center text-[6px] text-white font-bold">T</div>
+                  <div className="w-4 h-4 rounded-full bg-indigo-500 flex items-center justify-center text-[6px] text-white font-bold">E</div>
+                </div>
+              </div>
+
+              <div className="bg-muted/50 rounded-2xl p-5 border border-border flex flex-col justify-between h-36">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-black text-muted-foreground uppercase tracking-tight">Earn</span>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+                </div>
+                <div>
+                  <p className="text-xl font-black text-green-500 italic tracking-tighter leading-none">8.58% <span className="text-[10px]">APY</span></p>
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <div className="w-4 h-4 rounded-full bg-slate-200 border border-border flex items-center justify-center overflow-hidden">
+                      <LogoIcon className="text-black p-0.5" />
+                    </div>
+                    <span className="text-[10px] font-black text-foreground">WETH</span>
+                  </div>
+                </div>
+                <div className="h-6 w-full mt-2">
+                  <svg viewBox="0 0 100 40" className="w-full h-full opacity-30">
+                    <path d="M0 35 L 20 25 L 40 30 L 60 15 L 80 20 L 100 5" fill="none" stroke="#16a34a" strokeWidth="2" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Watchlist Section */}
+            <div className="bg-card rounded-[2rem] p-6 shadow-sm space-y-6">
+              <div className="flex items-center justify-between gap-4 overflow-x-auto no-scrollbar pb-2">
+                {["Daftar Pantauan", "Pencarian Populer", "Sedang Tren"].map((tab) => (
+                  <button
+                    key={tab}
+                    className={cn(
+                      "text-sm font-black transition-all shrink-0 uppercase tracking-tight",
+                      tab === "Pencarian Populer" ? "text-foreground text-base underline decoration-primary decoration-2 underline-offset-8" : "text-muted-foreground"
+                    )}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
+                {["Semua", "BSC", "Solana", "Ethereum"].map((net) => (
+                  <button key={net} className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors shrink-0">{net}</button>
+                ))}
+                <div className="flex items-center gap-1 text-xs font-bold text-muted-foreground ml-auto shrink-0">
+                  1j <ChevronDown className="w-3 h-3" />
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                {popularSearches.map((asset, i) => (
+                  <div key={i} className="flex items-center justify-between group cursor-pointer active:opacity-70 transition-opacity">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center p-1 relative">
+                        <Image src={`https://picsum.photos/seed/${asset.symbol}/40/40`} alt="p" width={40} height={40} className="rounded-full object-cover" />
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded bg-primary flex items-center justify-center">
+                          <LogoIcon className="text-primary-foreground p-0.5" />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-black text-foreground italic uppercase tracking-tighter">{asset.name}</span>
+                          <div className="w-4 h-4 bg-green-500/10 text-green-500 rounded flex items-center justify-center text-[8px] font-black">AI</div>
+                        </div>
+                        <div className="flex items-center gap-2 text-[9px] font-bold text-muted-foreground uppercase">
+                          <span>{asset.vol}</span>
+                          <span className="opacity-30">|</span>
+                          <span>{asset.cap}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-foreground italic tracking-tighter">{asset.price}</p>
+                      <p className={cn("text-[10px] font-black italic", asset.color)}>{asset.change}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -506,17 +576,6 @@ function DashboardContent() {
                 </div>
               </div>
             </div>
-
-            <button 
-              onClick={() => setIsTambahDanaExpanded(!isTambahDanaExpanded)}
-              className="w-full flex items-center justify-center gap-1 text-[10px] font-black text-muted-foreground py-2 hover:text-foreground transition-colors uppercase tracking-widest"
-            >
-              {isTambahDanaExpanded ? (
-                <>Lihat Lebih Sedikit <ChevronUp className="w-4 h-4" /></>
-              ) : (
-                <>Tampilkan Selengkapnya <ChevronDown className="w-4 h-4" /></>
-              )}
-            </button>
           </div>
         </SheetContent>
       </Sheet>

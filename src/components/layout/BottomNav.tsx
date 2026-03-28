@@ -7,7 +7,7 @@ import {
   Home, 
   TrendingUp, 
   Repeat, 
-  FileText, 
+  Compass, 
   Wallet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,8 +16,8 @@ import { useState, useEffect } from "react";
 const navItems = [
   { name: "Beranda", href: "/", icon: Home },
   { name: "Pasar", href: "/crypto", icon: TrendingUp },
-  { name: "Perdagangan", href: "/crypto/trade/alix", icon: Repeat },
-  { name: "Futures", href: "/marketplace", icon: FileText },
+  { name: "Dagang", href: "/crypto/trade/alix", icon: Repeat },
+  { name: "Discover", href: "/marketplace", icon: Compass },
   { name: "Aset", href: "/transactions", icon: Wallet },
 ];
 
