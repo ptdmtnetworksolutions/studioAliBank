@@ -2,142 +2,43 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect, useMemo, useRef } from "react";
-import { Navbar } from "@/components/layout/Navbar";
+import { useState, useEffect, useMemo } from "react";
 import { 
-  TrendingUp, 
-  TrendingDown, 
-  ArrowLeft, 
-  Zap, 
-  ShieldCheck, 
-  Info, 
-  Loader2,
-  History,
+  ChevronDown, 
+  Menu, 
+  CandlestickChart, 
+  MoreHorizontal, 
+  ArrowRightLeft,
+  FileText,
+  User,
   LayoutGrid,
-  BarChart3,
-  Search,
-  MessageSquare,
-  Newspaper,
-  Activity
+  Check,
+  ChevronUp,
+  History,
+  Smile
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useUser, useFirestore, useDoc } from "@/firebase";
-import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { useToast } from "@/hooks/use-toast";
+import { doc } from "firebase/firestore";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
 import { LogoIcon } from "@/components/ui/logo";
 
-declare global {
-  interface Window {
-    TradingView: any;
-  }
-}
-
-export default function CryptoTradePage() {
+export default function SpotTradePage() {
   const { coinId } = useParams();
   const router = useRouter();
   const { user } = useUser();
   const db = useFirestore();
-  const { toast } = useToast();
   
+  const [tradeType, setTradeType] = useState<'beli' | 'jual'>('beli');
   const [mounted, setMounted] = useState(false);
-  const [coinData, setCoinData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [orderAmount, setOrderAmount] = useState("");
-  const [orderQty, setOrderQty] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [marketCoins, setMarketCoins] = useState<any[]>([]);
-  
-  // Percent states
-  const [buyPercent, setBuyPercent] = useState(0);
-  const [sellPercent, setSellPercent] = useState(0);
-
-  // Refs for TradingView
-  const container = useRef<HTMLDivElement>(null);
-
-  const fetchCoinDetail = async () => {
-    // Handle ALIX Sovereign Coin specifically
-    if (coinId === 'alix') {
-      setCoinData({
-        id: 'alix',
-        symbol: 'ALIX',
-        name: 'AliBank Sovereign Coin',
-        image: { small: '' }, // Handled by LogoIcon
-        market_data: {
-          current_price: { idr: 12450 },
-          price_change_percentage_24h: 4.85,
-          high_24h: { idr: 12800 },
-          low_24h: { idr: 11900 },
-          total_volume: { idr: 1500000000000 }
-        }
-      });
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const res = await fetch(`https://api.coingecko.com/api/v3/coins/${coinId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false`);
-      const data = await res.json();
-      if (data && !data.error) {
-        setCoinData(data);
-      } else {
-        throw new Error("Coin not found");
-      }
-    } catch (err) {
-      console.error("Coin detail ledger sync interrupted");
-      router.push('/crypto');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMarketCoins = async () => {
-    try {
-      const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=idr&order=market_cap_desc&per_page=10&page=1&sparkline=false");
-      const data = await res.json();
-      setMarketCoins(data);
-    } catch (err) {}
-  };
 
   useEffect(() => {
     setMounted(true);
-    fetchCoinDetail();
-    fetchMarketCoins();
-  }, [coinId]);
-
-  useEffect(() => {
-    if (mounted && coinData && container.current) {
-      const script = document.createElement("script");
-      script.src = "https://s3.tradingview.com/tv.js";
-      script.type = "text/javascript";
-      script.async = true;
-      script.onload = () => {
-        if (window.TradingView) {
-          new window.TradingView.widget({
-            "autosize": true,
-            "symbol": coinId === 'alix' ? "BINANCE:ETHUSDT" : `BINANCE:${coinData.symbol.toUpperCase()}USDT`,
-            "interval": "15",
-            "timezone": "Asia/Jakarta",
-            "theme": "light",
-            "style": "1",
-            "locale": "id",
-            "toolbar_bg": "#f1f3f6",
-            "enable_publishing": false,
-            "hide_top_toolbar": false,
-            "save_image": false,
-            "container_id": container.current?.id
-          });
-        }
-      };
-      document.head.appendChild(script);
-    }
-  }, [mounted, coinData, coinId]);
+  }, []);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -145,448 +46,281 @@ export default function CryptoTradePage() {
   }, [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  const priceIdr = coinData?.market_data?.current_price?.idr || 0;
-  const change24h = coinData?.market_data?.price_change_percentage_24h || 0;
-
-  const handleBuyPercentChange = (val: number[]) => {
-    const percent = val[0];
-    setBuyPercent(percent);
-    if (!userData || !priceIdr) return;
-    
-    const maxBalance = userData.totalBalance || 0;
-    const targetAmount = (maxBalance * percent) / 100;
-    setOrderAmount(targetAmount.toFixed(0));
-    setOrderQty((targetAmount / priceIdr).toFixed(8));
-  };
-
-  const handleSellPercentChange = (val: number[]) => {
-    const percent = val[0];
-    setSellPercent(percent);
-    if (!userData || !coinData || !priceIdr) return;
-    
-    const assetKey = coinData.symbol.toUpperCase();
-    const maxQty = userData.cryptoBalances?.[assetKey] || 0;
-    const targetQty = (maxQty * percent) / 100;
-    setOrderQty(targetQty.toFixed(8));
-    setOrderAmount((targetQty * priceIdr).toFixed(0));
-  };
-
-  const handleTrade = async (type: 'buy' | 'sell') => {
-    if (!user || !db || !userDocRef || !coinData) return;
-    
-    const amount = parseFloat(orderAmount);
-    const qty = parseFloat(orderQty);
-    if (!amount || isNaN(amount)) return;
-
-    setIsProcessing(true);
-    try {
-      const assetKey = coinData.symbol.toUpperCase();
-      const payload = type === 'buy' 
-        ? { totalBalance: increment(-amount), [`cryptoBalances.${assetKey}`]: increment(qty) }
-        : { totalBalance: increment(amount), [`cryptoBalances.${assetKey}`]: increment(-qty) };
-
-      if (type === 'buy' && (userData?.totalBalance || 0) < amount) {
-        throw new Error("Insufficient Liquidity.");
-      }
-      if (type === 'sell' && (userData?.cryptoBalances?.[assetKey] || 0) < qty) {
-        throw new Error(`Insufficient ${assetKey} Balance.`);
-      }
-
-      await updateDoc(userDocRef, payload);
-
-      await addDoc(collection(db, "users", user.uid, "transactions"), {
-        date: new Date().toISOString(),
-        description: `${type === 'buy' ? 'Spot Buy' : 'Spot Sell'} ${coinData.name} via AliBank V3 Node`,
-        category: "Trading",
-        amount: amount,
-        cryptoAmount: qty,
-        cryptoCurrency: assetKey,
-        type: type === 'buy' ? 'expense' : 'income',
-        status: "settled",
-        timestamp: serverTimestamp()
-      });
-
-      toast({ title: "Order Settled", description: `Order ${type} ${coinData.name} has been successfully executed on-ledger.` });
-      setOrderAmount(""); setOrderQty("");
-      setBuyPercent(0); setSellPercent(0);
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Execution Failed", description: err.message });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  if (loading || !coinData) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-        <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground animate-pulse italic">Synchronizing Institutional Terminal...</p>
-      </div>
-    );
-  }
+  if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] pb-10">
-      <Navbar />
-      
-      {/* Trading Header Bar */}
-      <div className="bg-white border-b border-primary/10 px-4 py-3 sticky top-16 z-30">
-        <div className="container mx-auto flex flex-wrap items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10">
-                {coinId === 'alix' ? (
-                  <div className="w-full h-full bg-accent flex items-center justify-center p-2 rounded-xl">
-                    <LogoIcon className="text-primary" />
-                  </div>
-                ) : (
-                  coinData.image?.small && (
-                    <Image src={coinData.image.small} alt={coinData.name} fill className="object-contain" />
-                  )
-                )}
-              </div>
-              <div>
-                <h1 className="text-lg font-black text-accent uppercase tracking-tighter">{coinData.symbol}/IDR</h1>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase">Production Pair</p>
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-white text-slate-900 pb-20 flex flex-col font-body select-none">
+      {/* Top Header Tabs */}
+      <header className="px-4 h-14 flex items-center justify-between border-b border-slate-50 sticky top-0 bg-white z-50">
+        <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
+          {['Beli/Jual', 'Spot', 'P2P', 'Alpha'].map((tab) => (
+            <button
+              key={tab}
+              className={cn(
+                "text-base font-black transition-all relative shrink-0",
+                tab === 'Spot' ? "text-slate-900 after:absolute after:-bottom-4 after:left-0 after:right-0 after:h-1 after:bg-yellow-400" : "text-slate-400"
+              )}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        <button className="p-1">
+          <Menu className="w-6 h-6 text-slate-900" />
+        </button>
+      </header>
 
-          <div className="flex gap-8 items-center overflow-x-auto no-scrollbar py-1">
-            <div className="shrink-0">
-              <p className={cn("text-xl font-black italic tracking-tighter", change24h >= 0 ? "text-green-600" : "text-destructive")}>
-                Rp {priceIdr.toLocaleString('id-ID')}
-              </p>
-              <p className={cn("text-[10px] font-black uppercase", change24h >= 0 ? "text-green-600" : "text-destructive")}>
-                {change24h >= 0 ? "+" : ""}{change24h.toFixed(2)}% (24h Pulse)
-              </p>
+      <main className="flex-1 px-4 pt-4 flex flex-col gap-6">
+        {/* Market Info Bar */}
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1 cursor-pointer">
+              <h1 className="text-xl font-black tracking-tight uppercase">BTC/USDT</h1>
+              <ChevronDown className="w-4 h-4 text-slate-400" />
             </div>
-            <div className="hidden md:block shrink-0">
-              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-0.5">High Mark</p>
-              <p className="text-xs font-black text-accent italic">Rp {coinData.market_data?.high_24h?.idr?.toLocaleString() || "---"}</p>
-            </div>
-            <div className="hidden md:block shrink-0">
-              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-0.5">Low Mark</p>
-              <p className="text-xs font-black text-accent italic">Rp {coinData.market_data?.low_24h?.idr?.toLocaleString() || "---"}</p>
-            </div>
-            <div className="hidden lg:block shrink-0">
-              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-0.5">24h Vol Position</p>
-              <p className="text-xs font-black text-accent italic">Rp {( (coinData.market_data?.total_volume?.idr || 0) / 1e12).toFixed(2)}T</p>
-            </div>
+            <span className="text-[11px] font-black text-rose-500">-4.23%</span>
           </div>
           
-          <Badge className="bg-primary/10 text-primary border-primary/20 px-3 py-1 uppercase font-black text-[9px] hidden xl:flex">Live Production Ledger V3</Badge>
-        </div>
-      </div>
-
-      <main className="container mx-auto px-4 mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Section: Order Ledger & Market Intelligence */}
-        <div className="lg:col-span-3 space-y-6 order-2 lg:order-1">
-          <Card className="rounded-2xl border-none shadow-sm overflow-hidden bg-white h-[450px] flex flex-col">
-            <div className="p-4 border-b border-primary/5 bg-accent/5">
-              <h3 className="text-xs font-black uppercase tracking-widest text-accent flex items-center gap-2">
-                <LayoutGrid className="w-4 h-4 text-primary" /> Order Ledger Snapshot
-              </h3>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-slate-400">Margin</span>
+              <Switch className="scale-75 data-[state=checked]:bg-yellow-400" />
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
-              <div className="space-y-1">
-                {[...Array(10)].map((_, i) => (
-                  <div key={i} className="flex justify-between text-[10px] text-destructive font-bold italic">
-                    <span>{(priceIdr * (1 + (10-i) * 0.0005)).toLocaleString('id-ID')}</span>
-                    <span>{(0.1 + (Math.sin(i) + 1) * 0.5).toFixed(4)}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="py-3 border-y border-primary/10 text-center bg-primary/[0.02]">
-                <p className="text-base font-black text-accent italic">Rp {priceIdr.toLocaleString('id-ID')}</p>
-                <p className="text-[8px] font-bold text-muted-foreground uppercase">Real-Time Spot</p>
-              </div>
-              <div className="space-y-1">
-                {[...Array(10)].map((_, i) => (
-                  <div key={i} className="flex justify-between text-[10px] text-green-600 font-bold italic">
-                    <span>{(priceIdr * (1 - (i+1) * 0.0005)).toLocaleString('id-ID')}</span>
-                    <span>{(0.1 + (Math.cos(i) + 1) * 0.5).toFixed(4)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
-
-          <Card className="rounded-2xl border-none shadow-sm p-5 space-y-4 bg-white">
-            <h3 className="text-xs font-black uppercase tracking-widest text-accent flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" /> Quantitative Signals
-            </h3>
-            <div className="space-y-3">
-              <div className={cn(
-                "p-3 rounded-xl border",
-                change24h >= 0 ? "bg-green-50 border-green-100" : "bg-red-50 border-red-100"
-              )}>
-                <p className={cn(
-                  "text-[10px] font-black uppercase mb-1",
-                  change24h >= 0 ? "text-green-700" : "text-red-700"
-                )}>
-                  Sentiment Rating: {change24h >= 0 ? "Bullish" : "Bearish"}
-                </p>
-                <p className={cn(
-                  "text-[10px] font-medium italic",
-                  change24h >= 0 ? "text-green-800" : "text-red-800"
-                )}>
-                  {change24h >= 0 
-                    ? "High probability execution detected based on current liquidity flow."
-                    : "Caution: Distribution patterns detected in higher timeframes."}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
-                <p className="text-[10px] font-black text-primary uppercase mb-1">Fee Tier: Platinum Sovereign</p>
-                <p className="text-[10px] text-muted-foreground font-medium italic uppercase tracking-widest">Commission: 0% Settled.</p>
-              </div>
-            </div>
-          </Card>
+            <CandlestickChart className="w-5 h-5 text-slate-700" />
+            <MoreHorizontal className="w-5 h-5 text-slate-700" />
+          </div>
         </div>
 
-        {/* Middle Section: Chart & Trade Forms */}
-        <div className="lg:col-span-6 space-y-6 order-1 lg:order-2">
-          {/* Chart Area */}
-          <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white relative h-[500px]">
-            <div id="tradingview_widget" ref={container} className="w-full h-full" />
-          </Card>
-
-          {/* Trade Panel */}
-          <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white">
-            <Tabs defaultValue="buy" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 h-14 bg-primary/5 p-1.5 border-b border-primary/10 rounded-none">
-                <TabsTrigger value="buy" className="font-black uppercase text-xs data-[state=active]:bg-green-600 data-[state=active]:text-white transition-all">Buy {coinData.symbol}</TabsTrigger>
-                <TabsTrigger value="sell" className="font-black uppercase text-xs data-[state=active]:bg-destructive data-[state=active]:text-white transition-all">Sell {coinData.symbol}</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="buy" className="p-8 space-y-8">
-                <div className="flex justify-between items-end mb-2">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Available Liquidity</p>
-                  <p className="text-xs font-black text-accent">Rp {userData?.totalBalance?.toLocaleString('id-ID') || "0"}</p>
-                </div>
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Liquidity Allocation (IDR)</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-primary/40">Rp</span>
-                      <Input 
-                        type="number" 
-                        placeholder="0" 
-                        value={orderAmount}
-                        onChange={(e) => {
-                          setOrderAmount(e.target.value);
-                          setOrderQty((parseFloat(e.target.value) / priceIdr).toFixed(8));
-                        }}
-                        className="h-14 pl-12 rounded-2xl bg-accent/5 border-none font-black italic text-lg" 
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 px-2">
-                    <Slider 
-                      value={[buyPercent]} 
-                      max={100} 
-                      step={25} 
-                      onValueChange={handleBuyPercentChange}
-                      className="cursor-pointer"
-                    />
-                    <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase px-1">
-                      <span className={cn(buyPercent === 0 && "text-primary")}>0%</span>
-                      <span className={cn(buyPercent === 25 && "text-primary")}>25%</span>
-                      <span className={cn(buyPercent === 50 && "text-primary")}>50%</span>
-                      <span className={cn(buyPercent === 75 && "text-primary")}>75%</span>
-                      <span className={cn(buyPercent === 100 && "text-primary")}>100%</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Asset Delivery Estimation</label>
-                    <div className="relative">
-                      <Input 
-                        type="number" 
-                        readOnly 
-                        value={orderQty}
-                        placeholder="0.00" 
-                        className="h-14 pr-16 rounded-2xl bg-primary/5 border-none font-black italic text-lg" 
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-primary uppercase">{coinData.symbol}</span>
-                    </div>
-                  </div>
-                </div>
-                <Button 
-                  onClick={() => handleTrade('buy')}
-                  disabled={isProcessing || !orderAmount}
-                  className="w-full h-16 bg-green-600 hover:bg-green-700 text-white font-black uppercase italic text-lg rounded-[2rem] shadow-xl transition-all mt-4"
-                >
-                  {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : `Confirm Institutional Buy: ${coinData.symbol}`}
-                </Button>
-              </TabsContent>
-
-              <TabsContent value="sell" className="p-8 space-y-8">
-                <div className="flex justify-between items-end mb-2">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Sovereign Asset Balance</p>
-                  <p className="text-xs font-black text-accent">{(userData?.cryptoBalances?.[coinData.symbol.toUpperCase()] || 0).toFixed(8)} {coinData.symbol.toUpperCase()}</p>
-                </div>
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Asset Liquidation ({coinData.symbol})</label>
-                    <div className="relative">
-                      <Input 
-                        type="number" 
-                        placeholder="0.00" 
-                        value={orderQty}
-                        onChange={(e) => {
-                          setOrderQty(e.target.value);
-                          setOrderAmount((parseFloat(e.target.value) * priceIdr).toFixed(0));
-                        }}
-                        className="h-14 rounded-2xl bg-accent/5 border-none font-black italic text-lg" 
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-primary uppercase">{coinData.symbol}</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 px-2">
-                    <Slider 
-                      value={[sellPercent]} 
-                      max={100} 
-                      step={25} 
-                      onValueChange={handleSellPercentChange}
-                      className="cursor-pointer"
-                    />
-                    <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase px-1">
-                      <span className={cn(sellPercent === 0 && "text-primary")}>0%</span>
-                      <span className={cn(sellPercent === 25 && "text-primary")}>25%</span>
-                      <span className={cn(sellPercent === 50 && "text-primary")}>50%</span>
-                      <span className={cn(sellPercent === 75 && "text-primary")}>75%</span>
-                      <span className={cn(sellPercent === 100 && "text-primary")}>100%</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Liquidity Return (IDR)</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-primary/40">Rp</span>
-                      <Input 
-                        type="number" 
-                        readOnly 
-                        value={orderAmount}
-                        placeholder="0" 
-                        className="h-14 pl-12 rounded-2xl bg-primary/5 border-none font-black italic text-lg" 
-                      />
-                    </div>
-                  </div>
-                </div>
-                <Button 
-                  onClick={() => handleTrade('sell')}
-                  disabled={isProcessing || !orderQty}
-                  className="w-full h-16 bg-destructive hover:bg-destructive/90 text-white font-black uppercase italic text-lg rounded-[2rem] shadow-xl transition-all mt-4"
-                >
-                  {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : `Confirm Asset Liquidation: ${coinData.symbol}`}
-                </Button>
-              </TabsContent>
-            </Tabs>
-          </Card>
-        </div>
-
-        {/* Right Section: Assets List & Market Pulse Intelligence */}
-        <div className="lg:col-span-3 space-y-6 order-3 lg:order-3">
-          <Card className="rounded-2xl border-none shadow-sm overflow-hidden bg-white">
-            <div className="p-4 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase tracking-widest text-accent flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-primary" /> Active Trading Pairs
-              </h3>
-              <Search className="w-3.5 h-3.5 text-muted-foreground" />
-            </div>
-            <div className="divide-y divide-primary/5 max-h-[300px] overflow-y-auto no-scrollbar">
-              {marketCoins.map((coin) => (
-                <button 
-                  key={coin.id} 
-                  onClick={() => router.push(`/crypto/trade/${coin.id}`)}
-                  className={cn(
-                    "w-full p-4 flex items-center justify-between hover:bg-primary/5 transition-colors text-left",
-                    coin.id === coinId && "bg-primary/5 border-l-2 border-primary"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-6 h-6">
-                      <Image src={coin.image} alt={coin.name} fill className="object-contain" />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-black text-accent uppercase tracking-tighter">{coin.symbol}/IDR</p>
-                      <p className={cn("text-[9px] font-bold", coin.price_change_percentage_24h >= 0 ? "text-green-600" : "text-destructive")}>
-                        {coin.price_change_percentage_24h >= 0 ? "+" : ""}{coin.price_change_percentage_24h.toFixed(2)}%
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-[10px] font-black text-accent italic">Rp {coin.current_price.toLocaleString('id-ID')}</p>
+        {/* Main Trading Terminal Layout */}
+        <div className="grid grid-cols-12 gap-4">
+          
+          {/* LEFT: Trading Controls */}
+          <div className="col-span-7 space-y-4">
+            {/* Quick Settings */}
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+              {['Cross', '3x', 'Otom', 'B/R'].map((btn) => (
+                <button key={btn} className="px-3 py-1 rounded-md bg-slate-100 text-[10px] font-black uppercase text-slate-600 border border-transparent active:border-yellow-400 transition-all">
+                  {btn}
                 </button>
               ))}
             </div>
-          </Card>
 
-          <Card className="rounded-2xl border-none shadow-sm p-6 space-y-4 bg-white">
-            <h3 className="text-xs font-black uppercase tracking-widest text-accent flex items-center gap-2">
-              <Newspaper className="w-4 h-4 text-primary" /> Institutional Insights
-            </h3>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-accent leading-tight hover:text-primary cursor-pointer transition-colors italic">Analisis Ledger V3: Peningkatan Volume Institusional pada Aset Lapis 1.</p>
-                <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Real-time • AliBank Insight 2026</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-accent leading-tight hover:text-primary cursor-pointer transition-colors italic">Laporan Audit Jaringan: Sinkronisasi Node Global Berjalan dengan Latensi Rendah.</p>
-                <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Global Feed • World Ledger</p>
-              </div>
+            {/* Buy/Sell Switcher */}
+            <div className="bg-slate-100 p-0.5 rounded-md flex">
+              <button 
+                onClick={() => setTradeType('beli')}
+                className={cn(
+                  "flex-1 py-2 text-xs font-black rounded-md transition-all",
+                  tradeType === 'beli' ? "bg-green-500 text-white shadow-sm" : "text-slate-400"
+                )}
+              >
+                Beli
+              </button>
+              <button 
+                onClick={() => setTradeType('jual')}
+                className={cn(
+                  "flex-1 py-2 text-xs font-black rounded-md transition-all",
+                  tradeType === 'jual' ? "bg-white text-slate-400" : "text-slate-400"
+                )}
+              >
+                Jual
+              </button>
             </div>
-          </Card>
 
-          <Card className="rounded-2xl border-none shadow-sm p-6 space-y-4 liquid-glass-dark text-white">
-            <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
-              <Zap className="w-4 h-4 text-primary" /> Market Pulse & Intelligence
-            </h3>
-            <div className="space-y-3 h-[150px] overflow-y-auto no-scrollbar pr-1">
-              <div className="text-[9px] font-medium leading-relaxed italic border-l-2 border-primary pl-2 py-1 bg-white/5">
-                <span className="font-black text-primary uppercase">System Sentinel:</span> Likuiditas pada pasangan {coinData.symbol}/IDR meningkat 15% dalam 1 jam terakhir.
-              </div>
-              <div className="text-[9px] font-medium leading-relaxed italic">
-                <span className="font-black text-white/60 uppercase">Alpha Node:</span> Aliran dana keluar terdeteksi pada bursa kompetitor, potensi volatilitas naik.
-              </div>
-              <div className="text-[9px] font-medium leading-relaxed italic">
-                <span className="font-black text-white/60 uppercase">Global Auditor:</span> Transaksi lintas jaringan (Cross-Chain) untuk USDT/IDR telah diselesaikan secara massal.
+            {/* Order Type Selector */}
+            <div className="relative group">
+              <div className="bg-slate-50 rounded-md p-2 flex items-center justify-between border border-slate-100">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3.5 h-3.5 bg-slate-200 rounded-full flex items-center justify-center">
+                    <span className="text-[8px] font-black text-white italic">i</span>
+                  </div>
+                  <span className="text-xs font-black">Limit Order</span>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               </div>
             </div>
-            <div className="relative">
-              <Input placeholder="Broadcast signal..." className="h-10 text-[10px] bg-white/10 border-none rounded-xl pr-10 placeholder:text-white/40 font-bold uppercase tracking-widest" />
-              <Button size="icon" variant="ghost" className="absolute right-1 top-1/2 -translate-y-1/2 text-primary hover:bg-transparent">
-                <Zap className="w-4 h-4" />
-              </Button>
+
+            {/* Price & Amount Inputs */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1">
+                <div className="flex-1 flex items-center bg-slate-50 rounded-md border border-slate-100 overflow-hidden h-10">
+                  <button className="px-2 text-slate-400 font-bold">-</button>
+                  <input className="w-full bg-transparent text-center text-xs font-black outline-none" defaultValue="66050.00" />
+                  <button className="px-2 text-slate-400 font-bold">+</button>
+                </div>
+                <button className="bg-slate-50 border border-slate-100 rounded-md px-3 h-10 text-[10px] font-black uppercase text-slate-600">BBO</button>
+              </div>
+
+              <div className="flex items-center bg-slate-50 rounded-md border border-slate-100 overflow-hidden h-10">
+                <button className="px-2 text-slate-200 font-bold">-</button>
+                <input className="w-full bg-transparent text-center text-xs font-black outline-none placeholder:text-slate-300" placeholder="Jumlah (BTC)" />
+                <button className="px-2 text-slate-200 font-bold">+</button>
+              </div>
             </div>
-          </Card>
+
+            {/* Percentage Slider */}
+            <div className="py-2 flex items-center justify-between relative px-1">
+              <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-0.5 bg-slate-100" />
+              {[0, 25, 50, 75, 100].map((p) => (
+                <div key={p} className="relative z-10 w-2.5 h-2.5 rounded-sm border-2 border-slate-100 bg-white rotate-45" />
+              ))}
+            </div>
+
+            {/* Total Input */}
+            <div className="bg-slate-50 rounded-md border border-slate-100 h-10 flex items-center justify-center text-xs font-black text-slate-300 italic">
+              Total (USDT)
+            </div>
+
+            {/* Checkboxes */}
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center gap-2">
+                <Checkbox id="tp-sl" className="w-4 h-4 border-slate-200 rounded-sm" />
+                <label htmlFor="tp-sl" className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">TP/SL</label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="iceberg" className="w-4 h-4 border-slate-200 rounded-sm" />
+                <label htmlFor="iceberg" className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Iceberg</label>
+              </div>
+            </div>
+
+            {/* Asset Info */}
+            <div className="space-y-1 text-[10px] font-bold text-slate-400">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-1 cursor-pointer">
+                  <span>Tersedia</span>
+                  <ChevronDown className="w-2.5 h-2.5" />
+                </div>
+                <div className="flex items-center gap-1 text-slate-900 italic">
+                  <span>0 USDT</span>
+                  <ArrowRightLeft className="w-3 h-3 text-yellow-500" />
+                </div>
+              </div>
+              <div className="flex justify-between">
+                <span>Maks</span>
+                <span className="text-slate-900 italic">0 USDT</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Pinjam</span>
+                <span className="text-slate-300 italic">-- USDT</span>
+              </div>
+            </div>
+
+            {/* Primary Action Button */}
+            <Button className="w-full h-12 bg-green-500 hover:bg-green-600 text-white font-black italic rounded-md shadow-none text-base">
+              Margin Beli
+            </Button>
+          </div>
+
+          {/* RIGHT: Order Book */}
+          <div className="col-span-5 flex flex-col">
+            <div className="flex justify-between text-[9px] font-black text-slate-300 uppercase tracking-tighter mb-2">
+              <span>Harga (USDT)</span>
+              <span className="text-right">Jumlah (BTC)</span>
+            </div>
+
+            {/* Sell Orders (Red) */}
+            <div className="space-y-1 mb-3">
+              {[
+                { p: "66,051.23", a: "0.00008" },
+                { p: "66,050.76", a: "0.14312" },
+                { p: "66,050.75", a: "0.00008" },
+                { p: "66,050.61", a: "0.00016" },
+                { p: "66,050.03", a: "0.00008" },
+                { p: "66,050.02", a: "0.00072" },
+                { p: "66,050.01", a: "1.36155" },
+              ].map((order, i) => (
+                <div key={i} className="flex justify-between text-[10px] font-black italic relative">
+                  <span className="text-rose-500 relative z-10">{order.p}</span>
+                  <span className="text-slate-900 relative z-10">{order.a}</span>
+                  <div className="absolute right-0 top-0 bottom-0 bg-rose-50 opacity-20" style={{ width: i === 6 ? '80%' : '10%' }} />
+                </div>
+              ))}
+            </div>
+
+            {/* Current Price Display */}
+            <div className="py-2 border-y border-slate-50 flex flex-col items-center justify-center">
+              <span className="text-lg font-black text-rose-500 italic tracking-tighter leading-none">66,050.00</span>
+              <span className="text-[9px] font-bold text-slate-400 mt-1">≈ Rp1,121,836,793.00</span>
+            </div>
+
+            {/* Buy Orders (Green) */}
+            <div className="space-y-1 mt-3">
+              {[
+                { p: "66,050.00", a: "1.78118" },
+                { p: "66,049.99", a: "0.00040" },
+                { p: "66,049.67", a: "0.00302" },
+                { p: "66,048.28", a: "0.00016" },
+                { p: "66,048.27", a: "0.01991" },
+                { p: "66,048.15", a: "0.00384" },
+                { p: "66,048.08", a: "0.00300" },
+              ].map((order, i) => (
+                <div key={i} className="flex justify-between text-[10px] font-black italic relative">
+                  <span className="text-green-500 relative z-10">{order.p}</span>
+                  <span className="text-slate-900 relative z-10">{order.a}</span>
+                  <div className="absolute right-0 top-0 bottom-0 bg-green-50 opacity-20" style={{ width: i === 0 ? '90%' : '15%' }} />
+                </div>
+              ))}
+            </div>
+
+            {/* Ratio Bar */}
+            <div className="flex h-1 gap-0.5 mt-4 rounded-full overflow-hidden">
+              <div className="bg-green-500" style={{ width: '52.65%' }} />
+              <div className="bg-rose-500" style={{ width: '47.35%' }} />
+            </div>
+            <div className="flex justify-between text-[8px] font-black mt-1">
+              <span className="text-green-500">52.65%</span>
+              <span className="text-rose-500">47.35%</span>
+            </div>
+
+            {/* Precision Selector */}
+            <div className="mt-4 flex items-center justify-between gap-1">
+              <div className="flex-1 bg-slate-50 rounded-md p-1.5 flex items-center justify-between border border-slate-100">
+                <span className="text-[10px] font-black">0.01</span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              </div>
+              <div className="w-8 h-8 bg-slate-50 rounded-md flex items-center justify-center border border-slate-100">
+                <LayoutGrid className="w-3.5 h-3.5 text-slate-400" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* BOTTOM SECTION: Tabs & Icons */}
+        <div className="mt-4 space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-50">
+            <div className="flex gap-6 pb-2">
+              <button className="text-sm font-black italic relative">
+                Order Terbuka (0)
+                <div className="absolute -bottom-2.5 left-0 right-0 h-0.5 bg-yellow-400" />
+              </button>
+              <button className="text-sm font-black italic text-slate-400">Posisi (0)</button>
+            </div>
+            <button className="p-1 hover:bg-slate-100 rounded">
+              <History className="w-5 h-5 text-slate-700" />
+            </button>
+          </div>
+
+          <div className="flex flex-col items-center justify-center py-10 opacity-30">
+            <div className="w-12 h-12 rounded-full border-2 border-slate-900 flex items-center justify-center mb-2">
+              <LogoIcon className="w-6 h-6 p-1" />
+            </div>
+            <p className="text-[10px] font-black text-slate-400 italic">BELUM ADA ORDER</p>
+          </div>
         </div>
       </main>
 
-      <footer className="container mx-auto px-4 mt-12 mb-20">
-        <div className="liquid-glass p-8 rounded-[3rem] border-primary/20 space-y-6">
-          <div className="flex flex-col md:flex-row gap-6 items-center">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-10 h-10 text-primary" />
-            </div>
-            <div className="flex-1 text-center md:text-left">
-              <h4 className="font-black text-accent uppercase italic tracking-tighter text-lg mb-1">Production Asset Integrity & Compliance</h4>
-              <p className="text-[10px] text-muted-foreground font-medium italic leading-relaxed uppercase tracking-widest">
-                Seluruh aktivitas perdagangan pada AliBank Terminal 2026 diaudit secara riil oleh protokol Smart Contract V3. Keputusan perdagangan sepenuhnya berada di bawah otoritas nasabah. AliBank menjamin ketersediaan likuiditas 1:1 untuk seluruh aset yang terdaftar pada sistem ledger utama.
-              </p>
-            </div>
-          </div>
-          <div className="pt-6 border-t border-primary/5 text-center">
-            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">AliBank Terminal • Powered by TradingView Production Technology • Verified by CoinGecko Data • 2026</p>
-          </div>
+      {/* Floating Robot Icon */}
+      <div className="fixed bottom-24 right-4 z-[60]">
+        <div className="w-10 h-10 bg-white rounded-xl shadow-lg border border-slate-100 flex items-center justify-center text-blue-500 active:scale-95 transition-transform cursor-pointer">
+          <Smile className="w-6 h-6" />
         </div>
-      </footer>
+      </div>
+
+      {/* Diagram Footer */}
+      <div className="fixed bottom-16 left-0 right-0 z-50 bg-white border-t border-slate-100 px-4 py-2 flex items-center justify-between">
+        <span className="text-xs font-black italic tracking-tight">Diagram BTC/USDT</span>
+        <ChevronUp className="w-4 h-4 text-slate-400" />
+      </div>
     </div>
   );
 }
