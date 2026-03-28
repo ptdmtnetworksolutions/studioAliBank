@@ -41,70 +41,96 @@ export default function MarketDetailPage() {
   const [timeframe, setTimeframe] = useState("15m");
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // LIVE STATES
+  const [currentPrice, setCurrentPrice] = useState(12.24);
+  const [priceChange, setPriceChange] = useState(1.14);
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [orderBook, setOrderBook] = useState<{bids: any[], asks: any[]}>({ bids: [], asks: [] });
+  const [sentiment, setSentiment] = useState(30.72);
 
   const symbol = (coinId as string).toUpperCase();
 
-  // Logika Data Koin Dinamis berdasarkan Diskusi Harga ALX (12.24 USDT)
-  const coinInfo = useMemo(() => {
-    if (symbol === "ALX") {
-      return {
-        price: "12.24",
-        idr: "194.004,00",
-        change: "+1.14%",
-        high: "12.45",
-        low: "11.98",
-        volCoin: "1.85M",
-        volUsdt: "22.6M",
-        base: 12.24,
-        isUp: true
-      };
-    }
-    // Fallback untuk koin lain jika ada
-    return {
-      price: "12.24",
-      idr: "194.004,00",
-      change: "+1.14%",
-      high: "12.45",
-      low: "11.98",
-      volCoin: "1.85M",
-      volUsdt: "22.6M",
-      base: 12.24,
-      isUp: true
-    };
-  }, [symbol]);
-
-  const mockData = useMemo(() => {
-    const base = coinInfo.base;
-    return Array.from({ length: 40 }, (_, i) => ({
+  // INITIAL DATA GENERATION
+  useEffect(() => {
+    setMounted(true);
+    
+    // Generate initial chart data
+    const initialData = Array.from({ length: 40 }, (_, i) => ({
       time: `${17 + Math.floor(i/4)}:${(i%4)*15}`,
-      price: base + (Math.random() * (base * 0.02) - (base * 0.01)),
+      price: 12.24 + (Math.random() * 0.2 - 0.1),
       volume: 100 + Math.random() * 500
     }));
-  }, [coinInfo]);
+    setChartData(initialData);
 
-  // Simulasi Data Order Book
-  const orderBookData = useMemo(() => {
-    const bids = Array.from({ length: 15 }, (_, i) => ({
-      price: (12.24 - (i * 0.01)).toFixed(2),
-      amount: (Math.random() * 50).toFixed(3),
-      depth: Math.random() * 100
-    }));
-    const asks = Array.from({ length: 15 }, (_, i) => ({
-      price: (12.25 + (i * 0.01)).toFixed(2),
-      amount: (Math.random() * 50).toFixed(3),
-      depth: Math.random() * 100
-    }));
-    return { bids, asks };
+    // Generate initial order book
+    const generateBook = () => ({
+      bids: Array.from({ length: 12 }, (_, i) => ({
+        price: (12.24 - (i * 0.01) - Math.random() * 0.005).toFixed(2),
+        amount: (Math.random() * 50 + 1).toFixed(3),
+        depth: Math.random() * 100
+      })),
+      asks: Array.from({ length: 12 }, (_, i) => ({
+        price: (12.25 + (i * 0.01) + Math.random() * 0.005).toFixed(2),
+        amount: (Math.random() * 50 + 1).toFixed(3),
+        depth: Math.random() * 100
+      }))
+    });
+    setOrderBook(generateBook());
   }, []);
+
+  // LIVE SIMULATION INTERVAL
+  useEffect(() => {
+    if (!mounted) return;
+
+    const interval = setInterval(() => {
+      // 1. Simulate Price Movement
+      const move = (Math.random() * 0.02 - 0.01); // Small fluctuation
+      setCurrentPrice(prev => {
+        const next = prev + move;
+        // Keep it realistic around 12.24
+        if (next < 11.5) return 11.5;
+        if (next > 13.0) return 13.0;
+        return next;
+      });
+
+      // 2. Update Chart
+      setChartData(prev => {
+        const newData = [...prev.slice(1), {
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          price: currentPrice + move,
+          volume: Math.random() * 600
+        }];
+        return newData;
+      });
+
+      // 3. Update Order Book Randomly
+      setOrderBook(prev => ({
+        bids: prev.bids.map(b => ({ ...b, amount: (parseFloat(b.amount) + (Math.random() * 2 - 1)).toFixed(3), depth: Math.random() * 100 })),
+        asks: prev.asks.map(a => ({ ...a, amount: (parseFloat(a.amount) + (Math.random() * 2 - 1)).toFixed(3), depth: Math.random() * 100 }))
+      }));
+
+      // 4. Update Sentiment
+      setSentiment(prev => {
+        const sMove = (Math.random() * 4 - 2);
+        const nextS = prev + sMove;
+        return nextS < 10 ? 10 : nextS > 90 ? 90 : nextS;
+      });
+
+      // 5. Randomly flip price change
+      setPriceChange(prev => prev + (Math.random() * 0.1 - 0.05));
+
+    }, 3000); // Update every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [mounted, currentPrice]);
 
   if (!mounted) return null;
 
+  const idrPrice = (currentPrice * 15850).toLocaleString('id-ID', { minimumFractionDigits: 2 });
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-body transition-colors duration-300">
-      {/* Header - Identical to Reference */}
+      {/* Header */}
       <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background z-50 border-b border-border/50">
         <div className="flex items-center gap-4">
           <button onClick={() => router.back()} className="p-1 hover:bg-muted rounded-full transition-colors">
@@ -145,11 +171,16 @@ export default function MarketDetailPage() {
         {/* Main Stats Section */}
         <section className="px-6 pt-6 grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <h2 className="text-4xl font-black tracking-tighter italic">{coinInfo.price}</h2>
+            <h2 className={cn(
+              "text-4xl font-black tracking-tighter italic transition-colors duration-500",
+              priceChange >= 0 ? "text-green-500" : "text-rose-500"
+            )}>
+              {currentPrice.toFixed(2)}
+            </h2>
             <div className="flex items-center gap-2">
-              <p className="text-xs font-bold text-muted-foreground">Rp{coinInfo.idr}</p>
-              <span className={cn("text-[10px] font-black", coinInfo.isUp ? "text-green-500" : "text-rose-500")}>
-                {coinInfo.change}
+              <p className="text-xs font-bold text-muted-foreground">Rp{idrPrice}</p>
+              <span className={cn("text-[10px] font-black", priceChange >= 0 ? "text-green-500" : "text-rose-500")}>
+                {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
               </span>
             </div>
             <div className="flex gap-2 pt-2">
@@ -161,19 +192,19 @@ export default function MarketDetailPage() {
           <div className="grid grid-cols-2 gap-y-2 text-[10px] font-bold text-muted-foreground text-right italic">
             <div>
               <p className="uppercase opacity-60">High 24 jam</p>
-              <p className="text-foreground">{coinInfo.high}</p>
+              <p className="text-foreground">12.45</p>
             </div>
             <div>
               <p className="uppercase opacity-60">Vol 24 jam({symbol})</p>
-              <p className="text-foreground">{coinInfo.volCoin}</p>
+              <p className="text-foreground">1.85M</p>
             </div>
             <div>
               <p className="uppercase opacity-60">Low 24 jam</p>
-              <p className="text-foreground">{coinInfo.low}</p>
+              <p className="text-foreground">11.98</p>
             </div>
             <div>
               <p className="uppercase opacity-60">Vol 24 jam(USDT)</p>
-              <p className="text-foreground">{coinInfo.volUsdt}</p>
+              <p className="text-foreground">22.6M</p>
             </div>
           </div>
         </section>
@@ -203,7 +234,7 @@ export default function MarketDetailPage() {
         {/* Chart Area */}
         <div className="h-64 w-full relative pt-4">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={mockData}>
+            <ComposedChart data={chartData}>
               <defs>
                 <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
@@ -212,13 +243,13 @@ export default function MarketDetailPage() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.3} />
               <XAxis dataKey="time" hide />
-              <YAxis domain={['dataMin - 0.1', 'dataMax + 0.1']} orientation="right" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: 'hsl(var(--muted-foreground))'}} />
+              <YAxis domain={['dataMin - 0.05', 'dataMax + 0.05']} orientation="right" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: 'hsl(var(--muted-foreground))'}} />
               <Tooltip 
                 contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
                 itemStyle={{ color: 'hsl(var(--primary))', fontWeight: 'bold' }}
               />
-              <Area type="monotone" dataKey="price" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorPrice)" strokeWidth={2} />
-              <Bar dataKey="volume" fill="hsl(var(--muted))" opacity={0.2} />
+              <Area type="monotone" dataKey="price" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorPrice)" strokeWidth={2} isAnimationActive={false} />
+              <Bar dataKey="volume" fill="hsl(var(--muted))" opacity={0.2} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -257,11 +288,11 @@ export default function MarketDetailPage() {
             {/* Sentiment Bar */}
             <div className="space-y-1">
               <div className="flex justify-between text-[9px] font-bold text-muted-foreground">
-                <span className="text-green-500">30.72%</span>
-                <span className="text-rose-500">69.28%</span>
+                <span className="text-green-500">{sentiment.toFixed(2)}%</span>
+                <span className="text-rose-500">{(100 - sentiment).toFixed(2)}%</span>
               </div>
               <div className="h-1.5 w-full rounded-full flex overflow-hidden bg-muted/30">
-                <div className="bg-green-500/80 h-full" style={{ width: '30.72%' }} />
+                <div className="bg-green-500/80 h-full transition-all duration-1000" style={{ width: `${sentiment}%` }} />
                 <div className="bg-rose-500/80 h-full flex-1" />
               </div>
             </div>
@@ -282,9 +313,9 @@ export default function MarketDetailPage() {
             <div className="grid grid-cols-2 gap-0">
               {/* LEFT: Bids (Green) */}
               <div className="space-y-0.5 pr-2">
-                {orderBookData.bids.map((bid, i) => (
+                {orderBook.bids.map((bid, i) => (
                   <div key={i} className="flex justify-between items-center relative h-5 px-1 group cursor-default">
-                    <div className="absolute right-0 top-0 bottom-0 bg-green-500/10 transition-all group-hover:bg-green-500/20" style={{ width: `${bid.depth}%` }} />
+                    <div className="absolute right-0 top-0 bottom-0 bg-green-500/10 transition-all duration-1000 group-hover:bg-green-500/20" style={{ width: `${bid.depth}%` }} />
                     <span className="text-[10px] font-bold text-foreground relative z-10">{bid.amount}</span>
                     <span className="text-[10px] font-black text-green-500 relative z-10">{bid.price}</span>
                   </div>
@@ -293,9 +324,9 @@ export default function MarketDetailPage() {
 
               {/* RIGHT: Asks (Red) */}
               <div className="space-y-0.5 pl-2 border-l border-border/20">
-                {orderBookData.asks.map((ask, i) => (
+                {orderBook.asks.map((ask, i) => (
                   <div key={i} className="flex justify-between items-center relative h-5 px-1 group cursor-default">
-                    <div className="absolute left-0 top-0 bottom-0 bg-rose-500/10 transition-all group-hover:bg-rose-500/20" style={{ width: `${ask.depth}%` }} />
+                    <div className="absolute left-0 top-0 bottom-0 bg-rose-500/10 transition-all duration-1000 group-hover:bg-rose-500/20" style={{ width: `${ask.depth}%` }} />
                     <span className="text-[10px] font-black text-rose-500 relative z-10">{ask.price}</span>
                     <span className="text-[10px] font-bold text-foreground relative z-10">{ask.amount}</span>
                   </div>
@@ -316,7 +347,7 @@ export default function MarketDetailPage() {
             <div>1 Tahun</div>
           </div>
           <div className="grid grid-cols-6 gap-2 text-[10px] font-black italic text-center">
-            <div className={cn(coinInfo.isUp ? "text-green-500" : "text-rose-500")}>{coinInfo.change}</div>
+            <div className={cn(priceChange >= 0 ? "text-green-500" : "text-rose-500")}>{priceChange.toFixed(2)}%</div>
             <div className="text-rose-500">-4.50%</div>
             <div className="text-rose-500">-2.24%</div>
             <div className="text-rose-500">-27.24%</div>
