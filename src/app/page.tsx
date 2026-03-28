@@ -323,13 +323,13 @@ function DashboardContent() {
           </div>
 
           <div className="flex items-center gap-3 flex-1 justify-end overflow-hidden">
-            <Headset className="w-5 h-5 text-foreground cursor-pointer shrink-0" />
+            <Headset className="w-5 h-5 text-foreground cursor-pointer shrink-0" onClick={() => toast({ title: "Hubungi Bantuan", description: "Layanan asisten AliBank akan segera tersedia." })} />
             {activeTab === 'bursa' ? (
               <div className="cursor-pointer shrink-0" onClick={() => router.push('/topup')}>
                 <HandCoinIcon className="w-6 h-6 text-foreground" />
               </div>
             ) : (
-              <Scan className="w-5 h-5 text-foreground cursor-pointer shrink-0" />
+              <Scan className="w-5 h-5 text-foreground cursor-pointer shrink-0" onClick={() => toast({ title: "Scanner Aktif", description: "Gunakan untuk memindai alamat dompet AliBank." })} />
             )}
           </div>
         </div>
@@ -337,7 +337,7 @@ function DashboardContent() {
         <div className="relative mb-2">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
-            placeholder={activeTab === 'bursa' ? "ZEC pencarian terpopuler" : "Pencarian Teratas: 扭羊歌"}
+            placeholder={activeTab === 'bursa' ? "ALX pencarian terpopuler" : "Pencarian Teratas: 扭羊歌"}
             className="h-10 pl-11 pr-4 bg-muted border-none rounded-md text-xs font-medium placeholder:text-muted-foreground shadow-sm"
           />
         </div>
@@ -390,7 +390,7 @@ function DashboardContent() {
               <Carousel setApi={setBannerApi} className="w-full">
                 <CarouselContent>
                   <CarouselItem>
-                    <div className="bg-card rounded-2xl p-5 border border-border flex items-center justify-between shadow-sm relative cursor-pointer h-[100px]">
+                    <div className="bg-card rounded-2xl p-5 border border-border flex items-center justify-between shadow-sm relative cursor-pointer h-[100px]" onClick={() => router.push('/profile')}>
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center border border-border shrink-0">
                           <Trophy className="w-6 h-6 text-primary" />
@@ -404,7 +404,7 @@ function DashboardContent() {
                     </div>
                   </CarouselItem>
                   <CarouselItem>
-                    <div className="bg-card rounded-2xl p-5 border border-border flex items-center justify-between shadow-sm relative cursor-pointer h-[100px]">
+                    <div className="bg-card rounded-2xl p-5 border border-border flex items-center justify-between shadow-sm relative cursor-pointer h-[100px]" onClick={() => router.push('/deposits')}>
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
                           <Zap className="w-6 h-6 text-primary" />
@@ -428,41 +428,41 @@ function DashboardContent() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/crypto/convert')}>
+              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer group active:scale-[0.98] transition-transform" onClick={() => router.push('/crypto/convert')}>
                 <div className="flex justify-between items-center">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <LogoIcon className="text-primary p-1 w-6 h-6" />
                   </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:translate-x-1 transition-transform" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-foreground leading-tight">Aset ALX</h4>
-                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-tight">Kedaulatan Digital</p>
+                  <h4 className="text-sm font-black text-foreground leading-tight italic">Aset ALX</h4>
+                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-tight italic">Kedaulatan Digital</p>
                 </div>
               </div>
 
-              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/p2p/order-history')}>
+              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer group active:scale-[0.98] transition-transform" onClick={() => router.push('/p2p/order-history')}>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-black text-foreground">Order P2P</span>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+                  <span className="text-sm font-black text-foreground italic">Order P2P</span>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:translate-x-1 transition-transform" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-muted-foreground mb-4">Beli/Jual Kripto dengan IDR</p>
+                  <p className="text-[10px] font-bold text-muted-foreground mb-4 italic">Beli/Jual Kripto dengan IDR</p>
                   <div className="flex gap-6 mt-2">
                     <div className="flex flex-col items-center gap-1">
                       <Users className="w-5 h-5 text-foreground" />
-                      <span className="text-[9px] font-bold">P2P</span>
+                      <span className="text-[9px] font-bold italic">P2P</span>
                     </div>
                     <div className="flex flex-col items-center gap-1">
                       <Search className="w-5 h-5 text-foreground" />
-                      <span className="text-[9px] font-bold text-center leading-tight">Temukan<br/>Penawaran</span>
+                      <span className="text-[9px] font-bold text-center leading-tight italic">Temukan<br/>Penawaran</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* SWIFT CAROUSEL - SETOR & TARIK */}
-              <div className="h-40 relative">
+              <div className="h-40 relative group active:scale-[0.98] transition-transform">
                 <Carousel setApi={setSwiftApi} className="w-full h-full">
                   <CarouselContent>
                     <CarouselItem>
@@ -472,11 +472,11 @@ function DashboardContent() {
                             <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center font-black text-[10px] text-primary-foreground">$</div>
                             <span className="text-xs font-bold text-foreground">USD</span>
                           </div>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+                          <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:translate-x-1 transition-transform" />
                         </div>
                         <div>
                           <Badge className="bg-blue-500/10 text-blue-500 text-[8px] font-black h-4 px-1.5 mb-2 border-none uppercase">Setor</Badge>
-                          <h4 className="text-sm font-black text-foreground leading-tight">Transfer Bank (SWIFT)</h4>
+                          <h4 className="text-sm font-black text-foreground leading-tight italic">Transfer Bank (SWIFT)</h4>
                         </div>
                       </div>
                     </CarouselItem>
@@ -487,11 +487,11 @@ function DashboardContent() {
                             <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center font-black text-[10px] text-primary-foreground">$</div>
                             <span className="text-xs font-bold text-foreground">USD</span>
                           </div>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+                          <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:translate-x-1 transition-transform" />
                         </div>
                         <div>
                           <Badge className="bg-rose-500/10 text-rose-500 text-[8px] font-black h-4 px-1.5 mb-2 border-none uppercase">Tarik</Badge>
-                          <h4 className="text-sm font-black text-foreground leading-tight">Transfer Bank (SWIFT)</h4>
+                          <h4 className="text-sm font-black text-foreground leading-tight italic">Transfer Bank (SWIFT)</h4>
                         </div>
                       </div>
                     </CarouselItem>
@@ -505,16 +505,16 @@ function DashboardContent() {
                 </div>
               </div>
 
-              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/crypto/cash-delivery')}>
+              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer group active:scale-[0.98] transition-transform" onClick={() => router.push('/crypto/cash-delivery')}>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-black text-foreground">Kirim Tunai</span>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+                  <span className="text-sm font-black text-foreground italic">Kirim Tunai</span>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:translate-x-1 transition-transform" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-muted-foreground mt-2 leading-tight">Kirim Kripto dan Terima Fiat</p>
+                  <p className="text-[11px] font-bold text-muted-foreground mt-2 leading-tight italic">Kirim Kripto dan Terima Fiat</p>
                   <div className="mt-4">
-                    <p className="text-8px] font-bold text-muted-foreground uppercase">Kurs Ref.</p>
-                    <p className="text-xs font-black text-foreground">Rp17,052</p>
+                    <p className="text-[8px] font-bold text-muted-foreground uppercase italic">Kurs Ref.</p>
+                    <p className="text-xs font-black text-foreground italic">Rp17,052</p>
                   </div>
                 </div>
               </div>
@@ -593,22 +593,22 @@ function DashboardContent() {
 
             <div className="grid grid-cols-5 gap-4">
               {[
-                { name: "Alpha", icon: CalendarDays },
-                { name: "Sekuritas", icon: TrendingUp },
-                { name: "Earn", icon: Briefcase },
-                { name: "Referral", icon: UserPlus },
-                { name: "Lainnya", icon: Grid3X3 },
+                { name: "Alpha", icon: CalendarDays, href: "/crypto/trade/btc" },
+                { name: "Sekuritas", icon: TrendingUp, href: "/crypto" },
+                { name: "Earn", icon: Briefcase, href: "/deposits" },
+                { name: "Referral", icon: UserPlus, href: "/profile" },
+                { name: "Lainnya", icon: Grid3X3, href: "/marketplace" },
               ].map((service, idx) => (
-                <div key={idx} className="flex flex-col items-center gap-2">
-                  <div className="w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center shadow-sm active:scale-95 transition-transform">
+                <div key={idx} className="flex flex-col items-center gap-2 cursor-pointer group" onClick={() => router.push(service.href)}>
+                  <div className="w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center shadow-sm group-active:scale-95 transition-transform">
                     <service.icon className="w-6 h-6 text-foreground" />
                   </div>
-                  <span className="text-[10px] font-bold text-muted-foreground">{service.name}</span>
+                  <span className="text-[10px] font-bold text-muted-foreground italic">{service.name}</span>
                 </div>
               ))}
             </div>
 
-            <div className="bg-[#1E2329] dark:bg-card border border-white/5 rounded-2xl p-5 flex items-center justify-between shadow-xl">
+            <div className="bg-[#1E2329] dark:bg-card border border-white/5 rounded-2xl p-5 flex items-center justify-between shadow-xl cursor-pointer active:scale-[0.98] transition-transform" onClick={() => router.push('/marketplace')}>
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center p-2">
                   <LogoIcon className="text-white" />
@@ -621,14 +621,14 @@ function DashboardContent() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-muted/50 rounded-2xl p-5 border border-border flex flex-col justify-between h-36">
+              <div className="bg-muted/50 rounded-2xl p-5 border border-border flex flex-col justify-between h-36 cursor-pointer hover:bg-muted/80 transition-colors" onClick={() => router.push('/marketplace')}>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-black text-muted-foreground uppercase tracking-tight">Meme Rush</span>
+                  <span className="text-xs font-black text-muted-foreground uppercase tracking-tight italic">Meme Rush</span>
                   <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
                 </div>
                 <div>
                   <p className="text-xl font-black text-foreground italic tracking-tighter leading-none">2,53K</p>
-                  <p className="text-[9px] font-bold text-muted-foreground mt-1 uppercase">token baru dalam 1 jam</p>
+                  <p className="text-[9px] font-bold text-muted-foreground mt-1 uppercase italic">token baru dalam 1 jam</p>
                 </div>
                 <div className="flex gap-1 mt-2">
                   <div className="w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center text-[6px] text-white font-bold">B</div>
@@ -637,9 +637,9 @@ function DashboardContent() {
                 </div>
               </div>
 
-              <div className="bg-muted/50 rounded-2xl p-5 border border-border flex flex-col justify-between h-36">
+              <div className="bg-muted/50 rounded-2xl p-5 border border-border flex flex-col justify-between h-36 cursor-pointer hover:bg-muted/80 transition-colors" onClick={() => router.push('/deposits')}>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-black text-muted-foreground uppercase tracking-tight">Earn</span>
+                  <span className="text-xs font-black text-muted-foreground uppercase tracking-tight italic">Earn</span>
                   <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
                 </div>
                 <div>
@@ -648,7 +648,7 @@ function DashboardContent() {
                     <div className="w-4 h-4 rounded-full bg-slate-200 border border-border flex items-center justify-center overflow-hidden">
                       <LogoIcon className="text-black p-0.5" />
                     </div>
-                    <span className="text-[10px] font-black text-foreground">WETH</span>
+                    <span className="text-[10px] font-black text-foreground italic">WETH</span>
                   </div>
                 </div>
                 <div className="h-6 w-full mt-2">
@@ -665,7 +665,7 @@ function DashboardContent() {
                   <button
                     key={tab}
                     className={cn(
-                      "text-sm font-black transition-all shrink-0 uppercase tracking-tight",
+                      "text-sm font-black transition-all shrink-0 uppercase tracking-tight italic",
                       tab === "Pencarian Populer" ? "text-foreground text-base underline decoration-primary decoration-2 underline-offset-8" : "text-muted-foreground"
                     )}
                   >
@@ -676,16 +676,16 @@ function DashboardContent() {
 
               <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
                 {["Semua", "BSC", "Solana", "Ethereum"].map((net) => (
-                  <button key={net} className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors shrink-0">{net}</button>
+                  <button key={net} className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors shrink-0 italic">{net}</button>
                 ))}
-                <div className="flex items-center gap-1 text-xs font-bold text-muted-foreground ml-auto shrink-0">
+                <div className="flex items-center gap-1 text-xs font-bold text-muted-foreground ml-auto shrink-0 cursor-pointer">
                   1j <ChevronDown className="w-3 h-3" />
                 </div>
               </div>
 
               <div className="space-y-6">
                 {popularSearches.map((asset, i) => (
-                  <div key={i} className="flex items-center justify-between group cursor-pointer active:opacity-70 transition-opacity">
+                  <div key={i} className="flex items-center justify-between group cursor-pointer active:opacity-70 transition-opacity" onClick={() => router.push('/crypto')}>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center p-1 relative">
                         <Image src={`https://picsum.photos/seed/${asset.symbol}/40/40`} alt="p" width={40} height={40} className="rounded-full object-cover" />
@@ -698,7 +698,7 @@ function DashboardContent() {
                           <span className="text-sm font-black text-foreground italic uppercase tracking-tighter">{asset.name}</span>
                           <div className="w-4 h-4 bg-green-500/10 text-green-500 rounded flex items-center justify-center text-[8px] font-black">AI</div>
                         </div>
-                        <div className="flex items-center gap-2 text-[9px] font-bold text-muted-foreground uppercase">
+                        <div className="flex items-center gap-2 text-[9px] font-bold text-muted-foreground uppercase italic">
                           <span>{asset.vol}</span>
                           <span className="opacity-30">|</span>
                           <span>{asset.cap}</span>
@@ -732,7 +732,7 @@ function DashboardContent() {
           <div className="px-6 space-y-8">
             <div className="flex items-center justify-between">
               <SheetHeader>
-                <SheetTitle className="text-xl font-black text-foreground tracking-tight">Tambah Dana</SheetTitle>
+                <SheetTitle className="text-xl font-black text-foreground tracking-tight italic uppercase">Tambah Dana</SheetTitle>
                 <SheetDescription className="sr-only">Pilih metode penambahan dana.</SheetDescription>
               </SheetHeader>
               <div 
@@ -760,7 +760,7 @@ function DashboardContent() {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-foreground italic uppercase tracking-tight leading-none">Beli dengan {selectedCurrency.code}</h3>
-                  <p className="text-xs font-bold text-muted-foreground mt-1.5 leading-tight">Manfaatkan berbagai cara pembayaran!</p>
+                  <p className="text-xs font-bold text-muted-foreground mt-1.5 leading-tight italic">Manfaatkan berbagai cara pembayaran!</p>
                 </div>
               </div>
 
@@ -773,7 +773,7 @@ function DashboardContent() {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-foreground italic uppercase tracking-tight leading-none">Penyetoran On-Chain</h3>
-                  <p className="text-xs font-bold text-muted-foreground mt-1.5 leading-tight">Setor kripto dari bursa/dompet lain ke AliBank</p>
+                  <p className="text-xs font-bold text-muted-foreground mt-1.5 leading-tight italic">Setor kripto dari bursa/dompet lain ke AliBank</p>
                 </div>
               </div>
             </div>
