@@ -56,7 +56,7 @@ export default function CashDeliveryPage() {
   const [showKeypad, setShowKeypad] = useState(false);
   const [activeInput, setActiveInput] = useState<'menerima' | 'bayar'>('menerima');
 
-  // Track if user has modified the value (for bold black color logic)
+  // Track if user has modified the value
   const [menerimaModified, setMenerimaModified] = useState(false);
   const [bayarModified, setBayarModified] = useState(false);
 
@@ -107,10 +107,8 @@ export default function CashDeliveryPage() {
     }
   };
 
-  // Button logic: enabled only if channel selected, amount > 0, and meets minimum rules
-  const isButtonEnabled = activeChannel && 
-    ((activeInput === 'menerima' && currentMenerima >= minIdr) || 
-     (activeInput === 'bayar' && currentBayar >= minUsdt));
+  // Button logic: lights up yellow as soon as minimum is reached
+  const isButtonActive = currentMenerima >= minIdr || currentBayar >= minUsdt;
 
   return (
     <div className="h-screen bg-white text-slate-900 flex flex-col font-body overflow-hidden">
@@ -285,12 +283,12 @@ export default function CashDeliveryPage() {
       <footer className="bg-white border-t border-slate-50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-50 shrink-0">
         <div className="px-6 py-4">
           <Button 
-            disabled={!isButtonEnabled}
+            disabled={!isButtonActive}
             className={cn(
               "w-full h-14 font-black italic uppercase rounded-2xl border-none shadow-none text-base tracking-widest transition-all",
-              isButtonEnabled
-                ? "bg-[#FCD535] text-slate-900 hover:bg-[#FCD535]/90 shadow-lg" 
-                : "bg-slate-100 text-slate-300 cursor-not-allowed"
+              isButtonActive
+                ? "bg-[#FCD535] text-slate-900 hover:bg-[#FCD535]/90 shadow-lg opacity-100" 
+                : "bg-slate-100 text-slate-300 cursor-not-allowed opacity-50"
             )}
           >
             Dapatkan Kuotasi
