@@ -59,21 +59,21 @@ export default function CryptoBuyPage() {
   };
 
   return (
-    <div className="h-screen bg-white text-slate-900 flex flex-col font-body overflow-hidden">
+    <div className="h-screen bg-background text-foreground flex flex-col font-body overflow-hidden transition-colors duration-300">
       {/* Header - Compact */}
-      <header className="px-4 h-12 flex items-center justify-between sticky top-0 bg-white z-50">
-        <button onClick={() => router.back()} className="p-1 hover:bg-slate-100 rounded-full transition-colors">
+      <header className="px-4 h-12 flex items-center justify-between sticky top-0 bg-background z-50">
+        <button onClick={() => router.back()} className="p-1 hover:bg-muted rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <button className="p-1 hover:bg-slate-100 rounded-full transition-colors">
-          <History className="w-5 h-5 text-slate-700" />
+        <button className="p-1 hover:bg-muted rounded-full transition-colors">
+          <History className="w-5 h-5 text-muted-foreground" />
         </button>
       </header>
 
       <main className="flex-1 px-5 pt-1 flex flex-col justify-between">
         <div className="space-y-4">
-          {/* Mode Selector - Smaller Margins */}
-          <div className="bg-slate-100/60 p-1 rounded-full flex w-fit mb-2">
+          {/* Mode Selector - Theme Aware */}
+          <div className="bg-muted/60 p-1 rounded-full flex w-fit mb-2">
             {['Beli', 'Jual', 'Convert'].map((tab) => (
               <button
                 key={tab}
@@ -86,7 +86,7 @@ export default function CryptoBuyPage() {
                 }}
                 className={cn(
                   "px-5 py-1.5 rounded-full text-[13px] font-black transition-all",
-                  activeTab === tab.toLowerCase() ? "bg-black text-white shadow-md" : "text-slate-400"
+                  activeTab === tab.toLowerCase() ? "bg-foreground text-background shadow-md" : "text-muted-foreground"
                 )}
               >
                 {tab}
@@ -94,27 +94,27 @@ export default function CryptoBuyPage() {
             ))}
           </div>
 
-          {/* Amount Input Display - Optimized Size */}
+          {/* Amount Input Display */}
           <div className="flex flex-col items-center justify-center space-y-1 mb-4">
             <div className="flex items-center gap-2">
               <span className="text-5xl font-black tracking-tight leading-none">{amount}</span>
               <div 
-                className="flex items-center gap-1 cursor-pointer bg-slate-50 px-2 py-1 rounded-lg border border-slate-100"
+                className="flex items-center gap-1 cursor-pointer bg-muted px-2 py-1 rounded-lg border border-border"
                 onClick={() => router.push('/settings/payment-currency')}
               >
                 <span className="text-sm font-black uppercase tracking-tighter">{selectedCurrency.code}</span>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
               </div>
             </div>
-            <div className="flex items-center gap-1.5 text-slate-400 font-bold">
+            <div className="flex items-center gap-1.5 text-muted-foreground font-bold">
               <ArrowUpDown className="w-3 h-3" />
               <span className="text-[11px]">0 USDT</span>
             </div>
           </div>
 
-          {/* Transaction Details List - Tighter spacing */}
+          {/* Transaction Details List */}
           <div className="space-y-3 mb-4">
-            <div className="flex items-center justify-between cursor-pointer group">
+            <div className="flex items-center justify-between cursor-pointer group p-2 hover:bg-muted rounded-2xl transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-teal-600 flex items-center justify-center p-1.5 shadow-sm">
                   <svg viewBox="0 0 24 24" fill="white" className="w-full h-full">
@@ -124,17 +124,17 @@ export default function CryptoBuyPage() {
                 <div>
                   <p className="text-xs font-black italic">Beli</p>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">USDT</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">USDT</span>
                     <span className="text-[9px] font-black text-green-500 uppercase tracking-wider">3.79% APR</span>
                   </div>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:translate-x-1 transition-transform" />
+              <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:translate-x-1 transition-transform" />
             </div>
 
-            <div className="flex items-center justify-between cursor-pointer group">
+            <div className="flex items-center justify-between cursor-pointer group p-2 hover:bg-muted rounded-2xl transition-colors">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center p-1.5 overflow-hidden shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-muted border border-border flex items-center justify-center p-1.5 overflow-hidden shadow-sm">
                   <svg viewBox="0 0 24 24" className="w-full h-full">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1 .67-2.28 1.07-3.71 1.07-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -144,32 +144,32 @@ export default function CryptoBuyPage() {
                 </div>
                 <div>
                   <p className="text-xs font-black italic">Metode pembayaran</p>
-                  <p className="text-[10px] font-bold text-slate-400">Google Pay</p>
+                  <p className="text-[10px] font-bold text-muted-foreground">Google Pay</p>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:translate-x-1 transition-transform" />
+              <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
 
-          {/* Preset Amount Buttons - Smaller height */}
+          {/* Preset Amount Buttons */}
           <div className="grid grid-cols-3 gap-2 mb-4">
-            <Button variant="outline" className="h-10 rounded-xl border-slate-100 font-bold text-[11px] bg-white hover:bg-slate-50 shadow-none uppercase">Min</Button>
-            <Button variant="outline" className="h-10 rounded-xl border-slate-100 font-bold text-[11px] bg-white hover:bg-slate-50 shadow-none">200 {selectedCurrency.symbol.length > 2 ? "" : selectedCurrency.symbol}</Button>
-            <Button variant="outline" className="h-10 rounded-xl border-slate-100 font-bold text-[11px] bg-white hover:bg-slate-50 shadow-none uppercase">Maks</Button>
+            <Button variant="outline" className="h-10 rounded-xl border-border font-bold text-[11px] bg-card hover:bg-muted shadow-none uppercase">Min</Button>
+            <Button variant="outline" className="h-10 rounded-xl border-border font-bold text-[11px] bg-card hover:bg-muted shadow-none">200 {selectedCurrency.symbol.length > 2 ? "" : selectedCurrency.symbol}</Button>
+            <Button variant="outline" className="h-10 rounded-xl border-border font-bold text-[11px] bg-card hover:bg-muted shadow-none uppercase">Maks</Button>
           </div>
         </div>
 
-        {/* Numeric Keypad - Tighter Rows */}
+        {/* Numeric Keypad */}
         <div className="grid grid-cols-3 gap-y-2 pb-6">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-            <button key={n} onClick={() => handleKeyPress(n.toString())} className="text-2xl font-bold active:bg-slate-100 py-3 rounded-full transition-colors">{n}</button>
+            <button key={n} onClick={() => handleKeyPress(n.toString())} className="text-2xl font-bold active:bg-muted py-3 rounded-full transition-colors">{n}</button>
           ))}
-          <button onClick={handleComma} className="text-2xl font-bold active:bg-slate-100 py-3 rounded-full transition-colors">,</button>
-          <button onClick={() => handleKeyPress("0")} className="text-2xl font-bold active:bg-slate-100 py-3 rounded-full transition-colors">0</button>
-          <button onClick={handleDelete} className="flex items-center justify-center active:bg-slate-100 py-3 rounded-full transition-colors relative">
-            <Delete className="w-6 h-6 text-slate-700" />
+          <button onClick={handleComma} className="text-2xl font-bold active:bg-muted py-3 rounded-full transition-colors">,</button>
+          <button onClick={() => handleKeyPress("0")} className="text-2xl font-bold active:bg-muted py-3 rounded-full transition-colors">0</button>
+          <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-3 rounded-full transition-colors relative">
+            <Delete className="w-6 h-6 text-foreground" />
             <div className="absolute -right-1 -top-1">
-               <Sparkles className="w-4 h-4 text-blue-400 opacity-40" />
+               <Sparkles className="w-4 h-4 text-primary opacity-40" />
             </div>
           </button>
         </div>

@@ -26,9 +26,9 @@ import {
 } from "@/components/ui/carousel";
 
 const traders = [
-  { id: 1, name: "你的那双眼还能看多远", badge: "Futures", roi: "+61.1%", sub: "ROI 7H", color: "bg-slate-100" },
-  { id: 2, name: "abccan", badge: "Futures", roi: "+59.42%", sub: "ROI 7H", color: "bg-yellow-100" },
-  { id: 3, name: "MasterTrader_Alpha", badge: "Futures", roi: "+58.21%", sub: "ROI 7H", color: "bg-blue-100" },
+  { id: 1, name: "你的那双眼还能看多远", badge: "Futures", roi: "+61.1%", sub: "ROI 7H", color: "bg-muted" },
+  { id: 2, name: "abccan", badge: "Futures", roi: "+59.42%", sub: "ROI 7H", color: "bg-yellow-500/10" },
+  { id: 3, name: "MasterTrader_Alpha", badge: "Futures", roi: "+58.21%", sub: "ROI 7H", color: "bg-blue-500/10" },
 ];
 
 export default function CryptoMarketPage() {
@@ -52,24 +52,24 @@ export default function CryptoMarketPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 pb-24 flex flex-col font-body">
+    <div className="min-h-screen bg-background text-foreground pb-24 flex flex-col font-body transition-colors duration-300">
       {/* Header - Search & Menu */}
-      <header className="px-4 pt-4 pb-2 sticky top-0 bg-white z-50">
+      <header className="px-4 pt-4 pb-2 sticky top-0 bg-background/80 backdrop-blur-md z-50 border-b border-border/50">
         <div className="flex items-center gap-3 mb-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input 
               placeholder="Cari Coin/Pasangan/Derivatif"
-              className="w-full h-10 pl-10 pr-4 bg-slate-50 border-none rounded-md text-sm font-medium placeholder:text-slate-400 focus:ring-1 focus:ring-yellow-400 outline-none"
+              className="w-full h-10 pl-10 pr-4 bg-muted border-none rounded-md text-sm font-medium placeholder:text-muted-foreground focus:ring-1 focus:ring-primary outline-none"
             />
           </div>
-          <button className="p-2 hover:bg-slate-100 rounded-full">
-            <MoreHorizontal className="w-5 h-5 text-slate-700" />
+          <button className="p-2 hover:bg-muted rounded-full transition-colors">
+            <MoreHorizontal className="w-5 h-5 text-foreground" />
           </button>
         </div>
 
         {/* Secondary Tabs */}
-        <div className="flex items-center justify-between border-b border-slate-50 px-1">
+        <div className="flex items-center justify-between border-b border-border px-1">
           <div className="flex gap-6 overflow-x-auto no-scrollbar">
             {["Favorit", "Pasar", "Alpha", "Grow", "Data"].map((tab) => (
               <button
@@ -77,12 +77,12 @@ export default function CryptoMarketPage() {
                 onClick={() => setActiveTab(tab)}
                 className={cn(
                   "py-2 text-sm font-black transition-all relative shrink-0",
-                  activeTab === tab ? "text-slate-900" : "text-slate-400"
+                  activeTab === tab ? "text-foreground" : "text-muted-foreground"
                 )}
               >
                 {tab}
                 {activeTab === tab && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-yellow-400 rounded-full" />
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
                 )}
               </button>
             ))}
@@ -96,54 +96,54 @@ export default function CryptoMarketPage() {
           <Carousel setApi={setBannerApi} className="w-full">
             <CarouselContent>
               <CarouselItem>
-                <div className="bg-[#F8F9FA] rounded-2xl p-6 flex items-center justify-between min-h-[140px] relative overflow-hidden">
+                <div className="bg-muted/50 rounded-2xl p-6 flex items-center justify-between min-h-[140px] relative overflow-hidden border border-border/50">
                   <div className="space-y-3 max-w-[65%] relative z-10">
-                    <h2 className="text-sm font-black text-slate-900 leading-tight">
+                    <h2 className="text-sm font-black text-foreground leading-tight">
                       Pinjam Koin untuk Berdagang guna Mendapatkan APY Tinggi
                     </h2>
-                    <button className="text-[11px] font-black text-yellow-600 hover:underline">
+                    <button className="text-[11px] font-black text-primary hover:underline">
                       Tampilkan Selengkapnya
                     </button>
                   </div>
                   <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-slate-200/50 rounded-full blur-xl scale-125" />
-                    <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg relative z-10 border-2 border-white">
-                      <Zap className="w-6 h-6 text-white" />
+                    <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl scale-125" />
+                    <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg relative z-10 border-2 border-background">
+                      <Zap className="w-6 h-6 text-primary-foreground" />
                     </div>
-                    <div className="absolute -right-2 top-0 w-6 h-6 bg-slate-100 rounded-full border border-slate-200" />
+                    <div className="absolute -right-2 top-0 w-6 h-6 bg-muted rounded-full border border-border" />
                   </div>
                 </div>
               </CarouselItem>
               <CarouselItem>
-                <div className="bg-[#F8F9FA] rounded-2xl p-6 flex items-center justify-between min-h-[140px]">
+                <div className="bg-muted/50 rounded-2xl p-6 flex items-center justify-between min-h-[140px] border border-border/50">
                   <div className="space-y-2">
-                    <h2 className="text-sm font-black text-slate-900 leading-tight">Program Loyalitas AliBank V3</h2>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">Dapatkan Rewards Harian</p>
+                    <h2 className="text-sm font-black text-foreground leading-tight">Program Loyalitas AliBank V3</h2>
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase">Dapatkan Rewards Harian</p>
                   </div>
-                  <Sparkles className="w-12 h-12 text-yellow-400 opacity-20" />
+                  <Sparkles className="w-12 h-12 text-primary opacity-20" />
                 </div>
               </CarouselItem>
             </CarouselContent>
           </Carousel>
           <div className="flex justify-center gap-1.5 mt-4">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className={cn("h-1 rounded-full transition-all", currentBanner === i ? "w-4 bg-slate-900" : "w-1 bg-slate-200")} />
+            {[0, 1].map((i) => (
+              <div key={i} className={cn("h-1 rounded-full transition-all duration-300", currentBanner === i ? "w-4 bg-foreground" : "w-1 bg-muted")} />
             ))}
           </div>
         </div>
 
         {/* Mulai Hasilkan Sekarang Juga */}
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-black text-slate-900">Mulai Hasilkan Sekarang Juga</h3>
-            <ChevronRight className="w-4 h-4 text-slate-300" />
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-base font-black text-foreground">Mulai Hasilkan Sekarang Juga</h3>
+            <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             {/* Left Big Card */}
-            <div className="bg-[#F8F9FA] rounded-2xl p-5 border border-slate-50 flex flex-col justify-between relative overflow-hidden group active:scale-[0.98] transition-transform">
+            <div className="bg-card rounded-2xl p-5 border border-border flex flex-col justify-between relative overflow-hidden group active:scale-[0.98] transition-transform shadow-sm">
               <div className="flex justify-between items-start">
-                <span className="text-sm font-black text-slate-900 italic tracking-tight">USDC</span>
+                <span className="text-sm font-black text-foreground italic tracking-tight">USDC</span>
                 <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white p-1">
                   <LogoIcon />
                 </div>
@@ -154,28 +154,28 @@ export default function CryptoMarketPage() {
                 </svg>
               </div>
               <div>
-                <p className="text-xl font-black text-slate-900 italic tracking-tighter">5.73%</p>
-                <p className="text-[10px] font-bold text-slate-400">APR Maks.</p>
+                <p className="text-xl font-black text-foreground italic tracking-tighter">5.73%</p>
+                <p className="text-[10px] font-bold text-muted-foreground">APR Maks.</p>
               </div>
             </div>
 
             {/* Right Stacked Cards */}
             <div className="space-y-3">
-              <div className="bg-[#F8F9FA] rounded-2xl p-4 border border-slate-50 flex justify-between items-center group active:scale-[0.98] transition-transform">
+              <div className="bg-card rounded-2xl p-4 border border-border flex justify-between items-center group active:scale-[0.98] transition-transform shadow-sm">
                 <div>
-                  <span className="text-xs font-black text-slate-900 italic tracking-tight">ETH</span>
-                  <p className="text-base font-black text-slate-900 italic tracking-tighter mt-1">195.81%</p>
-                  <p className="text-[9px] font-bold text-slate-400">APR Maks.</p>
+                  <span className="text-xs font-black text-foreground italic tracking-tight">ETH</span>
+                  <p className="text-base font-black text-foreground italic tracking-tighter mt-1">195.81%</p>
+                  <p className="text-[9px] font-bold text-muted-foreground">APR Maks.</p>
                 </div>
                 <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-white p-1">
                   <LogoIcon />
                 </div>
               </div>
-              <div className="bg-[#F8F9FA] rounded-2xl p-4 border border-slate-50 flex justify-between items-center group active:scale-[0.98] transition-transform">
+              <div className="bg-card rounded-2xl p-4 border border-border flex justify-between items-center group active:scale-[0.98] transition-transform shadow-sm">
                 <div>
-                  <span className="text-xs font-black text-slate-900 italic tracking-tight">SOL</span>
-                  <p className="text-base font-black text-slate-900 italic tracking-tighter mt-1">93.7%</p>
-                  <p className="text-[9px] font-bold text-slate-400">APR Maks.</p>
+                  <span className="text-xs font-black text-foreground italic tracking-tight">SOL</span>
+                  <p className="text-base font-black text-foreground italic tracking-tighter mt-1">93.7%</p>
+                  <p className="text-[9px] font-bold text-muted-foreground">APR Maks.</p>
                 </div>
                 <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center text-white p-1.5">
                   <LogoIcon className="text-cyan-400" />
@@ -187,28 +187,28 @@ export default function CryptoMarketPage() {
 
         {/* Pedagang Teratas */}
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-black text-slate-900">Pedagang Teratas yang Dapat Disalin</h3>
-            <ChevronRight className="w-4 h-4 text-slate-300" />
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-base font-black text-foreground">Pedagang Teratas yang Dapat Disalin</h3>
+            <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
           </div>
 
           <div className="space-y-6">
             {traders.map((trader) => (
-              <div key={trader.id} className="flex items-center justify-between group cursor-pointer active:bg-slate-50 rounded-xl p-1 transition-colors">
+              <div key={trader.id} className="flex items-center justify-between group cursor-pointer active:bg-muted rounded-xl p-1 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shadow-sm", trader.color)}>
-                    <UserIcon className="w-6 h-6 text-slate-400" />
+                    <UserIcon className="w-6 h-6 text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="text-sm font-black text-slate-900 leading-tight">{trader.name}</p>
-                    <Badge variant="outline" className="bg-slate-50 text-[8px] font-black h-4 px-1.5 mt-1 border-none uppercase tracking-tighter">
+                    <p className="text-sm font-black text-foreground leading-tight">{trader.name}</p>
+                    <Badge variant="outline" className="bg-muted text-[8px] font-black h-4 px-1.5 mt-1 border-none uppercase tracking-tighter">
                       {trader.badge}
                     </Badge>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-black text-green-500 italic tracking-tighter">{trader.roi}</p>
-                  <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">{trader.sub}</p>
+                  <p className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-widest">{trader.sub}</p>
                 </div>
               </div>
             ))}
@@ -220,11 +220,11 @@ export default function CryptoMarketPage() {
       <div className="fixed bottom-24 right-6 z-40">
         <button 
           onClick={() => router.push('/crypto/convert')}
-          className="w-12 h-12 bg-white rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] flex items-center justify-center text-blue-500 border border-slate-50 active:scale-90 transition-transform"
+          className="w-12 h-12 bg-card rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] flex items-center justify-center text-primary border border-border active:scale-90 transition-transform"
         >
           <div className="relative">
             <LayoutGrid className="w-6 h-6" />
-            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-400 rounded-full border-2 border-white" />
+            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full border-2 border-background" />
           </div>
         </button>
       </div>
