@@ -49,10 +49,10 @@ export default function WalletSettingsPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-[#1E2329] text-white flex flex-col font-body selection:bg-primary/30">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-body selection:bg-primary/30">
       {/* Header */}
-      <header className="px-4 h-14 flex items-center sticky top-0 bg-[#1E2329] z-50">
-        <button onClick={() => router.back()} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+      <header className="px-4 h-14 flex items-center sticky top-0 bg-background z-50 border-b border-border/50">
+        <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </button>
         <h1 className="flex-1 text-center text-lg font-black tracking-tight mr-10">Pengaturan</h1>
@@ -61,13 +61,13 @@ export default function WalletSettingsPage() {
       <main className="flex-1 px-4 pt-2 pb-20 space-y-8 overflow-y-auto no-scrollbar">
         {/* UMUM SECTION */}
         <section className="space-y-4">
-          <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest px-1">Umum</h2>
+          <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Umum</h2>
           <div className="space-y-1">
             <div className="flex items-center justify-between py-4 px-1 group cursor-default">
               <span className="text-base font-black italic">UID</span>
               <div className="flex items-center gap-3" onClick={copyUid}>
-                <span className="text-base font-bold text-slate-400">{userData?.accountNumber || "--- --- ---"}</span>
-                <Copy className="w-4 h-4 text-slate-500 cursor-pointer active:scale-90 transition-transform" />
+                <span className="text-base font-bold text-muted-foreground">{userData?.accountNumber || "--- --- ---"}</span>
+                <Copy className="w-4 h-4 text-muted-foreground/50 cursor-pointer active:scale-90 transition-transform" />
               </div>
             </div>
 
@@ -78,22 +78,22 @@ export default function WalletSettingsPage() {
           </div>
         </section>
 
-        <div className="h-px bg-white/5 w-full" />
+        <div className="h-px bg-border w-full" />
 
         {/* PREFERENSI SECTION */}
         <section className="space-y-4">
-          <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest px-1">Preferensi</h2>
+          <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Preferensi</h2>
           <div className="space-y-1">
             <MenuItem label="Bahasa" value="Bahasa Indonesia" />
             <MenuItem label="Mata Uang" value="IDR" />
           </div>
         </section>
 
-        <div className="h-px bg-white/5 w-full" />
+        <div className="h-px bg-border w-full" />
 
         {/* KEAMANAN SECTION */}
         <section className="space-y-4 relative">
-          <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest px-1">Keamanan</h2>
+          <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Keamanan</h2>
           <div className="space-y-1">
             <MenuItem label="Cadangan Dompet Tanpa Kunci" />
             <MenuItem label="Metode Verifikasi" />
@@ -101,11 +101,11 @@ export default function WalletSettingsPage() {
             <MenuItem label="Tanda Tangan Otomatis Aman" />
           </div>
 
-          {/* Floating Robot Icon - Positioned exactly as in image */}
+          {/* Floating Robot Icon */}
           <div className="absolute right-0 -top-4">
-            <div className="w-10 h-10 bg-[#2B3139] rounded-xl shadow-2xl border border-white/5 flex items-center justify-center text-primary active:scale-90 transition-transform cursor-pointer relative">
+            <div className="w-10 h-10 bg-muted rounded-xl shadow-2xl border border-border flex items-center justify-center text-primary active:scale-90 transition-transform cursor-pointer relative">
               <Smile className="w-6 h-6" />
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border-2 border-[#1E2329] animate-pulse" />
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border-2 border-background animate-pulse" />
             </div>
           </div>
         </section>
@@ -116,11 +116,11 @@ export default function WalletSettingsPage() {
 
 function MenuItem({ label, value }: { label: string; value?: string }) {
   return (
-    <div className="flex items-center justify-between py-4 px-1 group cursor-pointer hover:bg-white/[0.02] transition-colors rounded-xl">
+    <div className="flex items-center justify-between py-4 px-1 group cursor-pointer hover:bg-muted transition-colors rounded-xl">
       <span className="text-base font-black italic">{label}</span>
       <div className="flex items-center gap-2">
-        {value && <span className="text-sm font-bold text-slate-500">{value}</span>}
-        <ChevronRight className="w-5 h-5 text-slate-600 group-hover:translate-x-1 transition-transform" />
+        {value && <span className="text-sm font-bold text-muted-foreground">{value}</span>}
+        <ChevronRight className="w-5 h-5 text-muted-foreground/30 group-hover:translate-x-1 transition-transform" />
       </div>
     </div>
   );

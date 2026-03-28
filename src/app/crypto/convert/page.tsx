@@ -145,29 +145,29 @@ export default function ConvertPage() {
 
   if (step === 'success') {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-500 overflow-hidden">
-        <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mb-4">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-500 overflow-hidden">
+        <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-4">
           <CheckCircle2 className="w-10 h-10 text-green-600" />
         </div>
-        <h2 className="text-xl font-black italic uppercase tracking-tight text-slate-900 mb-1">Konversi Berhasil</h2>
-        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-6 italic">Tervalidasi oleh AliBank V3 Mainnet Protocol</p>
+        <h2 className="text-xl font-black italic uppercase tracking-tight text-foreground mb-1">Konversi Berhasil</h2>
+        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-6 italic">Tervalidasi oleh AliBank V3 Mainnet Protocol</p>
         
-        <div className="w-full bg-slate-50 rounded-[2rem] p-6 mb-8 space-y-4 shadow-inner">
+        <div className="w-full bg-muted/50 rounded-[2rem] p-6 mb-8 space-y-4 shadow-inner">
           <div>
-            <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Total Diterima</p>
-            <p className="text-3xl font-black italic text-slate-900">
+            <p className="text-[9px] font-black uppercase text-muted-foreground mb-1">Total Diterima</p>
+            <p className="text-3xl font-black italic text-foreground">
               {convertedValue} {direction === 'ALX_TO_USDT' ? 'USDT' : 'ALX'}
             </p>
           </div>
-          <div className="h-px bg-slate-200" />
+          <div className="h-px bg-border" />
           <div className="flex justify-between items-center text-[9px] font-bold uppercase">
-            <span className="text-slate-400">Nilai Tukar</span>
-            <span className="text-slate-900">1 ALX = {ALX_PRICE_USDT} USDT</span>
+            <span className="text-muted-foreground">Nilai Tukar</span>
+            <span className="text-foreground">1 ALX = {ALX_PRICE_USDT} USDT</span>
           </div>
         </div>
 
         <Button 
-          className="w-full h-14 bg-[#FCD535] text-slate-900 font-black italic uppercase rounded-2xl shadow-xl hover:scale-[1.02] transition-all"
+          className="w-full h-14 bg-primary text-primary-foreground font-black italic uppercase rounded-2xl shadow-xl hover:scale-[1.02] transition-all"
           onClick={() => router.push('/')}
         >
           Kembali ke Beranda
@@ -177,10 +177,10 @@ export default function ConvertPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 flex flex-col font-body overflow-hidden">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
       {/* Header - Compact */}
-      <header className="px-4 h-12 flex items-center justify-between sticky top-0 bg-white z-50">
-        <button onClick={() => router.back()} className="p-1 hover:bg-slate-100 rounded-full transition-colors">
+      <header className="px-4 h-12 flex items-center justify-between sticky top-0 bg-background z-50">
+        <button onClick={() => router.back()} className="p-1 hover:bg-muted rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="text-base font-black tracking-tight italic uppercase">Convert</h1>
@@ -189,43 +189,43 @@ export default function ConvertPage() {
 
       <main className="flex-1 px-4 pt-1 space-y-3 overflow-hidden">
         {/* Banner Promo - Compact */}
-        <div className="bg-[#FFFBEB] border border-yellow-100 rounded-xl p-3 flex items-center gap-3">
-          <Gift className="w-4 h-4 text-yellow-600 shrink-0" />
-          <p className="text-[10px] font-bold text-slate-700 leading-tight">
+        <div className="bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-center gap-3">
+          <Gift className="w-4 h-4 text-primary shrink-0" />
+          <p className="text-[10px] font-bold text-foreground leading-tight">
             Dapatkan Rabat dengan Konversi Berulang
           </p>
         </div>
 
         {/* Instan Dropdown & Icons - Compact */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 text-xs font-black text-slate-500 bg-slate-50 px-2.5 py-1 rounded-lg cursor-pointer hover:bg-slate-100">
+          <div className="flex items-center gap-1 text-xs font-black text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-lg cursor-pointer hover:bg-muted">
             Instan <ChevronDown className="w-3 h-3" />
           </div>
-          <div className="flex items-center gap-3 text-slate-700">
-            <Settings2 className="w-4 h-4 cursor-pointer hover:text-slate-900" />
-            <History onClick={() => router.push('/transactions')} className="w-4 h-4 cursor-pointer hover:text-slate-900" />
+          <div className="flex items-center gap-3 text-muted-foreground">
+            <Settings2 className="w-4 h-4 cursor-pointer hover:text-foreground" />
+            <History onClick={() => router.push('/transactions')} className="w-4 h-4 cursor-pointer hover:text-foreground" />
           </div>
         </div>
 
         {/* Harga Info - Compact */}
         <div className="flex items-center gap-2 px-1">
-          <p className="text-xs font-black text-slate-900 italic">
+          <p className="text-xs font-black text-foreground italic">
             1 ALX = {ALX_PRICE_USDT} USDT <span className="text-rose-500">-1.14%</span>
           </p>
-          <RefreshCw className="w-3 h-3 text-slate-400 animate-spin-slow" />
+          <RefreshCw className="w-3 h-3 text-muted-foreground animate-spin-slow" />
         </div>
 
         {/* Chart Area - Slimmer */}
         <div className="h-32 w-full relative">
-          <div className="absolute top-0 left-0 text-[8px] font-black text-slate-300">619,61</div>
-          <div className="absolute bottom-2 left-0 text-[8px] font-black text-slate-300">606,02</div>
+          <div className="absolute top-0 left-0 text-[8px] font-black text-muted-foreground opacity-40">619,61</div>
+          <div className="absolute bottom-2 left-0 text-[8px] font-black text-muted-foreground opacity-40">606,02</div>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={mockChartData}>
               <YAxis domain={[600, 625]} hide />
               <Line 
                 type="monotone" 
                 dataKey="price" 
-                stroke="#FCD535" 
+                stroke="hsl(var(--primary))" 
                 strokeWidth={2.5} 
                 dot={false} 
                 animationDuration={1500}
@@ -239,10 +239,10 @@ export default function ConvertPage() {
           {['1H', '1M', '1B'].map(t => (
             <button key={t} className={cn(
               "text-[10px] font-black px-3 py-1 rounded-md transition-all",
-              t === '1H' ? "bg-slate-100 text-slate-900" : "text-slate-400 hover:text-slate-600"
+              t === '1H' ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
             )}>{t}</button>
           ))}
-          <Info className="w-3.5 h-3.5 text-slate-400 cursor-pointer" />
+          <Info className="w-3.5 h-3.5 text-muted-foreground cursor-pointer" />
         </div>
 
         {/* Conversion Form - Compact Spacing */}
@@ -250,22 +250,22 @@ export default function ConvertPage() {
           {/* Dari Section */}
           <div className="space-y-1">
             <div className="flex justify-between items-center px-1">
-              <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Dari</label>
+              <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Dari</label>
               <div className="flex items-center gap-1">
-                <span className="text-[9px] font-black text-slate-400 italic uppercase">
+                <span className="text-[9px] font-black text-muted-foreground italic uppercase">
                   Dompet {direction === 'ALX_TO_USDT' ? (userData?.cryptoBalances?.ALX ?? 0).toLocaleString() : (userData?.cryptoBalances?.USDT ?? 0).toLocaleString()} {direction === 'ALX_TO_USDT' ? 'ALX' : 'USDT'}
                 </span>
-                <PlusCircle className="w-2.5 h-2.5 text-[#FCD535] cursor-pointer" />
+                <PlusCircle className="w-2.5 h-2.5 text-primary cursor-pointer" />
               </div>
             </div>
-            <div className="bg-[#F8FAFC] rounded-xl p-3 flex items-center justify-between border-2 border-transparent focus-within:border-[#FCD535] transition-all shadow-sm">
+            <div className="bg-muted/30 rounded-xl p-3 flex items-center justify-between border-2 border-transparent focus-within:border-primary transition-all shadow-sm">
               <div className="flex items-center gap-2">
                 <div className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center p-2 shadow-sm",
-                  direction === 'ALX_TO_USDT' ? "bg-slate-900" : "bg-[#0D9488]"
+                  direction === 'ALX_TO_USDT' ? "bg-foreground" : "bg-[#0D9488]"
                 )}>
                   {direction === 'ALX_TO_USDT' ? (
-                    <LogoIcon className="text-[#FCD535]" />
+                    <LogoIcon className="text-background" />
                   ) : (
                     <svg viewBox="0 0 24 24" fill="white" className="w-full h-full">
                       <path d="M12 2L2 12l10 10 10-10L12 2zm0 16.5L5.5 12 12 5.5 18.5 12 12 18.5z"/>
@@ -274,7 +274,7 @@ export default function ConvertPage() {
                 </div>
                 <div className="flex items-center gap-0.5 cursor-pointer">
                   <span className="text-base font-black italic tracking-tight uppercase">{direction === 'ALX_TO_USDT' ? 'ALX' : 'USDT'}</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
                 </div>
               </div>
               <div className="text-right flex-1">
@@ -283,7 +283,7 @@ export default function ConvertPage() {
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full bg-transparent text-right text-xl font-black italic text-slate-900 outline-none placeholder:text-slate-200 tracking-tighter"
+                  className="w-full bg-transparent text-right text-xl font-black italic text-foreground outline-none placeholder:text-muted-foreground/20 tracking-tighter"
                 />
               </div>
             </div>
@@ -293,7 +293,7 @@ export default function ConvertPage() {
           <div className="flex justify-center -my-3.5 relative z-20">
             <button 
               onClick={toggleDirection}
-              className="w-8 h-8 bg-white border border-slate-100 rounded-full shadow-md flex items-center justify-center text-slate-900 active:scale-90 transition-transform hover:bg-slate-50"
+              className="w-8 h-8 bg-background border border-border rounded-full shadow-md flex items-center justify-center text-foreground active:scale-90 transition-transform hover:bg-muted"
             >
               <ArrowUpDown className="w-4 h-4" />
             </button>
@@ -301,28 +301,28 @@ export default function ConvertPage() {
 
           {/* Ke Section */}
           <div className="space-y-1">
-            <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest px-1">Ke</label>
-            <div className="bg-[#F8FAFC] rounded-xl p-3 flex items-center justify-between border-2 border-transparent shadow-sm">
+            <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Ke</label>
+            <div className="bg-muted/30 rounded-xl p-3 flex items-center justify-between border-2 border-transparent shadow-sm">
               <div className="flex items-center gap-2">
                 <div className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center p-2 shadow-sm",
-                  direction === 'ALX_TO_USDT' ? "bg-[#0D9488]" : "bg-slate-900"
+                  direction === 'ALX_TO_USDT' ? "bg-[#0D9488]" : "bg-foreground"
                 )}>
                   {direction === 'ALX_TO_USDT' ? (
                     <svg viewBox="0 0 24 24" fill="white" className="w-full h-full">
                       <path d="M12 2L2 12l10 10 10-10L12 2zm0 16.5L5.5 12 12 5.5 18.5 12 12 18.5z"/>
                     </svg>
                   ) : (
-                    <LogoIcon className="text-[#FCD535]" />
+                    <LogoIcon className="text-background" />
                   )}
                 </div>
                 <div className="flex items-center gap-0.5 cursor-pointer">
                   <span className="text-base font-black italic tracking-tight uppercase">{direction === 'ALX_TO_USDT' ? 'USDT' : 'ALX'}</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-xl font-black text-slate-200 italic tracking-tighter">
+                <p className="text-xl font-black text-muted-foreground/30 italic tracking-tighter">
                   {convertedValue}
                 </p>
               </div>
@@ -332,11 +332,11 @@ export default function ConvertPage() {
       </main>
 
       {/* Footer Action - Fixed at Bottom */}
-      <div className="p-4 bg-white border-t border-slate-50 mt-auto">
+      <div className="p-4 bg-background border-t border-border mt-auto">
         <Button 
           disabled={!amount || isProcessing}
           onClick={handleConvert}
-          className="w-full h-14 bg-[#FFFBEB] hover:bg-[#FEF3C7] text-[#D97706] font-black italic uppercase rounded-2xl border-none shadow-none text-sm tracking-[0.1em] transition-all"
+          className="w-full h-14 bg-primary/10 hover:bg-primary/20 text-primary font-black italic uppercase rounded-2xl border-none shadow-none text-sm tracking-[0.1em] transition-all"
         >
           {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : "PRATINJAU"}
         </Button>

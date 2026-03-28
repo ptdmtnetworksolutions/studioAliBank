@@ -72,15 +72,15 @@ export default function AliBankPayPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#1E2329] text-white flex flex-col font-body selection:bg-primary/30">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-body selection:bg-primary/30">
       {/* Header */}
-      <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-[#1E2329] z-50">
-        <button onClick={() => router.back()} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+      <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background z-50">
+        <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div className="flex items-center gap-4">
-          <Maximize className="w-5 h-5 text-slate-400 cursor-pointer" />
-          <Hexagon className="w-5 h-5 text-slate-400 cursor-pointer" />
+          <Maximize className="w-5 h-5 text-muted-foreground cursor-pointer hover:text-foreground" />
+          <Hexagon className="w-5 h-5 text-muted-foreground cursor-pointer hover:text-foreground" />
         </div>
       </header>
 
@@ -88,7 +88,7 @@ export default function AliBankPayPage() {
         {/* Title & ID */}
         <section className="space-y-1">
           <h1 className="text-3xl font-black tracking-tight">Pay</h1>
-          <div className="flex items-center gap-2 text-slate-500" onClick={copyId}>
+          <div className="flex items-center gap-2 text-muted-foreground" onClick={copyId}>
             <span className="text-xs font-bold uppercase tracking-widest">ID AliBank: {userData?.accountNumber || "--- --- ---"}</span>
             <Copy className="w-3.5 h-3.5 cursor-pointer active:scale-90 transition-transform" />
           </div>
@@ -96,18 +96,18 @@ export default function AliBankPayPage() {
 
         {/* Top Action Cards */}
         <section className="grid grid-cols-2 gap-4">
-          <Card className="bg-[#2B3139] border-none p-5 rounded-2xl flex flex-col justify-between h-36 relative overflow-hidden group cursor-pointer hover:bg-[#363D47] transition-colors">
-            <Badge className="absolute top-3 right-3 bg-transparent text-yellow-500 font-black text-[8px] uppercase p-0">Bonus</Badge>
+          <Card className="bg-muted border-none p-5 rounded-2xl flex flex-col justify-between h-36 relative overflow-hidden group cursor-pointer hover:bg-muted/80 transition-colors shadow-sm">
+            <Badge className="absolute top-3 right-3 bg-transparent text-primary font-black text-[8px] uppercase p-0">Bonus</Badge>
             <p className="text-sm font-black leading-tight italic max-w-[80%]">Kirim kepada pengguna AliBank</p>
             <div className="self-end">
-              <ArrowUpFromLine className="w-6 h-6 text-slate-300" />
+              <ArrowUpFromLine className="w-6 h-6 text-foreground" />
             </div>
           </Card>
 
-          <Card className="bg-[#2B3139] border-none p-5 rounded-2xl flex items-center justify-between h-36 cursor-pointer hover:bg-[#363D47] transition-colors">
+          <Card className="bg-muted border-none p-5 rounded-2xl flex items-center justify-between h-36 cursor-pointer hover:bg-muted/80 transition-colors shadow-sm">
             <p className="text-sm font-black leading-tight italic">Kirim On-Chain</p>
-            <div className="w-8 h-8 rounded-full border border-slate-500 flex items-center justify-center">
-              <ArrowUpRight className="w-4 h-4 text-slate-300" />
+            <div className="w-8 h-8 rounded-full border border-border flex items-center justify-center">
+              <ArrowUpRight className="w-4 h-4 text-foreground" />
             </div>
           </Card>
         </section>
@@ -120,41 +120,41 @@ export default function AliBankPayPage() {
               onClick={() => action.href !== "#" && router.push(action.href)}
               className="flex flex-col items-center gap-3 cursor-pointer group active:scale-95 transition-transform"
             >
-              <div className="relative w-12 h-12 rounded-xl bg-[#2B3139] flex items-center justify-center border border-white/5 shadow-sm group-hover:bg-[#363D47]">
-                <action.icon className="w-5 h-5 text-slate-300" />
+              <div className="relative w-12 h-12 rounded-xl bg-muted flex items-center justify-center border border-border shadow-sm group-hover:bg-muted/80">
+                <action.icon className="w-5 h-5 text-foreground" />
                 {action.badge && (
-                  <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-[#1E2329]" />
+                  <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-background" />
                 )}
               </div>
-              <span className="text-[10px] font-bold text-slate-400 text-center leading-tight">{action.name}</span>
+              <span className="text-[10px] font-bold text-muted-foreground text-center leading-tight">{action.name}</span>
             </div>
           ))}
         </section>
 
         {/* Collapsible Arrow */}
         <div className="flex justify-center pt-2">
-          <ChevronRight className="w-5 h-5 text-slate-700 rotate-90" />
+          <ChevronRight className="w-5 h-5 text-muted-foreground/30 rotate-90" />
         </div>
 
-        <div className="h-px bg-white/5 w-full" />
+        <div className="h-px bg-border w-full" />
 
         {/* Rewards Section */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-black tracking-tight italic">Dapatkan Reward!</h2>
-            <div className="w-8 h-8 rounded-full bg-[#2B3139] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
               <span className="text-lg">🤖</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <Card className="bg-[#2B3139] border-none p-5 rounded-2xl flex items-center justify-between h-24 cursor-pointer group hover:bg-[#363D47] transition-colors">
+            <Card className="bg-muted border-none p-5 rounded-2xl flex items-center justify-between h-24 cursor-pointer group hover:bg-muted/80 transition-colors shadow-sm">
               <span className="text-xs font-black italic">Kampanye Pay</span>
               <div className="w-10 h-10 bg-rose-500 rounded-lg flex items-center justify-center shadow-lg transform group-hover:rotate-12 transition-transform">
                 <Mail className="w-5 h-5 text-white" />
               </div>
             </Card>
-            <Card className="bg-[#2B3139] border-none p-5 rounded-2xl flex items-center justify-between h-24 cursor-pointer group hover:bg-[#363D47] transition-colors">
+            <Card className="bg-muted border-none p-5 rounded-2xl flex items-center justify-between h-24 cursor-pointer group hover:bg-muted/80 transition-colors shadow-sm">
               <span className="text-xs font-black italic">Hot Deals</span>
               <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Flame className="w-6 h-6 text-orange-500" />
@@ -167,7 +167,7 @@ export default function AliBankPayPage() {
         <section className="space-y-6">
           <div className="flex items-center justify-between cursor-pointer" onClick={() => router.push('/transactions')}>
             <h2 className="text-lg font-black tracking-tight italic">Transaksi</h2>
-            <ChevronRight className="w-5 h-5 text-slate-600" />
+            <ChevronRight className="w-5 h-5 text-muted-foreground/30" />
           </div>
 
           <div className="space-y-6">
@@ -179,15 +179,15 @@ export default function AliBankPayPage() {
               transactions.map((tx: any) => (
                 <div key={tx.id} className="flex justify-between items-center group">
                   <div className="space-y-1">
-                    <p className="text-sm font-black italic text-slate-100 uppercase tracking-tight">{tx.description}</p>
-                    <p className="text-[10px] font-bold text-slate-500">
+                    <p className="text-sm font-black italic text-foreground uppercase tracking-tight">{tx.description}</p>
+                    <p className="text-[10px] font-bold text-muted-foreground">
                       {tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleString('id-ID') : tx.date}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className={cn(
                       "text-sm font-black italic tracking-tighter",
-                      tx.type === 'income' ? "text-green-500" : "text-slate-100"
+                      tx.type === 'income' ? "text-green-500" : "text-foreground"
                     )}>
                       {tx.type === 'income' ? '+' : '-'}{tx.amount ? `Rp${tx.amount.toLocaleString()}` : `${tx.cryptoAmount} ${tx.cryptoCurrency}`}
                     </p>
@@ -196,7 +196,7 @@ export default function AliBankPayPage() {
               ))
             ) : (
               <div className="text-center py-10">
-                <p className="text-xs font-bold text-slate-600 uppercase tracking-widest">Belum ada aktivitas pembayaran</p>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Belum ada aktivitas pembayaran</p>
               </div>
             )}
           </div>
