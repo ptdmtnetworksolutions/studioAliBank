@@ -91,6 +91,11 @@ function DashboardContent() {
   const [mounted, setMounted] = useState(false);
   const [bannerApi, setBannerApi] = useState<CarouselApi>();
   const [currentBanner, setCurrentBanner] = useState(0);
+
+  // SWIFT Carousel State
+  const [swiftApi, setSwiftApi] = useState<CarouselApi>();
+  const [currentSwiftBanner, setCurrentSwiftBanner] = useState(0);
+  
   const [isTambahDanaOpen, setIsTambahDanaOpen] = useState(false);
   
   const [activeTab, setActiveTab] = useState<'bursa' | 'dompet'>('bursa');
@@ -146,6 +151,13 @@ function DashboardContent() {
       setCurrentBanner(bannerApi.selectedScrollSnap());
     });
   }, [bannerApi]);
+
+  useEffect(() => {
+    if (!swiftApi) return;
+    swiftApi.on("select", () => {
+      setCurrentSwiftBanner(swiftApi.selectedScrollSnap());
+    });
+  }, [swiftApi]);
 
   const switchTab = useCallback((tab: 'bursa' | 'dompet') => {
     setActiveTab(tab);
@@ -378,8 +390,8 @@ function DashboardContent() {
               </div>
 
               {/* SWIFT CAROUSEL - SETOR & TARIK */}
-              <div className="h-40">
-                <Carousel className="w-full h-full">
+              <div className="h-40 relative">
+                <Carousel setApi={setSwiftApi} className="w-full h-full">
                   <CarouselContent>
                     <CarouselItem>
                       <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/crypto/deposit-methods?type=setor')}>
@@ -413,6 +425,12 @@ function DashboardContent() {
                     </CarouselItem>
                   </CarouselContent>
                 </Carousel>
+                {/* Dot Indicators inside the card for Sub-Carousel */}
+                <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1 z-10 pointer-events-none">
+                  {[0, 1].map((i) => (
+                    <div key={i} className={cn("h-1 rounded-full transition-all duration-300", currentSwiftBanner === i ? "w-3 bg-primary" : "w-1 bg-muted")} />
+                  ))}
+                </div>
               </div>
 
               <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer" onClick={() => router.push('/crypto/cash-delivery')}>
