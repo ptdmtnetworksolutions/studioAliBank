@@ -38,6 +38,7 @@ export function BottomNav() {
     "/crypto/buy",
     "/crypto/convert",
     "/crypto/deposit-methods",
+    "/crypto/cash-delivery",
     "/settings/payment-currency",
     "/checkout"
   ];

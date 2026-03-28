@@ -16,8 +16,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { LogoIcon } from "@/components/ui/logo";
 
 const channels = [
+  { id: 'transfer_bank', name: "Transfer Bank", type: "P2P" },
+  { id: 'dana', name: "DANA(Indonesia)", type: "P2P" },
   { id: 'ovo', name: "OVO", type: "P2P" },
   { id: 'bca', name: "BCA", type: "P2P" },
   { id: 'permata', name: "Bank Permata", type: "P2P" },
@@ -47,9 +50,9 @@ export default function CashDeliveryPage() {
   const [activeChannel, setActiveChannel] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 flex flex-col font-body">
-      {/* Header */}
-      <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-white z-50">
+    <div className="h-screen bg-white text-slate-900 flex flex-col font-body overflow-hidden">
+      {/* Header - Fixed */}
+      <header className="px-4 h-14 flex items-center justify-between bg-white z-50 shrink-0">
         <button onClick={() => router.back()} className="p-1 hover:bg-slate-100 rounded-full transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </button>
@@ -59,7 +62,8 @@ export default function CashDeliveryPage() {
         </div>
       </header>
 
-      <main className="flex-1 px-6 pt-2 space-y-6 overflow-y-auto no-scrollbar pb-24">
+      {/* Main Scrollable Area */}
+      <main className="flex-1 px-6 pt-2 space-y-6 overflow-y-auto no-scrollbar pb-10">
         {/* Banner - Professional Compliance Info */}
         {showBanner && (
           <div className="bg-[#FFFBEB] border border-yellow-100 rounded-2xl p-4 flex items-start gap-3 relative animate-in fade-in slide-in-from-top-2">
@@ -86,10 +90,9 @@ export default function CashDeliveryPage() {
 
         {/* Input Terminal */}
         <div className="space-y-6">
-          {/* Akan Menerima (Fiat Destination) */}
           <div className="space-y-3">
             <label className="text-xs font-black text-slate-400 uppercase tracking-wider">Akan Menerima</label>
-            <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-transparent focus-within:border-yellow-400 transition-all">
+            <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-transparent focus-within:border-yellow-400 transition-all shadow-sm">
               <input 
                 type="number" 
                 placeholder="0.00" 
@@ -103,10 +106,9 @@ export default function CashDeliveryPage() {
             </div>
           </div>
 
-          {/* Anda Bayar (Crypto Source) */}
           <div className="space-y-3">
             <label className="text-xs font-black text-slate-400 uppercase tracking-wider">Anda Bayar</label>
-            <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-transparent focus-within:border-yellow-400 transition-all">
+            <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-transparent focus-within:border-yellow-400 transition-all shadow-sm">
               <input 
                 type="number" 
                 placeholder="0.00" 
@@ -138,7 +140,7 @@ export default function CashDeliveryPage() {
                 onClick={() => setActiveChannel(channel.id)}
                 className={cn(
                   "p-5 rounded-2xl border-2 bg-white flex items-center justify-between group transition-all cursor-pointer shadow-sm active:scale-[0.98]",
-                  activeChannel === channel.id ? "border-yellow-400" : "border-slate-50"
+                  activeChannel === channel.id ? "border-yellow-400 bg-yellow-50/10" : "border-slate-50"
                 )}
               >
                 <div className="space-y-1">
@@ -156,36 +158,67 @@ export default function CashDeliveryPage() {
           </div>
         </div>
 
-        {/* Floating Help Icon */}
-        <div className="flex justify-end pr-2 pt-4">
-          <div className="w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-blue-500 border border-slate-50 active:scale-95 transition-transform cursor-pointer">
-            <Sparkles className="w-5 h-5" />
-          </div>
-        </div>
-
         {/* Tutorial Section */}
-        <div className="pt-8 pb-12 flex flex-col items-center text-center space-y-6">
+        <div className="pt-8 pb-12 flex flex-col items-center text-center space-y-6 relative">
+          <div className="absolute right-0 top-0">
+            <div className="w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-blue-500 border border-slate-50 active:scale-95 transition-transform cursor-pointer">
+              <Sparkles className="w-5 h-5" />
+            </div>
+          </div>
+          
           <CashIcon />
           <div className="space-y-1">
             <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Tutorial Pengiriman Tunai</h3>
           </div>
           <div className="space-y-4 w-full px-4 text-left">
             <div className="flex gap-4">
-              <span className="text-yellow-500 font-black italic text-xs mt-0.5">1</span>
-              <p className="text-[10px] font-bold text-slate-400 uppercase leading-relaxed tracking-tight">
-                Masukkan jumlah yang ingin Anda Bayar atau yang akan Anda Terima.
+              <span className="text-yellow-500 font-black italic text-sm mt-0.5">1</span>
+              <p className="text-[11px] font-bold text-slate-400 uppercase leading-relaxed tracking-tight">
+                Masukkan jumlah yang ingin Anda Bayar atau yang akan Anda Terima
               </p>
             </div>
+            <div className="flex gap-4">
+              <span className="text-yellow-500 font-black italic text-sm mt-0.5">2</span>
+              <p className="text-[11px] font-bold text-slate-400 uppercase leading-relaxed tracking-tight">
+                Pilih saluran dan pilih akun penerima
+              </p>
+            </div>
+            <div className="flex gap-4">
+              <span className="text-yellow-500 font-black italic text-sm mt-0.5">3</span>
+              <p className="text-[11px] font-bold text-slate-400 uppercase leading-relaxed tracking-tight">
+                Tunggu hingga uang tiba
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-10 space-y-4 w-full text-center">
+            <div className="flex items-center justify-center gap-2 text-slate-300">
+              <LogoIcon className="w-4 h-4 grayscale opacity-50" />
+              <span className="text-[10px] font-black uppercase tracking-widest italic">AliBank Pay</span>
+            </div>
+            <p className="text-[9px] font-bold text-slate-300 uppercase tracking-tighter px-10 leading-tight">
+              Dipersembahkan oleh P2P<br />
+              Kirim Uang Tunai ke rekening bank atau e-wallet Anda sendiri
+            </p>
+            <p className="text-[9px] font-black text-slate-200">Version: 1.67.33</p>
           </div>
         </div>
       </main>
 
-      {/* Footer Floating Action */}
-      <div className="p-6 bg-white sticky bottom-0 border-t border-slate-50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)]">
-        <Button className="w-full h-14 bg-[#FCD535]/20 text-slate-300 font-black italic uppercase rounded-2xl border-none shadow-none text-base tracking-widest transition-all">
+      {/* Fixed Sticky Footer */}
+      <footer className="p-6 bg-white border-t border-slate-50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-50 shrink-0 pb-safe">
+        <Button 
+          disabled={!activeChannel}
+          className={cn(
+            "w-full h-14 font-black italic uppercase rounded-2xl border-none shadow-none text-base tracking-widest transition-all",
+            activeChannel 
+              ? "bg-[#FCD535] text-slate-900 hover:bg-[#FCD535]/90 shadow-lg" 
+              : "bg-[#FCD535]/20 text-slate-300"
+          )}
+        >
           Dapatkan Kuotasi
         </Button>
-      </div>
+      </footer>
     </div>
   );
 }
