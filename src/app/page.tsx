@@ -42,6 +42,7 @@ import { doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
+import { currencies, type Currency } from "@/lib/currencies";
 import {
   Carousel,
   CarouselContent,
@@ -70,6 +71,9 @@ export default function Dashboard() {
   const [currentSwift, setCurrentSwift] = useState(0);
   const [isTambahDanaOpen, setIsTambahDanaOpen] = useState(false);
   const [isTambahDanaExpanded, setIsTambahDanaExpanded] = useState(false);
+  
+  // Dynamic Currency State
+  const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
 
   const userDocRef = useMemo(() => {
     if (!db || !user) return null;
@@ -82,6 +86,14 @@ export default function Dashboard() {
     setMounted(true);
     if (!userLoading && !user) {
       router.push('/login');
+    }
+
+    // Load saved currency preference
+    const savedCurrency = localStorage.getItem("alibank-payment-currency");
+    if (savedCurrency) {
+      try {
+        setSelectedCurrency(JSON.parse(savedCurrency));
+      } catch (e) {}
     }
   }, [user, userLoading, router]);
 
@@ -481,8 +493,13 @@ export default function Dashboard() {
                 className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-full border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors"
                 onClick={() => { setIsTambahDanaOpen(false); router.push('/settings/payment-currency'); }}
               >
-                <div className="w-4 h-4 rounded-full bg-rose-600 flex items-center justify-center text-[8px] font-black text-white">Rp</div>
-                <span className="text-xs font-black text-slate-900">IDR</span>
+                <div className={cn(
+                  "w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black text-white",
+                  selectedCurrency.color
+                )}>
+                  {selectedCurrency.symbol.length > 2 ? selectedCurrency.code[0] : selectedCurrency.symbol}
+                </div>
+                <span className="text-xs font-black text-slate-900">{selectedCurrency.code}</span>
                 <ChevronDown className="w-3 h-3 text-slate-400" />
               </div>
             </div>
@@ -496,7 +513,7 @@ export default function Dashboard() {
                   <ShoppingBag className="w-6 h-6 text-slate-900" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 italic uppercase tracking-tight leading-none">Beli dengan IDR</h3>
+                  <h3 className="text-base font-black text-slate-900 italic uppercase tracking-tight leading-none">Beli dengan {selectedCurrency.code}</h3>
                   <p className="text-xs font-bold text-slate-400 mt-1.5 leading-tight">Manfaatkan berbagai cara pembayaran!</p>
                 </div>
               </div>
