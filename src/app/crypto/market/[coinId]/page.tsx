@@ -2,7 +2,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   ArrowLeft, 
   Bell, 
@@ -33,12 +33,6 @@ import {
   ComposedChart
 } from "recharts";
 
-const mockData = Array.from({ length: 40 }, (_, i) => ({
-  time: `${17 + Math.floor(i/4)}:${(i%4)*15}`,
-  price: 610 + Math.random() * 2,
-  volume: 100 + Math.random() * 500
-}));
-
 export default function MarketDetailPage() {
   const { coinId } = useParams();
   const router = useRouter();
@@ -50,9 +44,59 @@ export default function MarketDetailPage() {
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
-
   const symbol = (coinId as string).toUpperCase();
+
+  // Logika Data Koin Dinamis berdasarkan Diskusi Harga ALX
+  const coinInfo = useMemo(() => {
+    if (symbol === "ALX") {
+      return {
+        price: "12.24",
+        idr: "194.004,00",
+        change: "+1.14%",
+        high: "12.45",
+        low: "11.98",
+        volCoin: "1.85M",
+        volUsdt: "22.6M",
+        base: 12.24,
+        isUp: true
+      };
+    }
+    if (symbol === "BTC") {
+      return {
+        price: "66.476,91",
+        idr: "1.053.659.023,35",
+        change: "-3.08%",
+        high: "67.120,00",
+        low: "65.800,00",
+        volCoin: "45.2K",
+        volUsdt: "2.9B",
+        base: 66476,
+        isUp: false
+      };
+    }
+    return {
+      price: "611.57",
+      idr: "10.382.336,45",
+      change: "+0.37%",
+      high: "614.61",
+      low: "605.86",
+      volCoin: "100,485.79",
+      volUsdt: "61.39M",
+      base: 611,
+      isUp: true
+    };
+  }, [symbol]);
+
+  const mockData = useMemo(() => {
+    const base = coinInfo.base;
+    return Array.from({ length: 40 }, (_, i) => ({
+      time: `${17 + Math.floor(i/4)}:${(i%4)*15}`,
+      price: base + (Math.random() * (base * 0.02) - (base * 0.01)),
+      volume: 100 + Math.random() * 500
+    }));
+  }, [coinInfo]);
+
+  if (!mounted) return null;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-body transition-colors duration-300">
@@ -97,10 +141,12 @@ export default function MarketDetailPage() {
         {/* Main Stats Section */}
         <section className="px-6 pt-6 grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <h2 className="text-4xl font-black tracking-tighter italic">611.57</h2>
+            <h2 className="text-4xl font-black tracking-tighter italic">{coinInfo.price}</h2>
             <div className="flex items-center gap-2">
-              <p className="text-xs font-bold text-muted-foreground">Rp10.382.336,45</p>
-              <span className="text-[10px] font-black text-green-500">+0.37%</span>
+              <p className="text-xs font-bold text-muted-foreground">Rp{coinInfo.idr}</p>
+              <span className={cn("text-[10px] font-black", coinInfo.isUp ? "text-green-500" : "text-rose-500")}>
+                {coinInfo.change}
+              </span>
             </div>
             <div className="flex gap-2 pt-2">
               <span className="text-[8px] font-black uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">Lapisan 1 / Lapisan 2</span>
@@ -111,19 +157,19 @@ export default function MarketDetailPage() {
           <div className="grid grid-cols-2 gap-y-2 text-[10px] font-bold text-muted-foreground text-right italic">
             <div>
               <p className="uppercase opacity-60">High 24 jam</p>
-              <p className="text-foreground">614.61</p>
+              <p className="text-foreground">{coinInfo.high}</p>
             </div>
             <div>
               <p className="uppercase opacity-60">Vol 24 jam({symbol})</p>
-              <p className="text-foreground">100,485.79</p>
+              <p className="text-foreground">{coinInfo.volCoin}</p>
             </div>
             <div>
               <p className="uppercase opacity-60">Low 24 jam</p>
-              <p className="text-foreground">605.86</p>
+              <p className="text-foreground">{coinInfo.low}</p>
             </div>
             <div>
               <p className="uppercase opacity-60">Vol 24 jam(USDT)</p>
-              <p className="text-foreground">61.39M</p>
+              <p className="text-foreground">{coinInfo.volUsdt}</p>
             </div>
           </div>
         </section>
@@ -162,7 +208,7 @@ export default function MarketDetailPage() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.3} />
               <XAxis dataKey="time" hide />
-              <YAxis domain={['dataMin - 1', 'dataMax + 1']} orientation="right" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: 'hsl(var(--muted-foreground))'}} />
+              <YAxis domain={['dataMin - 0.1', 'dataMax + 0.1']} orientation="right" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: 'hsl(var(--muted-foreground))'}} />
               <Tooltip 
                 contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
                 itemStyle={{ color: 'hsl(var(--primary))', fontWeight: 'bold' }}
@@ -173,7 +219,7 @@ export default function MarketDetailPage() {
           </ResponsiveContainer>
           
           <div className="absolute top-4 left-6 pointer-events-none">
-            <p className="text-[10px] font-black text-muted-foreground uppercase italic">MA60 611,63</p>
+            <p className="text-[10px] font-black text-muted-foreground uppercase italic">MA60 {coinInfo.price}</p>
           </div>
         </div>
 
@@ -201,7 +247,7 @@ export default function MarketDetailPage() {
             <div>1 Tahun</div>
           </div>
           <div className="grid grid-cols-6 gap-2 text-[10px] font-black italic text-center">
-            <div className="text-green-500">0.34%</div>
+            <div className={cn(coinInfo.isUp ? "text-green-500" : "text-rose-500")}>{coinInfo.change}</div>
             <div className="text-rose-500">-4.50%</div>
             <div className="text-rose-500">-2.24%</div>
             <div className="text-rose-500">-27.24%</div>
@@ -221,7 +267,7 @@ export default function MarketDetailPage() {
         </div>
       </main>
 
-      {/* FIXED ACTION FOOTER - Exact match to Reference */}
+      {/* FIXED ACTION FOOTER */}
       <footer className="fixed bottom-0 left-0 right-0 z-[60] bg-background border-t border-border px-4 py-4 flex items-center gap-4 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
         <div className="flex gap-6 px-2">
           <div className="flex flex-col items-center gap-1 cursor-pointer hover:text-primary transition-colors">
