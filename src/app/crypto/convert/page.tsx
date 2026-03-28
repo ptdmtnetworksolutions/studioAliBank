@@ -81,7 +81,6 @@ export default function ConvertPage() {
     
     if (isNaN(numAmount) || numAmount <= 0) return;
 
-    // Cek Saldo Riil
     const balanceToCheck = direction === 'ALX_TO_USDT' 
       ? (userData.cryptoBalances?.ALX || 0) 
       : (userData.cryptoBalances?.USDT || 0);
@@ -95,7 +94,6 @@ export default function ConvertPage() {
     try {
       const resultNum = parseFloat(convertedValue);
 
-      // 1. Eksekusi Pertukaran Aset Riil di Firestore
       if (direction === 'ALX_TO_USDT') {
         await updateDoc(userDocRef, {
           "cryptoBalances.ALX": increment(-numAmount),
@@ -108,7 +106,6 @@ export default function ConvertPage() {
         });
       }
 
-      // 2. Log Riwayat Transaksi Nasabah
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
         description: direction === 'ALX_TO_USDT' ? `Konversi ALX ke USDT` : `Konversi USDT ke ALX`,
@@ -122,7 +119,6 @@ export default function ConvertPage() {
         timestamp: serverTimestamp()
       });
 
-      // 3. Kirim Notifikasi Internal
       await addDoc(collection(db, "users", user.uid, "notifications"), {
         title: "Konversi Berhasil",
         message: `Berhasil menukar ${numAmount} ${direction === 'ALX_TO_USDT' ? 'ALX' : 'USDT'} menjadi ${resultNum} ${direction === 'ALX_TO_USDT' ? 'USDT' : 'ALX'}.`,
@@ -149,29 +145,29 @@ export default function ConvertPage() {
 
   if (step === 'success') {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-500">
-        <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mb-6">
-          <CheckCircle2 className="w-12 h-12 text-green-600" />
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-500 overflow-hidden">
+        <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mb-4">
+          <CheckCircle2 className="w-10 h-10 text-green-600" />
         </div>
-        <h2 className="text-2xl font-black italic uppercase tracking-tight text-slate-900 mb-2">Konversi Berhasil</h2>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-10 italic">Tervalidasi oleh AliBank V3 Mainnet Protocol</p>
+        <h2 className="text-xl font-black italic uppercase tracking-tight text-slate-900 mb-1">Konversi Berhasil</h2>
+        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-6 italic">Tervalidasi oleh AliBank V3 Mainnet Protocol</p>
         
-        <div className="w-full bg-slate-50 rounded-[2.5rem] p-8 mb-10 space-y-6 shadow-inner">
+        <div className="w-full bg-slate-50 rounded-[2rem] p-6 mb-8 space-y-4 shadow-inner">
           <div>
-            <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Total Diterima</p>
-            <p className="text-4xl font-black italic text-slate-900">
+            <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Total Diterima</p>
+            <p className="text-3xl font-black italic text-slate-900">
               {convertedValue} {direction === 'ALX_TO_USDT' ? 'USDT' : 'ALX'}
             </p>
           </div>
           <div className="h-px bg-slate-200" />
-          <div className="flex justify-between items-center text-[10px] font-bold uppercase">
+          <div className="flex justify-between items-center text-[9px] font-bold uppercase">
             <span className="text-slate-400">Nilai Tukar</span>
             <span className="text-slate-900">1 ALX = {ALX_PRICE_USDT} USDT</span>
           </div>
         </div>
 
         <Button 
-          className="w-full h-16 bg-[#FCD535] text-slate-900 font-black italic uppercase rounded-2xl shadow-xl hover:scale-[1.02] transition-all"
+          className="w-full h-14 bg-[#FCD535] text-slate-900 font-black italic uppercase rounded-2xl shadow-xl hover:scale-[1.02] transition-all"
           onClick={() => router.push('/')}
         >
           Kembali ke Beranda
@@ -181,48 +177,48 @@ export default function ConvertPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 pb-24 relative flex flex-col font-body">
-      {/* Header */}
-      <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-white z-50">
+    <div className="min-h-screen bg-white text-slate-900 flex flex-col font-body overflow-hidden">
+      {/* Header - Compact */}
+      <header className="px-4 h-12 flex items-center justify-between sticky top-0 bg-white z-50">
         <button onClick={() => router.back()} className="p-1 hover:bg-slate-100 rounded-full transition-colors">
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-lg font-black tracking-tight italic uppercase">Convert</h1>
+        <h1 className="text-base font-black tracking-tight italic uppercase">Convert</h1>
         <div className="w-8" /> 
       </header>
 
-      <main className="flex-1 px-4 py-2 space-y-6 overflow-y-auto no-scrollbar">
-        {/* Banner Promo */}
-        <div className="bg-[#FFFBEB] border border-yellow-100 rounded-xl p-4 flex items-center gap-3">
-          <Gift className="w-5 h-5 text-yellow-600 shrink-0" />
-          <p className="text-xs font-bold text-slate-700 leading-tight">
+      <main className="flex-1 px-4 pt-1 space-y-3 overflow-hidden">
+        {/* Banner Promo - Compact */}
+        <div className="bg-[#FFFBEB] border border-yellow-100 rounded-xl p-3 flex items-center gap-3">
+          <Gift className="w-4 h-4 text-yellow-600 shrink-0" />
+          <p className="text-[10px] font-bold text-slate-700 leading-tight">
             Dapatkan Rabat dengan Konversi Berulang
           </p>
         </div>
 
-        {/* Instan Dropdown & Icons */}
+        {/* Instan Dropdown & Icons - Compact */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-sm font-black text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-slate-100">
-            Instan <ChevronDown className="w-4 h-4" />
+          <div className="flex items-center gap-1 text-xs font-black text-slate-500 bg-slate-50 px-2.5 py-1 rounded-lg cursor-pointer hover:bg-slate-100">
+            Instan <ChevronDown className="w-3 h-3" />
           </div>
-          <div className="flex items-center gap-4 text-slate-700">
-            <Settings2 className="w-5 h-5 cursor-pointer hover:text-slate-900" />
-            <History onClick={() => router.push('/transactions')} className="w-5 h-5 cursor-pointer hover:text-slate-900" />
+          <div className="flex items-center gap-3 text-slate-700">
+            <Settings2 className="w-4 h-4 cursor-pointer hover:text-slate-900" />
+            <History onClick={() => router.push('/transactions')} className="w-4 h-4 cursor-pointer hover:text-slate-900" />
           </div>
         </div>
 
-        {/* Harga Info */}
+        {/* Harga Info - Compact */}
         <div className="flex items-center gap-2 px-1">
-          <p className="text-sm font-black text-slate-900 italic">
+          <p className="text-xs font-black text-slate-900 italic">
             1 ALX = {ALX_PRICE_USDT} USDT <span className="text-rose-500">-1.14%</span>
           </p>
-          <RefreshCw className="w-3.5 h-3.5 text-slate-400 animate-spin-slow" />
+          <RefreshCw className="w-3 h-3 text-slate-400 animate-spin-slow" />
         </div>
 
-        {/* Chart Area */}
-        <div className="h-48 w-full relative">
-          <div className="absolute top-0 left-0 text-[10px] font-black text-slate-300">619,61</div>
-          <div className="absolute bottom-4 left-0 text-[10px] font-black text-slate-300">606,02</div>
+        {/* Chart Area - Slimmer */}
+        <div className="h-32 w-full relative">
+          <div className="absolute top-0 left-0 text-[8px] font-black text-slate-300">619,61</div>
+          <div className="absolute bottom-2 left-0 text-[8px] font-black text-slate-300">606,02</div>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={mockChartData}>
               <YAxis domain={[600, 625]} hide />
@@ -230,42 +226,42 @@ export default function ConvertPage() {
                 type="monotone" 
                 dataKey="price" 
                 stroke="#FCD535" 
-                strokeWidth={3} 
+                strokeWidth={2.5} 
                 dot={false} 
-                animationDuration={2000}
+                animationDuration={1500}
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Timeframe Toggles */}
-        <div className="flex items-center justify-center gap-8 py-2">
+        {/* Timeframe Toggles - Compact */}
+        <div className="flex items-center justify-center gap-6 py-1">
           {['1H', '1M', '1B'].map(t => (
             <button key={t} className={cn(
-              "text-xs font-black px-4 py-1.5 rounded-md transition-all",
+              "text-[10px] font-black px-3 py-1 rounded-md transition-all",
               t === '1H' ? "bg-slate-100 text-slate-900" : "text-slate-400 hover:text-slate-600"
             )}>{t}</button>
           ))}
-          <Info className="w-4 h-4 text-slate-400 cursor-pointer" />
+          <Info className="w-3.5 h-3.5 text-slate-400 cursor-pointer" />
         </div>
 
-        {/* Conversion Form */}
-        <div className="space-y-1 pt-4">
+        {/* Conversion Form - Compact Spacing */}
+        <div className="space-y-1">
           {/* Dari Section */}
-          <div className="space-y-2">
+          <div className="space-y-1">
             <div className="flex justify-between items-center px-1">
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Dari</label>
+              <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Dari</label>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] font-black text-slate-400 italic uppercase">
+                <span className="text-[9px] font-black text-slate-400 italic uppercase">
                   Dompet {direction === 'ALX_TO_USDT' ? (userData?.cryptoBalances?.ALX ?? 0).toLocaleString() : (userData?.cryptoBalances?.USDT ?? 0).toLocaleString()} {direction === 'ALX_TO_USDT' ? 'ALX' : 'USDT'}
                 </span>
-                <PlusCircle className="w-3 h-3 text-[#FCD535] cursor-pointer" />
+                <PlusCircle className="w-2.5 h-2.5 text-[#FCD535] cursor-pointer" />
               </div>
             </div>
-            <div className="bg-[#F8FAFC] rounded-2xl p-5 flex items-center justify-between border-2 border-transparent focus-within:border-[#FCD535] transition-all shadow-sm">
-              <div className="flex items-center gap-3">
+            <div className="bg-[#F8FAFC] rounded-xl p-3 flex items-center justify-between border-2 border-transparent focus-within:border-[#FCD535] transition-all shadow-sm">
+              <div className="flex items-center gap-2">
                 <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center p-2.5 shadow-sm",
+                  "w-8 h-8 rounded-full flex items-center justify-center p-2 shadow-sm",
                   direction === 'ALX_TO_USDT' ? "bg-slate-900" : "bg-[#0D9488]"
                 )}>
                   {direction === 'ALX_TO_USDT' ? (
@@ -276,40 +272,40 @@ export default function ConvertPage() {
                     </svg>
                   )}
                 </div>
-                <div className="flex items-center gap-1 cursor-pointer">
-                  <span className="text-xl font-black italic tracking-tight uppercase">{direction === 'ALX_TO_USDT' ? 'ALX' : 'USDT'}</span>
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                <div className="flex items-center gap-0.5 cursor-pointer">
+                  <span className="text-base font-black italic tracking-tight uppercase">{direction === 'ALX_TO_USDT' ? 'ALX' : 'USDT'}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                 </div>
               </div>
               <div className="text-right flex-1">
                 <input 
                   type="number"
-                  placeholder="0.000016"
+                  placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full bg-transparent text-right text-2xl font-black italic text-slate-900 outline-none placeholder:text-slate-200 tracking-tighter"
+                  className="w-full bg-transparent text-right text-xl font-black italic text-slate-900 outline-none placeholder:text-slate-200 tracking-tighter"
                 />
               </div>
             </div>
           </div>
 
-          {/* Swap Button */}
-          <div className="flex justify-center -my-4 relative z-20">
+          {/* Swap Button - Smaller */}
+          <div className="flex justify-center -my-3.5 relative z-20">
             <button 
               onClick={toggleDirection}
-              className="w-10 h-10 bg-white border border-slate-100 rounded-full shadow-lg flex items-center justify-center text-slate-900 active:scale-90 transition-transform hover:bg-slate-50"
+              className="w-8 h-8 bg-white border border-slate-100 rounded-full shadow-md flex items-center justify-center text-slate-900 active:scale-90 transition-transform hover:bg-slate-50"
             >
-              <ArrowUpDown className="w-5 h-5" />
+              <ArrowUpDown className="w-4 h-4" />
             </button>
           </div>
 
           {/* Ke Section */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Ke</label>
-            <div className="bg-[#F8FAFC] rounded-2xl p-5 flex items-center justify-between border-2 border-transparent shadow-sm">
-              <div className="flex items-center gap-3">
+          <div className="space-y-1">
+            <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest px-1">Ke</label>
+            <div className="bg-[#F8FAFC] rounded-xl p-3 flex items-center justify-between border-2 border-transparent shadow-sm">
+              <div className="flex items-center gap-2">
                 <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center p-2.5 shadow-sm",
+                  "w-8 h-8 rounded-full flex items-center justify-center p-2 shadow-sm",
                   direction === 'ALX_TO_USDT' ? "bg-[#0D9488]" : "bg-slate-900"
                 )}>
                   {direction === 'ALX_TO_USDT' ? (
@@ -320,36 +316,29 @@ export default function ConvertPage() {
                     <LogoIcon className="text-[#FCD535]" />
                   )}
                 </div>
-                <div className="flex items-center gap-1 cursor-pointer">
-                  <span className="text-xl font-black italic tracking-tight uppercase">{direction === 'ALX_TO_USDT' ? 'USDT' : 'ALX'}</span>
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                <div className="flex items-center gap-0.5 cursor-pointer">
+                  <span className="text-base font-black italic tracking-tight uppercase">{direction === 'ALX_TO_USDT' ? 'USDT' : 'ALX'}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-black text-slate-200 italic tracking-tighter">
+                <p className="text-xl font-black text-slate-200 italic tracking-tighter">
                   {convertedValue}
                 </p>
               </div>
             </div>
           </div>
-
-          {/* Magic Button */}
-          <div className="flex justify-end mt-4 pr-2">
-            <div className="p-2.5 rounded-xl bg-blue-50 text-blue-500 shadow-sm animate-pulse cursor-pointer">
-              <Sparkles className="w-6 h-6" />
-            </div>
-          </div>
         </div>
       </main>
 
-      {/* Footer Action */}
-      <div className="p-4 bg-white sticky bottom-0 border-t border-slate-50">
+      {/* Footer Action - Fixed at Bottom */}
+      <div className="p-4 bg-white border-t border-slate-50 mt-auto">
         <Button 
           disabled={!amount || isProcessing}
           onClick={handleConvert}
-          className="w-full h-16 bg-[#FFFBEB] hover:bg-[#FEF3C7] text-[#D97706] font-black italic uppercase rounded-2xl border-none shadow-none text-base tracking-[0.1em] transition-all"
+          className="w-full h-14 bg-[#FFFBEB] hover:bg-[#FEF3C7] text-[#D97706] font-black italic uppercase rounded-2xl border-none shadow-none text-sm tracking-[0.1em] transition-all"
         >
-          {isProcessing ? <Loader2 className="animate-spin w-6 h-6" /> : "PRATINJAU"}
+          {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : "PRATINJAU"}
         </Button>
       </div>
     </div>
