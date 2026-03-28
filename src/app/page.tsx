@@ -32,7 +32,8 @@ import {
   PieChart,
   Grid3X3,
   CalendarDays,
-  UserPlus
+  UserPlus,
+  MessageSquareText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +58,28 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import Image from "next/image";
+
+/**
+ * Ikon Kustom "Tangan Menadah Koin" untuk tab Bursa.
+ */
+function HandCoinIcon({ className }: { className?: string }) {
+  return (
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+    >
+      <path d="M2 19h12c1.5 0 2.5-1 2.5-2.5v-2.5" />
+      <path d="M16.5 14h3" />
+      <circle cx="20" cy="8" r="4" />
+      <path d="M20 6.5 21.5 8 20 9.5 18.5 8z" />
+    </svg>
+  );
+}
 
 function DashboardContent() {
   const { user, loading: userLoading } = useUser();
@@ -187,19 +210,23 @@ function DashboardContent() {
             {activeTab === 'bursa' ? (
               <div className="flex items-center gap-3">
                 <div 
-                  className="w-8 h-8 rounded-full bg-muted flex items-center justify-center cursor-pointer shrink-0"
+                  className="w-8 h-8 rounded-full bg-muted border border-border overflow-hidden cursor-pointer shrink-0 relative"
                   onClick={() => router.push('/profile')}
                 >
-                  <User className="w-5 h-5 text-muted-foreground" />
+                  <div className="absolute inset-0 bg-slate-200" />
+                  <div className="absolute top-1 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-yellow-400" />
+                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-3 rounded-t-full bg-slate-400" />
                 </div>
                 <div 
                   className="relative cursor-pointer shrink-0"
                   onClick={() => router.push('/notifications')}
                 >
-                  <Bell className="w-6 h-6 text-foreground" />
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center border-2 border-background">
-                    {unreadNotifications?.length || 0}
-                  </span>
+                  <MessageSquareText className="w-6 h-6 text-foreground" />
+                  {unreadNotifications && unreadNotifications.length > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center border-2 border-background px-1">
+                      {unreadNotifications.length}
+                    </span>
+                  )}
                 </div>
               </div>
             ) : (
@@ -232,7 +259,13 @@ function DashboardContent() {
 
           <div className="flex items-center gap-3 flex-1 justify-end overflow-hidden">
             <Headset className="w-5 h-5 text-foreground cursor-pointer shrink-0" />
-            <Scan className="w-5 h-5 text-foreground cursor-pointer shrink-0" />
+            {activeTab === 'bursa' ? (
+              <div className="cursor-pointer shrink-0" onClick={() => router.push('/topup')}>
+                <HandCoinIcon className="w-6 h-6 text-foreground" />
+              </div>
+            ) : (
+              <Scan className="w-5 h-5 text-foreground cursor-pointer shrink-0" />
+            )}
           </div>
         </div>
 
