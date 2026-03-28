@@ -79,7 +79,7 @@ function HandCoinIcon({ className }: { className?: string }) {
 }
 
 const INITIAL_COINS = [
-  { symbol: "ALX", price: 12.24, baseIdr: 194000, change: -2.83, isUp: false },
+  { symbol: "ALX", price: 12.24, baseIdr: 194000, change: 1.14, isUp: true },
   { symbol: "BTC", price: 66262.29, baseIdr: 1125133021, change: -3.76, isUp: false },
   { symbol: "ETH", price: 1987.12, baseIdr: 33741277, change: -3.98, isUp: false },
   { symbol: "SOL", price: 82.63, baseIdr: 1403056, change: -4.69, isUp: false },
@@ -723,7 +723,7 @@ function DashboardContent() {
           onClick={() => router.push('/ai-assistant')}
           className="w-14 h-14 gold-gradient rounded-2xl shadow-[0_15px_30px_rgba(252,213,53,0.3)] flex items-center justify-center text-primary-foreground active:scale-90 transition-transform group"
         >
-          <Sparkles className="w-7 h-7 group-hover:rotate-12 transition-transform" />
+          <Card className="border-none bg-transparent shadow-none"><Sparkles className="w-7 h-7 group-hover:rotate-12 transition-transform" /></Card>
         </button>
       </div>
 
