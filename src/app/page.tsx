@@ -70,7 +70,7 @@ function DashboardContent() {
   const [isTambahDanaOpen, setIsTambahDanaOpen] = useState(false);
   
   // Use search params for active tab to sync with BottomNav
-  const activeTab = searchParams.get('tab') === 'dompet' ? 'dompet' : 'bursa';
+  const [activeTab, setActiveTab] = useState<'bursa' | 'dompet'>('bursa');
   
   const [marketFilter, setMarketFilter] = useState("Populer");
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
@@ -86,6 +86,20 @@ function DashboardContent() {
     setMounted(true);
     if (!userLoading && !user) {
       router.push('/login');
+      return;
+    }
+
+    // Persistensi Status Tab: Cek LocalStorage
+    const savedMode = localStorage.getItem("alibank-active-mode") as 'bursa' | 'dompet';
+    const urlTab = searchParams.get('tab') as 'bursa' | 'dompet';
+
+    if (urlTab) {
+      setActiveTab(urlTab);
+      localStorage.setItem("alibank-active-mode", urlTab);
+    } else if (savedMode) {
+      setActiveTab(savedMode);
+      // Update URL silently without adding history entry if possible, 
+      // but for simplicity we just set the state and next navigations will use it
     }
 
     const savedCurrency = localStorage.getItem("alibank-payment-currency");
@@ -108,9 +122,13 @@ function DashboardContent() {
   }, [bannerApi]);
 
   const switchTab = useCallback((tab: 'bursa' | 'dompet') => {
+    setActiveTab(tab);
+    localStorage.setItem("alibank-active-mode", tab);
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', tab);
     router.replace(`/?${params.toString()}`, { scroll: false });
+    // Dispatch event to notify BottomNav about mode change
+    window.dispatchEvent(new Event('alibank-mode-change'));
   }, [router, searchParams]);
 
   const copyAddress = () => {

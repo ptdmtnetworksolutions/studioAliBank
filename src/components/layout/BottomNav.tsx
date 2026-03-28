@@ -21,10 +21,29 @@ export function BottomNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
+  const [mode, setMode] = useState<'bursa' | 'dompet'>('bursa');
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    
+    // Fungsi untuk mensinkronisasi mode dari localStorage
+    const syncMode = () => {
+      const savedMode = localStorage.getItem("alibank-active-mode") as 'bursa' | 'dompet';
+      const urlTab = searchParams.get('tab') as 'bursa' | 'dompet';
+      
+      if (urlTab) {
+        setMode(urlTab);
+      } else if (savedMode) {
+        setMode(savedMode);
+      }
+    };
+
+    syncMode();
+
+    // Dengarkan event perubahan mode kustom (jika ada)
+    window.addEventListener('alibank-mode-change', syncMode);
+    return () => window.removeEventListener('alibank-mode-change', syncMode);
+  }, [searchParams]);
 
   if (!mounted) return null;
 
@@ -41,9 +60,6 @@ export function BottomNav() {
 
   const shouldHide = excludedPaths.some(path => pathname?.startsWith(path));
   if (shouldHide) return null;
-
-  // Detect active tab from URL search params (synced with page.tsx)
-  const activeHomeTab = searchParams.get('tab') || 'bursa';
 
   // Bursa Tab Menu (Per user request image)
   const bursaItems = [
@@ -63,17 +79,22 @@ export function BottomNav() {
     { name: "Aset", href: "/transactions", icon: Wallet },
   ];
 
-  const navItems = activeHomeTab === 'dompet' ? dompetItems : bursaItems;
+  const navItems = mode === 'dompet' ? dompetItems : bursaItems;
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border px-2 pb-safe transition-colors duration-300">
       <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
-          // Logic to check if active: either exact match or starts with (excluding home)
+          
+          // Logika Active: 
+          // 1. Jika itu Beranda, cek apakah kita di '/' dan parameter tab sesuai
+          // 2. Jika bukan Beranda, cek apakah pathname dimulai dengan href
           const isHome = item.href.startsWith('/?tab=');
+          const itemTab = item.href.includes('dompet') ? 'dompet' : 'bursa';
+          
           const isActive = isHome 
-            ? (pathname === '/' && activeHomeTab === (item.href.includes('dompet') ? 'dompet' : 'bursa'))
+            ? (pathname === '/' && mode === itemTab)
             : pathname?.startsWith(item.href);
 
           return (
