@@ -46,28 +46,61 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
 /**
- * @title AlixCoin
- * @dev Token resmi AliBank (ALX) berbasis ERC-20.
- * Mendukung mekanisme Mint & Burn untuk kontrol ekonomi berdaulat.
+ * @title AlixCoin (ALX) - Institutional Grade V3
+ * @dev Implementasi resmi Koin AliBank dengan standar keamanan internasional.
+ * Fitur:
+ * - ERC20 Standard: Kompatibilitas bursa global (Uniswap, Binance).
+ * - Burnable: Mekanisme deflasi untuk menjaga nilai koin.
+ * - Pausable: Protokol keamanan "Circuit Breaker" untuk menghentikan transaksi saat darurat.
+ * - Permit: Mendukung "Gasless Approvals" melalui tanda tangan digital (EIP-2612).
+ * - Ownable: Kontrol kepemilikan berdaulat oleh AliBank Central Vault.
  */
-contract AlixCoin is ERC20, ERC20Burnable, Ownable {
+contract AlixCoin is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ERC20Permit {
     constructor(address initialOwner)
         ERC20("Alix Coin", "ALX")
         Ownable(initialOwner)
+        ERC20Permit("Alix Coin")
     {
-        // Mencetak suplai awal (1 Juta ALX) ke dompet pemilik
+        // Mencetak suplai awal (1 Juta ALX) ke dompet pemilik resmi
         _mint(initialOwner, 1000000 * 10 ** decimals());
     }
 
     /**
+     * @dev Menghentikan seluruh aktivitas transfer (Hanya Pemilik).
+     * Digunakan saat terdeteksi anomali keamanan jaringan.
+     */
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @dev Memulihkan aktivitas transfer (Hanya Pemilik).
+     */
+    function unpause() public onlyOwner {
+        _unpause();
+    }
+
+    /**
      * @dev Menambah suplai koin (Hanya Pemilik).
-     * Terhubung dengan tombol "Mint" di AliBank Command Center.
+     * Terhubung dengan protokol ekspansi likuiditas AliBank.
      */
     function mint(address to, uint256 amount) public onlyOwner {
         _mint(to, amount);
+    }
+
+    /**
+     * @dev Fungsi override wajib untuk integrasi ERC20Pausable.
+     */
+    function _update(address from, address to, uint256 value)
+        internal
+        override(ERC20, ERC20Pausable)
+    {
+        super._update(from, to, value);
     }
 }`;
 
@@ -77,7 +110,7 @@ export default function AboutAlixPage() {
 
   const copyCode = () => {
     navigator.clipboard.writeText(ALX_TOKEN_CODE);
-    toast({ title: "Kode Disalin", description: "Smart Contract Koin ALX siap ditempel di Remix IDE." });
+    toast({ title: "Kode Disalin", description: "Smart Contract Koin ALX (Institutional Grade) siap ditempel di Remix IDE." });
   };
 
   return (
@@ -170,7 +203,7 @@ export default function AboutAlixPage() {
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px] mb-2">Technical Asset</Badge>
+                  <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px] mb-2">Institutional Grade V3</Badge>
                   <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Source Code Koin ALX (ERC-20)</h2>
                 </div>
                 <Button 
@@ -190,7 +223,7 @@ export default function AboutAlixPage() {
               <div className="mt-8 p-6 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex gap-4">
                 <Lightbulb className="w-6 h-6 text-blue-500 shrink-0" />
                 <p className="text-[9px] text-white/70 italic leading-relaxed uppercase font-bold">
-                  Gunakan kode di atas pada <a href="https://remix.ethereum.org" target="_blank" className="text-primary underline">Remix IDE</a>. Pastikan Anda menyetel compiler ke versi 0.8.20 dan menyertakan library OpenZeppelin. Ini adalah langkah teknis terakhir sebelum ALX siap di-listing di Uniswap.
+                  Gunakan kode **V3 Institutional** di atas pada <a href="https://remix.ethereum.org" target="_blank" className="text-primary underline">Remix IDE</a>. Versi ini sudah dilengkapi protokol **Pausable** untuk keamanan darurat dan **Permit** untuk transaksi tanpa gas, sesuai standar kepatuhan blockchain internasional.
                 </p>
               </div>
             </div>
