@@ -55,7 +55,8 @@ import {
   Gamepad2,
   Gift,
   Network,
-  Milestone
+  Milestone,
+  Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -135,6 +136,7 @@ function AdminContent() {
   // Marketplace Management States
   const [newProduct, setNewProduct] = useState({ name: "", description: "", priceIdr: "", priceUsd: "", category: "Layanan Seluler", image: "" });
   const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Firestore Data Listeners
   const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
@@ -250,21 +252,52 @@ function AdminContent() {
     if (!db || !newProduct.name || !newProduct.priceIdr) return;
     setIsAddingProduct(true);
     try {
-      const id = `item-${Date.now()}`;
-      await setDoc(doc(db, "marketplace", id), {
-        ...newProduct,
-        id,
-        priceIdr: parseFloat(newProduct.priceIdr),
-        priceUsd: parseFloat(newProduct.priceUsd) || 0,
-        createdAt: new Date().toISOString()
-      });
-      toast({ title: "Product Added", description: `${newProduct.name} is now live in the marketplace.` });
+      if (editingId) {
+        // Mode Update
+        await updateDoc(doc(db, "marketplace", editingId), {
+          ...newProduct,
+          priceIdr: parseFloat(newProduct.priceIdr),
+          priceUsd: parseFloat(newProduct.priceUsd) || 0,
+          updatedAt: serverTimestamp()
+        });
+        toast({ title: "Product Updated", description: `${newProduct.name} has been updated successfully.` });
+      } else {
+        // Mode Create
+        const id = `item-${Date.now()}`;
+        await setDoc(doc(db, "marketplace", id), {
+          ...newProduct,
+          id,
+          priceIdr: parseFloat(newProduct.priceIdr),
+          priceUsd: parseFloat(newProduct.priceUsd) || 0,
+          createdAt: new Date().toISOString()
+        });
+        toast({ title: "Product Added", description: `${newProduct.name} is now live in the marketplace.` });
+      }
       setNewProduct({ name: "", description: "", priceIdr: "", priceUsd: "", category: "Layanan Seluler", image: "" });
+      setEditingId(null);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message });
     } finally {
       setIsAddingProduct(false);
     }
+  };
+
+  const handleStartEdit = (item: any) => {
+    setEditingId(item.id);
+    setNewProduct({
+      name: item.name,
+      description: item.description || "",
+      priceIdr: item.priceIdr.toString(),
+      priceUsd: (item.priceUsd || 0).toString(),
+      category: item.category,
+      image: item.image || ""
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setNewProduct({ name: "", description: "", priceIdr: "", priceUsd: "", category: "Layanan Seluler", image: "" });
   };
 
   const handleDeleteProduct = async (id: string) => {
@@ -496,7 +529,7 @@ function AdminContent() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 <Card className="lg:col-span-4 liquid-glass border-none rounded-[3.5rem] p-10 space-y-8 shadow-2xl sticky top-24 h-fit">
                   <h3 className="text-2xl font-black text-accent uppercase italic flex items-center gap-4 dark:text-white">
-                    <PackagePlus className="w-8 h-8 text-primary" /> Deploy Asset
+                    <PackagePlus className="w-8 h-8 text-primary" /> {editingId ? "Update Asset" : "Deploy Asset"}
                   </h3>
                   <div className="space-y-6">
                     <div className="space-y-2">
@@ -526,9 +559,16 @@ function AdminContent() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button onClick={handleAddProduct} disabled={isAddingProduct} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-sm mt-6 shadow-2xl hover:scale-105 transition-all">
-                      {isAddingProduct ? <Loader2 className="animate-spin w-6 h-6" /> : "Authorize Deployment"}
-                    </Button>
+                    <div className="flex flex-col gap-3 mt-6">
+                      <Button onClick={handleAddProduct} disabled={isAddingProduct} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-sm shadow-2xl hover:scale-105 transition-all">
+                        {isAddingProduct ? <Loader2 className="animate-spin w-6 h-6" /> : (editingId ? "Confirm Update" : "Authorize Deployment")}
+                      </Button>
+                      {editingId && (
+                        <Button variant="ghost" onClick={handleCancelEdit} className="w-full h-12 rounded-2xl text-muted-foreground font-black uppercase italic text-[10px] hover:bg-muted">
+                          Cancel Edit
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </Card>
 
@@ -562,9 +602,14 @@ function AdminContent() {
                               <p className="text-[9px] font-bold text-muted-foreground">$ {item.priceUsd?.toLocaleString()}</p>
                             </td>
                             <td className="px-10 py-6 text-right">
-                              <Button variant="ghost" size="icon" onClick={() => handleDeleteProduct(item.id)} className="w-12 h-12 rounded-2xl text-destructive hover:bg-destructive/10 transition-all">
-                                <Trash2 className="w-5 h-5" />
-                              </Button>
+                              <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="icon" onClick={() => handleStartEdit(item)} className="w-10 h-10 rounded-xl text-primary hover:bg-primary/10 transition-all">
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleDeleteProduct(item.id)} className="w-10 h-10 rounded-xl text-destructive hover:bg-destructive/10 transition-all">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
