@@ -32,7 +32,8 @@ import {
   collection, 
   query, 
   getDocs, 
-  collectionGroup 
+  collectionGroup,
+  updateDoc
 } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
@@ -151,7 +152,7 @@ export default function CheckoutPage() {
     fetchInvoice();
   }, [db, invoiceId]);
 
-  // Deteksi Aktif untuk SDK Bridge (Robust Detection)
+  // Deteksi Aktif untuk SDK Bridge
   useEffect(() => {
     const checkInterval = setInterval(() => {
       if (window.paypal) {
@@ -166,11 +167,15 @@ export default function CheckoutPage() {
     setCardBrand(getCardBrand(cardNumber));
   }, [cardNumber]);
 
-  const baseAmount = invoice?.amountUsd || 0;
-  const fixedFee = 0.35; 
-  const percentFee = 0.044; 
-  const totalWithGatewayFee = parseFloat(((baseAmount + fixedFee) / (1 - percentFee)).toFixed(2));
-  const serviceFee = parseFloat((totalWithGatewayFee - baseAmount).toFixed(2));
+  // ALIBANK V3 MECHANISM: Transparency Deduction Logic
+  const grossAmountUsd = invoice?.amountUsd || 0;
+  const gasRate = 0.046; // 4.6% Network Execution Fee
+  const gasFeeUsd = parseFloat((grossAmountUsd * gasRate).toFixed(2));
+  const netLiquidityUsd = parseFloat((grossAmountUsd - gasFeeUsd).toFixed(2));
+
+  // IDR Equivalents for accounting
+  const grossAmountIdr = invoice?.amountIdr || 0;
+  const netLiquidityIdr = parseFloat((grossAmountIdr * (1 - gasRate)).toFixed(0));
 
   const processPaymentFinalization = async (details: any) => {
     if (!db || !invoice || !user) return;
@@ -183,7 +188,7 @@ export default function CheckoutPage() {
     const gatewayId = details.id || `ALIBANK-TX-${Date.now()}`;
 
     try {
-      // 1. Update status tagihan (Hanya jika ini adalah invoice merchant, bukan template produk marketplace)
+      // 1. Update status tagihan
       if (!invoice.isMarketplaceItem) {
         const invoiceRef = doc(db, invoice.path);
         await setDoc(invoiceRef, {
@@ -192,17 +197,19 @@ export default function CheckoutPage() {
           paymentMethod: details.gateway || "AliBank V3 Terminal",
           gatewayOrderId: gatewayId,
           payerEmail: details.payer?.email_address || user.email,
-          actualReceivedUsd: baseAmount 
+          actualReceivedUsd: netLiquidityUsd 
         }, { merge: true });
       }
 
-      // 2. Injeksi Likuiditas ke Buku Besar Kas Pusat
+      // 2. Injeksi Likuiditas ke Buku Besar Kas Pusat (Net after Gas)
       await setDoc(systemLiquidityRef, {
-        totalFiatInjected: increment(invoice.amountIdr),
-        totalUsdInjected: increment(baseAmount), 
+        totalFiatInjected: increment(netLiquidityIdr),
+        totalUsdInjected: increment(netLiquidityUsd), 
         lastTransaction: {
           id: gatewayId,
-          amountUsd: baseAmount,
+          amountUsd: grossAmountUsd,
+          netAmountUsd: netLiquidityUsd,
+          gasFeeUsd: gasFeeUsd,
           currency: "USD",
           gateway: details.gateway || "AliBank V3 Native",
           timestamp: serverTimestamp(),
@@ -216,27 +223,37 @@ export default function CheckoutPage() {
         userId: user.uid,
         userName: user.displayName || user.email,
         productName: invoice.productName || "Product Purchase",
-        amountIdr: invoice.amountIdr,
-        amountUsd: baseAmount,
+        amountIdr: grossAmountIdr,
+        amountUsd: grossAmountUsd,
+        netAmountUsd: netLiquidityUsd,
+        gasFeeUsd: gasFeeUsd,
         category: "Marketplace Purchase", 
         gateway: details.gateway || "AliBank V3 Native",
         status: "success", 
         timestamp: serverTimestamp()
       });
 
-      // 4. Tambahkan ke riwayat transaksi user
+      // 4. Update Saldo User jika menggunakan Internal Ledger
+      if (details.gateway === 'AliBank Internal Ledger') {
+        const userRef = doc(db, "users", user.uid);
+        await updateDoc(userRef, {
+          totalBalance: increment(-grossAmountIdr)
+        });
+      }
+
+      // 5. Tambahkan ke riwayat transaksi user
       await addDoc(userTxRef, {
         date: timestamp,
         description: `Beli: ${invoice.productName}`,
         category: "Belanja",
-        amount: invoice.amountIdr,
+        amount: grossAmountIdr,
         type: "expense",
         status: "success",
         timestamp: serverTimestamp()
       });
 
       setPaymentStep('success');
-      toast({ title: "Settlement Success", description: `Dana riil senilai $${baseAmount} telah diamankan ke sistem AliBank.` });
+      toast({ title: "Settlement Success", description: `Dana neto senilai $${netLiquidityUsd} telah diamankan ke sistem AliBank.` });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Settlement Error", description: err.message });
     }
@@ -283,7 +300,7 @@ export default function CheckoutPage() {
               description: `AliBank: ${invoice?.productName || "Infrastructure Access"}`,
               amount: {
                 currency_code: "USD",
-                value: totalWithGatewayFee.toString()
+                value: grossAmountUsd.toString()
               }
             }]
           });
@@ -334,9 +351,9 @@ export default function CheckoutPage() {
       <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">Transaction Complete</h2>
       <p className="text-xs text-muted-foreground font-bold uppercase mb-8">Funds Secured in AliBank Vault (Node 2026).</p>
       <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-6 mb-8 text-center">
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Settled (USD)</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Settled (Net USD)</p>
         <p className="text-3xl font-black text-primary italic">
-          $ {baseAmount.toLocaleString('en-US')}
+          $ {netLiquidityUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}
         </p>
         <div className="mt-4 pt-4 border-t border-primary/5">
           <Badge variant="outline" className="text-[8px] font-bold uppercase text-green-600 bg-green-50 border-green-200 italic">Verified by AliBank Production Engine</Badge>
@@ -370,7 +387,7 @@ export default function CheckoutPage() {
             <CardHeader className="bg-accent/5 p-8 border-b border-primary/5 text-center">
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Checkout: {invoice?.productName || "Production Asset"}</p>
               <h2 className="text-4xl font-black text-accent italic tracking-tighter">
-                $ {baseAmount.toLocaleString('en-US')}
+                $ {grossAmountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </h2>
             </CardHeader>
             <CardContent className="p-8 space-y-6">
@@ -422,8 +439,8 @@ export default function CheckoutPage() {
                   
                   <div className="p-5 rounded-2xl bg-accent/5 border border-primary/10 space-y-3">
                     <div className="flex justify-between items-center text-[10px] font-bold uppercase">
-                      <span className="text-muted-foreground">Product Price</span>
-                      <span className="text-accent">$ {baseAmount.toFixed(2)}</span>
+                      <span className="text-muted-foreground">Product Price (Gross)</span>
+                      <span className="text-accent">$ {grossAmountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] font-bold uppercase">
                       <span className="text-muted-foreground flex items-center gap-1">
@@ -434,16 +451,16 @@ export default function CheckoutPage() {
                           </TooltipTrigger>
                           <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-[200px]">
                             <p className="text-[10px] font-bold leading-relaxed italic">
-                              Biaya ini digunakan untuk biaya eksekusi Smart Contract AliBank di jaringan Ethereum Mainnet (GAS Fee) guna menjamin validitas transaksi on-chain.
+                              Biaya ini dipotong dari total pembayaran untuk menutupi biaya eksekusi Smart Contract AliBank di jaringan Ethereum Mainnet (GAS Fee) guna menjamin validitas transaksi on-chain.
                             </p>
                           </TooltipContent>
                         </Tooltip>
                       </span>
-                      <span className="text-accent">$ {serviceFee.toFixed(2)}</span>
+                      <span className="text-destructive font-black">- $ {gasFeeUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div className="pt-3 border-t border-primary/5 flex justify-between items-center">
-                      <span className="text-xs font-black uppercase text-accent">Total Liquidity</span>
-                      <span className="text-lg font-black text-primary italic">$ {totalWithGatewayFee.toFixed(2)}</span>
+                      <span className="text-xs font-black uppercase text-accent">Total Liquidity (Net)</span>
+                      <span className="text-lg font-black text-primary italic">$ {netLiquidityUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
 
