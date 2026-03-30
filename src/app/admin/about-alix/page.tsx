@@ -26,7 +26,9 @@ import {
   Lightbulb,
   DollarSign,
   Gavel,
-  CheckCircle2
+  CheckCircle2,
+  Calculator,
+  ArrowRight
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -81,7 +83,7 @@ export default function AboutAlixPage() {
             <div className="space-y-3">
               <h2 className="text-2xl font-black text-accent uppercase italic tracking-tighter dark:text-white">Fondasi Terverifikasi: Transparansi On-Chain</h2>
               <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic uppercase tracking-wider">
-                Anda telah berhasil melewati hambatan teknis terbesar. Smart Contract AliBank kini aktif di jaringan **Ethereum Mainnet**. Ini bukan sekadar kode, melainkan janji transparansi kepada nasabah bahwa setiap koin ALX didukung oleh keamanan tingkat perbankan global (Reentrancy Protected & Owner Controlled).
+                Anda telah berhasil melewati hambatan teknis terbesar. Smart Contract AliBank kini aktif di jaringan **Ethereum Mainnet**. Ini bukan sekadar kode, melainkan janji transparansi kepada nasabah bahwa setiap koin ALX didukung oleh keamanan tingkat perbankan global.
               </p>
             </div>
           </div>
@@ -98,7 +100,7 @@ export default function AboutAlixPage() {
             </p>
           </Card>
 
-          <Card className="liquid-glass border-none rounded-[2.5rem] p-10 space-y-4 shadow-xl hover:-translate-y-2 transition-transform duration-500 bg-white/40 dark:bg-card/40">
+          <Card className="liquid-glass border-none rounded-[2.5rem] p-10 space-y-4 shadow-xl hover:-translate-y-2 transition-transform duration-500 bg-white/40 dark:bg-card/40 border-t-4 border-primary">
             <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center text-accent">
               <Scale className="w-7 h-7 dark:text-primary" />
             </div>
@@ -118,6 +120,62 @@ export default function AboutAlixPage() {
             </p>
           </Card>
         </div>
+
+        <section className="mb-16">
+          <div className="liquid-glass-dark rounded-[3rem] p-12 border-none shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <Calculator className="w-32 h-32 text-primary" />
+            </div>
+            <div className="relative z-10 space-y-8">
+              <div className="flex items-center gap-4">
+                <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px]">Technical Math</Badge>
+                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Kalkulasi Likuiditas Stage 2</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-6">
+                  <p className="text-xs font-medium text-white/70 leading-relaxed italic uppercase">
+                    Untuk meluncurkan ALX di Uniswap dengan harga pembukaan **$12.24**, Anda harus menyetor aset dengan rasio **1 ALX : 12.24 USDT**.
+                  </p>
+                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-4">
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Rumus Penetapan Harga</p>
+                    <div className="flex items-center justify-center gap-4 py-4 bg-black/20 rounded-xl font-mono text-xl text-white font-bold">
+                      <span>USDT</span>
+                      <span className="text-primary">/</span>
+                      <span>ALX</span>
+                      <span className="text-primary">=</span>
+                      <span>12.24</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
+                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-4">Simulasi Deployment</p>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center text-[11px] font-bold uppercase">
+                        <span className="text-white/60">Suplai Kolam ALX</span>
+                        <span className="text-white">10.000 ALX</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px] font-bold uppercase">
+                        <span className="text-white/60">Pasangan Likuiditas</span>
+                        <span className="text-primary">122.400 USDT</span>
+                      </div>
+                      <div className="h-px bg-white/10 my-2" />
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-black text-white/40 uppercase">Initial Price</span>
+                        <span className="text-lg font-black text-green-400 italic">$ 12.24</span>
+                      </div>
+                    </div>
+                  </div>
+                  <Button className="w-full h-14 bg-white/10 hover:bg-white/20 text-white rounded-xl font-black uppercase italic text-[10px] border border-white/10">
+                    Unduh Dokumen Integrasi Uniswap
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <section className="space-y-12 mb-20">
           <div className="liquid-glass-dark rounded-[3.5rem] p-10 md:p-16 border-none shadow-[0_50px_100px_rgba(0,0,0,0.3)] relative overflow-hidden">
@@ -182,7 +240,7 @@ export default function AboutAlixPage() {
                       <span className="text-[10px] font-mono text-primary font-bold">0.8.20</span>
                     </div>
                     <div className="flex justify-between items-end border-b border-white/10 pb-2">
-                      <span className="text-[9px] font-bold text-white/40 uppercase">Network Network</span>
+                      <span className="text-[9px] font-bold text-white/40 uppercase">Network</span>
                       <span className="text-[10px] font-bold text-white italic">Ethereum Mainnet</span>
                     </div>
                   </div>
