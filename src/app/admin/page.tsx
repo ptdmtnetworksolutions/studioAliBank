@@ -56,7 +56,8 @@ import {
   Gift,
   Network,
   Milestone,
-  Pencil
+  Pencil,
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -332,8 +333,8 @@ function AdminContent() {
             </div>
 
             <div className="flex flex-wrap gap-4">
-              <Button onClick={() => window.open(`https://etherscan.io/address/${ALIX_CONTRACT}`, '_blank')} variant="outline" className="h-16 px-8 rounded-2xl font-black uppercase text-[11px] italic shadow-xl bg-card border-primary/20 text-accent hover:bg-primary/5 transition-all dark:text-white">
-                <SearchCheck className="w-5 h-5 mr-3 text-primary" /> Verify on Etherscan
+              <Button onClick={() => router.push('/admin/about-alix')} variant="outline" className="h-16 px-8 rounded-2xl font-black uppercase text-[11px] italic shadow-xl bg-card border-primary/20 text-accent hover:bg-primary/5 transition-all dark:text-white">
+                <Sparkles className="w-5 h-5 mr-3 text-primary" /> Misi & Validasi ALX
               </Button>
               <Button onClick={syncOnChainData} disabled={syncingVault} className="h-16 w-16 rounded-2xl liquid-glass border-primary/10 text-primary flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-all">
                 <RefreshCw className={cn("w-6 h-6", syncingVault && "animate-spin")} />
@@ -429,7 +430,7 @@ function AdminContent() {
                   </div>
                 </Card>
 
-                <Card className="liquid-glass-dark border-none rounded-[3.5rem] p-12 text-white space-y-8 shadow-[0_50px_100px_rgba(0,0,0,0.4)] relative overflow-hidden">
+                <Card className="liquid-glass-dark border-none rounded-[3.5rem] p-12 text-white space-y-8 shadow-[0_50px_100px_rgba(0,0,0,0.4)] relative overflow-hidden group">
                   <div className="absolute right-[-10%] top-[-10%] p-12 opacity-10 group-hover:rotate-12 transition-transform duration-1000"><Sparkles className="w-64 h-64" /></div>
                   <div className="relative z-10 flex items-center gap-6">
                     <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center text-primary shadow-lg"><Zap className="w-8 h-8" /></div>
@@ -438,8 +439,8 @@ function AdminContent() {
                   <p className="text-sm font-medium italic text-white/70 leading-relaxed uppercase relative z-10">
                     Seluruh pencetakan koin ALX didukung oleh agunan likuiditas Mainnet. Mekanisme "Smart Burn" otomatis aktif berdasarkan volume marketplace AliBank V3.
                   </p>
-                  <Button onClick={() => setActiveTab('audit')} className="w-full h-16 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-[2rem] font-black uppercase italic text-xs tracking-widest relative z-10 shadow-2xl">
-                    View Real-Time System Records
+                  <Button onClick={() => router.push('/admin/about-alix')} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-xs tracking-widest relative z-10 shadow-2xl flex items-center justify-between px-8">
+                    View Technical Roadmap <ChevronRight className="w-5 h-5" />
                   </Button>
                 </Card>
               </div>
