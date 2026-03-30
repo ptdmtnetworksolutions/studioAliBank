@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { useFirestore, useUser } from "@/firebase";
 import { 
   doc, 
+  getDoc,
   setDoc, 
   increment, 
   addDoc, 
@@ -109,11 +110,37 @@ export default function CheckoutPage() {
     async function fetchInvoice() {
       if (!db || !invoiceId) return;
       try {
+        // 1. Pertama cek di koleksi group 'invoices' (Merchant Invoice)
         const q = query(collectionGroup(db, "invoices"));
         const snapshot = await getDocs(q);
         const found = snapshot.docs.find(doc => doc.data().invoiceId === invoiceId);
+        
         if (found) {
-          setInvoice({ ...found.data(), id: found.id, path: found.ref.path });
+          setInvoice({ 
+            ...found.data(), 
+            id: found.id, 
+            path: found.ref.path,
+            isMarketplaceItem: false 
+          });
+          setLoading(false);
+          return;
+        }
+
+        // 2. Jika tidak ada, cek di koleksi 'marketplace' (Public Products)
+        const mktRef = doc(db, "marketplace", invoiceId as string);
+        const mktSnap = await getDoc(mktRef);
+        
+        if (mktSnap.exists()) {
+          const mktData = mktSnap.data();
+          setInvoice({
+            invoiceId: mktData.id,
+            productName: mktData.name,
+            amountIdr: mktData.priceIdr,
+            amountUsd: mktData.priceUsd,
+            status: "unpaid",
+            path: mktSnap.ref.path,
+            isMarketplaceItem: true
+          });
         }
       } catch (err) {
         console.error("Fetch invoice error:", err);
@@ -148,23 +175,26 @@ export default function CheckoutPage() {
   const processPaymentFinalization = async (details: any) => {
     if (!db || !invoice || !user) return;
 
-    const invoiceRef = doc(db, invoice.path);
     const systemLiquidityRef = doc(db, "system", "liquidity");
     const globalAuditRef = collection(db, "system", "audit", "global_transactions");
+    const userTxRef = collection(db, "users", user.uid, "transactions");
     
     const timestamp = new Date().toISOString();
     const gatewayId = details.id || `ALIBANK-TX-${Date.now()}`;
 
     try {
-      // 1. Update Invoice status di database AliBank secara riil
-      await setDoc(invoiceRef, {
-        status: "paid",
-        paidAt: timestamp,
-        paymentMethod: details.gateway || "AliBank V3 Terminal",
-        gatewayOrderId: gatewayId,
-        payerEmail: details.payer?.email_address || user.email,
-        actualReceivedUsd: baseAmount 
-      }, { merge: true });
+      // 1. Update status tagihan (Hanya jika ini adalah invoice merchant, bukan template produk marketplace)
+      if (!invoice.isMarketplaceItem) {
+        const invoiceRef = doc(db, invoice.path);
+        await setDoc(invoiceRef, {
+          status: "paid",
+          paidAt: timestamp,
+          paymentMethod: details.gateway || "AliBank V3 Terminal",
+          gatewayOrderId: gatewayId,
+          payerEmail: details.payer?.email_address || user.email,
+          actualReceivedUsd: baseAmount 
+        }, { merge: true });
+      }
 
       // 2. Injeksi Likuiditas ke Buku Besar Kas Pusat
       await setDoc(systemLiquidityRef, {
@@ -180,7 +210,7 @@ export default function CheckoutPage() {
         }
       }, { merge: true });
 
-      // 3. Pencatatan Audit Log Permanen (Untuk Rekonsiliasi Admin)
+      // 3. Pencatatan Audit Log Global
       await addDoc(globalAuditRef, {
         id: gatewayId,
         userId: user.uid,
@@ -191,6 +221,17 @@ export default function CheckoutPage() {
         category: "Marketplace Purchase", 
         gateway: details.gateway || "AliBank V3 Native",
         status: "success", 
+        timestamp: serverTimestamp()
+      });
+
+      // 4. Tambahkan ke riwayat transaksi user
+      await addDoc(userTxRef, {
+        date: timestamp,
+        description: `Beli: ${invoice.productName}`,
+        category: "Belanja",
+        amount: invoice.amountIdr,
+        type: "expense",
+        status: "success",
         timestamp: serverTimestamp()
       });
 
@@ -226,7 +267,6 @@ export default function CheckoutPage() {
 
   const initBridgeButtons = () => {
     if (window.paypal && bridgeButtonContainerRef.current) {
-      // Reset container untuk mencegah duplikasi tombol
       bridgeButtonContainerRef.current.innerHTML = '';
       
       window.paypal.Buttons({
@@ -234,7 +274,7 @@ export default function CheckoutPage() {
           layout: 'vertical',
           color: 'gold',
           shape: 'pill',
-          label: 'pay', // MENGGUNAKAN LABEL "PAY" UNTUK MENGURANGI BRANDING EXTERNAL
+          label: 'pay',
           tagline: false 
         },
         createOrder: (data: any, actions: any) => {
@@ -263,7 +303,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // Inisialisasi tombol saat step Bridge dipilih dan script sudah siap
   useEffect(() => {
     if (paymentStep === 'bridge_gate' && bridgeReady) {
       const timer = setTimeout(initBridgeButtons, 300);
@@ -282,7 +321,7 @@ export default function CheckoutPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 text-center">
       <AlertCircle className="w-16 h-16 text-destructive/20 mb-6" />
       <h2 className="text-2xl font-black text-accent uppercase italic tracking-tighter">Invoice Not Found</h2>
-      <p className="text-xs text-muted-foreground mt-2 font-medium max-w-xs">Tagihan tidak ditemukan atau telah kedaluwarsa dalam sistem AliBank.</p>
+      <p className="text-xs text-muted-foreground mt-2 font-medium max-w-xs">Tagihan atau produk tidak ditemukan dalam sistem AliBank.</p>
       <Button className="mt-8 rounded-xl gold-gradient text-white font-bold px-8 h-12" onClick={() => router.push('/')}>Return to Dashboard</Button>
     </div>
   );
