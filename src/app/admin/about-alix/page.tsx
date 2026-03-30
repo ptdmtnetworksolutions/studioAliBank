@@ -28,18 +28,57 @@ import {
   Gavel,
   CheckCircle2,
   Calculator,
-  ArrowRight
+  ArrowRight,
+  Copy,
+  Code2
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { LogoIcon } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const ALIX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 
+const ALX_TOKEN_CODE = `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+/**
+ * @title AlixCoin
+ * @dev Token resmi AliBank (ALX) berbasis ERC-20.
+ * Mendukung mekanisme Mint & Burn untuk kontrol ekonomi berdaulat.
+ */
+contract AlixCoin is ERC20, ERC20Burnable, Ownable {
+    constructor(address initialOwner)
+        ERC20("Alix Coin", "ALX")
+        Ownable(initialOwner)
+    {
+        // Mencetak suplai awal (1 Juta ALX) ke dompet pemilik
+        _mint(initialOwner, 1000000 * 10 ** decimals());
+    }
+
+    /**
+     * @dev Menambah suplai koin (Hanya Pemilik).
+     * Terhubung dengan tombol "Mint" di AliBank Command Center.
+     */
+    function mint(address to, uint256 amount) public onlyOwner {
+        _mint(to, amount);
+    }
+}`;
+
 export default function AboutAlixPage() {
   const router = useRouter();
+  const { toast } = useToast();
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(ALX_TOKEN_CODE);
+    toast({ title: "Kode Disalin", description: "Smart Contract Koin ALX siap ditempel di Remix IDE." });
+  };
 
   return (
     <div className="min-h-screen pb-32 bg-background selection:bg-primary/20">
@@ -120,6 +159,43 @@ export default function AboutAlixPage() {
             </p>
           </Card>
         </div>
+
+        {/* NEW SECTION: SMART CONTRACT SOURCE CODE */}
+        <section className="mb-16">
+          <div className="liquid-glass-dark rounded-[3rem] p-12 border-none shadow-2xl space-y-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <Code2 className="w-32 h-32 text-primary" />
+            </div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px] mb-2">Technical Asset</Badge>
+                  <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Source Code Koin ALX (ERC-20)</h2>
+                </div>
+                <Button 
+                  onClick={copyCode}
+                  className="h-12 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl font-bold gap-2 px-6"
+                >
+                  <Copy className="w-4 h-4" /> Copy Solidity Code
+                </Button>
+              </div>
+
+              <div className="bg-black/40 rounded-2xl border border-white/5 p-6 overflow-hidden">
+                <pre className="text-[10px] font-mono text-primary/80 leading-relaxed overflow-x-auto no-scrollbar">
+                  {ALX_TOKEN_CODE}
+                </pre>
+              </div>
+
+              <div className="mt-8 p-6 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex gap-4">
+                <Lightbulb className="w-6 h-6 text-blue-500 shrink-0" />
+                <p className="text-[9px] text-white/70 italic leading-relaxed uppercase font-bold">
+                  Gunakan kode di atas pada <a href="https://remix.ethereum.org" target="_blank" className="text-primary underline">Remix IDE</a>. Pastikan Anda menyetel compiler ke versi 0.8.20 dan menyertakan library OpenZeppelin. Ini adalah langkah teknis terakhir sebelum ALX siap di-listing di Uniswap.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <section className="mb-16">
           <div className="liquid-glass-dark rounded-[3rem] p-12 border-none shadow-2xl relative overflow-hidden">
