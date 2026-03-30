@@ -426,7 +426,19 @@ export default function CheckoutPage() {
                       <span className="text-accent">$ {baseAmount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] font-bold uppercase">
-                      <span className="text-muted-foreground flex items-center gap-1">Processing Fees <Info className="w-3 h-3" /></span>
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        Processing GAS 
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="w-3 h-3 cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-[200px]">
+                            <p className="text-[10px] font-bold leading-relaxed italic">
+                              Biaya ini digunakan untuk biaya eksekusi Smart Contract AliBank di jaringan Ethereum Mainnet (GAS Fee) guna menjamin validitas transaksi on-chain.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </span>
                       <span className="text-accent">$ {serviceFee.toFixed(2)}</span>
                     </div>
                     <div className="pt-3 border-t border-primary/5 flex justify-between items-center">
