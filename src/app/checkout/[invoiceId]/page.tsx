@@ -80,6 +80,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { toast } = useToast();
   const db = useFirestore();
+  const { user } = useUser();
   
   const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState<any>(null);
@@ -136,12 +137,20 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (paymentStep === 'bridge_gate' && paypalReady && window.paypal) {
-      // Common Application Context to remove shipping/billing fields
       const appContent = {
         shipping_preference: 'NO_SHIPPING',
         user_action: 'PAY_NOW',
         brand_name: 'ALIBANK SECURE V3'
       };
+
+      // Pre-fill data nasabah untuk mengurangi input ulang di modal PayPal
+      const payerInfo = user ? {
+        email_address: user.email || undefined,
+        name: {
+          given_name: user.displayName?.split(' ')[0] || "Nasabah",
+          surname: user.displayName?.split(' ').slice(1).join(' ') || "AliBank"
+        }
+      } : undefined;
 
       if (paypalContainerRef.current) {
         paypalContainerRef.current.innerHTML = "";
@@ -153,6 +162,7 @@ export default function CheckoutPage() {
                 amount: { currency_code: "USD", value: invoice?.amountUsd.toString() || "0.00" },
                 description: `AliBank Global Settlement - INV ${invoice?.invoiceId}`
               }],
+              payer: payerInfo,
               application_context: appContent
             });
           },
@@ -178,6 +188,7 @@ export default function CheckoutPage() {
                 amount: { currency_code: "USD", value: invoice?.amountUsd.toString() || "0.00" },
                 description: `AliBank Card Settlement - INV ${invoice?.invoiceId}`
               }],
+              payer: payerInfo,
               application_context: appContent
             });
           },
@@ -192,7 +203,7 @@ export default function CheckoutPage() {
         }).render(cardButtonRef.current);
       }
     }
-  }, [paymentStep, paypalReady, invoice]);
+  }, [paymentStep, paypalReady, invoice, user]);
 
   const processPaymentFinalization = async (details: any) => {
     if (!db || !invoice) return;
