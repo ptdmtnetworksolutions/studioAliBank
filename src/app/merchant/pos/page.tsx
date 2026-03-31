@@ -16,14 +16,16 @@ import {
   Smartphone,
   Globe,
   Share2,
-  X
+  X,
+  RefreshCw,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { useUser, useFirestore } from "@/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { useUser, useFirestore, useCollection } from "@/firebase";
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 
@@ -44,8 +46,32 @@ export default function PosTerminalPage() {
   const [amount, setAmount] = useState("0");
   const [selectedCategory, setSelectedCategory] = useState("Retail");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [step, setStep] = useState<'input' | 'request'>('input');
+  const [step, setStep] = useState<'input' | 'request' | 'paid'>('input');
   const [activeInvoiceId, setActiveInvoiceId] = useState<string | null>(null);
+
+  // Listen status pembayaran secara riil
+  useEffect(() => {
+    if (!db || !user || !activeInvoiceId) return;
+
+    const q = query(
+      collection(db, "merchants", user.uid, "invoices"),
+      where("invoiceId", "==", activeInvoiceId)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "modified") {
+          const data = change.doc.data();
+          if (data.status === "paid") {
+            setStep('paid');
+            toast({ title: "Pembayaran Diterima!", description: `Rp ${data.amountIdr.toLocaleString()} telah masuk ke rekening bisnis Anda.` });
+          }
+        }
+      });
+    });
+
+    return () => unsubscribe();
+  }, [db, user, activeInvoiceId]);
 
   const handleKeyPress = (num: string) => {
     if (amount === "0") {
@@ -107,6 +133,29 @@ export default function PosTerminalPage() {
 
   const formattedAmount = parseFloat(amount).toLocaleString('id-ID');
 
+  if (step === 'paid') {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 animate-in zoom-in duration-500">
+        <div className="w-32 h-32 rounded-full bg-green-500/10 flex items-center justify-center mb-8 relative">
+          <CheckCircle2 className="w-20 h-20 text-green-600" />
+          <div className="absolute inset-0 bg-green-500/20 rounded-full animate-ping" />
+        </div>
+        <h2 className="text-4xl font-black italic uppercase text-accent text-center tracking-tighter mb-4">SUCCESSFUL</h2>
+        <Card className="w-full max-w-sm liquid-glass border-none rounded-[2.5rem] p-8 text-center shadow-2xl mb-8">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Total Settlement</p>
+          <p className="text-4xl font-black text-primary italic">Rp {formattedAmount}</p>
+          <div className="mt-6 pt-6 border-t border-primary/10 flex flex-col items-center gap-2">
+            <Badge className="bg-green-600 text-white font-black italic">PAID VIA POS V3</Badge>
+            <p className="text-[8px] font-bold text-muted-foreground uppercase">Funds secured in merchant vault</p>
+          </div>
+        </Card>
+        <Button onClick={handleCloseRequest} className="w-full max-w-sm h-16 gold-gradient text-white font-black italic uppercase rounded-[2rem] shadow-xl">
+          NEW TRANSACTION
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
       {/* Header */}
@@ -135,7 +184,7 @@ export default function PosTerminalPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between px-1">
                 <label className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em]">Nominal Penjualan (IDR)</label>
-                <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black italic">AUTO-SYNC</Badge>
+                <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black italic">LIVE SINKRON</Badge>
               </div>
               <div className="flex items-end gap-2 overflow-hidden">
                 <span className="text-3xl font-black text-primary/40 italic pb-2">Rp</span>
@@ -192,7 +241,7 @@ export default function PosTerminalPage() {
             >
               {isProcessing ? <Loader2 className="w-8 h-8 animate-spin" /> : (
                 <>
-                  GENERATE PAYMENT <Sparkles className="w-6 h-6 ml-3" />
+                  BUAT PERMINTAAN <Sparkles className="w-6 h-6 ml-3" />
                 </>
               )}
             </Button>
@@ -201,8 +250,8 @@ export default function PosTerminalPage() {
       ) : (
         <main className="flex-1 p-6 flex flex-col items-center justify-center space-y-8 animate-in zoom-in-95 duration-500">
           <div className="text-center space-y-2">
-            <Badge className="bg-green-600 text-white font-black uppercase text-[8px] px-4 py-1.5 rounded-full shadow-lg animate-pulse">Awaiting Payment</Badge>
-            <h2 className="text-3xl font-black italic text-accent uppercase tracking-tighter">Request Secured</h2>
+            <Badge className="bg-green-600 text-white font-black uppercase text-[8px] px-4 py-1.5 rounded-full shadow-lg animate-pulse">Menunggu Pembayaran...</Badge>
+            <h2 className="text-3xl font-black italic text-accent uppercase tracking-tighter">Terminal Siap</h2>
           </div>
 
           <div className="relative group">
@@ -210,7 +259,7 @@ export default function PosTerminalPage() {
             <div className="w-72 h-72 bg-white dark:bg-card rounded-[3rem] p-10 shadow-2xl relative z-10 border-4 border-primary/10 flex items-center justify-center">
               <div className="w-full h-full bg-slate-50 dark:bg-black/20 rounded-2xl flex flex-col items-center justify-center text-primary/40 text-center gap-4">
                 <QrCode className="w-32 h-32" />
-                <p className="text-[10px] font-black uppercase tracking-widest leading-tight px-6 italic">Scan using AliBank App to settle Rp {formattedAmount}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest leading-tight px-6 italic">Gunakan Aplikasi AliBank atau Tap Kartu NFC Pelanggan</p>
               </div>
             </div>
             <div className="absolute -bottom-4 -right-4 w-16 h-16 rounded-[1.5rem] gold-gradient flex items-center justify-center shadow-2xl border-4 border-background">
@@ -227,7 +276,7 @@ export default function PosTerminalPage() {
               <div className="h-px bg-border" />
               <div className="flex justify-between items-end">
                 <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Total to Pay</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Total Tagihan</p>
                   <p className="text-3xl font-black italic text-primary tracking-tighter">Rp {formattedAmount}</p>
                 </div>
                 <Badge variant="outline" className="border-primary/20 text-accent font-black uppercase italic text-[8px] h-6 px-3">{selectedCategory}</Badge>
@@ -243,7 +292,7 @@ export default function PosTerminalPage() {
                 <Share2 className="w-4 h-4 mr-2" /> Share Link
               </Button>
               <Button className="h-14 rounded-2xl gold-gradient text-white font-black uppercase italic text-[10px] tracking-widest shadow-xl" onClick={handleCloseRequest}>
-                <X className="w-4 h-4 mr-2" /> Cancel POS
+                <X className="w-4 h-4 mr-2" /> Batalkan POS
               </Button>
             </div>
           </div>
@@ -251,7 +300,7 @@ export default function PosTerminalPage() {
           <footer className="w-full flex items-center justify-center gap-6 pt-10 opacity-40 grayscale">
             <div className="flex flex-col items-center gap-1">
               <Smartphone className="w-5 h-5" />
-              <span className="text-[8px] font-black uppercase italic">Mobile Pay</span>
+              <span className="text-[8px] font-black uppercase italic">Contactless</span>
             </div>
             <div className="flex flex-col items-center gap-1">
               <Globe className="w-5 h-5" />

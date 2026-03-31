@@ -19,13 +19,14 @@ import {
   Calculator,
   Wifi,
   Zap,
-  Cpu
+  Cpu,
+  Contactless
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useFirestore, useUser } from "@/firebase";
+import { useUser, useFirestore, useDoc } from "@/firebase";
 import { 
   doc, 
   getDoc,
@@ -53,6 +54,7 @@ import { cn } from "@/lib/utils";
 declare global {
   interface Window {
     paypal: any;
+    NDEFReader: any;
   }
 }
 
@@ -99,7 +101,8 @@ export default function CheckoutPage() {
   const [paymentStep, setPaymentStep] = useState<'selection' | 'bridge_gate' | 'native_card' | 'pos_terminal' | 'success'>('selection');
   const [bridgeReady, setBridgeReady] = useState(false);
   const [isProcessingCard, setIsProcessingCard] = useState(false);
-  const [posState, setPosState] = useState<'idle' | 'detecting' | 'processing'>('idle');
+  const [posState, setPosState] = useState<'idle' | 'scanning' | 'processing'>('idle');
+  const [nfcError, setNfcError] = useState<string | null>(null);
   
   // Card Input States
   const [cardNumber, setCardNumber] = useState("");
@@ -275,16 +278,37 @@ export default function CheckoutPage() {
     }
   };
 
-  const simulatePosSwipe = async () => {
-    setPosState('detecting');
-    await new Promise(r => setTimeout(r, 2000));
-    setPosState('processing');
-    await new Promise(r => setTimeout(r, 3000));
-    
-    await processPaymentFinalization({
-      id: `POS-V3-${Date.now()}`,
-      gateway: "AliBank V3 Physical POS"
-    });
+  const startNfcPayment = async () => {
+    if (!('NDEFReader' in window)) {
+      setNfcError("NFC tidak didukung pada browser ini. Gunakan Chrome di Android.");
+      return;
+    }
+
+    try {
+      setPosState('scanning');
+      const ndef = new window.NDEFReader();
+      await ndef.scan();
+      
+      ndef.onreading = async (event: any) => {
+        setPosState('processing');
+        // Identifikasi unik dari kartu/tag NFC sebagai "Proof of Presence"
+        const serialNumber = event.serialNumber;
+        
+        await processPaymentFinalization({
+          id: `NFC-POS-${serialNumber}`,
+          gateway: "AliBank V3 NFC Physical Tap"
+        });
+      };
+
+      ndef.onreadingerror = () => {
+        toast({ variant: "destructive", title: "NFC Read Error", description: "Gagal membaca tag. Dekatkan kembali kartu Anda." });
+        setPosState('idle');
+      };
+
+    } catch (error: any) {
+      setNfcError(error.message || "Gagal mengaktifkan sensor NFC.");
+      setPosState('idle');
+    }
   };
 
   const initBridgeButtons = () => {
@@ -438,33 +462,43 @@ export default function CheckoutPage() {
 
                   <div className="relative mx-auto">
                     <div className="absolute inset-0 gold-gradient blur-[80px] opacity-20" />
-                    <div className="w-48 h-48 bg-background rounded-full border-4 border-primary/20 flex items-center justify-center relative z-10">
+                    <div className={cn(
+                      "w-48 h-48 bg-background rounded-full border-4 flex items-center justify-center relative z-10 transition-all duration-500",
+                      posState === 'idle' ? "border-primary/20" : "border-primary shadow-[0_0_30px_rgba(252,213,53,0.4)]"
+                    )}>
                       {posState === 'idle' ? (
                         <div className="flex flex-col items-center gap-4 animate-bounce">
-                          <CreditCard className="w-16 h-16 text-primary" />
-                          <p className="text-[10px] font-black uppercase tracking-tighter text-accent italic">Ready to Tap/Insert</p>
+                          <Contactless className="w-16 h-16 text-primary" />
+                          <p className="text-[10px] font-black uppercase tracking-tighter text-accent italic">Ready to Tap</p>
                         </div>
-                      ) : posState === 'detecting' ? (
+                      ) : posState === 'scanning' ? (
                         <div className="flex flex-col items-center gap-4">
                           <Loader2 className="w-16 h-16 text-primary animate-spin" />
-                          <p className="text-[10px] font-black uppercase tracking-tighter text-accent italic">Reading Card Data...</p>
+                          <p className="text-[10px] font-black uppercase tracking-tighter text-accent italic">Hold Card Near Device...</p>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-4">
                           <Cpu className="w-16 h-16 text-primary animate-pulse" />
-                          <p className="text-[10px] font-black uppercase tracking-tighter text-accent italic">V3 Direct Clearing...</p>
+                          <p className="text-[10px] font-black uppercase tracking-tighter text-accent italic">Clearing Network...</p>
                         </div>
                       )}
                     </div>
                   </div>
 
                   <div className="space-y-4">
-                    <p className="text-xs font-medium text-muted-foreground uppercase italic px-10">
-                      Gunakan terminal POS fisik AliBank atau tempelkan kartu NFC Anda ke bagian belakang perangkat ini.
-                    </p>
+                    {nfcError ? (
+                      <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+                        <p className="text-[10px] text-destructive font-black uppercase italic">{nfcError}</p>
+                      </div>
+                    ) : (
+                      <p className="text-xs font-medium text-muted-foreground uppercase italic px-10">
+                        Tempelkan kartu debit/kredit Anda ke sensor NFC di bagian belakang perangkat ini untuk penyelesaian riil.
+                      </p>
+                    )}
+                    
                     {posState === 'idle' && (
-                      <Button onClick={simulatePosSwipe} className="w-full h-16 bg-[#1E2329] text-white rounded-2xl font-black italic uppercase text-xs tracking-widest hover:bg-black transition-all">
-                        Simulate Card Insertion <Zap className="w-4 h-4 ml-2" />
+                      <Button onClick={startNfcPayment} className="w-full h-16 bg-[#1E2329] text-white rounded-2xl font-black italic uppercase text-xs tracking-widest hover:bg-black transition-all">
+                        ACTIVATE NFC SENSOR <Zap className="w-4 h-4 ml-2" />
                       </Button>
                     )}
                   </div>
