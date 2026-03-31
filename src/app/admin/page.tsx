@@ -57,7 +57,8 @@ import {
   Network,
   Milestone,
   Pencil,
-  ChevronRight
+  ChevronRight,
+  ArrowDownLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -89,7 +90,7 @@ import {
   getDocs,
   where
 } from "firebase/firestore";
-import { JsonRpcProvider, formatEther, parseEther, ethers } from "ethers";
+import { JsonRpcProvider, formatEther, parseEther, ethers, BrowserProvider, Contract } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -106,6 +107,12 @@ import Image from "next/image";
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
 const ALIX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
+
+const VAULT_ABI = [
+  "function withdraw(uint256 _amount) public",
+  "function getTotalVaultBalance() public view returns (uint256)",
+  "function balances(address) public view returns (uint256)"
+];
 
 const PRODUCT_CATEGORIES = [
   "Layanan Seluler",
@@ -128,6 +135,10 @@ function AdminContent() {
   const [onChainEth, setOnChainEth] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
   
+  // Vault Disbursement States
+  const [disburseAmount, setDisburseAmount] = useState("");
+  const [isDisbursing, setIsDisbursing] = useState(false);
+
   // ALX Sovereign Supply States
   const [alixMintAmount, setAlixMintAmount] = useState("");
   const [alixBurnAmount, setAlixBurnAmount] = useState("");
@@ -182,6 +193,49 @@ function AdminContent() {
     setIsAuthorized(true);
     syncOnChainData();
   }, [user, userLoading, router, syncOnChainData]);
+
+  const handleVaultDisbursement = async () => {
+    if (!disburseAmount || isDisbursing) return;
+    setIsDisbursing(true);
+
+    try {
+      if (!window.ethereum) throw new Error("MetaMask tidak terdeteksi. Gunakan browser Web3.");
+      
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const vaultContract = new Contract(ALIX_CONTRACT, VAULT_ABI, signer);
+
+      const amountWei = parseEther(disburseAmount);
+      
+      toast({ title: "Menyiapkan Transaksi", description: "Silakan konfirmasi di MetaMask Anda." });
+      
+      const tx = await vaultContract.withdraw(amountWei);
+      await tx.wait();
+
+      // Log ke Audit System
+      if (db) {
+        await addDoc(collection(db, "system", "audit", "global_transactions"), {
+          id: `WITHDRAW-${Date.now()}`,
+          category: "Vault Disbursement",
+          cryptoAmount: parseFloat(disburseAmount),
+          cryptoCurrency: "ETH",
+          status: "success",
+          txHash: tx.hash,
+          timestamp: serverTimestamp(),
+          description: "External Disbursement: Funds moved from Central Vault to Admin Wallet."
+        });
+      }
+
+      toast({ title: "Disbursement Berhasil", description: `${disburseAmount} ETH telah ditarik dari brankas.` });
+      setDisburseAmount("");
+      syncOnChainData();
+    } catch (err: any) {
+      console.error(err);
+      toast({ variant: "destructive", title: "Gagal Menarik Dana", description: err.message });
+    } finally {
+      setIsDisbursing(false);
+    }
+  };
 
   const handleMintAlix = async () => {
     if (!db || !alixMintAmount) return;
@@ -692,46 +746,91 @@ function AdminContent() {
             </TabsContent>
 
             <TabsContent value="vault" className="space-y-10 animate-in zoom-in-95 duration-500">
-              <Card className="liquid-glass border-none rounded-[4rem] p-16 text-accent space-y-12 shadow-2xl relative overflow-hidden">
-                <div className="absolute right-[-5%] bottom-[-5%] opacity-5"><LogoIcon className="w-96 h-96 text-primary" /></div>
-                <div className="flex items-center justify-between relative z-10">
-                  <div className="flex items-center gap-8">
-                    <div className="w-24 h-24 rounded-[2.5rem] bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner"><Database className="w-12 h-12" /></div>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                <Card className="lg:col-span-8 liquid-glass border-none rounded-[4rem] p-16 text-accent space-y-12 shadow-2xl relative overflow-hidden">
+                  <div className="absolute right-[-5%] bottom-[-5%] opacity-5"><LogoIcon className="w-96 h-96 text-primary" /></div>
+                  <div className="flex items-center justify-between relative z-10">
+                    <div className="flex items-center gap-8">
+                      <div className="w-24 h-24 rounded-[2.5rem] bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner"><Database className="w-12 h-12" /></div>
+                      <div>
+                        <h3 className="text-4xl font-black uppercase italic dark:text-white">Mainnet Vault Reserve</h3>
+                        <p className="text-[12px] font-black text-muted-foreground uppercase tracking-[0.4em] mt-2 italic">Institutional Multi-Asset Node V3</p>
+                      </div>
+                    </div>
+                    <Badge className="bg-green-600 text-white font-black text-sm px-6 py-2 rounded-2xl shadow-xl animate-pulse">NODE ACTIVE</Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
+                    <div className="p-12 rounded-[3.5rem] bg-accent/5 border border-primary/10 space-y-6 shadow-inner group hover:bg-primary/5 transition-all">
+                      <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.3em]">Vault Liquidity (ETH)</p>
+                      <p className="text-7xl font-black italic tracking-tighter text-blue-600">{parseFloat(onChainEth).toFixed(4)} <span className="text-3xl text-muted-foreground opacity-40">ETH</span></p>
+                      <div className="pt-8 flex items-center gap-3 text-[11px] font-black text-muted-foreground uppercase italic">
+                        <SearchCheck className="w-6 h-6 text-primary" /> Verified by Ethereum Node Cluster 2026
+                      </div>
+                    </div>
+                    <div className="p-12 rounded-[3.5rem] bg-accent/5 border border-primary/10 space-y-8 shadow-inner">
+                      <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.3em]">Contract Verification Hud</p>
+                      <div className="space-y-6">
+                        <div className="flex justify-between items-end border-b border-primary/10 pb-4">
+                          <span className="text-[10px] font-black uppercase text-muted-foreground">Standard Architecture</span>
+                          <span className="text-sm font-black italic dark:text-white">ALX Sovereign Protocol</span>
+                        </div>
+                        <div className="flex justify-between items-end border-b border-primary/10 pb-4">
+                          <span className="text-[10px] font-black uppercase text-muted-foreground">Compliance Guard</span>
+                          <span className="text-sm font-black italic dark:text-white">Institutional Grade V3</span>
+                        </div>
+                        <div className="flex justify-between items-end border-b border-primary/10 pb-4">
+                          <span className="text-[10px] font-black uppercase text-muted-foreground">Storage Type</span>
+                          <span className="text-sm font-black italic dark:text-white">Cold-Storage Backed</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* NEW: DISBURSEMENT TERMINAL */}
+                <Card className="lg:col-span-4 liquid-glass-dark border-none rounded-[3.5rem] p-10 space-y-8 shadow-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-6 opacity-10"><ArrowDownLeft className="w-32 h-32 text-primary" /></div>
+                  <div className="relative z-10 space-y-8">
                     <div>
-                      <h3 className="text-4xl font-black uppercase italic dark:text-white">Mainnet Vault Reserve</h3>
-                      <p className="text-[12px] font-black text-muted-foreground uppercase tracking-[0.4em] mt-2 italic">Institutional Multi-Asset Node V3</p>
+                      <Badge className="bg-primary text-white font-black uppercase text-[8px] tracking-widest mb-2">Internal Protocol</Badge>
+                      <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter leading-tight">External Disbursement</h3>
+                      <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Keluarkan dana brankas ke dompet Admin eksternal.</p>
                     </div>
-                  </div>
-                  <Badge className="bg-green-600 text-white font-black text-sm px-6 py-2 rounded-2xl shadow-xl animate-pulse">NODE ACTIVE</Badge>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
-                  <div className="p-12 rounded-[3.5rem] bg-accent/5 border border-primary/10 space-y-6 shadow-inner group hover:bg-primary/5 transition-all">
-                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.3em]">Vault Liquidity (ETH)</p>
-                    <p className="text-7xl font-black italic tracking-tighter text-blue-600">{parseFloat(onChainEth).toFixed(4)} <span className="text-3xl text-muted-foreground opacity-40">ETH</span></p>
-                    <div className="pt-8 flex items-center gap-3 text-[11px] font-black text-muted-foreground uppercase italic">
-                      <SearchCheck className="w-6 h-6 text-primary" /> Verified by Ethereum Node Cluster 2026
-                    </div>
-                  </div>
-                  <div className="p-12 rounded-[3.5rem] bg-accent/5 border border-primary/10 space-y-8 shadow-inner">
-                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.3em]">Contract Verification Hud</p>
+
                     <div className="space-y-6">
-                      <div className="flex justify-between items-end border-b border-primary/10 pb-4">
-                        <span className="text-[10px] font-black uppercase text-muted-foreground">Standard Architecture</span>
-                        <span className="text-sm font-black italic dark:text-white">ALX Sovereign Protocol</span>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-white/40 ml-2">Amount to Withdraw (ETH)</label>
+                        <div className="relative">
+                          <Input 
+                            type="number" 
+                            placeholder="0.00" 
+                            value={disburseAmount}
+                            onChange={(e) => setDisburseAmount(e.target.value)}
+                            className="h-16 rounded-2xl bg-white/5 border-none font-black italic text-xl px-6 text-white shadow-inner" 
+                          />
+                          <span className="absolute right-6 top-1/2 -translate-y-1/2 text-xs font-black text-primary italic">ETH</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-end border-b border-primary/10 pb-4">
-                        <span className="text-[10px] font-black uppercase text-muted-foreground">Compliance Guard</span>
-                        <span className="text-sm font-black italic dark:text-white">Institutional Grade V3</span>
+
+                      <div className="p-6 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex gap-4">
+                        <Info className="w-5 h-5 text-blue-500 shrink-0" />
+                        <p className="text-[9px] text-white/60 italic leading-relaxed uppercase font-bold">
+                          Dana akan dikirim langsung ke dompet MetaMask yang terhubung ke sesi Command Center ini melalui interaksi Smart Contract AliBank V3.
+                        </p>
                       </div>
-                      <div className="flex justify-between items-end border-b border-primary/10 pb-4">
-                        <span className="text-[10px] font-black uppercase text-muted-foreground">Storage Type</span>
-                        <span className="text-sm font-black italic dark:text-white">Cold-Storage Backed</span>
-                      </div>
+
+                      <Button 
+                        onClick={handleVaultDisbursement}
+                        disabled={isDisbursing || !disburseAmount}
+                        className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic text-sm shadow-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02]"
+                      >
+                        {isDisbursing ? <Loader2 className="w-6 h-6 animate-spin" /> : <>EXECUTE DISBURSEMENT <ArrowDownRight className="w-5 h-5" /></>}
+                      </Button>
                     </div>
                   </div>
-                </div>
-              </Card>
+                </Card>
+              </div>
             </TabsContent>
 
             <TabsContent value="users" className="animate-in fade-in duration-500">
@@ -809,7 +908,7 @@ function AdminContent() {
                         <tr key={log.id} className="hover:bg-primary/5 transition-colors">
                           <td className="px-12 py-8 font-mono text-[10px] text-muted-foreground">{log.id}</td>
                           <td className="px-12 py-8">
-                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
+                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") || log.category?.includes("Vault") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
                               {log.category}
                             </Badge>
                           </td>
