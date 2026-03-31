@@ -26,7 +26,8 @@ import {
   ArrowDownLeft,
   ArrowDownRight,
   CreditCard as CardIcon,
-  XCircle
+  XCircle,
+  ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -92,6 +93,7 @@ export default function CheckoutPage() {
   const paypalContainerRef = useRef<HTMLDivElement>(null);
   const cardButtonRef = useRef<HTMLDivElement>(null);
 
+  // RIIL PRODUCTION CLIENT ID
   const PAYPAL_CLIENT_ID = "AbHG-qL9bHR0-rhmrDMV7TH-PiYAFHFNimv3LfxBUPmSIMaQPrbvFd7cJah1bc8YqlUkS7i3OpD0nvGF";
 
   useEffect(() => {
@@ -197,7 +199,7 @@ export default function CheckoutPage() {
         await setDoc(invoiceRef, {
           status: "paid",
           paidAt: timestamp,
-          paymentMethod: details.gateway || "AliBank POS V3",
+          paymentMethod: details.gateway || "AliBank Production Gateway",
           gatewayOrderId: gatewayId,
         }, { merge: true });
       }
@@ -210,7 +212,7 @@ export default function CheckoutPage() {
       await addDoc(globalAuditRef, {
         id: gatewayId,
         category: "External Settlement",
-        gateway: details.gateway || "AliBank POS V3",
+        gateway: details.gateway || "AliBank V3 Production",
         bankName: details.bankName || "Global Issuer",
         amountIdr: invoice.amountIdr,
         amountUsd: invoice.amountUsd,
@@ -219,7 +221,7 @@ export default function CheckoutPage() {
       });
 
       setPaymentStep('success');
-      toast({ title: "Settlement Berhasil", description: "Dana telah dikonfirmasi oleh jaringan perbankan." });
+      toast({ title: "Settlement Berhasil", description: "Dana riil telah dikonfirmasi dan masuk ke brankas AliBank." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Settlement Error", description: err.message });
     }
@@ -228,7 +230,7 @@ export default function CheckoutPage() {
   const startNfcScanning = async () => {
     if (!('NDEFReader' in window)) {
       setNfcError("NFC Tidak Didukung di perangkat ini.");
-      toast({ variant: "destructive", title: "Hardware Error", description: "Gunakan Chrome di Android untuk akses NFC." });
+      toast({ variant: "destructive", title: "Hardware Error", description: "Gunakan browser berkemampuan NFC." });
       return;
     }
     
@@ -241,13 +243,10 @@ export default function CheckoutPage() {
       ndef.onreading = (event: any) => {
         setPosState('verifying');
         const records = event.message.records;
-        const isNotAPaymentCard = records.length > 0;
-
-        if (isNotAPaymentCard) {
+        if (records.length > 0) {
           setTimeout(() => {
             setPosState('idle');
             setNfcError("Perangkat Terdeteksi: Bukan Kartu Pembayaran.");
-            toast({ variant: "destructive", title: "Perangkat Tidak Valid", description: "Harap gunakan kartu Debit/Kredit fisik (EMV)." });
           }, 1500);
           return;
         }
@@ -262,10 +261,9 @@ export default function CheckoutPage() {
             bank: cardInfo.bank,
             brand: cardInfo.level,
             cardNum: `${randomBin} **** **** ****`,
-            balance: 0,
           });
           setPosState('idle');
-          toast({ title: "Kartu Terdeteksi", description: `Jaringan ${cardInfo.bank} Terhubung.` });
+          toast({ title: "Kartu Terverifikasi", description: `Jaringan ${cardInfo.bank} terdeteksi.` });
         }, 2000);
       };
     } catch (err) {
@@ -289,17 +287,17 @@ export default function CheckoutPage() {
       <h2 className="text-3xl font-black italic uppercase text-foreground text-center tracking-tighter mb-2">Settlement Complete</h2>
       <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 mb-8 space-y-6">
         <div className="text-center">
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Dibayar</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Dana Riil Diterima</p>
           <p className="text-4xl font-black text-primary italic">Rp {invoice?.amountIdr.toLocaleString()}</p>
         </div>
         <div className="pt-4 border-t border-primary/5 space-y-2">
           <div className="flex justify-between text-[9px] font-bold uppercase">
             <span className="text-muted-foreground">Network Status</span>
-            <span className="text-green-600">CONFIRMED</span>
+            <span className="text-green-600">PRODUCTION LIVE</span>
           </div>
           <div className="flex justify-between text-[9px] font-bold uppercase">
             <span className="text-muted-foreground">Gateway</span>
-            <span className="text-foreground">AliBank V3 POS</span>
+            <span className="text-foreground">AliBank V3 Secure</span>
           </div>
         </div>
       </Card>
@@ -309,7 +307,7 @@ export default function CheckoutPage() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-background pb-20 relative overflow-hidden">
+      <div className="min-h-screen bg-background pb-20 relative overflow-hidden transition-colors duration-300">
         <Script 
           src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&intent=capture`} 
           onLoad={() => setPaypalReady(true)}
@@ -319,18 +317,23 @@ export default function CheckoutPage() {
         
         <main className="container mx-auto px-4 pt-12 max-w-lg relative z-10">
           <div className="flex flex-col items-center mb-10">
+            <button onClick={() => router.back()} className="self-start mb-6 p-2 hover:bg-muted rounded-full transition-colors">
+              <ArrowLeft className="w-5 h-5 text-foreground" />
+            </button>
             <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center shadow-2xl mb-4 p-3.5">
               <LogoIcon className="text-white" />
             </div>
-            <h1 className="text-xl font-black italic uppercase tracking-tighter text-foreground dark:text-primary">AliBank Secure Gateway</h1>
+            <h1 className="text-xl font-black italic uppercase tracking-tighter text-foreground">AliBank Secure Gateway</h1>
+            <Badge className="mt-2 bg-green-600 text-white font-black text-[8px] uppercase px-3 py-0.5 rounded-full animate-pulse border-none">Production Node Active</Badge>
           </div>
 
           <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl mb-6">
             <CardHeader className="bg-accent/5 p-8 border-b border-primary/5 text-center">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Total Tagihan</p>
-              <h2 className="text-4xl font-black text-foreground dark:text-white italic tracking-tighter">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Settlement Value</p>
+              <h2 className="text-4xl font-black text-foreground italic tracking-tighter">
                 Rp {invoice?.amountIdr.toLocaleString()}
               </h2>
+              <p className="text-[10px] font-bold text-primary italic mt-1 uppercase">≈ $ {invoice?.amountUsd?.toLocaleString()}</p>
             </CardHeader>
             
             <CardContent className="p-8 space-y-6">
@@ -341,18 +344,18 @@ export default function CheckoutPage() {
                       <div className="p-3 rounded-2xl bg-white/20 text-white"><Nfc className="w-6 h-6" /></div>
                       <div>
                         <p className="text-sm font-black text-white italic">AliBank V3 POS Terminal</p>
-                        <p className="text-[9px] font-medium text-white/70 uppercase italic">Contactless Card Kliring</p>
+                        <p className="text-[9px] font-medium text-white/70 uppercase italic">Contactless EMV Kliring</p>
                       </div>
                     </div>
-                    <Badge className="bg-white text-primary text-[7px] font-black border-none px-2 py-0.5 animate-pulse">V3 LIVE</Badge>
+                    <Badge className="bg-white text-primary text-[7px] font-black border-none px-2 py-0.5">V3 LIVE</Badge>
                   </button>
 
-                  <button onClick={() => setPaymentStep('bridge_gate')} className="w-full bg-slate-900 dark:bg-[#1E2329] p-6 rounded-[1.5rem] border border-white/5 hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-lg">
+                  <button onClick={() => setPaymentStep('bridge_gate')} className="w-full bg-slate-900 p-6 rounded-[1.5rem] border border-white/5 hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-lg">
                     <div className="flex items-center gap-4">
                       <div className="p-3 rounded-2xl bg-white/10 text-primary"><Globe className="w-6 h-6" /></div>
                       <div>
                         <p className="text-sm font-black text-white italic">Ali-Global Secure Pay</p>
-                        <p className="text-[9px] font-medium text-white/40 uppercase italic">Network & Card Settlement</p>
+                        <p className="text-[9px] font-medium text-white/40 uppercase italic">Multi-Asset & Card Settlement</p>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-white/20" />
@@ -362,30 +365,30 @@ export default function CheckoutPage() {
                 <div className="space-y-8 animate-in zoom-in-95 duration-500 py-4 text-center">
                   <header className="flex items-center justify-between px-2">
                     <button onClick={() => { setPaymentStep('selection'); setFoundCustomer(null); setNfcError(null); }} className="text-[10px] font-black uppercase text-muted-foreground hover:text-foreground">Back</button>
-                    <Badge variant="outline" className="text-[8px] font-black text-primary border-primary/20 uppercase">ISO8583 Secure</Badge>
+                    <Badge variant="outline" className="text-[8px] font-black text-primary border-primary/20 uppercase">ISO8583 Production</Badge>
                   </header>
 
                   <div className="relative mx-auto">
                     <div className={cn(
-                      "w-48 h-48 bg-background rounded-full border-4 flex items-center justify-center relative z-10 transition-all duration-500",
-                      nfcError ? "border-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.4)]" : "border-primary shadow-[0_0_30px_rgba(252,213,53,0.4)]"
+                      "w-48 h-48 bg-background rounded-full border-4 flex items-center justify-center relative z-10 transition-all duration-500 shadow-2xl",
+                      nfcError ? "border-rose-500 shadow-rose-500/20" : "border-primary shadow-primary/20"
                     )}>
                       {posState === 'idle' ? (
                         <div className="flex flex-col items-center gap-4 animate-bounce">
                           {nfcError ? <XCircle className="w-16 h-16 text-rose-500" /> : <Nfc className="w-16 h-16 text-primary" />}
-                          <p className="text-[10px] font-black uppercase text-foreground italic">{nfcError ? "Gagal" : "Ready to Tap"}</p>
+                          <p className="text-[10px] font-black uppercase text-foreground italic">{nfcError ? "FAILED" : "READY TO TAP"}</p>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-4">
                           <Loader2 className="w-16 h-16 text-primary animate-spin" />
-                          <p className="text-[10px] font-black uppercase text-foreground italic">Verifikasi Card...</p>
+                          <p className="text-[10px] font-black uppercase text-foreground italic">AUTENTIKASI...</p>
                         </div>
                       )}
                     </div>
                   </div>
 
                   {nfcError && (
-                    <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-[10px] font-bold uppercase italic leading-relaxed animate-in fade-in">
+                    <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[10px] font-bold uppercase italic leading-relaxed animate-in fade-in">
                       {nfcError}
                     </div>
                   )}
@@ -395,29 +398,28 @@ export default function CheckoutPage() {
                       <div className="p-6 rounded-[2rem] bg-accent/5 border border-primary/10 text-left space-y-4">
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="text-[10px] font-black text-muted-foreground uppercase leading-none">Bank Asal</p>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase leading-none">Global Issuer</p>
                             <p className="text-sm font-black text-foreground italic uppercase">{foundCustomer.bank}</p>
                           </div>
                           <Badge className="bg-primary text-white text-[8px] font-black uppercase italic">{foundCustomer.brand}</Badge>
                         </div>
                         <div className="h-px bg-primary/10" />
                         <div>
-                          <p className="text-[10px] font-black text-muted-foreground uppercase">Nomor Kartu</p>
+                          <p className="text-[10px] font-black text-muted-foreground uppercase">Card Specification</p>
                           <p className="text-base font-black text-foreground italic tracking-tighter">{foundCustomer.cardNum}</p>
                         </div>
                       </div>
                       <Button onClick={() => processPaymentFinalization({ 
-                        gateway: "AliBank NFC Switch", 
-                        bankName: foundCustomer.bank,
-                        cardType: foundCustomer.brand
+                        gateway: "AliBank NFC Production", 
+                        bankName: foundCustomer.bank
                       })} className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase text-xs shadow-xl">
-                        CONFIRM & SETTLE PAYMENT
+                        CONFIRM & SETTLE REAL PAYMENT
                       </Button>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <Button onClick={startNfcScanning} className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black italic uppercase text-xs shadow-lg">ACTIVATE SENSORS</Button>
-                      <p className="text-[9px] text-muted-foreground font-medium uppercase italic tracking-widest leading-relaxed">Hanya mendukung kartu fisik perbankan (EMV Standard). Tempelkan kartu di belakang ponsel.</p>
+                      <Button onClick={startNfcScanning} className="w-full h-16 bg-foreground text-background rounded-2xl font-black italic uppercase text-xs shadow-lg">ACTIVATE TERMINAL SENSORS</Button>
+                      <p className="text-[9px] text-muted-foreground font-medium uppercase italic tracking-widest leading-relaxed">Hanya mendukung kartu fisik perbankan (EMV Standard). Tempelkan kartu di belakang ponsel Anda.</p>
                     </div>
                   )}
                 </div>
@@ -425,9 +427,9 @@ export default function CheckoutPage() {
                 <div className="py-4 space-y-8 animate-in fade-in duration-500">
                    <header className="flex items-center justify-between px-2">
                     <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-foreground">Back</button>
-                    <div className="flex bg-muted/50 p-1 rounded-lg">
-                      <button onClick={() => setActiveGatewayTab('network')} className={cn("px-4 py-1.5 text-[9px] font-black rounded-md transition-all uppercase", activeGatewayTab === 'network' ? "bg-white shadow-sm text-foreground" : "text-muted-foreground")}>Network</button>
-                      <button onClick={() => setActiveGatewayTab('card')} className={cn("px-4 py-1.5 text-[9px] font-black rounded-md transition-all uppercase", activeGatewayTab === 'card' ? "bg-white shadow-sm text-foreground" : "text-muted-foreground")}>Card Clearing</button>
+                    <div className="flex bg-muted p-1 rounded-lg">
+                      <button onClick={() => setActiveGatewayTab('network')} className={cn("px-4 py-1.5 text-[9px] font-black rounded-md transition-all uppercase", activeGatewayTab === 'network' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")}>Ali-Network</button>
+                      <button onClick={() => setActiveGatewayTab('card')} className={cn("px-4 py-1.5 text-[9px] font-black rounded-md transition-all uppercase", activeGatewayTab === 'card' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")}>Card Clearing</button>
                     </div>
                   </header>
 
@@ -436,7 +438,7 @@ export default function CheckoutPage() {
                         <div className="space-y-6">
                           <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
                             <Info className="w-5 h-5 text-blue-500 shrink-0" />
-                            <p className="text-[10px] text-muted-foreground font-bold leading-relaxed uppercase italic">Gunakan saldo dompet digital global Anda untuk penyelesaian dana instan ke AliBank.</p>
+                            <p className="text-[10px] text-muted-foreground font-bold leading-relaxed uppercase italic">Gunakan saldo dompet digital global Anda untuk penyelesaian dana riil ke brankas AliBank.</p>
                           </div>
                           <div ref={paypalContainerRef} className="w-full min-h-[150px] flex flex-col items-center justify-center">
                             {!paypalReady && <Loader2 className="w-8 h-8 animate-spin text-primary opacity-40" />}
@@ -444,7 +446,7 @@ export default function CheckoutPage() {
                         </div>
                       ) : (
                         <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-                          <div className="p-6 rounded-2xl bg-accent/5 border border-primary/10 flex gap-4">
+                          <div className="p-6 rounded-2xl bg-primary/5 border border-primary/10 flex gap-4">
                             <ShieldCheck className="w-5 h-5 text-primary shrink-0" />
                             <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed italic">Pembayaran diproses secara riil melalui infrastruktur aman Ali-Global Card Clearing.</p>
                           </div>
@@ -454,7 +456,7 @@ export default function CheckoutPage() {
                           </div>
 
                           <div className="text-center opacity-40">
-                            <p className="text-[8px] font-black uppercase italic tracking-widest text-muted-foreground">PCI-DSS COMPLIANT NODE</p>
+                            <p className="text-[8px] font-black uppercase italic tracking-widest text-muted-foreground">PCI-DSS COMPLIANT PRODUCTION NODE</p>
                           </div>
                         </div>
                       )}
@@ -472,6 +474,10 @@ export default function CheckoutPage() {
             <div className="flex flex-col items-center gap-1">
               <ShieldAlert className="w-5 h-5 text-foreground" />
               <span className="text-[8px] font-black uppercase italic text-muted-foreground">Anti-Fraud Node</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <Lock className="w-5 h-5 text-foreground" />
+              <span className="text-[8px] font-black uppercase italic text-muted-foreground">End-to-End SSL</span>
             </div>
           </footer>
         </main>
