@@ -59,7 +59,8 @@ import {
   ChevronRight,
   ArrowDownLeft,
   Copy,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Eraser
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -89,7 +90,8 @@ import {
   serverTimestamp,
   addDoc,
   getDocs,
-  where
+  where,
+  writeBatch
 } from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { JsonRpcProvider, formatEther, parseEther, ethers, BrowserProvider, Contract } from "ethers";
@@ -393,6 +395,28 @@ function AdminContent() {
         title: "Gagal Mengirim Link", 
         description: err.message 
       });
+    }
+  };
+
+  const handleClearAuditLogs = async () => {
+    if (!db || !auditLogs || auditLogs.length === 0) {
+      toast({ title: "Audit Kosong", description: "Tidak ada data audit yang perlu dihapus." });
+      return;
+    }
+    
+    const confirmDelete = window.confirm("PERINGATAN: Anda akan menghapus seluruh catatan audit secara permanen. Tindakan ini tidak dapat dibatalkan. Lanjutkan?");
+    if (!confirmDelete) return;
+
+    try {
+      const batch = writeBatch(db);
+      auditLogs.forEach((log) => {
+        const docRef = doc(db, "system", "audit", "global_transactions", log.id);
+        batch.delete(docRef);
+      });
+      await batch.commit();
+      toast({ title: "Pembersihan Berhasil", description: "Seluruh log audit telah dihapus dari ledger AliBank." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Menghapus Log", description: err.message });
     }
   };
 
@@ -952,7 +976,16 @@ function AdminContent() {
                     </h3>
                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mt-2 italic">Immutable Ledger Reconciliation</p>
                   </div>
-                  <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/30 text-accent dark:text-white px-6 py-2 rounded-2xl">Integrity Active</Badge>
+                  <div className="flex items-center gap-4">
+                    <Button 
+                      onClick={handleClearAuditLogs}
+                      variant="ghost" 
+                      className="h-12 px-6 rounded-xl border border-destructive/20 text-destructive hover:bg-destructive/10 font-black uppercase text-[10px] italic gap-2"
+                    >
+                      <Eraser className="w-4 h-4" /> Purge Audit Logs
+                    </Button>
+                    <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/30 text-accent dark:text-white px-6 py-2 rounded-2xl">Integrity Active</Badge>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left min-w-[1000px]">
@@ -988,6 +1021,16 @@ function AdminContent() {
                           </td>
                         </tr>
                       ))}
+                      {(!auditLogs || auditLogs.length === 0) && (
+                        <tr>
+                          <td colSpan={5} className="px-12 py-32 text-center">
+                            <div className="flex flex-col items-center gap-4 opacity-20">
+                              <Eraser className="w-16 h-16" />
+                              <p className="text-sm font-black uppercase tracking-[0.3em]">Ledger is Empty</p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
