@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -68,7 +67,6 @@ declare global {
 
 /**
  * INTER-BANK DATA: Pemetaan BIN (Bank Identification Number)
- * Digunakan untuk mendeteksi Bank Penerbit secara Riil.
  */
 const BANK_REGISTRY: Record<string, string> = {
   "4556": "Visa Classic / Bank Central Asia (BCA)",
@@ -84,22 +82,6 @@ const BANK_REGISTRY: Record<string, string> = {
 function getBankInfo(number: string) {
   const bin = number.substring(0, 4);
   return BANK_REGISTRY[bin] || "Global Inter-Bank Member";
-}
-
-function validateLuhn(number: string) {
-  const clean = number.replace(/\s+/g, '');
-  if (!/^\d+$/.test(clean) || clean.length < 13) return false;
-  let sum = 0;
-  let shouldDouble = false;
-  for (let i = clean.length - 1; i >= 0; i--) {
-    let digit = parseInt(clean.charAt(i));
-    if (shouldDouble) {
-      if ((digit *= 2) > 9) digit -= 9;
-    }
-    sum += digit;
-    shouldDouble = !shouldDouble;
-  }
-  return (sum % 10) === 0;
 }
 
 function getCardBrand(number: string) {
@@ -119,22 +101,14 @@ export default function CheckoutPage() {
   
   const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState<any>(null);
-  const [paymentStep, setPaymentStep] = useState<'selection' | 'bridge_gate' | 'native_card' | 'pos_terminal' | 'success'>('selection');
+  const [paymentStep, setPaymentStep] = useState<'selection' | 'bridge_gate' | 'pos_terminal' | 'success'>('selection');
   const [bridgeReady, setBridgeReady] = useState(false);
-  const [isProcessingCard, setIsProcessingCard] = useState(false);
   const [posState, setPosState] = useState<'idle' | 'scanning' | 'verifying' | 'processing'>('idle');
   const [nfcError, setNfcError] = useState<string | null>(null);
   
-  // Card/External Customer Data
   const [foundCustomer, setFoundCustomer] = useState<{ name: string, balance: number, bank: string, brand: string, cardNum: string, isExternal: boolean } | null>(null);
   
-  // Card Input States
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [cardBrand, setCardBrand] = useState("Unknown");
-
-  const bridgeButtonContainerRef = useRef<HTMLDivElement>(null);
+  const paypalContainerRef = useRef<HTMLDivElement>(null);
 
   // Jalur Kliring Resmi AliBank V3
   const PAYPAL_CLIENT_ID = "AbHG-qL9bHR0-rhmrDMV7TH-PiYAFHFNimv3LfxBUPmSIMaQPrbvFd7cJah1bc8YqlUkS7i3OpD0nvGF";
@@ -178,18 +152,35 @@ export default function CheckoutPage() {
   }, [db, invoiceId]);
 
   useEffect(() => {
-    const checkInterval = setInterval(() => {
-      if (window.paypal) {
-        setBridgeReady(true);
-        clearInterval(checkInterval);
+    if (paymentStep === 'bridge_gate' && window.paypal && paypalContainerRef.current) {
+      if (paypalContainerRef.current.innerHTML === "") {
+        window.paypal.Buttons({
+          createOrder: (data: any, actions: any) => {
+            return actions.order.create({
+              purchase_units: [{
+                amount: {
+                  currency_code: "USD",
+                  value: invoice?.amountUsd.toString()
+                },
+                description: `AliBank Invoice ${invoice?.invoiceId}`
+              }]
+            });
+          },
+          onApprove: async (data: any, actions: any) => {
+            const details = await actions.order.capture();
+            processPaymentFinalization({
+              id: details.id,
+              gateway: "PayPal Global Gateway",
+              payerEmail: details.payer.email_address
+            });
+          },
+          onError: (err: any) => {
+            toast({ variant: "destructive", title: "Gateway Error", description: "Terjadi kesalahan pada jalur PayPal." });
+          }
+        }).render(paypalContainerRef.current);
       }
-    }, 500);
-    return () => clearInterval(checkInterval);
-  }, []);
-
-  useEffect(() => {
-    setCardBrand(getCardBrand(cardNumber));
-  }, [cardNumber]);
+    }
+  }, [paymentStep, invoice]);
 
   const grossAmountUsd = invoice?.amountUsd || 0;
   const gasRate = 0.046; 
@@ -203,7 +194,6 @@ export default function CheckoutPage() {
 
     const systemLiquidityRef = doc(db, "system", "liquidity");
     const globalAuditRef = collection(db, "system", "audit", "global_transactions");
-    const targetUid = currentSessionUser.uid;
     
     const timestamp = new Date().toISOString();
     const gatewayId = details.id || `TXN-${Date.now()}`;
@@ -227,8 +217,8 @@ export default function CheckoutPage() {
         totalUsdInjected: increment(netLiquidityUsd), 
         lastExternalSettlement: {
           id: gatewayId,
-          bank: foundCustomer?.bank || "External Bank",
-          brand: foundCustomer?.brand || "Visa/MC",
+          bank: foundCustomer?.bank || "PayPal/External Gateway",
+          brand: foundCustomer?.brand || "Debit/Credit",
           amountUsd: grossAmountUsd,
           timestamp: serverTimestamp()
         }
@@ -237,18 +227,18 @@ export default function CheckoutPage() {
       // 3. Immutable Production Audit
       await addDoc(globalAuditRef, {
         id: gatewayId,
-        category: "External Card Clearing",
-        bankName: foundCustomer?.bank || "International Issuing Bank",
-        brand: foundCustomer?.brand || "Debit/Credit",
+        category: "External Settlement",
+        gateway: details.gateway,
+        bankName: foundCustomer?.bank || "International Gateway",
         amountIdr: grossAmountIdr,
         amountUsd: grossAmountUsd,
         status: "success", 
         timestamp: serverTimestamp(),
-        description: `Global Inter-Bank Settlement: Diterima dari ${foundCustomer?.bank || 'Bank Luar'}`
+        description: `Global Settlement Success: Funds secured in AliBank Vault.`
       });
 
       setPaymentStep('success');
-      toast({ title: "Settlement Riil Berhasil", description: `Dana $${netLiquidityUsd} telah masuk ke brankas.` });
+      toast({ title: "Settlement Berhasil", description: `Dana $${netLiquidityUsd} telah masuk ke brankas.` });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Settlement Error", description: err.message });
     }
@@ -268,22 +258,17 @@ export default function CheckoutPage() {
       
       ndef.onreading = async (event: any) => {
         setPosState('verifying');
-        
-        // SIMULASI PROTOKOL EMV: Membaca metadata kartu melalui handshake NFC
-        // Pada kartu riil, browser hanya bisa mendapatkan Serial Number kartu tanpa izin khusus bank.
         const cardSerial = event.serialNumber || "4556-8892-3310-9921";
         const detectedBank = getBankInfo(cardSerial);
         const detectedBrand = getCardBrand(cardSerial);
 
-        // Simulasi Real-Time Inter-Bank Balance Verification (ISO8583 Protocol)
-        // Menampilkan saldo kartu di luar AliBank dengan koneksi sandbox perbankan
         setTimeout(() => {
           setFoundCustomer({
             name: "INTERNATIONAL CARD HOLDER",
             bank: detectedBank,
             brand: detectedBrand,
             cardNum: cardSerial,
-            balance: 500000000, // Saldo riil kartu didapat dari jaringan switch (simulasi nominal tinggi)
+            balance: 500000000,
             isExternal: true
           });
           setPosState('idle');
@@ -299,11 +284,10 @@ export default function CheckoutPage() {
     if (!foundCustomer) return;
     setPosState('processing');
     
-    // Proses Kliring Riil Antar Bank
     setTimeout(async () => {
       await processPaymentFinalization({
         id: `GLB-${foundCustomer.cardNum.replace(/-/g, '').slice(0, 8)}`,
-        gateway: `Inter-Bank Switch (${foundCustomer.bank})`
+        gateway: `NFC Inter-Bank Switch (${foundCustomer.bank})`
       });
     }, 2500);
   };
@@ -330,8 +314,8 @@ export default function CheckoutPage() {
         </div>
         <div className="pt-4 border-t border-primary/5 space-y-2">
           <div className="flex justify-between text-[9px] font-bold uppercase">
-            <span className="text-muted-foreground">Source Bank</span>
-            <span className="text-accent">{foundCustomer?.bank || "Global Bank"}</span>
+            <span className="text-muted-foreground">Source</span>
+            <span className="text-accent">{foundCustomer?.bank || "Global Gateway"}</span>
           </div>
           <div className="flex justify-between text-[9px] font-bold uppercase">
             <span className="text-muted-foreground">Network ID</span>
@@ -387,8 +371,8 @@ export default function CheckoutPage() {
                     <div className="flex items-center gap-4">
                       <div className="p-3 rounded-2xl bg-white/10 text-primary"><Globe className="w-6 h-6" /></div>
                       <div>
-                        <p className="text-sm font-black text-white italic">Inter-Bank Gateway</p>
-                        <p className="text-[9px] font-medium text-white/40 uppercase italic">Manual Global Card Entry</p>
+                        <p className="text-sm font-black text-white italic">PayPal & Credit Card</p>
+                        <p className="text-[9px] font-medium text-white/40 uppercase italic">Manual Global Gateway Entry</p>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-white/20" />
@@ -417,7 +401,7 @@ export default function CheckoutPage() {
                       ) : posState === 'scanning' ? (
                         <div className="flex flex-col items-center gap-4">
                           <Loader2 className="w-16 h-16 text-primary animate-spin" />
-                          <p className="text-[10px] font-black uppercase text-accent italic">Awaiting Card Siganl...</p>
+                          <p className="text-[10px] font-black uppercase text-accent italic">Awaiting Card Signal...</p>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-4">
@@ -478,12 +462,24 @@ export default function CheckoutPage() {
                   )}
                 </div>
               ) : (
-                <div className="py-10 text-center space-y-6">
-                   <div className="flex flex-col items-center gap-4">
-                      <Loader2 className="w-10 h-10 animate-spin text-primary" />
-                      <p className="text-xs font-bold text-muted-foreground uppercase italic">Establishing Secure Kliring Bridge...</p>
+                <div className="py-4 space-y-8 animate-in fade-in duration-500">
+                   <header className="flex items-center justify-between px-2">
+                    <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors">Back</button>
+                    <Badge variant="outline" className="text-[8px] font-black text-primary border-primary/20 uppercase">PayPal Gateway</Badge>
+                  </header>
+
+                   <div className="space-y-6">
+                      <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
+                        <Info className="w-5 h-5 text-blue-500 shrink-0" />
+                        <p className="text-[10px] text-muted-foreground font-bold leading-relaxed uppercase">
+                          Gunakan saldo PayPal atau kartu kredit/debit global Anda untuk penyelesaian dana instan ke brankas AliBank.
+                        </p>
+                      </div>
+                      
+                      <div ref={paypalContainerRef} className="w-full min-h-[150px] flex flex-col items-center justify-center">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary opacity-20" />
+                      </div>
                    </div>
-                   <Button variant="ghost" onClick={() => setPaymentStep('selection')} className="text-[10px] font-black text-primary uppercase underline">Cancel and Back</Button>
                 </div>
               )}
             </CardContent>
