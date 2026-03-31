@@ -73,7 +73,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
 import { useUser, useDoc, useCollection, useFirestore, useAuth } from "@/firebase";
 import { 
@@ -873,7 +873,7 @@ function AdminContent() {
 
                       <Button 
                         onClick={handleVaultDisbursement}
-                        disabled={isDisbursing || !disburseAmount}
+                        disabled={disburseAmount === "" || isDisbursing}
                         className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic text-sm shadow-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02]"
                       >
                         {isDisbursing ? <Loader2 className="w-6 h-6 animate-spin" /> : <>EXECUTE DISBURSEMENT <ArrowDownRight className="w-5 h-5" /></>}
