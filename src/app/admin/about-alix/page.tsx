@@ -41,67 +41,70 @@ import { useToast } from "@/hooks/use-toast";
 
 const ALIX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 
-const ALX_TOKEN_CODE = `// SPDX-License-Identifier: MIT
+const VAULT_CONTRACT_CODE = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
- * @title AlixCoin (ALX) - Institutional Grade V3
- * @dev Implementasi resmi Koin AliBank dengan standar keamanan internasional.
- * Fitur:
- * - ERC20 Standard: Kompatibilitas bursa global (Uniswap, Binance).
- * - Burnable: Mekanisme deflasi untuk menjaga nilai koin.
- * - Pausable: Protokol keamanan "Circuit Breaker" untuk menghentikan transaksi saat darurat.
- * - Permit: Mendukung "Gasless Approvals" melalui tanda tangan digital (EIP-2612).
- * - Ownable: Kontrol kepemilikan berdaulat oleh AliBank Central Vault.
+ * @title AliBank Central Vault V3 - Institutional Grade
+ * @dev Brankas Utama AliBank untuk pengelolaan likuiditas multi-aset.
+ * Fitur Utama:
+ * - USDT Support: Menerima setoran USDT secara riil.
+ * - Institutional Minimum: Batas setoran minimal 5.000.000 USDT.
+ * - ReentrancyGuard: Perlindungan dari serangan rekursif pada dana besar.
+ * - Multi-Sig Compatibility: Kontrol kepemilikan oleh dewan direksi AliBank.
  */
-contract AlixCoin is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ERC20Permit {
-    constructor(address initialOwner)
-        ERC20("Alix Coin", "ALX")
-        Ownable(initialOwner)
-        ERC20Permit("Alix Coin")
-    {
-        // Mencetak suplai awal (1 Juta ALX) ke dompet pemilik resmi
-        _mint(initialOwner, 1000000 * 10 ** decimals());
+contract AliBankVault is Ownable, ReentrancyGuard {
+    IERC20 public immutable usdt;
+    
+    // Minimal Pembayaran: 5.000.000 USDT (USDT menggunakan 6 desimal)
+    uint256 public constant MIN_DEPOSIT = 5000000 * 10**6;
+
+    event USDTDeposited(address indexed from, uint256 amount);
+    event WithdrawalExecuted(address indexed to, uint256 amount, string asset);
+
+    constructor(address _usdtAddress, address initialOwner) Ownable(initialOwner) {
+        usdt = IERC20(_usdtAddress);
     }
 
     /**
-     * @dev Menghentikan seluruh aktivitas transfer (Hanya Pemilik).
-     * Digunakan saat terdeteksi anomali keamanan jaringan.
+     * @dev Menyetorkan USDT ke Brankas AliBank.
+     * Harus memenuhi syarat minimal 5.000.000 USDT.
      */
-    function pause() public onlyOwner {
-        _pause();
+    function depositUSDT(uint256 _amount) external nonReentrant {
+        require(_amount >= MIN_DEPOSIT, "AliBank: Minimum deposit is 5,000,000 USDT");
+        require(usdt.transferFrom(msg.sender, address(this), _amount), "Transfer Failed");
+        
+        emit USDTDeposited(msg.sender, _amount);
     }
 
     /**
-     * @dev Memulihkan aktivitas transfer (Hanya Pemilik).
+     * @dev Menarik ETH dari brankas (Hanya Pemilik/Admin).
      */
-    function unpause() public onlyOwner {
-        _unpause();
+    function withdrawETH(uint256 _amount) external onlyOwner nonReentrant {
+        require(address(this).balance >= _amount, "Insufficient ETH Balance");
+        payable(owner()).transfer(_amount);
+        
+        emit WithdrawalExecuted(owner(), _amount, "ETH");
     }
 
     /**
-     * @dev Menambah suplai koin (Hanya Pemilik).
-     * Terhubung dengan protokol ekspansi likuiditas AliBank.
+     * @dev Menarik USDT dari brankas (Hanya Pemilik/Admin).
      */
-    function mint(address to, uint256 amount) public onlyOwner {
-        _mint(to, amount);
+    function withdrawUSDT(uint256 _amount) external onlyOwner nonReentrant {
+        require(usdt.balanceOf(address(this)) >= _amount, "Insufficient USDT Balance");
+        require(usdt.transfer(owner(), _amount), "Transfer Failed");
+        
+        emit WithdrawalExecuted(owner(), _amount, "USDT");
     }
 
     /**
-     * @dev Fungsi override wajib untuk integrasi ERC20Pausable.
+     * @dev Fungsi fallback untuk menerima ETH langsung.
      */
-    function _update(address from, address to, uint256 value)
-        internal
-        override(ERC20, ERC20Pausable)
-    {
-        super._update(from, to, value);
-    }
+    receive() external payable {}
 }`;
 
 export default function AboutAlixPage() {
@@ -109,8 +112,8 @@ export default function AboutAlixPage() {
   const { toast } = useToast();
 
   const copyCode = () => {
-    navigator.clipboard.writeText(ALX_TOKEN_CODE);
-    toast({ title: "Kode Disalin", description: "Smart Contract Koin ALX (Institutional Grade) siap ditempel di Remix IDE." });
+    navigator.clipboard.writeText(VAULT_CONTRACT_CODE);
+    toast({ title: "Kode Disalin", description: "Smart Contract Brankas AliBank V3 siap ditempel di Remix IDE." });
   };
 
   return (
@@ -133,14 +136,14 @@ export default function AboutAlixPage() {
             </div>
             <div className="text-center md:text-left flex-1">
               <Badge className="bg-green-600 text-white border-none px-4 py-1 mb-4 rounded-full font-black uppercase tracking-widest text-[10px] animate-pulse">
-                MAINNET LIVE: VERIFIED
+                VAULT V3: USDT ENABLED
               </Badge>
               <h1 className="text-5xl font-black text-accent uppercase italic tracking-tighter leading-tight dark:text-white">
-                Misi & Validasi <span className="text-primary">Koin ALX</span>
+                Infrastruktur <span className="text-primary">Brankas AliBank</span>
               </h1>
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-4">
                 <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest flex items-center gap-2 italic">
-                  <ShieldCheck className="w-4 h-4 text-primary" /> AliBank Central Vault V3
+                  <ShieldCheck className="w-4 h-4 text-primary" /> Multi-Asset Central Vault
                 </p>
               </div>
             </div>
@@ -150,50 +153,18 @@ export default function AboutAlixPage() {
         <section className="mb-16">
           <div className="liquid-glass border-none rounded-[3rem] p-10 bg-primary/5 flex items-center gap-8 flex-col md:flex-row shadow-2xl">
             <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-white shrink-0 shadow-xl">
-              <CheckCircle2 className="w-12 h-12" />
+              <Coins className="w-12 h-12" />
             </div>
             <div className="space-y-3">
-              <h2 className="text-2xl font-black text-accent uppercase italic tracking-tighter dark:text-white">Fondasi Terverifikasi: Transparansi On-Chain</h2>
+              <h2 className="text-2xl font-black text-accent uppercase italic tracking-tighter dark:text-white">Standardisasi USDT Institusional</h2>
               <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic uppercase tracking-wider">
-                Anda telah berhasil melewati hambatan teknis terbesar. Smart Contract AliBank kini aktif di jaringan **Ethereum Mainnet**. Ini bukan sekadar kode, melainkan janji transparansi kepada nasabah bahwa setiap koin ALX didukung oleh keamanan tingkat perbankan global.
+                Sesuai kebijakan kepatuhan AliBank V3, brankas pusat kini menerima setoran **USDT (Tether)** melalui jaringan Ethereum Mainnet. Batas setoran minimum ditetapkan pada **5.000.000 USDT** untuk memastikan likuiditas grade-perbankan yang stabil.
               </p>
             </div>
           </div>
         </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-          <Card className="liquid-glass border-none rounded-[2.5rem] p-10 space-y-4 shadow-xl hover:-translate-y-2 transition-transform duration-500 bg-white/40 dark:bg-card/40 border-t-4 border-green-500">
-            <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-600">
-              <ShieldCheck className="w-7 h-7" />
-            </div>
-            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter dark:text-white">Stage 1: Verified</h3>
-            <p className="text-[10px] text-muted-foreground font-bold leading-relaxed italic uppercase">
-              DONE: Central Vault V3 sudah aktif di Mainnet. Fondasi likuiditas telah terbentuk dan terverifikasi secara publik di Etherscan.
-            </p>
-          </Card>
-
-          <Card className="liquid-glass border-none rounded-[2.5rem] p-10 space-y-4 shadow-xl hover:-translate-y-2 transition-transform duration-500 bg-white/40 dark:bg-card/40 border-t-4 border-primary">
-            <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center text-accent">
-              <Scale className="w-7 h-7 dark:text-primary" />
-            </div>
-            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter dark:text-white">Stage 2: LP Pool</h3>
-            <p className="text-[10px] text-muted-foreground font-bold leading-relaxed italic uppercase">
-              NEXT: Integrasi token utilitas ke Uniswap. Membangun likuiditas pasar agar ALX memiliki harga beli/jual yang diakui DeFi global.
-            </p>
-          </Card>
-
-          <Card className="liquid-glass border-none rounded-[2.5rem] p-10 space-y-4 shadow-xl hover:-translate-y-2 transition-transform duration-500 bg-white/40 dark:bg-card/40">
-            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600">
-              <Network className="w-7 h-7" />
-            </div>
-            <h3 className="text-lg font-black text-accent uppercase italic tracking-tighter dark:text-white">Stage 3: Tracker</h3>
-            <p className="text-[10px] text-muted-foreground font-bold leading-relaxed italic uppercase">
-              FUTURE: Verifikasi di Coingecko & CoinMarketCap. Menjadikan ALX aset digital resmi yang bisa dipantau seluruh investor dunia.
-            </p>
-          </Card>
-        </div>
-
-        {/* NEW SECTION: SMART CONTRACT SOURCE CODE */}
+        {/* SMART CONTRACT SOURCE CODE */}
         <section className="mb-16">
           <div className="liquid-glass-dark rounded-[3rem] p-12 border-none shadow-2xl space-y-8 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-8 opacity-10">
@@ -203,27 +174,27 @@ export default function AboutAlixPage() {
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px] mb-2">Institutional Grade V3</Badge>
-                  <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Source Code Koin ALX (ERC-20)</h2>
+                  <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px] mb-2">Central Vault V3</Badge>
+                  <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Source Code AliBank Vault</h2>
                 </div>
                 <Button 
                   onClick={copyCode}
                   className="h-12 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl font-bold gap-2 px-6"
                 >
-                  <Copy className="w-4 h-4" /> Copy Solidity Code
+                  <Copy className="w-4 h-4" /> Copy Vault Code
                 </Button>
               </div>
 
               <div className="bg-black/40 rounded-2xl border border-white/5 p-6 overflow-hidden">
                 <pre className="text-[10px] font-mono text-primary/80 leading-relaxed overflow-x-auto no-scrollbar">
-                  {ALX_TOKEN_CODE}
+                  {VAULT_CONTRACT_CODE}
                 </pre>
               </div>
 
               <div className="mt-8 p-6 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex gap-4">
-                <Lightbulb className="w-6 h-6 text-blue-500 shrink-0" />
+                <AlertTriangle className="w-6 h-6 text-blue-500 shrink-0" />
                 <p className="text-[9px] text-white/70 italic leading-relaxed uppercase font-bold">
-                  Gunakan kode **V3 Institutional** di atas pada <a href="https://remix.ethereum.org" target="_blank" className="text-primary underline">Remix IDE</a>. Versi ini sudah dilengkapi protokol **Pausable** untuk keamanan darurat dan **Permit** untuk transaksi tanpa gas, sesuai standar kepatuhan blockchain internasional.
+                  Peringatan: Setoran USDT di bawah **5.000.000** akan ditolak secara otomatis oleh mesin konsensus Smart Contract (Ali-Consensus Protocol). Pastikan dompet Anda telah melakukan "Approve" USDT ke alamat kontrak ini sebelum eksekusi.
                 </p>
               </div>
             </div>
@@ -237,143 +208,47 @@ export default function AboutAlixPage() {
             </div>
             <div className="relative z-10 space-y-8">
               <div className="flex items-center gap-4">
-                <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px]">Technical Math</Badge>
-                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Kalkulasi Likuiditas Stage 2</h2>
+                <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px]">Protocol Compliance</Badge>
+                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Kalkulasi USDT Minimum</h2>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div className="space-y-6">
                   <p className="text-xs font-medium text-white/70 leading-relaxed italic uppercase">
-                    Untuk meluncurkan ALX di Uniswap dengan harga pembukaan **$12.24**, Anda harus menyetor aset dengan rasio **1 ALX : 12.24 USDT**.
+                    Untuk menjamin stabilitas nilai ALX, setiap 1 unit koin yang dicetak harus didukung oleh minimal agunan USDT di brankas pusat.
                   </p>
                   <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-4">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Rumus Penetapan Harga</p>
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Batas Setoran Minimum</p>
                     <div className="flex items-center justify-center gap-4 py-4 bg-black/20 rounded-xl font-mono text-xl text-white font-bold">
-                      <span>USDT</span>
-                      <span className="text-primary">/</span>
-                      <span>ALX</span>
-                      <span className="text-primary">=</span>
-                      <span>12.24</span>
+                      <span className="text-primary">$</span>
+                      <span>5.000.000</span>
+                      <span className="text-xs text-white/40">USDT</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-6">
                   <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
-                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-4">Simulasi Deployment</p>
+                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-4">Metrik Kepatuhan</p>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center text-[11px] font-bold uppercase">
-                        <span className="text-white/60">Suplai Kolam ALX</span>
-                        <span className="text-white">10.000 ALX</span>
+                        <span className="text-white/60">Aset yang Diterima</span>
+                        <span className="text-white">USDT (ERC-20)</span>
                       </div>
                       <div className="flex justify-between items-center text-[11px] font-bold uppercase">
-                        <span className="text-white/60">Pasangan Likuiditas</span>
-                        <span className="text-primary">122.400 USDT</span>
+                        <span className="text-white/60">Minimum Threshold</span>
+                        <span className="text-primary">5.000.000,00</span>
                       </div>
                       <div className="h-px bg-white/10 my-2" />
                       <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-black text-white/40 uppercase">Initial Price</span>
-                        <span className="text-lg font-black text-green-400 italic">$ 12.24</span>
-                      </div>
-                    </div>
-                  </div>
-                  <Button className="w-full h-14 bg-white/10 hover:bg-white/20 text-white rounded-xl font-black uppercase italic text-[10px] border border-white/10">
-                    Unduh Dokumen Integrasi Uniswap
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-12 mb-20">
-          <div className="liquid-glass-dark rounded-[3.5rem] p-10 md:p-16 border-none shadow-[0_50px_100px_rgba(0,0,0,0.3)] relative overflow-hidden">
-            <div className="absolute -right-20 -bottom-20 opacity-10">
-              <LogoIcon className="w-96 h-96" />
-            </div>
-            
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-              <div className="space-y-8">
-                <div>
-                  <Badge className="bg-white/10 text-primary border-white/20 px-4 py-1 mb-4 rounded-full font-black uppercase tracking-widest text-[8px]">On-Chain Data</Badge>
-                  <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-tight">Identitas <span className="text-primary">Mainnet</span></h2>
-                </div>
-                
-                <div className="space-y-6">
-                  <div className="p-6 rounded-3xl bg-white/5 border border-white/10 space-y-3">
-                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Smart Contract Address</p>
-                    <div className="flex items-center justify-between gap-4">
-                      <code className="text-[11px] font-mono text-primary break-all font-bold">{ALIX_CONTRACT}</code>
-                      <Button variant="ghost" size="icon" className="text-white/40 shrink-0" onClick={() => window.open(`https://etherscan.io/address/${ALIX_CONTRACT}`, '_blank')}>
-                        <ExternalLink className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-5">
-                      <ShieldCheck className="w-6 h-6 text-primary shrink-0" />
-                      <div>
-                        <p className="text-xs font-black text-white uppercase italic tracking-widest">Security Audited V3</p>
-                        <p className="text-[10px] text-white/50 italic uppercase tracking-wider leading-relaxed mt-1">Menggunakan pola ReentrancyGuard untuk mencegah eksploitasi dana di brankas pusat.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-5">
-                      <Lock className="w-6 h-6 text-primary shrink-0" />
-                      <div>
-                        <p className="text-xs font-black text-white uppercase italic tracking-widest">Sovereign Control</p>
-                        <p className="text-[10px] text-white/50 italic uppercase tracking-wider leading-relaxed mt-1">Kontrak mendukung pemindahan kepemilikan (Transfer Ownership) untuk transisi tata kelola di masa depan.</p>
+                        <span className="text-[9px] font-black text-white/40 uppercase">Status Operasional</span>
+                        <span className="text-lg font-black text-green-400 italic">SECURE</span>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-              
-              <div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8 backdrop-blur-3xl relative shadow-inner">
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Execution Protocol</p>
-                    <Badge className="bg-green-600 text-white text-[7px] font-black uppercase">CONTRACT VERIFIED</Badge>
-                  </div>
-                  
-                  <div className="p-6 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex gap-4">
-                    <Lightbulb className="w-6 h-6 text-blue-500 shrink-0" />
-                    <p className="text-[9px] text-white/70 italic leading-relaxed uppercase font-bold">
-                      "Real value is backed by real code." Anda tidak lagi berencana, Anda sedang mengeksekusi. Fondasi Ethereum ini adalah jangkar nilai bagi seluruh ekosistem ALX.
-                    </p>
-                  </div>
-
-                  <div className="space-y-4 pt-4">
-                    <div className="flex justify-between items-end border-b border-white/10 pb-2">
-                      <span className="text-[9px] font-bold text-white/40 uppercase">Solidity Version</span>
-                      <span className="text-[10px] font-mono text-primary font-bold">0.8.20</span>
-                    </div>
-                    <div className="flex justify-between items-end border-b border-white/10 pb-2">
-                      <span className="text-[9px] font-bold text-white/40 uppercase">Network</span>
-                      <span className="text-[10px] font-bold text-white italic">Ethereum Mainnet</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
-          </div>
-        </section>
-
-        <section className="liquid-glass border-none rounded-[3.5rem] p-12 text-center space-y-8 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent" />
-          <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center text-primary mx-auto shadow-inner">
-            <Gavel className="w-10 h-10" />
-          </div>
-          <div className="space-y-4 max-w-3xl mx-auto">
-            <h3 className="text-3xl font-black text-accent uppercase italic tracking-tighter dark:text-white">Komitmen Kedaulatan Digital</h3>
-            <p className="text-[13px] text-muted-foreground font-medium leading-relaxed italic uppercase tracking-wider">
-              AliBank dibangun untuk memberikan kendali finansial penuh kepada nasabah. ALX adalah jantung dari kendali tersebut. Kita telah mulai dari baris kode yang nyata di Mainnet, dan kita akan berakhir sebagai standar ekonomi baru.
-            </p>
-          </div>
-          <div className="flex justify-center gap-4">
-            <Badge className="bg-accent text-white px-6 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest italic shadow-lg">Mainnet-Ready</Badge>
-            <Badge className="bg-accent text-white px-6 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest italic shadow-lg">Audited</Badge>
-            <Badge className="bg-accent text-white px-6 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest italic shadow-lg">Scalable</Badge>
           </div>
         </section>
 
@@ -382,7 +257,7 @@ export default function AboutAlixPage() {
             <div className="w-10 h-10 p-2 rounded-xl gold-gradient flex items-center justify-center shadow-2xl">
               <LogoIcon className="text-white" />
             </div>
-            <p className="text-base font-black text-accent italic uppercase tracking-tighter dark:text-white">AliBank V3 Infrastructure • Mainnet Node Online</p>
+            <p className="text-base font-black text-accent italic uppercase tracking-tighter dark:text-white">AliBank V3 Infrastructure • Vault Node Online</p>
           </div>
         </footer>
       </main>

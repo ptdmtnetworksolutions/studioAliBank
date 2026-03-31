@@ -111,6 +111,8 @@ const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
 const VAULT_ABI = [
   "function withdraw(uint256 _amount) public",
+  "function withdrawUSDT(uint256 _amount) public",
+  "function depositUSDT(uint256 _amount) public",
   "function getTotalVaultBalance() public view returns (uint256)",
   "function balances(address) public view returns (uint256)"
 ];
@@ -404,14 +406,14 @@ function AdminContent() {
               <div>
                 <h1 className="text-5xl font-black text-accent uppercase italic tracking-tighter leading-none dark:text-white">Command Center</h1>
                 <p className="text-muted-foreground text-[11px] font-black uppercase tracking-[0.3em] italic mt-2 flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-primary" /> Integrated Multi-Service Infrastructure V3
+                  <Globe className="w-4 h-4 text-primary" /> Multi-Asset Vault Infrastructure V3
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-4">
               <Button onClick={() => router.push('/admin/about-alix')} variant="outline" className="h-16 px-8 rounded-2xl font-black uppercase text-[11px] italic shadow-xl bg-card border-primary/20 text-accent hover:bg-primary/5 transition-all dark:text-white">
-                <Sparkles className="w-5 h-5 mr-3 text-primary" /> Misi & Validasi ALX
+                <Sparkles className="w-5 h-5 mr-3 text-primary" /> Misi & Validasi Vault
               </Button>
               <Button onClick={syncOnChainData} disabled={syncingVault} className="h-16 w-16 rounded-2xl liquid-glass border-primary/10 text-primary flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-all">
                 <RefreshCw className={cn("w-6 h-6", syncingVault && "animate-spin")} />
@@ -514,10 +516,10 @@ function AdminContent() {
                     <h3 className="text-2xl font-black text-white uppercase italic">Sovereign Asset Sentinel</h3>
                   </div>
                   <p className="text-sm font-medium italic text-white/70 leading-relaxed uppercase relative z-10">
-                    Seluruh pencetakan koin ALX didukung oleh agunan likuiditas Mainnet. Mekanisme "Smart Burn" otomatis aktif berdasarkan volume marketplace AliBank V3.
+                    Seluruh pencetakan koin ALX didukung oleh agunan likuiditas Mainnet (USDT). Mekanisme "Smart Burn" otomatis aktif berdasarkan volume marketplace AliBank V3.
                   </p>
                   <Button onClick={() => router.push('/admin/about-alix')} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-xs tracking-widest relative z-10 shadow-2xl flex items-center justify-between px-8">
-                    View Technical Roadmap <ChevronRight className="w-5 h-5" />
+                    View Vault Protocol <ChevronRight className="w-5 h-5" />
                   </Button>
                 </Card>
               </div>
@@ -706,13 +708,13 @@ function AdminContent() {
                     <div className="w-20 h-20 rounded-[2rem] bg-orange-500/10 flex items-center justify-center text-orange-600 shadow-inner"><Pickaxe className="w-10 h-10" /></div>
                     <div>
                       <h3 className="text-3xl font-black text-accent uppercase italic leading-none dark:text-white">Sovereign Mint</h3>
-                      <p className="text-[11px] text-muted-foreground font-black uppercase tracking-widest mt-2 italic">Supply Expansion: Backed by Mainnet Reserve.</p>
+                      <p className="text-[11px] text-muted-foreground font-black uppercase tracking-widest mt-2 italic">Supply Expansion: Backed by USDT Reserve.</p>
                     </div>
                   </div>
                   <div className="space-y-8">
                     <div className="p-8 rounded-[2.5rem] bg-primary/5 border border-primary/10 flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Authorized Liquidity</p>
+                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Authorized USDT Agun</p>
                         <p className="text-3xl font-black text-accent italic tracking-tighter dark:text-white">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
                       </div>
                       <div className="text-right">
@@ -792,26 +794,26 @@ function AdminContent() {
                       </div>
                     </div>
                     <div className="p-12 rounded-[3.5rem] bg-accent/5 border border-primary/10 space-y-8 shadow-inner">
-                      <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.3em]">Contract Verification Hud</p>
+                      <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.3em]">Compliance Hub (USDT)</p>
                       <div className="space-y-6">
                         <div className="flex justify-between items-end border-b border-primary/10 pb-4">
-                          <span className="text-[10px] font-black uppercase text-muted-foreground">Standard Architecture</span>
-                          <span className="text-sm font-black italic dark:text-white">ALX Sovereign Protocol</span>
+                          <span className="text-[10px] font-black uppercase text-muted-foreground">Min. Deposit Threshold</span>
+                          <span className="text-sm font-black italic text-primary">5.000.000 USDT</span>
                         </div>
                         <div className="flex justify-between items-end border-b border-primary/10 pb-4">
                           <span className="text-[10px] font-black uppercase text-muted-foreground">Compliance Guard</span>
                           <span className="text-sm font-black italic dark:text-white">Institutional Grade V3</span>
                         </div>
                         <div className="flex justify-between items-end border-b border-primary/10 pb-4">
-                          <span className="text-[10px] font-black uppercase text-muted-foreground">Storage Type</span>
-                          <span className="text-sm font-black italic dark:text-white">Cold-Storage Backed</span>
+                          <span className="text-[10px] font-black uppercase text-muted-foreground">Settlement Logic</span>
+                          <span className="text-sm font-black italic dark:text-white">Real-Time USDT Clearing</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </Card>
 
-                {/* NEW: DISBURSEMENT TERMINAL */}
+                {/* DISBURSEMENT TERMINAL */}
                 <Card className="lg:col-span-4 liquid-glass-dark border-none rounded-[3.5rem] p-10 space-y-8 shadow-2xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-6 opacity-10"><ArrowDownLeft className="w-32 h-32 text-primary" /></div>
                   <div className="relative z-10 space-y-8">
