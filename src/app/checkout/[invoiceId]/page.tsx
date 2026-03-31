@@ -93,7 +93,7 @@ export default function CheckoutPage() {
   const paypalContainerRef = useRef<HTMLDivElement>(null);
   const cardButtonRef = useRef<HTMLDivElement>(null);
 
-  // RIIL PRODUCTION CLIENT ID
+  // PRODUCTION CLIENT ID
   const PAYPAL_CLIENT_ID = "AbHG-qL9bHR0-rhmrDMV7TH-PiYAFHFNimv3LfxBUPmSIMaQPrbvFd7cJah1bc8YqlUkS7i3OpD0nvGF";
 
   useEffect(() => {
@@ -136,6 +136,13 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (paymentStep === 'bridge_gate' && paypalReady && window.paypal) {
+      // Common Application Context to remove shipping/billing fields
+      const appContent = {
+        shipping_preference: 'NO_SHIPPING',
+        user_action: 'PAY_NOW',
+        brand_name: 'ALIBANK SECURE V3'
+      };
+
       if (paypalContainerRef.current) {
         paypalContainerRef.current.innerHTML = "";
         window.paypal.Buttons({
@@ -145,7 +152,8 @@ export default function CheckoutPage() {
               purchase_units: [{
                 amount: { currency_code: "USD", value: invoice?.amountUsd.toString() || "0.00" },
                 description: `AliBank Global Settlement - INV ${invoice?.invoiceId}`
-              }]
+              }],
+              application_context: appContent
             });
           },
           onApprove: async (data: any, actions: any) => {
@@ -169,7 +177,8 @@ export default function CheckoutPage() {
               purchase_units: [{
                 amount: { currency_code: "USD", value: invoice?.amountUsd.toString() || "0.00" },
                 description: `AliBank Card Settlement - INV ${invoice?.invoiceId}`
-              }]
+              }],
+              application_context: appContent
             });
           },
           onApprove: async (data: any, actions: any) => {
@@ -309,7 +318,7 @@ export default function CheckoutPage() {
     <TooltipProvider>
       <div className="min-h-screen bg-background pb-20 relative overflow-hidden transition-colors duration-300">
         <Script 
-          src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&intent=capture`} 
+          src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&intent=capture&disable-funding=credit,paylater`} 
           onLoad={() => setPaypalReady(true)}
         />
         
