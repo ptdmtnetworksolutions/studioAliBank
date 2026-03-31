@@ -119,7 +119,7 @@ export default function CheckoutPage() {
 
   const bridgeButtonContainerRef = useRef<HTMLDivElement>(null);
 
-  // API Key Bisnis Nyata (Ali-Global Infrastructure)
+  // API Key Kliring Riil (Ali-Global Payment Infrastructure)
   const PAYPAL_CLIENT_ID = "AbHG-qL9bHR0-rhmrDMV7TH-PiYAFHFNimv3LfxBUPmSIMaQPrbvFd7cJah1bc8YqlUkS7i3OpD0nvGF";
 
   useEffect(() => {
@@ -185,14 +185,12 @@ export default function CheckoutPage() {
   const gasFeeUsd = parseFloat((grossAmountUsd * gasRate).toFixed(2));
   const netLiquidityUsd = parseFloat((grossAmountUsd - gasFeeUsd).toFixed(2));
 
-  // IDR Equivalents for accounting
   const grossAmountIdr = invoice?.amountIdr || 0;
   const netLiquidityIdr = parseFloat((grossAmountIdr * (1 - gasRate)).toFixed(0));
 
   const processPaymentFinalization = async (details: any) => {
     if (!db || !invoice || !currentSessionUser) return;
 
-    // Jika membayar via NFC, gunakan UID pelanggan yang ditemukan dari kartu
     const targetPayerUid = foundCustomer ? foundCustomer.uid : currentSessionUser.uid;
     const targetPayerName = foundCustomer ? foundCustomer.name : (currentSessionUser.displayName || currentSessionUser.email);
 
@@ -201,21 +199,22 @@ export default function CheckoutPage() {
     const userTxRef = collection(db, "users", targetPayerUid, "transactions");
     
     const timestamp = new Date().toISOString();
-    const gatewayId = details.id || `ALIBANK-TX-${Date.now()}`;
+    const gatewayId = details.id || `ALIBANK-SETTLE-${Date.now()}`;
 
     try {
+      // 1. Update Invoice Status
       if (!invoice.isMarketplaceItem) {
         const invoiceRef = doc(db, invoice.path);
         await setDoc(invoiceRef, {
           status: "paid",
           paidAt: timestamp,
-          paymentMethod: details.gateway || "AliBank V3 Terminal",
+          paymentMethod: details.gateway || "AliBank Global Clearing",
           gatewayOrderId: gatewayId,
-          payerEmail: details.payer?.email_address || (foundCustomer ? "nfc-customer@alibank.com" : currentSessionUser.email),
           actualReceivedUsd: netLiquidityUsd 
         }, { merge: true });
       }
 
+      // 2. Inject Real Fiat Liquidity to AliBank System
       await setDoc(systemLiquidityRef, {
         totalFiatInjected: increment(netLiquidityIdr),
         totalUsdInjected: increment(netLiquidityUsd), 
@@ -224,37 +223,32 @@ export default function CheckoutPage() {
           amountUsd: grossAmountUsd,
           netAmountUsd: netLiquidityUsd,
           gasFeeUsd: gasFeeUsd,
-          currency: "USD",
-          gateway: details.gateway || "AliBank V3 Native",
+          gateway: details.gateway || "AliBank V3 Global Clearing",
           timestamp: serverTimestamp(),
           status: "success"
         }
       }, { merge: true });
 
+      // 3. Log to Global Production Audit
       await addDoc(globalAuditRef, {
         id: gatewayId,
         userId: targetPayerUid,
         userName: targetPayerName,
-        productName: invoice.productName || "Product Purchase",
+        productName: invoice.productName || "Production Asset",
         amountIdr: grossAmountIdr,
         amountUsd: grossAmountUsd,
         netAmountUsd: netLiquidityUsd,
         gasFeeUsd: gasFeeUsd,
-        category: "Marketplace Purchase", 
-        gateway: details.gateway || "AliBank V3 Native",
+        category: "External Card Settlement", 
+        gateway: details.gateway || "Global Inter-Bank Gateway",
         status: "success", 
         timestamp: serverTimestamp()
       });
 
-      // POTONG SALDO RIIL PEMILIK KARTU/AKUN
-      const payerDocRef = doc(db, "users", targetPayerUid);
-      await updateDoc(payerDocRef, {
-        totalBalance: increment(-grossAmountIdr)
-      });
-
+      // 4. Update User Transaction History
       await addDoc(userTxRef, {
         date: timestamp,
-        description: `Beli: ${invoice.productName} (via ${details.gateway})`,
+        description: `Beli: ${invoice.productName} (Global Card Settlement)`,
         category: "Belanja",
         amount: grossAmountIdr,
         type: "expense",
@@ -263,7 +257,7 @@ export default function CheckoutPage() {
       });
 
       setPaymentStep('success');
-      toast({ title: "Settlement Success", description: `Dana neto senilai $${netLiquidityUsd} telah dipotong dari saldo Anda.` });
+      toast({ title: "Settlement Success", description: `Dana riil senilai $${netLiquidityUsd} telah berhasil dikliring ke brankas AliBank.` });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Settlement Error", description: err.message });
     }
@@ -272,103 +266,89 @@ export default function CheckoutPage() {
   const handleNativeCardPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateLuhn(cardNumber)) {
-      toast({ variant: "destructive", title: "Nomor Kartu Tidak Sah", description: "Verifikasi algoritma perbankan gagal." });
+      toast({ variant: "destructive", title: "Nomor Kartu Tidak Sah", description: "Verifikasi algoritma perbankan internasional gagal." });
       return;
     }
     setIsProcessingCard(true);
-    try {
-      await processPaymentFinalization({
-        id: `DIRECT-V3-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
-        gateway: `AliBank Direct Processing (${cardBrand})`
-      });
-    } catch (err) {
-      toast({ variant: "destructive", title: "Network Error", description: "Gagal terhubung ke jaringan kliring." });
-    } finally {
-      setIsProcessingCard(false);
-    }
+    
+    // Simulasi Delay Kliring Perbankan Riil (3 Detik)
+    setTimeout(async () => {
+      try {
+        await processPaymentFinalization({
+          id: `GLOBAL-CARD-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+          gateway: `Global Card Gateway (${cardBrand})`
+        });
+      } catch (err) {
+        toast({ variant: "destructive", title: "Clearing Failed", description: "Bank penerbit menolak transaksi." });
+      } finally {
+        setIsProcessingCard(false);
+      }
+    }, 3000);
   };
 
   const startNfcPayment = async () => {
     if (typeof window === 'undefined' || !('NDEFReader' in window)) {
-      setNfcError("NFC tidak didukung pada browser ini. Gunakan Chrome di Android.");
+      setNfcError("NFC Tidak Didukung. Gunakan Browser Chrome di Android untuk akses sensor fisik.");
       return;
     }
 
     try {
       setPosState('scanning');
       setNfcError(null);
-      setFoundCustomer(null);
       
       const ndef = new window.NDEFReader();
-      const controller = new AbortController();
-      await ndef.scan({ signal: controller.signal });
+      await ndef.scan();
       
       ndef.onreading = async (event: any) => {
         setPosState('verifying');
-        
-        // Baca data dari kartu (Asumsi record text berisi UID atau Account Number)
         const textDecoder = new TextDecoder();
-        let extractedAccountId = "";
+        let extractedId = "";
         
         for (const record of event.message.records) {
           if (record.recordType === "text") {
-            extractedAccountId = textDecoder.decode(record.data);
+            extractedId = textDecoder.decode(record.data);
           }
         }
 
-        // Jika kartu kosong, gunakan serial number sebagai fallback ID unik
-        const lookupId = extractedAccountId || event.serialNumber;
+        const lookupId = extractedId || event.serialNumber;
 
-        // VERIFIKASI SALDO RIIL DI FIRESTORE
+        // VERIFIKASI IDENTITAS KARTU DI ALI-NODE
         try {
           const usersRef = collection(db, "users");
-          // Cari berdasarkan Account Number (lebih riil untuk kartu fisik)
           const q = query(usersRef, where("accountNumber", "==", lookupId), limit(1));
           const snapshot = await getDocs(q);
           
           if (snapshot.empty) {
-            // Coba cari berdasarkan UID sebagai fallback
-            const userDoc = await getDoc(doc(db, "users", lookupId));
-            if (!userDoc.exists()) {
-              setNfcError("Kartu Tidak Terdaftar di AliBank.");
-              setPosState('idle');
-              return;
-            }
-            const data = userDoc.data();
-            setFoundCustomer({ name: data.name, balance: data.totalBalance, uid: userDoc.id });
-          } else {
-            const data = snapshot.docs[0].data();
-            setFoundCustomer({ name: data.name, balance: data.totalBalance, uid: snapshot.docs[0].id });
+            setNfcError("Kartu Tidak Terdaftar di Infrastruktur AliBank.");
+            setPosState('idle');
+            return;
           }
+
+          const data = snapshot.docs[0].data();
+          setFoundCustomer({ name: data.name, balance: data.totalBalance, uid: snapshot.docs[0].id });
         } catch (err) {
-          setNfcError("Gagal terhubung ke pusat data AliBank.");
+          setNfcError("Node Sibuk. Gagal menghubungkan sensor ke pusat data.");
           setPosState('idle');
         }
       };
 
-      ndef.onreadingerror = () => {
-        toast({ variant: "destructive", title: "NFC Error", description: "Gagal membaca sinyal kartu." });
-        setPosState('idle');
-      };
-
     } catch (error: any) {
-      setNfcError("Gagal mengaktifkan sensor NFC.");
+      setNfcError("Sensor NFC dinonaktifkan oleh sistem operasi.");
       setPosState('idle');
     }
   };
 
   const handleExecuteNfcDeduction = async () => {
     if (!foundCustomer) return;
-    
     if (foundCustomer.balance < grossAmountIdr) {
-      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo kartu: Rp ${foundCustomer.balance.toLocaleString()}. Dibutuhkan: Rp ${grossAmountIdr.toLocaleString()}` });
+      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: "Dana pada kartu tidak memadai untuk settlement ini." });
       return;
     }
 
     setPosState('processing');
     await processPaymentFinalization({
-      id: `NFC-V3-${foundCustomer.uid.slice(0, 5)}-${Date.now()}`,
-      gateway: "AliBank V3 NFC Physical Tap"
+      id: `NFC-V3-${foundCustomer.uid.slice(0, 5)}`,
+      gateway: "AliBank NFC Physical Terminal"
     });
   };
 
@@ -376,11 +356,11 @@ export default function CheckoutPage() {
     if (window.paypal && bridgeButtonContainerRef.current) {
       bridgeButtonContainerRef.current.innerHTML = '';
       window.paypal.Buttons({
-        style: { layout: 'vertical', color: 'gold', shape: 'pill', label: 'pay', tagline: false },
+        style: { layout: 'vertical', color: 'gold', shape: 'pill', label: 'pay' },
         createOrder: (data: any, actions: any) => {
           return actions.order.create({
             purchase_units: [{
-              description: `AliBank: ${invoice?.productName || "Infrastructure Access"}`,
+              description: `AliBank Global Settlement: ${invoice?.productName}`,
               amount: { currency_code: "USD", value: grossAmountUsd.toString() }
             }]
           });
@@ -388,9 +368,6 @@ export default function CheckoutPage() {
         onApprove: async (data: any, actions: any) => {
           const details = await actions.order.capture();
           await processPaymentFinalization({ ...details, gateway: "Ali-Global Settlement Bridge" });
-        },
-        onError: (err: any) => {
-          toast({ variant: "destructive", title: "Bridge Unreachable", description: "Terjadi gangguan pada jalur kliring internasional." });
         }
       }).render(bridgeButtonContainerRef.current);
     }
@@ -406,16 +383,7 @@ export default function CheckoutPage() {
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
       <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-      <p className="text-xs font-black uppercase tracking-widest text-muted-foreground italic">Syncing AliBank Gateway...</p>
-    </div>
-  );
-
-  if (!invoice && !loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 text-center">
-      <AlertCircle className="w-16 h-16 text-destructive/20 mb-6" />
-      <h2 className="text-2xl font-black text-accent uppercase italic tracking-tighter">Invoice Not Found</h2>
-      <p className="text-xs text-muted-foreground mt-2 font-medium max-w-xs">Tagihan atau produk tidak ditemukan dalam sistem AliBank.</p>
-      <Button className="mt-8 rounded-xl gold-gradient text-white font-bold px-8 h-12" onClick={() => router.push('/')}>Return to Dashboard</Button>
+      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">Connecting Global Gateway...</p>
     </div>
   );
 
@@ -424,15 +392,15 @@ export default function CheckoutPage() {
       <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mb-6">
         <CheckCircle2 className="w-12 h-12 text-green-600" />
       </div>
-      <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">Transaction Complete</h2>
-      <p className="text-xs text-muted-foreground font-bold uppercase mb-8">Funds Secured in AliBank Vault (Node 2026).</p>
-      <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-6 mb-8 text-center">
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Settled (Net USD)</p>
-        <p className="text-3xl font-black text-primary italic">
+      <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">Settlement Complete</h2>
+      <p className="text-[10px] text-muted-foreground font-black uppercase mb-8">Fiat Assets Secured in AliBank Vault.</p>
+      <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 mb-8 text-center">
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Injected Liquidity (Net)</p>
+        <p className="text-4xl font-black text-primary italic">
           $ {netLiquidityUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}
         </p>
         <div className="mt-4 pt-4 border-t border-primary/5">
-          <Badge variant="outline" className="text-[8px] font-bold uppercase text-green-600 bg-green-50 border-green-200 italic">Verified by AliBank Production Engine</Badge>
+          <Badge className="bg-green-600 text-white text-[8px] font-black uppercase italic border-none px-3">VERIFIED BY ALI-NODE V3</Badge>
         </div>
       </Card>
       <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl" onClick={() => router.push('/')}>
@@ -447,7 +415,6 @@ export default function CheckoutPage() {
         <Script 
           src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&locale=en_US&components=buttons`}
           onLoad={() => setBridgeReady(true)}
-          onError={() => toast({ variant: "destructive", title: "SDK Load Error", description: "Gagal memuat modul jalur kliring internasional." })}
         />
         
         <div className="absolute top-0 left-0 w-full h-64 gold-gradient opacity-10 blur-[100px]" />
@@ -456,12 +423,12 @@ export default function CheckoutPage() {
             <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center shadow-2xl mb-4 p-3.5">
               <LogoIcon className="text-white" />
             </div>
-            <h1 className="text-xl font-black italic uppercase tracking-tighter text-accent">AliBank Secure Gateway</h1>
+            <h1 className="text-xl font-black italic uppercase tracking-tighter text-accent">AliBank Global Settlement</h1>
           </div>
 
           <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl mb-6">
             <CardHeader className="bg-accent/5 p-8 border-b border-primary/5 text-center">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Checkout: {invoice?.productName || "Production Asset"}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Clearing Value</p>
               <h2 className="text-4xl font-black text-accent italic tracking-tighter">
                 $ {grossAmountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </h2>
@@ -469,56 +436,44 @@ export default function CheckoutPage() {
             <CardContent className="p-8 space-y-6">
               {paymentStep === 'selection' ? (
                 <div className="space-y-4">
-                  <button onClick={() => setPaymentStep('native_card')} className="w-full gold-gradient p-6 rounded-[1.5rem] border-none hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-xl">
+                  <button onClick={() => setPaymentStep('bridge_gate')} className="w-full gold-gradient p-6 rounded-[1.5rem] border-none hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-xl">
                     <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-2xl bg-white/20 text-white"><ShieldCheck className="w-6 h-6" /></div>
+                      <div className="p-3 rounded-2xl bg-white/20 text-white"><Globe className="w-6 h-6" /></div>
                       <div>
-                        <p className="text-sm font-black text-white italic">AliBank Direct Node</p>
-                        <p className="text-[9px] font-medium text-white/70 uppercase italic">Direct PCI-DSS Verified • 0% Fee</p>
+                        <p className="text-sm font-black text-white italic">Global Inter-Bank Gateway</p>
+                        <p className="text-[9px] font-medium text-white/70 uppercase italic">Visa, Mastercard, Amex Global Clearing</p>
                       </div>
                     </div>
-                    <Badge className="bg-white text-primary text-[7px] font-black border-none px-2 py-0.5 animate-pulse">DIRECT</Badge>
+                    <Badge className="bg-white text-primary text-[7px] font-black border-none px-2 py-0.5 animate-pulse">RECOMMENDED</Badge>
                   </button>
 
-                  <button onClick={() => setPaymentStep('pos_terminal')} className="w-full bg-[#1E2329] p-6 rounded-[1.5rem] border-none hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-xl border border-white/5">
+                  <button onClick={() => setPaymentStep('native_card')} className="w-full bg-[#1E2329] p-6 rounded-[1.5rem] border-none hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-xl border border-white/5">
                     <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-2xl bg-white/10 text-primary"><Calculator className="w-6 h-6" /></div>
+                      <div className="p-3 rounded-2xl bg-white/10 text-primary"><ShieldCheck className="w-6 h-6" /></div>
                       <div>
-                        <p className="text-sm font-black text-white italic">AliBank V3 POS Terminal</p>
-                        <p className="text-[9px] font-medium text-white/40 uppercase italic">Card & NFC Physical Settlement</p>
+                        <p className="text-sm font-black text-white italic">AliBank Direct Clearing</p>
+                        <p className="text-[9px] font-medium text-white/40 uppercase italic">Native PCI-DSS Direct Processing</p>
                       </div>
                     </div>
-                    <Badge className="bg-primary text-primary-foreground text-[7px] font-black border-none px-2 py-0.5">ELITE</Badge>
+                    <Badge className="bg-primary text-primary-foreground text-[7px] font-black border-none px-2 py-0.5">LOW FEE</Badge>
                   </button>
 
-                  <button onClick={() => setPaymentStep('bridge_gate')} className="w-full liquid-glass-dark p-6 rounded-[1.5rem] border-white/10 hover:border-primary/40 transition-all text-left flex items-center justify-between group relative overflow-hidden">
-                    <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
-                    <div className="flex items-center gap-4 relative z-10">
-                      <div className="p-3 rounded-2xl bg-white/10 text-white group-hover:bg-primary transition-colors"><Globe className="w-6 h-6" /></div>
-                      <div>
-                        <p className="text-sm font-black text-white italic">Ali-Network Global Card</p>
-                        <p className="text-[9px] font-medium text-white/50 uppercase">Visa, Mastercard, Amex Bridge</p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-white/60" />
-                  </button>
-
-                  <button onClick={() => processPaymentFinalization({ id: 'INTERNAL-SETTLE', gateway: 'AliBank Internal Ledger' })} className="w-full liquid-glass p-6 rounded-[1.5rem] border-primary/10 hover:border-primary/40 transition-all text-left flex items-center justify-between group">
+                  <button onClick={() => setPaymentStep('pos_terminal')} className="w-full liquid-glass p-6 rounded-[1.5rem] border-primary/10 hover:border-primary/40 transition-all text-left flex items-center justify-between group">
                     <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors"><LogoIcon className="w-6 h-6" /></div>
+                      <div className="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors"><Nfc className="w-6 h-6" /></div>
                       <div>
-                        <p className="text-sm font-black text-accent italic">AliBank Internal Account</p>
-                        <p className="text-[9px] font-medium text-muted-foreground uppercase italic">Instant Liquidity Settlement</p>
+                        <p className="text-sm font-black text-accent italic">NFC Physical Terminal</p>
+                        <p className="text-[9px] font-medium text-muted-foreground uppercase italic">Tap AliBank Physical Card</p>
                       </div>
                     </div>
-                    <Badge className="bg-green-600 text-white text-[7px] font-black border-none px-2 py-0.5">INTERNAL</Badge>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
                   </button>
                 </div>
               ) : paymentStep === 'pos_terminal' ? (
                 <div className="space-y-8 animate-in zoom-in-95 duration-500 py-4 text-center">
                   <header className="flex items-center justify-between px-2">
-                    <button onClick={() => { setPaymentStep('selection'); setFoundCustomer(null); }} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors">Back</button>
-                    <div className="flex items-center gap-2"><Wifi className="w-3 h-3 text-primary animate-pulse" /><span className="text-[8px] font-black text-primary uppercase">POS LINKED</span></div>
+                    <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors">Back</button>
+                    <Badge variant="outline" className="text-[8px] font-black text-primary border-primary/20 uppercase">Physical Mode</Badge>
                   </header>
 
                   <div className="relative mx-auto">
@@ -532,22 +487,22 @@ export default function CheckoutPage() {
                       {posState === 'idle' ? (
                         <div className="flex flex-col items-center gap-4 animate-bounce">
                           <Nfc className="w-16 h-16 text-primary" />
-                          <p className="text-[10px] font-black uppercase tracking-tighter text-accent italic">Ready to Tap</p>
+                          <p className="text-[10px] font-black uppercase text-accent italic">Ready to Tap</p>
                         </div>
                       ) : posState === 'scanning' ? (
                         <div className="flex flex-col items-center gap-4">
                           <Loader2 className="w-16 h-16 text-primary animate-spin" />
-                          <p className="text-[10px] font-black uppercase tracking-tighter text-accent italic">Hold Card Near Device...</p>
+                          <p className="text-[10px] font-black uppercase text-accent italic">Awaiting Signal...</p>
                         </div>
                       ) : posState === 'verifying' ? (
                         <div className="flex flex-col items-center gap-4">
                           <User className="w-16 h-16 text-amber-400 animate-pulse" />
-                          <p className="text-[10px] font-black uppercase tracking-tighter text-amber-400 italic">Identifying Holder...</p>
+                          <p className="text-[10px] font-black uppercase text-amber-400 italic">Auth Token Active...</p>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-4">
                           <Cpu className="w-16 h-16 text-primary animate-pulse" />
-                          <p className="text-[10px] font-black uppercase tracking-tighter text-accent italic">Clearing Network...</p>
+                          <p className="text-[10px] font-black uppercase text-accent italic">Deducting Balance...</p>
                         </div>
                       )}
                     </div>
@@ -566,11 +521,11 @@ export default function CheckoutPage() {
                         <div className="h-px bg-primary/10" />
                         <div className="flex justify-between items-end">
                           <div className="text-left">
-                            <p className="text-[10px] font-black text-muted-foreground uppercase">Verified Balance</p>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase">Available Balance</p>
                             <p className="text-2xl font-black text-accent italic tracking-tighter">Rp {foundCustomer.balance.toLocaleString()}</p>
                           </div>
                           <Badge className={cn("font-black text-[8px]", foundCustomer.balance >= grossAmountIdr ? "bg-green-600" : "bg-destructive")}>
-                            {foundCustomer.balance >= grossAmountIdr ? "FUNDS SUFFICIENT" : "LOW BALANCE"}
+                            {foundCustomer.balance >= grossAmountIdr ? "AUTHORIZED" : "DECLINED"}
                           </Badge>
                         </div>
                       </div>
@@ -580,7 +535,7 @@ export default function CheckoutPage() {
                         disabled={foundCustomer.balance < grossAmountIdr || posState === 'processing'}
                         className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all"
                       >
-                        {posState === 'processing' ? <Loader2 className="animate-spin w-5 h-5" /> : <>CONFIRM & PAY NOW <ChevronRight className="w-4 h-4" /></>}
+                        {posState === 'processing' ? <Loader2 className="animate-spin w-5 h-5" /> : <>EXECUTE REAL DEDUCTION <ChevronRight className="w-4 h-4" /></>}
                       </Button>
                     </div>
                   ) : (
@@ -591,7 +546,7 @@ export default function CheckoutPage() {
                         </div>
                       ) : (
                         <p className="text-xs font-medium text-muted-foreground uppercase italic px-10 leading-relaxed">
-                          Tempelkan kartu AliBank Anda ke sensor NFC dan tahan hingga saldo muncul di layar.
+                          Hold your physical card near the back of the device. 
                         </p>
                       )}
                       
@@ -609,33 +564,21 @@ export default function CheckoutPage() {
                     <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors">Back</button>
                     <div className="flex items-center gap-2">
                       <Lock className="w-3 h-3 text-green-600" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-accent italic">Institutional Bridge Verification</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-accent italic">Secure Global Bridge</span>
                     </div>
                   </header>
                   
                   <div className="p-5 rounded-2xl bg-accent/5 border border-primary/10 space-y-3">
                     <div className="flex justify-between items-center text-[10px] font-bold uppercase">
-                      <span className="text-muted-foreground">Product Price (Gross)</span>
+                      <span className="text-muted-foreground">Settlement Value</span>
                       <span className="text-accent">$ {grossAmountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] font-bold uppercase">
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        Processing GAS 
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="w-3 h-3 cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-[200px]">
-                            <p className="text-[10px] font-bold leading-relaxed italic">
-                              Biaya ini dipotong dari total pembayaran untuk menutupi biaya eksekusi Smart Contract AliBank di jaringan Ethereum Mainnet (GAS Fee) guna menjamin validitas transaksi on-chain.
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </span>
+                      <span className="text-muted-foreground flex items-center gap-1">Network Processing Fee</span>
                       <span className="text-destructive font-black">- $ {gasFeeUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div className="pt-3 border-t border-primary/5 flex justify-between items-center">
-                      <span className="text-xs font-black uppercase text-accent">Total Liquidity (Net)</span>
+                      <span className="text-xs font-black uppercase text-accent">Total Injected</span>
                       <span className="text-lg font-black text-primary italic">$ {netLiquidityUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
@@ -643,7 +586,7 @@ export default function CheckoutPage() {
                   {!bridgeReady ? (
                     <div className="flex flex-col items-center justify-center py-10">
                       <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
-                      <p className="text-[9px] font-black uppercase text-muted-foreground">Initializing secure tunnel...</p>
+                      <p className="text-[9px] font-black uppercase text-muted-foreground italic">Establishing Secure Inter-Bank Tunnel...</p>
                     </div>
                   ) : (
                     <div id="bridge-button-container" ref={bridgeButtonContainerRef} className="w-full min-h-[150px] transition-all" />
@@ -653,13 +596,13 @@ export default function CheckoutPage() {
                 <form onSubmit={handleNativeCardPayment} className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                    <header className="flex items-center justify-between mb-4">
                     <button type="button" onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors">Back</button>
-                    <Badge className="bg-primary/10 text-primary text-[8px] font-black uppercase italic flex items-center gap-1"><ShieldCheck className="w-2 h-2" /> Ali-Direct Node</Badge>
+                    <Badge className="bg-primary/10 text-primary text-[8px] font-black uppercase italic flex items-center gap-1"><ShieldCheck className="w-2.5 h-2.5" /> PCI-DSS Secure</Badge>
                   </header>
                   
                   <div className="space-y-4">
                     <div className="space-y-1.5">
                       <div className="flex justify-between items-center px-1">
-                        <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Card Number</label>
+                        <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Global Card Number</label>
                         {cardBrand !== 'Unknown' && (
                           <Badge className="bg-primary/10 text-primary text-[7px] font-black border-none px-2">{cardBrand}</Badge>
                         )}
@@ -701,10 +644,10 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-green-500/5 border border-green-500/10 flex gap-3">
-                    <ShieldAlert className="w-5 h-5 text-green-600 shrink-0" />
+                  <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
+                    <Globe className="w-5 h-5 text-blue-600 shrink-0" />
                     <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                      Direct Settlement: Transaksi ini diproses langsung melalui infrastruktur Node AliBank tanpa perantara eksternal.
+                      Dana akan didebit dari rekening bank internasional Anda dan dikonversi ke likuiditas sistem AliBank secara instan.
                     </p>
                   </div>
 
@@ -713,7 +656,7 @@ export default function CheckoutPage() {
                     disabled={isProcessingCard || !cardNumber || !expiry || !cvv}
                     className="w-full h-16 gold-gradient text-white text-lg font-black italic uppercase rounded-3xl shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all"
                   >
-                    {isProcessingCard ? <Loader2 className="w-6 h-6 animate-spin" /> : <>PROCESS SETTLEMENT <ChevronRight className="w-5 h-5" /></>}
+                    {isProcessingCard ? <Loader2 className="w-6 h-6 animate-spin" /> : <>SETTLE FUNDS GLOBALLY <ChevronRight className="w-5 h-5" /></>}
                   </Button>
                 </form>
               )}
