@@ -30,7 +30,8 @@ import {
   Calculator,
   ArrowRight,
   Copy,
-  Code2
+  Code2,
+  QrCode
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,67 +45,84 @@ const ALIX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 const VAULT_CONTRACT_CODE = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+/**
+ * @dev Interface standar untuk token USDT (ERC-20).
+ */
+interface IERC20 {
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
 
 /**
- * @title AliBank Central Vault V3 - Institutional Grade
- * @dev Brankas Utama AliBank untuk pengelolaan likuiditas multi-aset.
- * Fitur Utama:
- * - USDT Support: Menerima setoran USDT secara riil.
- * - Institutional Minimum: Batas setoran minimal 5.000.000 USDT.
- * - ReentrancyGuard: Perlindungan dari serangan rekursif pada dana besar.
- * - Multi-Sig Compatibility: Kontrol kepemilikan oleh dewan direksi AliBank.
+ * @title AliBank Central Vault V3 - Multi-Asset & Institutional
+ * @dev Alamat Kontrak: 0x56268032A3B3E64CFeF1916d591087CF8dF40945
  */
-contract AliBankVault is Ownable, ReentrancyGuard {
+contract AliBankVault {
+    address public owner;
     IERC20 public immutable usdt;
     
-    // Minimal Pembayaran: 5.000.000 USDT (USDT menggunakan 6 desimal)
-    uint256 public constant MIN_DEPOSIT = 5000000 * 10**6;
+    mapping(address => uint256) public ethBalances;
+    mapping(address => uint256) public usdtBalances;
+    
+    bool private _locked;
 
-    event USDTDeposited(address indexed from, uint256 amount);
-    event WithdrawalExecuted(address indexed to, uint256 amount, string asset);
+    event ETHDeposited(address indexed user, uint256 amount);
+    event USDTDeposited(address indexed user, uint256 amount);
+    event Withdrawn(address indexed to, uint256 amount, string asset);
 
-    constructor(address _usdtAddress, address initialOwner) Ownable(initialOwner) {
+    constructor(address _usdtAddress) {
+        owner = msg.sender;
         usdt = IERC20(_usdtAddress);
     }
 
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Hanya pemilik AliBank");
+        _;
+    }
+
+    modifier nonReentrant() {
+        require(!_locked, "Keamanan: Transaksi sedang diproses");
+        _locked = true;
+        _;
+        _locked = false;
+    }
+
     /**
-     * @dev Menyetorkan USDT ke Brankas AliBank.
-     * Harus memenuhi syarat minimal 5.000.000 USDT.
+     * @dev Menyetor ETH (Bisa jumlah besar atau kecil).
      */
-    function depositUSDT(uint256 _amount) external nonReentrant {
-        require(_amount >= MIN_DEPOSIT, "AliBank: Minimum deposit is 5,000,000 USDT");
-        require(usdt.transferFrom(msg.sender, address(this), _amount), "Transfer Failed");
+    function depositETH() public payable {
+        require(msg.value > 0, "Minimal deposit 1 Wei");
+        ethBalances[msg.sender] += msg.value;
+        emit ETHDeposited(msg.sender, msg.value);
+    }
+
+    /**
+     * @dev Menyetor USDT (Mendukung integrasi dari wallet luar).
+     * Pastikan user sudah melakukan "Approve" USDT ke alamat kontrak ini.
+     */
+    function depositUSDT(uint256 _amount) public nonReentrant {
+        require(_amount > 0, "Minimal deposit > 0 USDT");
+        require(usdt.transferFrom(msg.sender, address(this), _amount), "Transfer USDT gagal");
         
+        usdtBalances[msg.sender] += _amount;
         emit USDTDeposited(msg.sender, _amount);
     }
 
     /**
-     * @dev Menarik ETH dari brankas (Hanya Pemilik/Admin).
+     * @dev Fungsi darurat untuk menarik dana (Hanya Owner AliBank).
      */
-    function withdrawETH(uint256 _amount) external onlyOwner nonReentrant {
-        require(address(this).balance >= _amount, "Insufficient ETH Balance");
-        payable(owner()).transfer(_amount);
+    function withdrawAll(address payable _to) public onlyOwner nonReentrant {
+        uint256 ethBal = address(this).balance;
+        uint256 usdtBal = usdt.balanceOf(address(this));
         
-        emit WithdrawalExecuted(owner(), _amount, "ETH");
+        if(ethBal > 0) _to.transfer(ethBal);
+        if(usdtBal > 0) usdt.transfer(_to, usdtBal);
     }
 
-    /**
-     * @dev Menarik USDT dari brankas (Hanya Pemilik/Admin).
-     */
-    function withdrawUSDT(uint256 _amount) external onlyOwner nonReentrant {
-        require(usdt.balanceOf(address(this)) >= _amount, "Insufficient USDT Balance");
-        require(usdt.transfer(owner(), _amount), "Transfer Failed");
-        
-        emit WithdrawalExecuted(owner(), _amount, "USDT");
+    receive() external payable {
+        depositETH();
     }
-
-    /**
-     * @dev Fungsi fallback untuk menerima ETH langsung.
-     */
-    receive() external payable {}
 }`;
 
 export default function AboutAlixPage() {
@@ -114,6 +132,11 @@ export default function AboutAlixPage() {
   const copyCode = () => {
     navigator.clipboard.writeText(VAULT_CONTRACT_CODE);
     toast({ title: "Kode Disalin", description: "Smart Contract Brankas AliBank V3 siap ditempel di Remix IDE." });
+  };
+
+  const copyAddress = () => {
+    navigator.clipboard.writeText(ALIX_CONTRACT);
+    toast({ title: "Alamat Disalin", description: "Alamat Brankas Pusat siap digunakan di Wallet Luar." });
   };
 
   return (
@@ -136,7 +159,7 @@ export default function AboutAlixPage() {
             </div>
             <div className="text-center md:text-left flex-1">
               <Badge className="bg-green-600 text-white border-none px-4 py-1 mb-4 rounded-full font-black uppercase tracking-widest text-[10px] animate-pulse">
-                VAULT V3: USDT ENABLED
+                VAULT V3: MULTI-ASSET LIVE
               </Badge>
               <h1 className="text-5xl font-black text-accent uppercase italic tracking-tighter leading-tight dark:text-white">
                 Infrastruktur <span className="text-primary">Brankas AliBank</span>
@@ -150,16 +173,30 @@ export default function AboutAlixPage() {
           </div>
         </header>
 
+        {/* ALAMAT BRANKAS UNTUK WALLET LUAR */}
         <section className="mb-16">
           <div className="liquid-glass border-none rounded-[3rem] p-10 bg-primary/5 flex items-center gap-8 flex-col md:flex-row shadow-2xl">
-            <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-white shrink-0 shadow-xl">
-              <Coins className="w-12 h-12" />
+            <div className="w-24 h-24 rounded-[2rem] bg-background flex items-center justify-center text-primary shrink-0 shadow-xl border-4 border-primary/20">
+              <QrCode className="w-12 h-12" />
             </div>
-            <div className="space-y-3">
-              <h2 className="text-2xl font-black text-accent uppercase italic tracking-tighter dark:text-white">Standardisasi USDT Institusional</h2>
-              <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic uppercase tracking-wider">
-                Sesuai kebijakan kepatuhan AliBank V3, brankas pusat kini menerima setoran **USDT (Tether)** melalui jaringan Ethereum Mainnet. Batas setoran minimum ditetapkan pada **5.000.000 USDT** untuk memastikan likuiditas grade-perbankan yang stabil.
-              </p>
+            <div className="space-y-4 flex-1">
+              <div>
+                <h2 className="text-2xl font-black text-accent uppercase italic tracking-tighter dark:text-white leading-none">Alamat Terima Aset Luar</h2>
+                <p className="text-[10px] text-muted-foreground font-bold mt-2 uppercase tracking-widest">Gunakan alamat ini di MetaMask, Trust Wallet, atau bursa lain.</p>
+              </div>
+              <div className="flex flex-col md:flex-row gap-4 items-center">
+                <div className="bg-black/10 dark:bg-white/5 p-4 rounded-xl font-mono text-[11px] break-all text-accent dark:text-white w-full border border-primary/10">
+                  {ALIX_CONTRACT}
+                </div>
+                <Button onClick={copyAddress} className="gold-gradient text-white font-black uppercase italic text-[10px] h-12 px-8 rounded-xl shrink-0">
+                  <Copy className="w-4 h-4 mr-2" /> Salin Alamat
+                </Button>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge className="bg-blue-100 text-blue-600 border-none font-black text-[8px] uppercase">Ethereum Mainnet</Badge>
+                <Badge className="bg-green-100 text-green-600 border-none font-black text-[8px] uppercase">USDT (ERC-20)</Badge>
+                <Badge className="bg-orange-100 text-orange-600 border-none font-black text-[8px] uppercase">ETH Native</Badge>
+              </div>
             </div>
           </div>
         </section>
@@ -174,7 +211,7 @@ export default function AboutAlixPage() {
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px] mb-2">Central Vault V3</Badge>
+                  <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px] mb-2">Central Vault V3.1</Badge>
                   <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Source Code AliBank Vault</h2>
                 </div>
                 <Button 
@@ -192,9 +229,9 @@ export default function AboutAlixPage() {
               </div>
 
               <div className="mt-8 p-6 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex gap-4">
-                <AlertTriangle className="w-6 h-6 text-blue-500 shrink-0" />
+                <Info className="w-6 h-6 text-blue-500 shrink-0" />
                 <p className="text-[9px] text-white/70 italic leading-relaxed uppercase font-bold">
-                  Peringatan: Setoran USDT di bawah **5.000.000** akan ditolak secara otomatis oleh mesin konsensus Smart Contract (Ali-Consensus Protocol). Pastikan dompet Anda telah melakukan "Approve" USDT ke alamat kontrak ini sebelum eksekusi.
+                  Catatan Keamanan: Kontrak ini sekarang mendukung **USDT** dan **ETH**. Pembayaran besar diproteksi oleh fungsi `nonReentrant`. Anda dapat menerima setoran nominal kecil tanpa batasan minimal pada fungsi `depositUSDT` versi 3.1 ini.
                 </p>
               </div>
             </div>
@@ -209,20 +246,20 @@ export default function AboutAlixPage() {
             <div className="relative z-10 space-y-8">
               <div className="flex items-center gap-4">
                 <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px]">Protocol Compliance</Badge>
-                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Kalkulasi USDT Minimum</h2>
+                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Kapabilitas Brankas</h2>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div className="space-y-6">
                   <p className="text-xs font-medium text-white/70 leading-relaxed italic uppercase">
-                    Untuk menjamin stabilitas nilai ALX, setiap 1 unit koin yang dicetak harus didukung oleh minimal agunan USDT di brankas pusat.
+                    Seluruh dana dari dompet luar akan langsung tercatat sebagai agunan likuiditas AliBank. Setiap transaksi divalidasi oleh node Ethereum global sebelum disinkronkan ke Command Center.
                   </p>
                   <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-4">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Batas Setoran Minimum</p>
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Kesesuaian Aset</p>
                     <div className="flex items-center justify-center gap-4 py-4 bg-black/20 rounded-xl font-mono text-xl text-white font-bold">
-                      <span className="text-primary">$</span>
-                      <span>5.000.000</span>
-                      <span className="text-xs text-white/40">USDT</span>
+                      <span className="text-primary">MULTI</span>
+                      <span>ASSET</span>
+                      <span className="text-xs text-white/40">SUPPORTED</span>
                     </div>
                   </div>
                 </div>
@@ -233,11 +270,11 @@ export default function AboutAlixPage() {
                     <div className="space-y-3">
                       <div className="flex justify-between items-center text-[11px] font-bold uppercase">
                         <span className="text-white/60">Aset yang Diterima</span>
-                        <span className="text-white">USDT (ERC-20)</span>
+                        <span className="text-white">ETH & USDT</span>
                       </div>
                       <div className="flex justify-between items-center text-[11px] font-bold uppercase">
-                        <span className="text-white/60">Minimum Threshold</span>
-                        <span className="text-primary">5.000.000,00</span>
+                        <span className="text-white/60">Batas Setoran</span>
+                        <span className="text-primary">Unlimited</span>
                       </div>
                       <div className="h-px bg-white/10 my-2" />
                       <div className="flex justify-between items-center">
