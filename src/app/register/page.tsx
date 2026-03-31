@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -47,22 +46,23 @@ export default function RegisterPage() {
         email: formData.email,
         phone: formData.phone,
         accountNumber: '88' + Math.floor(1000000000 + Math.random() * 9000000000).toString(),
-        totalBalance: 0, // Inisialisasi saldo Nol untuk user baru
-        savings: 0,      // Inisialisasi tabungan Nol
+        totalBalance: 0, // Mutlak Nol
+        savings: 0,      // Mutlak Nol
         tier: 'Premium',
         walletAddress: internalWallet.address,
-        privateKey: internalWallet.privateKey, // Encrypted in real production, stored here for prototype
+        privateKey: internalWallet.privateKey,
         cryptoBalances: {
           BTC: 0,
           ETH: 0,
-          USDT: 0
+          USDT: 0,
+          ALX: 0
         },
         createdAt: serverTimestamp()
       });
 
       toast({
         title: "Pendaftaran Berhasil",
-        description: "Akun AliBank & Dompet Web3 Mandiri Anda telah aktif. Silakan lakukan deposit untuk memulai.",
+        description: "Akun AliBank aktif dengan saldo Rp 0. Silakan deposit untuk memulai.",
       });
       router.push('/');
     } catch (error: any) {
