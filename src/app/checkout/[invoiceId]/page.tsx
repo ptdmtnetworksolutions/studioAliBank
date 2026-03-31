@@ -2,7 +2,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { 
   ShieldCheck, 
   Loader2, 
@@ -97,6 +97,10 @@ export default function CheckoutPage() {
   // PRODUCTION CLIENT ID
   const PAYPAL_CLIENT_ID = "AbHG-qL9bHR0-rhmrDMV7TH-PiYAFHFNimv3LfxBUPmSIMaQPrbvFd7cJah1bc8YqlUkS7i3OpD0nvGF";
 
+  // Ambil Data Profil Riil untuk Pre-fill PayPal
+  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const { data: userData } = useDoc(userDocRef);
+
   useEffect(() => {
     async function fetchInvoice() {
       if (!db || !invoiceId) return;
@@ -139,17 +143,23 @@ export default function CheckoutPage() {
     if (paymentStep === 'bridge_gate' && paypalReady && window.paypal) {
       const appContent = {
         shipping_preference: 'NO_SHIPPING',
-        user_action: 'PAY_NOW',
+        user_action: 'PAY_NOW', // Ubah teks tombol menjadi "Bayar Sekarang" di modal PayPal
         brand_name: 'ALIBANK SECURE V3'
       };
 
-      // Pre-fill data nasabah untuk mengurangi input ulang di modal PayPal
-      const payerInfo = user ? {
-        email_address: user.email || undefined,
+      // Pre-fill data nasabah yang sangat spesifik untuk melewati input PayPal
+      const payerInfo = userData ? {
+        email_address: userData.email || user?.email || undefined,
         name: {
-          given_name: user.displayName?.split(' ')[0] || "Nasabah",
-          surname: user.displayName?.split(' ').slice(1).join(' ') || "AliBank"
-        }
+          given_name: userData.name?.split(' ')[0] || "Nasabah",
+          surname: userData.name?.split(' ').slice(1).join(' ') || "AliBank"
+        },
+        phone: userData.phone ? {
+          phone_type: "MOBILE",
+          phone_number: {
+            national_number: userData.phone.replace(/[^0-9]/g, '') // Bersihkan karakter non-angka
+          }
+        } : undefined
       } : undefined;
 
       if (paypalContainerRef.current) {
@@ -203,7 +213,7 @@ export default function CheckoutPage() {
         }).render(cardButtonRef.current);
       }
     }
-  }, [paymentStep, paypalReady, invoice, user]);
+  }, [paymentStep, paypalReady, invoice, user, userData]);
 
   const processPaymentFinalization = async (details: any) => {
     if (!db || !invoice) return;
