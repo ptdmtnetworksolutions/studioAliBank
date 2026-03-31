@@ -230,8 +230,12 @@ function AdminContent() {
       setDisburseAmount("");
       syncOnChainData();
     } catch (err: any) {
-      console.error(err);
-      toast({ variant: "destructive", title: "Gagal Menarik Dana", description: err.message });
+      if (err.code === "ACTION_REJECTED") {
+        toast({ title: "Transaksi Dibatalkan", description: "Tanda tangan transaksi ditolak oleh pengguna." });
+      } else {
+        console.error(err);
+        toast({ variant: "destructive", title: "Gagal Menarik Dana", description: err.shortMessage || err.message || "Terjadi kesalahan pada jaringan." });
+      }
     } finally {
       setIsDisbursing(false);
     }
