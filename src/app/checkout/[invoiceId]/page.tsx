@@ -99,7 +99,7 @@ export default function CheckoutPage() {
   const [paypalReady, setPaypalReady] = useState(false);
   const [posState, setPosState] = useState<'idle' | 'scanning' | 'verifying' | 'processing'>('idle');
   const [nfcError, setNfcError] = useState<string | null>(null);
-  const [activeGatewayTab, setActiveGatewayTab] = useState<'paypal' | 'card'>('paypal');
+  const [activeGatewayTab, setActiveGatewayTab] = useState<'network' | 'card'>('network');
   
   const [cardData, setCardData] = useState({ number: "", expiry: "", cvv: "", name: "" });
   const [isCardProcessing, setIsCardProcessing] = useState(false);
@@ -108,7 +108,6 @@ export default function CheckoutPage() {
   const paypalContainerRef = useRef<HTMLDivElement>(null);
   const cardButtonRef = useRef<HTMLDivElement>(null);
 
-  // CLIENT ID PAYPAL RIIL ANDA
   const PAYPAL_CLIENT_ID = "AbHG-qL9bHR0-rhmrDMV7TH-PiYAFHFNimv3LfxBUPmSIMaQPrbvFd7cJah1bc8YqlUkS7i3OpD0nvGF";
 
   useEffect(() => {
@@ -149,14 +148,12 @@ export default function CheckoutPage() {
     fetchInvoice();
   }, [db, invoiceId]);
 
-  // Render PayPal Buttons (Standard & Card)
   useEffect(() => {
     if (paymentStep === 'bridge_gate' && paypalReady && window.paypal) {
-      // Render Tombol PayPal Utama
       if (paypalContainerRef.current) {
         paypalContainerRef.current.innerHTML = "";
         window.paypal.Buttons({
-          style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal' },
+          style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
           createOrder: (data: any, actions: any) => {
             return actions.order.create({
               purchase_units: [{
@@ -169,14 +166,13 @@ export default function CheckoutPage() {
             const details = await actions.order.capture();
             processPaymentFinalization({
               id: details.id,
-              gateway: "PayPal Official Gateway",
+              gateway: "Ali-Global Network (Authorized)",
               payerEmail: details.payer.email_address
             });
           }
         }).render(paypalContainerRef.current);
       }
 
-      // Render Tombol Kartu Debit/Kredit Riil di Tab Card
       if (cardButtonRef.current) {
         cardButtonRef.current.innerHTML = "";
         window.paypal.Buttons({
@@ -194,7 +190,7 @@ export default function CheckoutPage() {
             const details = await actions.order.capture();
             processPaymentFinalization({
               id: details.id,
-              gateway: "Ali-Global Card Clearing (PayPal)",
+              gateway: "Ali-Global Card Clearing",
               bankName: details.payment_source?.card?.name || "International Issuer"
             });
           }
@@ -234,7 +230,7 @@ export default function CheckoutPage() {
         totalUsdInjected: increment(netLiquidityUsd), 
         lastExternalSettlement: {
           id: gatewayId,
-          bank: details.bankName || "External Gateway",
+          bank: details.bankName || "Ali-Global Node",
           amountUsd: grossAmountUsd,
           timestamp: serverTimestamp()
         }
@@ -244,12 +240,12 @@ export default function CheckoutPage() {
         id: gatewayId,
         category: "External Settlement",
         gateway: details.gateway,
-        bankName: details.bankName || "International Gateway",
+        bankName: details.bankName || "Ali-Global Gateway",
         amountIdr: grossAmountIdr,
         amountUsd: grossAmountUsd,
         status: "success", 
         timestamp: serverTimestamp(),
-        description: `Real-World Settlement: Assets secured in Central Vault.`
+        description: `AliBank V3 Network: Assets secured in Central Vault.`
       });
 
       setPaymentStep('success');
@@ -332,7 +328,7 @@ export default function CheckoutPage() {
             <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center shadow-2xl mb-4 p-3.5">
               <LogoIcon className="text-white" />
             </div>
-            <h1 className="text-xl font-black italic uppercase tracking-tighter text-accent">AliBank Global Settlement</h1>
+            <h1 className="text-xl font-black italic uppercase tracking-tighter text-accent">AliBank Secure Gateway</h1>
           </div>
 
           <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl mb-6">
@@ -350,8 +346,8 @@ export default function CheckoutPage() {
                     <div className="flex items-center gap-4">
                       <div className="p-3 rounded-2xl bg-white/20 text-white"><Nfc className="w-6 h-6" /></div>
                       <div>
-                        <p className="text-sm font-black text-white italic">NFC POS Terminal</p>
-                        <p className="text-[9px] font-medium text-white/70 uppercase italic">Tap ANY Debit/Credit Card Worldwide</p>
+                        <p className="text-sm font-black text-white italic">AliBank V3 POS Terminal</p>
+                        <p className="text-[9px] font-medium text-white/70 uppercase italic">Contactless Global Interchange</p>
                       </div>
                     </div>
                     <Badge className="bg-white text-primary text-[7px] font-black border-none px-2 py-0.5 animate-pulse">PROD READY</Badge>
@@ -361,8 +357,8 @@ export default function CheckoutPage() {
                     <div className="flex items-center gap-4">
                       <div className="p-3 rounded-2xl bg-white/10 text-primary"><Globe className="w-6 h-6" /></div>
                       <div>
-                        <p className="text-sm font-black text-white italic">PayPal & Direct Card</p>
-                        <p className="text-[9px] font-medium text-white/40 uppercase italic">Riil Card Settlement Bridge</p>
+                        <p className="text-sm font-black text-white italic">Ali-Global Secure Pay</p>
+                        <p className="text-[9px] font-medium text-white/40 uppercase italic">Direct Wallet & Card Settlement</p>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-white/20" />
@@ -400,10 +396,10 @@ export default function CheckoutPage() {
                         <p className="text-[10px] font-black text-muted-foreground uppercase">Verified Balance</p>
                         <p className="text-2xl font-black text-accent italic tracking-tighter">Rp {foundCustomer.balance.toLocaleString()}</p>
                       </div>
-                      <Button onClick={() => processPaymentFinalization({ gateway: "NFC Global Switch", bankName: foundCustomer.bank })} className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase text-xs">EXECUTE GLOBAL DEBIT</Button>
+                      <Button onClick={() => processPaymentFinalization({ gateway: "AliBank NFC Switch", bankName: foundCustomer.bank })} className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase text-xs">EXECUTE SECURE DEBIT</Button>
                     </div>
                   ) : (
-                    <Button onClick={startNfcScanning} className="w-full h-16 bg-[#1E2329] text-white rounded-2xl font-black italic uppercase text-xs">ACTIVATE NFC SENSOR</Button>
+                    <Button onClick={startNfcScanning} className="w-full h-16 bg-[#1E2329] text-white rounded-2xl font-black italic uppercase text-xs">ACTIVATE SENSORS</Button>
                   )}
                 </div>
               ) : (
@@ -411,17 +407,17 @@ export default function CheckoutPage() {
                    <header className="flex items-center justify-between px-2">
                     <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary">Back</button>
                     <div className="flex bg-muted/50 p-1 rounded-lg">
-                      <button onClick={() => setActiveGatewayTab('paypal')} className={cn("px-4 py-1.5 text-[9px] font-black rounded-md transition-all uppercase", activeGatewayTab === 'paypal' ? "bg-white shadow-sm text-accent" : "text-muted-foreground")}>PayPal</button>
-                      <button onClick={() => setActiveGatewayTab('card')} className={cn("px-4 py-1.5 text-[9px] font-black rounded-md transition-all uppercase", activeGatewayTab === 'card' ? "bg-white shadow-sm text-accent" : "text-muted-foreground")}>Debit/Credit</button>
+                      <button onClick={() => setActiveGatewayTab('network')} className={cn("px-4 py-1.5 text-[9px] font-black rounded-md transition-all uppercase", activeGatewayTab === 'network' ? "bg-white shadow-sm text-accent" : "text-muted-foreground")}>Network</button>
+                      <button onClick={() => setActiveGatewayTab('card')} className={cn("px-4 py-1.5 text-[9px] font-black rounded-md transition-all uppercase", activeGatewayTab === 'card' ? "bg-white shadow-sm text-accent" : "text-muted-foreground")}>Card Clearing</button>
                     </div>
                   </header>
 
                    <div className="space-y-6">
-                      {activeGatewayTab === 'paypal' ? (
+                      {activeGatewayTab === 'network' ? (
                         <div className="space-y-6">
                           <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
                             <Info className="w-5 h-5 text-blue-500 shrink-0" />
-                            <p className="text-[10px] text-muted-foreground font-bold leading-relaxed uppercase">Gunakan saldo PayPal untuk penyelesaian dana instan ke brankas AliBank.</p>
+                            <p className="text-[10px] text-muted-foreground font-bold leading-relaxed uppercase italic">Gunakan saldo dompet digital global Anda untuk penyelesaian dana instan ke AliBank.</p>
                           </div>
                           <div ref={paypalContainerRef} className="w-full min-h-[150px] flex flex-col items-center justify-center">
                             {!paypalReady && <Loader2 className="w-8 h-8 animate-spin text-primary opacity-40" />}
@@ -431,10 +427,9 @@ export default function CheckoutPage() {
                         <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
                           <div className="p-6 rounded-2xl bg-accent/5 border border-primary/10 flex gap-4">
                             <ShieldCheck className="w-5 h-5 text-primary shrink-0" />
-                            <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed italic">Pembayaran diproses secara riil melalui infrastruktur aman PayPal Card Clearing.</p>
+                            <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed italic">Pembayaran diproses secara riil melalui infrastruktur aman Ali-Global Card Clearing.</p>
                           </div>
                           
-                          {/* Render Tombol Kartu Riil PayPal */}
                           <div ref={cardButtonRef} className="w-full min-h-[100px] flex flex-col items-center justify-center">
                             {!paypalReady && <Loader2 className="w-8 h-8 animate-spin text-primary opacity-40" />}
                           </div>
