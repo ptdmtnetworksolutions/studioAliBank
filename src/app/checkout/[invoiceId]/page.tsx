@@ -20,7 +20,9 @@ import {
   Wifi,
   Zap,
   Cpu,
-  Nfc
+  Nfc,
+  User,
+  Wallet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -38,7 +40,9 @@ import {
   query, 
   getDocs, 
   collectionGroup,
-  updateDoc
+  updateDoc,
+  where,
+  limit
 } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
@@ -93,7 +97,7 @@ export default function CheckoutPage() {
   const { invoiceId } = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user: currentSessionUser } = useUser();
   const db = useFirestore();
   
   const [loading, setLoading] = useState(true);
@@ -101,8 +105,11 @@ export default function CheckoutPage() {
   const [paymentStep, setPaymentStep] = useState<'selection' | 'bridge_gate' | 'native_card' | 'pos_terminal' | 'success'>('selection');
   const [bridgeReady, setBridgeReady] = useState(false);
   const [isProcessingCard, setIsProcessingCard] = useState(false);
-  const [posState, setPosState] = useState<'idle' | 'scanning' | 'processing'>('idle');
+  const [posState, setPosState] = useState<'idle' | 'scanning' | 'verifying' | 'processing'>('idle');
   const [nfcError, setNfcError] = useState<string | null>(null);
+  
+  // Card/Nfc Customer Data
+  const [foundCustomer, setFoundCustomer] = useState<{ name: string, balance: number, uid: string } | null>(null);
   
   // Card Input States
   const [cardNumber, setCardNumber] = useState("");
@@ -183,11 +190,15 @@ export default function CheckoutPage() {
   const netLiquidityIdr = parseFloat((grossAmountIdr * (1 - gasRate)).toFixed(0));
 
   const processPaymentFinalization = async (details: any) => {
-    if (!db || !invoice || !user) return;
+    if (!db || !invoice || !currentSessionUser) return;
+
+    // Jika membayar via NFC, gunakan UID pelanggan yang ditemukan dari kartu
+    const targetPayerUid = foundCustomer ? foundCustomer.uid : currentSessionUser.uid;
+    const targetPayerName = foundCustomer ? foundCustomer.name : (currentSessionUser.displayName || currentSessionUser.email);
 
     const systemLiquidityRef = doc(db, "system", "liquidity");
     const globalAuditRef = collection(db, "system", "audit", "global_transactions");
-    const userTxRef = collection(db, "users", user.uid, "transactions");
+    const userTxRef = collection(db, "users", targetPayerUid, "transactions");
     
     const timestamp = new Date().toISOString();
     const gatewayId = details.id || `ALIBANK-TX-${Date.now()}`;
@@ -200,7 +211,7 @@ export default function CheckoutPage() {
           paidAt: timestamp,
           paymentMethod: details.gateway || "AliBank V3 Terminal",
           gatewayOrderId: gatewayId,
-          payerEmail: details.payer?.email_address || user.email,
+          payerEmail: details.payer?.email_address || (foundCustomer ? "nfc-customer@alibank.com" : currentSessionUser.email),
           actualReceivedUsd: netLiquidityUsd 
         }, { merge: true });
       }
@@ -222,8 +233,8 @@ export default function CheckoutPage() {
 
       await addDoc(globalAuditRef, {
         id: gatewayId,
-        userId: user.uid,
-        userName: user.displayName || user.email,
+        userId: targetPayerUid,
+        userName: targetPayerName,
         productName: invoice.productName || "Product Purchase",
         amountIdr: grossAmountIdr,
         amountUsd: grossAmountUsd,
@@ -235,16 +246,15 @@ export default function CheckoutPage() {
         timestamp: serverTimestamp()
       });
 
-      if (details.gateway === 'AliBank Internal Ledger') {
-        const userRef = doc(db, "users", user.uid);
-        await updateDoc(userRef, {
-          totalBalance: increment(-grossAmountIdr)
-        });
-      }
+      // POTONG SALDO RIIL PEMILIK KARTU/AKUN
+      const payerDocRef = doc(db, "users", targetPayerUid);
+      await updateDoc(payerDocRef, {
+        totalBalance: increment(-grossAmountIdr)
+      });
 
       await addDoc(userTxRef, {
         date: timestamp,
-        description: `Beli: ${invoice.productName}`,
+        description: `Beli: ${invoice.productName} (via ${details.gateway})`,
         category: "Belanja",
         amount: grossAmountIdr,
         type: "expense",
@@ -253,7 +263,7 @@ export default function CheckoutPage() {
       });
 
       setPaymentStep('success');
-      toast({ title: "Settlement Success", description: `Dana neto senilai $${netLiquidityUsd} telah diamankan ke sistem AliBank.` });
+      toast({ title: "Settlement Success", description: `Dana neto senilai $${netLiquidityUsd} telah dipotong dari saldo Anda.` });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Settlement Error", description: err.message });
     }
@@ -287,54 +297,79 @@ export default function CheckoutPage() {
     try {
       setPosState('scanning');
       setNfcError(null);
+      setFoundCustomer(null);
       
       const ndef = new window.NDEFReader();
-      
-      // AbortController untuk membatalkan jika user berpindah halaman
       const controller = new AbortController();
       await ndef.scan({ signal: controller.signal });
       
-      console.log("NFC Scan started successfully");
-
       ndef.onreading = async (event: any) => {
-        console.log("NFC Tag detected:", event.serialNumber);
-        setPosState('processing');
+        setPosState('verifying');
         
-        // Identifikasi unik dari kartu/tag NFC sebagai "Proof of Presence"
-        const serialNumber = event.serialNumber || `NFC-${Date.now()}`;
+        // Baca data dari kartu (Asumsi record text berisi UID atau Account Number)
+        const textDecoder = new TextDecoder();
+        let extractedAccountId = "";
         
-        await processPaymentFinalization({
-          id: `NFC-POS-${serialNumber}`,
-          gateway: "AliBank V3 NFC Physical Tap"
-        });
+        for (const record of event.message.records) {
+          if (record.recordType === "text") {
+            extractedAccountId = textDecoder.decode(record.data);
+          }
+        }
+
+        // Jika kartu kosong, gunakan serial number sebagai fallback ID unik
+        const lookupId = extractedAccountId || event.serialNumber;
+
+        // VERIFIKASI SALDO RIIL DI FIRESTORE
+        try {
+          const usersRef = collection(db, "users");
+          // Cari berdasarkan Account Number (lebih riil untuk kartu fisik)
+          const q = query(usersRef, where("accountNumber", "==", lookupId), limit(1));
+          const snapshot = await getDocs(q);
+          
+          if (snapshot.empty) {
+            // Coba cari berdasarkan UID sebagai fallback
+            const userDoc = await getDoc(doc(db, "users", lookupId));
+            if (!userDoc.exists()) {
+              setNfcError("Kartu Tidak Terdaftar di AliBank.");
+              setPosState('idle');
+              return;
+            }
+            const data = userDoc.data();
+            setFoundCustomer({ name: data.name, balance: data.totalBalance, uid: userDoc.id });
+          } else {
+            const data = snapshot.docs[0].data();
+            setFoundCustomer({ name: data.name, balance: data.totalBalance, uid: snapshot.docs[0].id });
+          }
+        } catch (err) {
+          setNfcError("Gagal terhubung ke pusat data AliBank.");
+          setPosState('idle');
+        }
       };
 
       ndef.onreadingerror = () => {
-        console.error("NFC Reading Error: Signal interrupted or tag unsupported.");
-        toast({ 
-          variant: "destructive", 
-          title: "Gagal Membaca Kartu", 
-          description: "Sinyal terputus atau kartu tidak mendukung protokol NDEF. Dekatkan kembali kartu dan tahan selama 2 detik." 
-        });
+        toast({ variant: "destructive", title: "NFC Error", description: "Gagal membaca sinyal kartu." });
         setPosState('idle');
       };
 
     } catch (error: any) {
-      console.error("NFC Scan Exception:", error);
-      let errorMsg = "Gagal mengaktifkan sensor NFC.";
-      
-      if (error.name === 'NotAllowedError') {
-        errorMsg = "Izin NFC ditolak. Berikan izin di setelan browser Anda.";
-      } else if (error.name === 'NotSupportedError') {
-        errorMsg = "Perangkat tidak memiliki perangkat keras NFC.";
-      } else if (error.name === 'InvalidStateError') {
-        errorMsg = "Sensor NFC sedang digunakan oleh aplikasi lain.";
-      }
-
-      setNfcError(errorMsg);
-      toast({ variant: "destructive", title: "NFC Error", description: errorMsg });
+      setNfcError("Gagal mengaktifkan sensor NFC.");
       setPosState('idle');
     }
+  };
+
+  const handleExecuteNfcDeduction = async () => {
+    if (!foundCustomer) return;
+    
+    if (foundCustomer.balance < grossAmountIdr) {
+      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo kartu: Rp ${foundCustomer.balance.toLocaleString()}. Dibutuhkan: Rp ${grossAmountIdr.toLocaleString()}` });
+      return;
+    }
+
+    setPosState('processing');
+    await processPaymentFinalization({
+      id: `NFC-V3-${foundCustomer.uid.slice(0, 5)}-${Date.now()}`,
+      gateway: "AliBank V3 NFC Physical Tap"
+    });
   };
 
   const initBridgeButtons = () => {
@@ -480,9 +515,9 @@ export default function CheckoutPage() {
                   </button>
                 </div>
               ) : paymentStep === 'pos_terminal' ? (
-                <div className="space-y-10 animate-in zoom-in-95 duration-500 py-6 text-center">
+                <div className="space-y-8 animate-in zoom-in-95 duration-500 py-4 text-center">
                   <header className="flex items-center justify-between px-2">
-                    <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors">Back</button>
+                    <button onClick={() => { setPaymentStep('selection'); setFoundCustomer(null); }} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors">Back</button>
                     <div className="flex items-center gap-2"><Wifi className="w-3 h-3 text-primary animate-pulse" /><span className="text-[8px] font-black text-primary uppercase">POS LINKED</span></div>
                   </header>
 
@@ -490,7 +525,9 @@ export default function CheckoutPage() {
                     <div className="absolute inset-0 gold-gradient blur-[80px] opacity-20" />
                     <div className={cn(
                       "w-48 h-48 bg-background rounded-full border-4 flex items-center justify-center relative z-10 transition-all duration-500",
-                      posState === 'idle' ? "border-primary/20" : "border-primary shadow-[0_0_30px_rgba(252,213,53,0.4)]"
+                      posState === 'idle' ? "border-primary/20" : 
+                      posState === 'verifying' ? "border-amber-400 shadow-[0_0_30px_rgba(251,191,36,0.4)]" :
+                      "border-primary shadow-[0_0_30px_rgba(252,213,53,0.4)]"
                     )}>
                       {posState === 'idle' ? (
                         <div className="flex flex-col items-center gap-4 animate-bounce">
@@ -502,6 +539,11 @@ export default function CheckoutPage() {
                           <Loader2 className="w-16 h-16 text-primary animate-spin" />
                           <p className="text-[10px] font-black uppercase tracking-tighter text-accent italic">Hold Card Near Device...</p>
                         </div>
+                      ) : posState === 'verifying' ? (
+                        <div className="flex flex-col items-center gap-4">
+                          <User className="w-16 h-16 text-amber-400 animate-pulse" />
+                          <p className="text-[10px] font-black uppercase tracking-tighter text-amber-400 italic">Identifying Holder...</p>
+                        </div>
                       ) : (
                         <div className="flex flex-col items-center gap-4">
                           <Cpu className="w-16 h-16 text-primary animate-pulse" />
@@ -511,23 +553,55 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    {nfcError ? (
-                      <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20">
-                        <p className="text-[10px] text-destructive font-black uppercase italic leading-relaxed">{nfcError}</p>
+                  {foundCustomer ? (
+                    <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                      <div className="p-6 rounded-[2rem] bg-accent/5 border border-primary/10 space-y-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><User className="w-6 h-6" /></div>
+                          <div className="text-left">
+                            <p className="text-[10px] font-black text-muted-foreground uppercase">Card Holder</p>
+                            <p className="text-sm font-black text-accent italic uppercase">{foundCustomer.name}</p>
+                          </div>
+                        </div>
+                        <div className="h-px bg-primary/10" />
+                        <div className="flex justify-between items-end">
+                          <div className="text-left">
+                            <p className="text-[10px] font-black text-muted-foreground uppercase">Verified Balance</p>
+                            <p className="text-2xl font-black text-accent italic tracking-tighter">Rp {foundCustomer.balance.toLocaleString()}</p>
+                          </div>
+                          <Badge className={cn("font-black text-[8px]", foundCustomer.balance >= grossAmountIdr ? "bg-green-600" : "bg-destructive")}>
+                            {foundCustomer.balance >= grossAmountIdr ? "FUNDS SUFFICIENT" : "LOW BALANCE"}
+                          </Badge>
+                        </div>
                       </div>
-                    ) : (
-                      <p className="text-xs font-medium text-muted-foreground uppercase italic px-10 leading-relaxed">
-                        Tempelkan kartu Anda ke sensor NFC (biasanya di dekat kamera belakang) dan tahan hingga proses kliring selesai.
-                      </p>
-                    )}
-                    
-                    {posState === 'idle' && (
-                      <Button onClick={startNfcPayment} className="w-full h-16 bg-[#1E2329] text-white rounded-2xl font-black italic uppercase text-xs tracking-widest hover:bg-black transition-all">
-                        ACTIVATE NFC SENSOR <Zap className="w-4 h-4 ml-2" />
+
+                      <Button 
+                        onClick={handleExecuteNfcDeduction}
+                        disabled={foundCustomer.balance < grossAmountIdr || posState === 'processing'}
+                        className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all"
+                      >
+                        {posState === 'processing' ? <Loader2 className="animate-spin w-5 h-5" /> : <>CONFIRM & PAY NOW <ChevronRight className="w-4 h-4" /></>}
                       </Button>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {nfcError ? (
+                        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+                          <p className="text-[10px] text-destructive font-black uppercase italic leading-relaxed">{nfcError}</p>
+                        </div>
+                      ) : (
+                        <p className="text-xs font-medium text-muted-foreground uppercase italic px-10 leading-relaxed">
+                          Tempelkan kartu AliBank Anda ke sensor NFC dan tahan hingga saldo muncul di layar.
+                        </p>
+                      )}
+                      
+                      {posState === 'idle' && (
+                        <Button onClick={startNfcPayment} className="w-full h-16 bg-[#1E2329] text-white rounded-2xl font-black italic uppercase text-xs tracking-widest hover:bg-black transition-all">
+                          ACTIVATE NFC SENSOR <Zap className="w-4 h-4 ml-2" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : paymentStep === 'bridge_gate' ? (
                 <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
