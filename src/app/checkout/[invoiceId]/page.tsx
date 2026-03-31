@@ -143,11 +143,10 @@ export default function CheckoutPage() {
     if (paymentStep === 'bridge_gate' && paypalReady && window.paypal) {
       const appContent = {
         shipping_preference: 'NO_SHIPPING',
-        user_action: 'PAY_NOW', // Ubah teks tombol menjadi "Bayar Sekarang" di modal PayPal
+        user_action: 'PAY_NOW',
         brand_name: 'ALIBANK SECURE V3'
       };
 
-      // Pre-fill data nasabah yang sangat spesifik untuk melewati input PayPal
       const payerInfo = userData ? {
         email_address: userData.email || user?.email || undefined,
         name: {
@@ -157,7 +156,7 @@ export default function CheckoutPage() {
         phone: userData.phone ? {
           phone_type: "MOBILE",
           phone_number: {
-            national_number: userData.phone.replace(/[^0-9]/g, '') // Bersihkan karakter non-angka
+            national_number: userData.phone.replace(/[^0-9]/g, '')
           }
         } : undefined
       } : undefined;
@@ -177,12 +176,26 @@ export default function CheckoutPage() {
             });
           },
           onApprove: async (data: any, actions: any) => {
-            const details = await actions.order.capture();
-            processPaymentFinalization({
-              id: details.id,
-              gateway: "Ali-Global Network",
-              payerEmail: details.payer.email_address
-            });
+            try {
+              const details = await actions.order.capture();
+              processPaymentFinalization({
+                id: details.id,
+                gateway: "Ali-Global Network",
+                payerEmail: details.payer.email_address
+              });
+            } catch (error: any) {
+              // DETEKSI INSTRUMENT_DECLINED
+              if (error?.name === 'INSTRUMENT_DECLINED' || error?.message?.includes('INSTRUMENT_DECLINED')) {
+                toast({ 
+                  variant: "destructive", 
+                  title: "Kartu Ditolak", 
+                  description: "Bank Anda menolak transaksi ini. Silakan gunakan kartu atau metode lain di PayPal." 
+                });
+                return actions.restart(); // Mengembalikan user ke pemilihan kartu di dalam modal PayPal
+              }
+              console.error("PayPal Capture Error:", error);
+              toast({ variant: "destructive", title: "Pembayaran Gagal", description: "Terjadi kesalahan pada jaringan kliring." });
+            }
           }
         }).render(paypalContainerRef.current);
       }
@@ -203,12 +216,24 @@ export default function CheckoutPage() {
             });
           },
           onApprove: async (data: any, actions: any) => {
-            const details = await actions.order.capture();
-            processPaymentFinalization({
-              id: details.id,
-              gateway: "Ali-Global Card Clearing",
-              bankName: details.payment_source?.card?.name || "International Issuer"
-            });
+            try {
+              const details = await actions.order.capture();
+              processPaymentFinalization({
+                id: details.id,
+                gateway: "Ali-Global Card Clearing",
+                bankName: details.payment_source?.card?.name || "International Issuer"
+              });
+            } catch (error: any) {
+              if (error?.name === 'INSTRUMENT_DECLINED' || error?.message?.includes('INSTRUMENT_DECLINED')) {
+                toast({ 
+                  variant: "destructive", 
+                  title: "Kartu Tidak Dapat Digunakan", 
+                  description: "Saldo tidak cukup atau bank memblokir transaksi online. Gunakan kartu lain." 
+                });
+                return actions.restart();
+              }
+              toast({ variant: "destructive", title: "Error Kliring", description: "Gagal memproses kartu." });
+            }
           }
         }).render(cardButtonRef.current);
       }
