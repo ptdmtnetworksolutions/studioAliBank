@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -58,7 +57,9 @@ import {
   Milestone,
   Pencil,
   ChevronRight,
-  ArrowDownLeft
+  ArrowDownLeft,
+  Copy,
+  Link as LinkIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -72,7 +73,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
 import { useUser, useDoc, useCollection, useFirestore, useAuth } from "@/firebase";
 import { 
@@ -197,6 +198,11 @@ function AdminContent() {
     setIsAuthorized(true);
     syncOnChainData();
   }, [user, userLoading, router, syncOnChainData]);
+
+  const copyAddress = () => {
+    navigator.clipboard.writeText(ALIX_CONTRACT);
+    toast({ title: "Alamat Disalin", description: "Alamat brankas Mainnet siap digunakan." });
+  };
 
   const handleVaultDisbursement = async () => {
     if (!disburseAmount || isDisbursing) return;
@@ -784,6 +790,22 @@ function AdminContent() {
                     </div>
                     <Badge className="bg-green-600 text-white font-black text-sm px-6 py-2 rounded-2xl shadow-xl animate-pulse">NODE ACTIVE</Badge>
                   </div>
+
+                  {/* VAULT ADDRESS DISPLAY */}
+                  <div className="p-8 rounded-[2.5rem] bg-primary/5 border border-primary/10 flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                        <LinkIcon className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Official Mainnet Address (ERC-20 & ETH)</p>
+                        <p className="text-sm font-mono font-bold text-accent dark:text-white break-all">{ALIX_CONTRACT}</p>
+                      </div>
+                    </div>
+                    <Button onClick={copyAddress} className="gold-gradient text-white font-black uppercase italic text-[10px] h-12 px-8 rounded-xl shrink-0">
+                      <Copy className="w-4 h-4 mr-2" /> Salin Alamat
+                    </Button>
+                  </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
                     <div className="p-12 rounded-[3.5rem] bg-accent/5 border border-primary/10 space-y-6 shadow-inner group hover:bg-primary/5 transition-all">
@@ -797,6 +819,10 @@ function AdminContent() {
                       <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.3em]">Compliance Hub (USDT)</p>
                       <div className="space-y-6">
                         <div className="flex justify-between items-end border-b border-primary/10 pb-4">
+                          <span className="text-[10px] font-black uppercase text-muted-foreground">USDT (ERC-20) Support</span>
+                          <Badge className="bg-green-100 text-green-600 font-black text-[10px] border-none px-3">ACTIVE</Badge>
+                        </div>
+                        <div className="flex justify-between items-end border-b border-primary/10 pb-4">
                           <span className="text-[10px] font-black uppercase text-muted-foreground">Min. Deposit Threshold</span>
                           <span className="text-sm font-black italic text-primary">5.000.000 USDT</span>
                         </div>
@@ -806,7 +832,7 @@ function AdminContent() {
                         </div>
                         <div className="flex justify-between items-end border-b border-primary/10 pb-4">
                           <span className="text-[10px] font-black uppercase text-muted-foreground">Settlement Logic</span>
-                          <span className="text-sm font-black italic dark:text-white">Real-Time USDT Clearing</span>
+                          <span className="text-sm font-black italic dark:text-white">Real-Time Clearing</span>
                         </div>
                       </div>
                     </div>
