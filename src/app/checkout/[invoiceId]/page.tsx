@@ -15,7 +15,11 @@ import {
   Smartphone,
   ShieldAlert,
   CreditCard as CreditCardIcon,
-  Globe
+  Globe,
+  Calculator,
+  Wifi,
+  Zap,
+  Cpu
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -92,9 +96,10 @@ export default function CheckoutPage() {
   
   const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState<any>(null);
-  const [paymentStep, setPaymentStep] = useState<'selection' | 'bridge_gate' | 'native_card' | 'success'>('selection');
+  const [paymentStep, setPaymentStep] = useState<'selection' | 'bridge_gate' | 'native_card' | 'pos_terminal' | 'success'>('selection');
   const [bridgeReady, setBridgeReady] = useState(false);
   const [isProcessingCard, setIsProcessingCard] = useState(false);
+  const [posState, setPosState] = useState<'idle' | 'detecting' | 'processing'>('idle');
   
   // Card Input States
   const [cardNumber, setCardNumber] = useState("");
@@ -111,7 +116,6 @@ export default function CheckoutPage() {
     async function fetchInvoice() {
       if (!db || !invoiceId) return;
       try {
-        // 1. Pertama cek di koleksi group 'invoices' (Merchant Invoice)
         const q = query(collectionGroup(db, "invoices"));
         const snapshot = await getDocs(q);
         const found = snapshot.docs.find(doc => doc.data().invoiceId === invoiceId);
@@ -127,7 +131,6 @@ export default function CheckoutPage() {
           return;
         }
 
-        // 2. Jika tidak ada, cek di koleksi 'marketplace' (Public Products)
         const mktRef = doc(db, "marketplace", invoiceId as string);
         const mktSnap = await getDoc(mktRef);
         
@@ -152,7 +155,6 @@ export default function CheckoutPage() {
     fetchInvoice();
   }, [db, invoiceId]);
 
-  // Deteksi Aktif untuk SDK Bridge
   useEffect(() => {
     const checkInterval = setInterval(() => {
       if (window.paypal) {
@@ -188,7 +190,6 @@ export default function CheckoutPage() {
     const gatewayId = details.id || `ALIBANK-TX-${Date.now()}`;
 
     try {
-      // 1. Update status tagihan
       if (!invoice.isMarketplaceItem) {
         const invoiceRef = doc(db, invoice.path);
         await setDoc(invoiceRef, {
@@ -201,7 +202,6 @@ export default function CheckoutPage() {
         }, { merge: true });
       }
 
-      // 2. Injeksi Likuiditas ke Buku Besar Kas Pusat (Net after Gas)
       await setDoc(systemLiquidityRef, {
         totalFiatInjected: increment(netLiquidityIdr),
         totalUsdInjected: increment(netLiquidityUsd), 
@@ -217,7 +217,6 @@ export default function CheckoutPage() {
         }
       }, { merge: true });
 
-      // 3. Pencatatan Audit Log Global
       await addDoc(globalAuditRef, {
         id: gatewayId,
         userId: user.uid,
@@ -233,7 +232,6 @@ export default function CheckoutPage() {
         timestamp: serverTimestamp()
       });
 
-      // 4. Update Saldo User jika menggunakan Internal Ledger
       if (details.gateway === 'AliBank Internal Ledger') {
         const userRef = doc(db, "users", user.uid);
         await updateDoc(userRef, {
@@ -241,7 +239,6 @@ export default function CheckoutPage() {
         });
       }
 
-      // 5. Tambahkan ke riwayat transaksi user
       await addDoc(userTxRef, {
         date: timestamp,
         description: `Beli: ${invoice.productName}`,
@@ -261,16 +258,12 @@ export default function CheckoutPage() {
 
   const handleNativeCardPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateLuhn(cardNumber)) {
       toast({ variant: "destructive", title: "Nomor Kartu Tidak Sah", description: "Verifikasi algoritma perbankan gagal." });
       return;
     }
-
     setIsProcessingCard(true);
-    
     try {
-      // Eksekusi Settlement Langsung via AliBank Direct API
       await processPaymentFinalization({
         id: `DIRECT-V3-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
         gateway: `AliBank Direct Processing (${cardBrand})`
@@ -282,38 +275,36 @@ export default function CheckoutPage() {
     }
   };
 
+  const simulatePosSwipe = async () => {
+    setPosState('detecting');
+    await new Promise(r => setTimeout(r, 2000));
+    setPosState('processing');
+    await new Promise(r => setTimeout(r, 3000));
+    
+    await processPaymentFinalization({
+      id: `POS-V3-${Date.now()}`,
+      gateway: "AliBank V3 Physical POS"
+    });
+  };
+
   const initBridgeButtons = () => {
     if (window.paypal && bridgeButtonContainerRef.current) {
       bridgeButtonContainerRef.current.innerHTML = '';
-      
       window.paypal.Buttons({
-        style: {
-          layout: 'vertical',
-          color: 'gold',
-          shape: 'pill',
-          label: 'pay',
-          tagline: false 
-        },
+        style: { layout: 'vertical', color: 'gold', shape: 'pill', label: 'pay', tagline: false },
         createOrder: (data: any, actions: any) => {
           return actions.order.create({
             purchase_units: [{
               description: `AliBank: ${invoice?.productName || "Infrastructure Access"}`,
-              amount: {
-                currency_code: "USD",
-                value: grossAmountUsd.toString()
-              }
+              amount: { currency_code: "USD", value: grossAmountUsd.toString() }
             }]
           });
         },
         onApprove: async (data: any, actions: any) => {
           const details = await actions.order.capture();
-          await processPaymentFinalization({
-            ...details,
-            gateway: "Ali-Global Settlement Bridge"
-          });
+          await processPaymentFinalization({ ...details, gateway: "Ali-Global Settlement Bridge" });
         },
         onError: (err: any) => {
-          console.error("Bridge Execution Error:", err);
           toast({ variant: "destructive", title: "Bridge Unreachable", description: "Terjadi gangguan pada jalur kliring internasional." });
         }
       }).render(bridgeButtonContainerRef.current);
@@ -404,6 +395,17 @@ export default function CheckoutPage() {
                     <Badge className="bg-white text-primary text-[7px] font-black border-none px-2 py-0.5 animate-pulse">DIRECT</Badge>
                   </button>
 
+                  <button onClick={() => setPaymentStep('pos_terminal')} className="w-full bg-[#1E2329] p-6 rounded-[1.5rem] border-none hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-xl border border-white/5">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-2xl bg-white/10 text-primary"><Calculator className="w-6 h-6" /></div>
+                      <div>
+                        <p className="text-sm font-black text-white italic">AliBank V3 POS Terminal</p>
+                        <p className="text-[9px] font-medium text-white/40 uppercase italic">Card & NFC Physical Settlement</p>
+                      </div>
+                    </div>
+                    <Badge className="bg-primary text-primary-foreground text-[7px] font-black border-none px-2 py-0.5">ELITE</Badge>
+                  </button>
+
                   <button onClick={() => setPaymentStep('bridge_gate')} className="w-full liquid-glass-dark p-6 rounded-[1.5rem] border-white/10 hover:border-primary/40 transition-all text-left flex items-center justify-between group relative overflow-hidden">
                     <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
                     <div className="flex items-center gap-4 relative z-10">
@@ -426,6 +428,46 @@ export default function CheckoutPage() {
                     </div>
                     <Badge className="bg-green-600 text-white text-[7px] font-black border-none px-2 py-0.5">INTERNAL</Badge>
                   </button>
+                </div>
+              ) : paymentStep === 'pos_terminal' ? (
+                <div className="space-y-10 animate-in zoom-in-95 duration-500 py-6 text-center">
+                  <header className="flex items-center justify-between px-2">
+                    <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors">Back</button>
+                    <div className="flex items-center gap-2"><Wifi className="w-3 h-3 text-primary animate-pulse" /><span className="text-[8px] font-black text-primary uppercase">POS LINKED</span></div>
+                  </header>
+
+                  <div className="relative mx-auto">
+                    <div className="absolute inset-0 gold-gradient blur-[80px] opacity-20" />
+                    <div className="w-48 h-48 bg-background rounded-full border-4 border-primary/20 flex items-center justify-center relative z-10">
+                      {posState === 'idle' ? (
+                        <div className="flex flex-col items-center gap-4 animate-bounce">
+                          <CreditCard className="w-16 h-16 text-primary" />
+                          <p className="text-[10px] font-black uppercase tracking-tighter text-accent italic">Ready to Tap/Insert</p>
+                        </div>
+                      ) : posState === 'detecting' ? (
+                        <div className="flex flex-col items-center gap-4">
+                          <Loader2 className="w-16 h-16 text-primary animate-spin" />
+                          <p className="text-[10px] font-black uppercase tracking-tighter text-accent italic">Reading Card Data...</p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-4">
+                          <Cpu className="w-16 h-16 text-primary animate-pulse" />
+                          <p className="text-[10px] font-black uppercase tracking-tighter text-accent italic">V3 Direct Clearing...</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <p className="text-xs font-medium text-muted-foreground uppercase italic px-10">
+                      Gunakan terminal POS fisik AliBank atau tempelkan kartu NFC Anda ke bagian belakang perangkat ini.
+                    </p>
+                    {posState === 'idle' && (
+                      <Button onClick={simulatePosSwipe} className="w-full h-16 bg-[#1E2329] text-white rounded-2xl font-black italic uppercase text-xs tracking-widest hover:bg-black transition-all">
+                        Simulate Card Insertion <Zap className="w-4 h-4 ml-2" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ) : paymentStep === 'bridge_gate' ? (
                 <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
