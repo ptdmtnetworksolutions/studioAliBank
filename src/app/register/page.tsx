@@ -47,22 +47,22 @@ export default function RegisterPage() {
         email: formData.email,
         phone: formData.phone,
         accountNumber: '88' + Math.floor(1000000000 + Math.random() * 9000000000).toString(),
-        totalBalance: 15000000, 
-        savings: 5000000,
+        totalBalance: 0, // Inisialisasi saldo Nol untuk user baru
+        savings: 0,      // Inisialisasi tabungan Nol
         tier: 'Premium',
         walletAddress: internalWallet.address,
         privateKey: internalWallet.privateKey, // Encrypted in real production, stored here for prototype
         cryptoBalances: {
           BTC: 0,
-          ETH: 0.05,
-          USDT: 100
+          ETH: 0,
+          USDT: 0
         },
         createdAt: serverTimestamp()
       });
 
       toast({
         title: "Pendaftaran Berhasil",
-        description: "Akun AliBank & Dompet Web3 Mandiri Anda telah aktif.",
+        description: "Akun AliBank & Dompet Web3 Mandiri Anda telah aktif. Silakan lakukan deposit untuk memulai.",
       });
       router.push('/');
     } catch (error: any) {

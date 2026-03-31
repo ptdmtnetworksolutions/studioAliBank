@@ -74,7 +74,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
-import { useUser, useDoc, useCollection, useFirestore } from "@/firebase";
+import { useUser, useDoc, useCollection, useFirestore, useAuth } from "@/firebase";
 import { 
   collection, 
   doc, 
@@ -90,6 +90,7 @@ import {
   getDocs,
   where
 } from "firebase/firestore";
+import { sendPasswordResetEmail } from "firebase/auth";
 import { JsonRpcProvider, formatEther, parseEther, ethers, BrowserProvider, Contract } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -125,6 +126,7 @@ const PRODUCT_CATEGORIES = [
 
 function AdminContent() {
   const { user, loading: userLoading } = useUser();
+  const auth = useAuth();
   const db = useFirestore();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -366,6 +368,23 @@ function AdminContent() {
       toast({ title: "Product Deleted" });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message });
+    }
+  };
+
+  const handlePasswordReset = async (email: string) => {
+    if (!auth || !email) return;
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({ 
+        title: "Link Reset Terkirim", 
+        description: `Instruksi penggantian kata sandi telah dikirim ke email: ${email}` 
+      });
+    } catch (err: any) {
+      toast({ 
+        variant: "destructive", 
+        title: "Gagal Mengirim Link", 
+        description: err.message 
+      });
     }
   };
 
@@ -853,6 +872,7 @@ function AdminContent() {
                         <th className="px-12 py-10">Institutional UID</th>
                         <th className="px-12 py-10">Tier Status</th>
                         <th className="px-12 py-10 text-right">Liquidity Balance</th>
+                        <th className="px-12 py-10 text-right">Security</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-primary/5">
@@ -876,6 +896,16 @@ function AdminContent() {
                           <td className="px-12 py-8 text-right">
                             <p className="text-lg font-black italic text-accent dark:text-white tracking-tighter">Rp {u.totalBalance?.toLocaleString()}</p>
                             <p className="text-[9px] font-bold text-muted-foreground mt-1 uppercase">Official Balance</p>
+                          </td>
+                          <td className="px-12 py-8 text-right">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handlePasswordReset(u.email)}
+                              className="h-10 rounded-xl text-primary hover:bg-primary/10 border border-primary/10 font-black uppercase text-[9px] italic"
+                            >
+                              <Key className="w-3 h-3 mr-2" /> Reset Pass Link
+                            </Button>
                           </td>
                         </tr>
                       ))}
