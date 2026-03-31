@@ -102,7 +102,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState<any>(null);
   const [paymentStep, setPaymentStep] = useState<'selection' | 'bridge_gate' | 'pos_terminal' | 'success'>('selection');
-  const [bridgeReady, setBridgeReady] = useState(false);
+  const [paypalReady, setPaypalReady] = useState(false);
   const [posState, setPosState] = useState<'idle' | 'scanning' | 'verifying' | 'processing'>('idle');
   const [nfcError, setNfcError] = useState<string | null>(null);
   
@@ -151,18 +151,28 @@ export default function CheckoutPage() {
     fetchInvoice();
   }, [db, invoiceId]);
 
+  // Handle PayPal Button Rendering
   useEffect(() => {
-    if (paymentStep === 'bridge_gate' && window.paypal && paypalContainerRef.current) {
-      if (paypalContainerRef.current.innerHTML === "") {
+    if (paymentStep === 'bridge_gate' && paypalReady && window.paypal && paypalContainerRef.current) {
+      // Clear container before rendering to avoid duplicates
+      paypalContainerRef.current.innerHTML = "";
+      
+      try {
         window.paypal.Buttons({
+          style: {
+            layout: 'vertical',
+            color:  'gold',
+            shape:  'rect',
+            label:  'paypal'
+          },
           createOrder: (data: any, actions: any) => {
             return actions.order.create({
               purchase_units: [{
                 amount: {
                   currency_code: "USD",
-                  value: invoice?.amountUsd.toString()
+                  value: invoice?.amountUsd.toString() || "0.00"
                 },
-                description: `AliBank Invoice ${invoice?.invoiceId}`
+                description: `AliBank Global Settlement - Invoice ${invoice?.invoiceId}`
               }]
             });
           },
@@ -175,12 +185,15 @@ export default function CheckoutPage() {
             });
           },
           onError: (err: any) => {
+            console.error("PayPal Error:", err);
             toast({ variant: "destructive", title: "Gateway Error", description: "Terjadi kesalahan pada jalur PayPal." });
           }
         }).render(paypalContainerRef.current);
+      } catch (error) {
+        console.error("Failed to render PayPal buttons:", error);
       }
     }
-  }, [paymentStep, invoice]);
+  }, [paymentStep, paypalReady, invoice]);
 
   const grossAmountUsd = invoice?.amountUsd || 0;
   const gasRate = 0.046; 
@@ -333,7 +346,10 @@ export default function CheckoutPage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background pb-20 relative overflow-hidden">
-        <Script src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD`} />
+        <Script 
+          src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&disable-funding=credit,card`} 
+          onLoad={() => setPaypalReady(true)}
+        />
         
         <div className="absolute top-0 left-0 w-full h-64 gold-gradient opacity-10 blur-[100px]" />
         
@@ -477,7 +493,7 @@ export default function CheckoutPage() {
                       </div>
                       
                       <div ref={paypalContainerRef} className="w-full min-h-[150px] flex flex-col items-center justify-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary opacity-20" />
+                        {!paypalReady && <Loader2 className="w-8 h-8 animate-spin text-primary opacity-40" />}
                       </div>
                    </div>
                 </div>
