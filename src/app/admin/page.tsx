@@ -434,7 +434,7 @@ function AdminContent() {
                 <ShieldAlert className="text-white w-12 h-12" />
               </div>
               <div>
-                <h1 className="text-5xl font-black text-accent uppercase italic tracking-tighter leading-none dark:text-white">Command Center</h1>
+                <h1 className="text-5xl font-black text-foreground uppercase italic tracking-tighter leading-none">Command Center</h1>
                 <p className="text-muted-foreground text-[11px] font-black uppercase tracking-[0.3em] italic mt-2 flex items-center gap-2">
                   <Globe className="w-4 h-4 text-primary" /> Multi-Asset Vault Infrastructure V3
                 </p>
@@ -442,7 +442,7 @@ function AdminContent() {
             </div>
 
             <div className="flex flex-wrap gap-4">
-              <Button onClick={() => router.push('/admin/about-alix')} variant="outline" className="h-16 px-8 rounded-2xl font-black uppercase text-[11px] italic shadow-xl bg-card border-primary/20 text-accent hover:bg-primary/5 transition-all dark:text-white">
+              <Button onClick={() => router.push('/admin/about-alix')} variant="outline" className="h-16 px-8 rounded-2xl font-black uppercase text-[11px] italic shadow-xl bg-card border-primary/20 text-foreground hover:bg-primary/5 transition-all">
                 <Sparkles className="w-5 h-5 mr-3 text-primary" /> Misi & Validasi Vault
               </Button>
               <Button onClick={syncOnChainData} disabled={syncingVault} className="h-16 w-16 rounded-2xl liquid-glass border-primary/10 text-primary flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-all">
@@ -454,13 +454,13 @@ function AdminContent() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-10">
             <div className="overflow-x-auto no-scrollbar pb-4">
               <TabsList className="bg-primary/5 p-2 rounded-[3rem] h-20 border border-primary/10 flex w-max shadow-inner mx-auto gap-2">
-                <TabsTrigger value="overview" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">Executive</TabsTrigger>
-                <TabsTrigger value="alichain" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">AliChain Hub</TabsTrigger>
-                <TabsTrigger value="inventory" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">Inventory</TabsTrigger>
-                <TabsTrigger value="alix" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">Tokenomics</TabsTrigger>
-                <TabsTrigger value="vault" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">Vault V3</TabsTrigger>
-                <TabsTrigger value="users" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">Clients</TabsTrigger>
-                <TabsTrigger value="audit" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all">Audit</TabsTrigger>
+                <TabsTrigger value="overview" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Executive</TabsTrigger>
+                <TabsTrigger value="alichain" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">AliChain Hub</TabsTrigger>
+                <TabsTrigger value="inventory" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Inventory</TabsTrigger>
+                <TabsTrigger value="alix" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Tokenomics</TabsTrigger>
+                <TabsTrigger value="vault" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Vault V3</TabsTrigger>
+                <TabsTrigger value="users" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Clients</TabsTrigger>
+                <TabsTrigger value="audit" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Audit</TabsTrigger>
               </TabsList>
             </div>
 
@@ -474,7 +474,7 @@ function AdminContent() {
                   </div>
                   <div>
                     <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Global Accounts</p>
-                    <p className="text-4xl font-black text-accent italic tracking-tighter dark:text-white">{allUsers?.length || 0}</p>
+                    <p className="text-4xl font-black text-foreground italic tracking-tighter">{allUsers?.length || 0}</p>
                   </div>
                 </Card>
 
@@ -520,7 +520,7 @@ function AdminContent() {
                   <div className="flex items-center gap-6">
                     <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner"><Activity className="w-8 h-8" /></div>
                     <div>
-                      <h3 className="text-2xl font-black text-accent uppercase italic dark:text-white">System Heartbeat</h3>
+                      <h3 className="text-2xl font-black text-foreground uppercase italic">System Heartbeat</h3>
                       <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Real-time infrastructure diagnostic.</p>
                     </div>
                   </div>
@@ -558,7 +558,7 @@ function AdminContent() {
             <TabsContent value="alichain" className="space-y-10 animate-in zoom-in-95 duration-500">
               <header className="text-center max-w-2xl mx-auto space-y-4">
                 <Badge className="bg-primary text-white font-black uppercase tracking-widest text-[10px] px-4 py-1.5 rounded-full shadow-lg">Phase 2: Global Scaling</Badge>
-                <h2 className="text-4xl font-black text-accent uppercase italic tracking-tighter dark:text-white">AliChain Migration Readiness</h2>
+                <h2 className="text-4xl font-black text-foreground uppercase italic tracking-tighter">AliChain Migration Readiness</h2>
                 <p className="text-[11px] text-muted-foreground font-black uppercase tracking-[0.3em] leading-relaxed italic">
                   Monitoring transisi dari Token Ethereum (ERC-20) menuju Koin Native Berdaulat AliBank V3.
                 </p>
@@ -568,20 +568,20 @@ function AdminContent() {
                 <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-10 shadow-2xl">
                   <div className="flex items-center gap-6">
                     <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner"><TrendingUp className="w-8 h-8" /></div>
-                    <h3 className="text-2xl font-black text-accent uppercase italic dark:text-white">Ekonomi & Volume</h3>
+                    <h3 className="text-2xl font-black text-foreground uppercase italic">Ekonomi & Volume</h3>
                   </div>
                   <div className="space-y-8">
                     <div className="space-y-3">
                       <div className="flex justify-between items-end">
                         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Harian Volume (IDR)</p>
-                        <p className="text-xs font-black text-accent italic">Rp 1.2T / Rp 10T</p>
+                        <p className="text-xs font-black text-foreground italic">Rp 1.2T / Rp 10T</p>
                       </div>
                       <Progress value={12} className="h-3 rounded-full bg-muted shadow-inner" />
                     </div>
                     <div className="space-y-3">
                       <div className="flex justify-between items-end">
                         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Active Holders</p>
-                        <p className="text-xs font-black text-accent italic">125K / 1M</p>
+                        <p className="text-xs font-black text-foreground italic">125K / 1M</p>
                       </div>
                       <Progress value={12.5} className="h-3 rounded-full bg-muted shadow-inner" />
                     </div>
@@ -596,13 +596,13 @@ function AdminContent() {
                 <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-10 shadow-2xl">
                   <div className="flex items-center gap-6">
                     <div className="w-16 h-16 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600 shadow-inner"><Network className="w-8 h-8" /></div>
-                    <h3 className="text-2xl font-black text-accent uppercase italic dark:text-white">Infrastruktur Node</h3>
+                    <h3 className="text-2xl font-black text-foreground uppercase italic">Infrastruktur Node</h3>
                   </div>
                   <div className="space-y-8">
                     <div className="space-y-3">
                       <div className="flex justify-between items-end">
                         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Global Validator Nodes</p>
-                        <p className="text-xs font-black text-accent italic">12 / 21 Nodes</p>
+                        <p className="text-xs font-black text-foreground italic">12 / 21 Nodes</p>
                       </div>
                       <Progress value={57} className="h-3 rounded-full bg-muted shadow-inner" />
                     </div>
@@ -638,7 +638,7 @@ function AdminContent() {
             <TabsContent value="inventory" className="space-y-10 animate-in slide-in-from-left-8 duration-500">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 <Card className="lg:col-span-4 liquid-glass border-none rounded-[3.5rem] p-10 space-y-8 shadow-2xl sticky top-24 h-fit">
-                  <h3 className="text-2xl font-black text-accent uppercase italic flex items-center gap-4 dark:text-white">
+                  <h3 className="text-2xl font-black text-foreground uppercase italic flex items-center gap-4">
                     <PackagePlus className="w-8 h-8 text-primary" /> {editingId ? "Update Asset" : "Deploy Asset"}
                   </h3>
                   <div className="space-y-6">
@@ -684,7 +684,7 @@ function AdminContent() {
 
                 <Card className="lg:col-span-8 liquid-glass border-none rounded-[3.5rem] overflow-hidden shadow-2xl">
                   <div className="p-10 border-b border-primary/5 bg-accent/5 flex justify-between items-center">
-                    <h3 className="text-2xl font-black italic uppercase text-accent dark:text-white">Production Inventory</h3>
+                    <h3 className="text-2xl font-black italic uppercase text-foreground">Production Inventory</h3>
                     <Badge className="bg-primary text-white font-black px-4 py-1.5 rounded-full">{mktItems?.length || 0} Assets Online</Badge>
                   </div>
                   <div className="overflow-x-auto">
@@ -701,14 +701,14 @@ function AdminContent() {
                         {mktItems?.map((item) => (
                           <tr key={item.id} className="hover:bg-primary/5 transition-colors group">
                             <td className="px-10 py-6">
-                              <p className="font-black text-accent italic uppercase text-sm dark:text-white">{item.name}</p>
+                              <p className="font-black text-foreground italic uppercase text-sm">{item.name}</p>
                               <p className="text-[10px] text-muted-foreground font-medium mt-1 italic">{item.id}</p>
                             </td>
                             <td className="px-10 py-6">
                               <Badge variant="outline" className="border-primary/30 text-primary font-black uppercase text-[9px] px-3">{item.category}</Badge>
                             </td>
                             <td className="px-10 py-6 text-right">
-                              <p className="font-black italic text-accent dark:text-white">Rp {item.priceIdr?.toLocaleString()}</p>
+                              <p className="font-black italic text-foreground">Rp {item.priceIdr?.toLocaleString()}</p>
                               <p className="text-[9px] font-bold text-muted-foreground">$ {item.priceUsd?.toLocaleString()}</p>
                             </td>
                             <td className="px-10 py-6 text-right">
@@ -737,7 +737,7 @@ function AdminContent() {
                   <div className="flex items-center gap-6">
                     <div className="w-20 h-20 rounded-[2rem] bg-orange-500/10 flex items-center justify-center text-orange-600 shadow-inner"><Pickaxe className="w-10 h-10" /></div>
                     <div>
-                      <h3 className="text-3xl font-black text-accent uppercase italic leading-none dark:text-white">Sovereign Mint</h3>
+                      <h3 className="text-3xl font-black text-foreground uppercase italic leading-none">Sovereign Mint</h3>
                       <p className="text-[11px] text-muted-foreground font-black uppercase tracking-widest mt-2 italic">Supply Expansion: Backed by USDT Reserve.</p>
                     </div>
                   </div>
@@ -745,7 +745,7 @@ function AdminContent() {
                     <div className="p-8 rounded-[2.5rem] bg-primary/5 border border-primary/10 flex items-center justify-between">
                       <div>
                         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Authorized USDT Agun</p>
-                        <p className="text-3xl font-black text-accent italic tracking-tighter dark:text-white">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
+                        <p className="text-3xl font-black text-foreground italic tracking-tighter">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Capacity</p>
@@ -770,7 +770,7 @@ function AdminContent() {
                   <div className="flex items-center gap-6">
                     <div className="w-20 h-20 rounded-[2rem] bg-destructive/10 flex items-center justify-center text-destructive shadow-inner"><Flame className="w-10 h-10" /></div>
                     <div>
-                      <h3 className="text-3xl font-black text-accent uppercase italic leading-none dark:text-white">Auto-Burn Protocol</h3>
+                      <h3 className="text-3xl font-black text-foreground uppercase italic leading-none">Auto-Burn Protocol</h3>
                       <p className="text-[11px] text-muted-foreground font-black uppercase tracking-widest mt-2 italic">Deflation Mechanism: Scarcity Enforcement (ALX Std).</p>
                     </div>
                   </div>
@@ -802,13 +802,13 @@ function AdminContent() {
 
             <TabsContent value="vault" className="space-y-10 animate-in zoom-in-95 duration-500">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                <Card className="lg:col-span-8 liquid-glass border-none rounded-[4rem] p-16 text-accent space-y-12 shadow-2xl relative overflow-hidden">
+                <Card className="lg:col-span-8 liquid-glass border-none rounded-[4rem] p-16 text-foreground space-y-12 shadow-2xl relative overflow-hidden">
                   <div className="absolute right-[-5%] bottom-[-5%] opacity-5"><LogoIcon className="w-96 h-96 text-primary" /></div>
                   <div className="flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-8">
                       <div className="w-24 h-24 rounded-[2.5rem] bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner"><Database className="w-12 h-12" /></div>
                       <div>
-                        <h3 className="text-4xl font-black uppercase italic dark:text-white">Mainnet Vault Reserve</h3>
+                        <h3 className="text-4xl font-black uppercase italic">Mainnet Vault Reserve</h3>
                         <p className="text-[12px] font-black text-muted-foreground uppercase tracking-[0.4em] mt-2 italic">Institutional Multi-Asset Node V3</p>
                       </div>
                     </div>
@@ -823,7 +823,7 @@ function AdminContent() {
                       </div>
                       <div>
                         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Official Mainnet Address (ERC-20 & ETH)</p>
-                        <p className="text-sm font-mono font-bold text-accent dark:text-white break-all">{ALIX_CONTRACT}</p>
+                        <p className="text-sm font-mono font-bold text-foreground break-all">{ALIX_CONTRACT}</p>
                       </div>
                     </div>
                     <Button onClick={copyAddress} className="gold-gradient text-white font-black uppercase italic text-[10px] h-12 px-8 rounded-xl shrink-0">
@@ -852,11 +852,11 @@ function AdminContent() {
                         </div>
                         <div className="flex justify-between items-end border-b border-primary/10 pb-4">
                           <span className="text-[10px] font-black uppercase text-muted-foreground">Compliance Guard</span>
-                          <span className="text-sm font-black italic dark:text-white">Institutional Grade V3</span>
+                          <span className="text-sm font-black italic text-foreground">Institutional Grade V3</span>
                         </div>
                         <div className="flex justify-between items-end border-b border-primary/10 pb-4">
                           <span className="text-[10px] font-black uppercase text-muted-foreground">Settlement Logic</span>
-                          <span className="text-sm font-black italic dark:text-white">Real-Time Clearing</span>
+                          <span className="text-sm font-black italic text-foreground">Real-Time Clearing</span>
                         </div>
                       </div>
                     </div>
@@ -911,7 +911,7 @@ function AdminContent() {
             <TabsContent value="users" className="animate-in fade-in duration-500">
               <Card className="liquid-glass border-none rounded-[3.5rem] overflow-hidden shadow-2xl">
                 <div className="p-12 border-b border-primary/5 bg-accent/5 flex justify-between items-center">
-                  <h3 className="text-3xl font-black italic uppercase text-accent flex items-center gap-6 dark:text-white">
+                  <h3 className="text-3xl font-black italic uppercase text-foreground flex items-center gap-6">
                     <UserCheck className="w-10 h-10 text-primary" /> Verified Client Registry
                   </h3>
                   <Badge className="bg-primary text-white font-black px-6 py-2 rounded-full shadow-lg">{allUsers?.length || 0} Accounts Enrolled</Badge>
@@ -936,17 +936,17 @@ function AdminContent() {
                                 <Image src={`https://picsum.photos/seed/${u.uid}/100/100`} alt="p" width={56} height={56} className="rounded-full object-cover border-4 border-white dark:border-card" />
                               </div>
                               <div>
-                                <p className="text-base font-black italic uppercase dark:text-white leading-none">{u.name}</p>
+                                <p className="text-base font-black italic uppercase text-foreground leading-none">{u.name}</p>
                                 <p className="text-[10px] font-bold text-muted-foreground mt-1.5">{u.email}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-12 py-8 font-mono text-[11px] text-accent dark:text-white/80">{u.accountNumber}</td>
+                          <td className="px-12 py-8 font-mono text-[11px] text-foreground/80">{u.accountNumber}</td>
                           <td className="px-12 py-8">
                             <Badge variant="outline" className="text-[9px] font-black uppercase border-primary/30 text-primary px-4 py-1 rounded-md">{u.tier || "Standard"}</Badge>
                           </td>
                           <td className="px-12 py-8 text-right">
-                            <p className="text-lg font-black italic text-accent dark:text-white tracking-tighter">Rp {u.totalBalance?.toLocaleString()}</p>
+                            <p className="text-lg font-black italic text-foreground tracking-tighter">Rp {u.totalBalance?.toLocaleString()}</p>
                             <p className="text-[9px] font-bold text-muted-foreground mt-1 uppercase">Official Balance</p>
                           </td>
                           <td className="px-12 py-8 text-right">
@@ -971,7 +971,7 @@ function AdminContent() {
               <Card className="liquid-glass border-none rounded-[3.5rem] overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.2)]">
                 <div className="p-12 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
                   <div>
-                    <h3 className="text-3xl font-black italic uppercase text-accent flex items-center gap-6 dark:text-white">
+                    <h3 className="text-3xl font-black italic uppercase text-foreground flex items-center gap-6">
                       <FileText className="w-10 h-10 text-primary" /> Production Audit Log
                     </h3>
                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mt-2 italic">Immutable Ledger Reconciliation</p>
@@ -984,7 +984,7 @@ function AdminContent() {
                     >
                       <Eraser className="w-4 h-4" /> Purge Audit Logs
                     </Button>
-                    <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/30 text-accent dark:text-white px-6 py-2 rounded-2xl">Integrity Active</Badge>
+                    <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/30 text-foreground px-6 py-2 rounded-2xl">Integrity Active</Badge>
                   </div>
                 </div>
                 <div className="overflow-x-auto">
@@ -1007,7 +1007,7 @@ function AdminContent() {
                               {log.category}
                             </Badge>
                           </td>
-                          <td className="px-12 py-8 font-black italic text-accent dark:text-white text-base">
+                          <td className="px-12 py-8 font-black italic text-foreground text-base">
                             {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : log.cryptoAmount ? `${log.cryptoAmount} ${log.cryptoCurrency}` : '---'}
                           </td>
                           <td className="px-12 py-8">
