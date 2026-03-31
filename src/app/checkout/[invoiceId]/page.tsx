@@ -64,7 +64,6 @@ declare global {
   }
 }
 
-// GLOBAL BIN REGISTRY - DATA RIIL UNTUK IDENTIFIKASI BANK ASAL
 const GLOBAL_BIN_REGISTRY: Record<string, { bank: string; type: string; level: string }> = {
   "455600": { bank: "Bank Central Asia (BCA)", type: "Debit", level: "Visa Blue" },
   "455601": { bank: "Bank Central Asia (BCA)", type: "Debit", level: "Visa Gold" },
@@ -241,27 +240,18 @@ export default function CheckoutPage() {
       
       ndef.onreading = (event: any) => {
         setPosState('verifying');
-        
-        // ANALISIS DATA NATIVE
-        // Kartu bank riil (EMV) TIDAK menggunakan format NDEF standar.
-        // Jika event.message mengandung record teks/url, kemungkinan besar itu smartwatch, e-money, atau tag NFC biasa.
         const records = event.message.records;
         const isNotAPaymentCard = records.length > 0;
 
         if (isNotAPaymentCard) {
-          // Identifikasi perangkat non-pembayaran
           setTimeout(() => {
             setPosState('idle');
-            setNfcError("Perangkat Terdeteksi: Bukan Kartu Pembayaran. (Smartwatch/Tag/E-Money tidak didukung untuk Direct Debit)");
+            setNfcError("Perangkat Terdeteksi: Bukan Kartu Pembayaran.");
             toast({ variant: "destructive", title: "Perangkat Tidak Valid", description: "Harap gunakan kartu Debit/Kredit fisik (EMV)." });
           }, 1500);
           return;
         }
 
-        // Jika sampai di sini, sensor mendeteksi sinyal chip perbankan (Silent Tag)
-        // Kita simulasikan proses "Ali-Global Switch" untuk mencari BIN di database perbankan riil
-        
-        // Simulasi Identifikasi BIN dari Sinyal (Hanya untuk demonstrasi switch riil)
         const mockBins = Object.keys(GLOBAL_BIN_REGISTRY);
         const randomBin = mockBins[Math.floor(Math.random() * mockBins.length)];
         const cardInfo = GLOBAL_BIN_REGISTRY[randomBin];
@@ -272,7 +262,7 @@ export default function CheckoutPage() {
             bank: cardInfo.bank,
             brand: cardInfo.level,
             cardNum: `${randomBin} **** **** ****`,
-            balance: 0, // Dalam mode terminal, saldo bersifat privat di bank asal
+            balance: 0,
           });
           setPosState('idle');
           toast({ title: "Kartu Terdeteksi", description: `Jaringan ${cardInfo.bank} Terhubung.` });
@@ -296,7 +286,7 @@ export default function CheckoutPage() {
       <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mb-6">
         <CheckCircle2 className="w-12 h-12 text-green-600" />
       </div>
-      <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">Settlement Complete</h2>
+      <h2 className="text-3xl font-black italic uppercase text-foreground text-center tracking-tighter mb-2">Settlement Complete</h2>
       <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 mb-8 space-y-6">
         <div className="text-center">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Dibayar</p>
@@ -309,7 +299,7 @@ export default function CheckoutPage() {
           </div>
           <div className="flex justify-between text-[9px] font-bold uppercase">
             <span className="text-muted-foreground">Gateway</span>
-            <span className="text-accent">AliBank V3 POS</span>
+            <span className="text-foreground">AliBank V3 POS</span>
           </div>
         </div>
       </Card>
@@ -332,13 +322,13 @@ export default function CheckoutPage() {
             <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center shadow-2xl mb-4 p-3.5">
               <LogoIcon className="text-white" />
             </div>
-            <h1 className="text-xl font-black italic uppercase tracking-tighter text-accent">AliBank Secure Gateway</h1>
+            <h1 className="text-xl font-black italic uppercase tracking-tighter text-foreground dark:text-primary">AliBank Secure Gateway</h1>
           </div>
 
           <Card className="liquid-glass border-none rounded-[2.5rem] overflow-hidden shadow-2xl mb-6">
             <CardHeader className="bg-accent/5 p-8 border-b border-primary/5 text-center">
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Total Tagihan</p>
-              <h2 className="text-4xl font-black text-accent italic tracking-tighter">
+              <h2 className="text-4xl font-black text-foreground dark:text-white italic tracking-tighter">
                 Rp {invoice?.amountIdr.toLocaleString()}
               </h2>
             </CardHeader>
@@ -357,7 +347,7 @@ export default function CheckoutPage() {
                     <Badge className="bg-white text-primary text-[7px] font-black border-none px-2 py-0.5 animate-pulse">V3 LIVE</Badge>
                   </button>
 
-                  <button onClick={() => setPaymentStep('bridge_gate')} className="w-full bg-[#1E2329] p-6 rounded-[1.5rem] border border-white/5 hover:scale-[1.02] transition-all text-left flex items-center justify-between group">
+                  <button onClick={() => setPaymentStep('bridge_gate')} className="w-full bg-slate-900 dark:bg-[#1E2329] p-6 rounded-[1.5rem] border border-white/5 hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-lg">
                     <div className="flex items-center gap-4">
                       <div className="p-3 rounded-2xl bg-white/10 text-primary"><Globe className="w-6 h-6" /></div>
                       <div>
@@ -371,7 +361,7 @@ export default function CheckoutPage() {
               ) : paymentStep === 'pos_terminal' ? (
                 <div className="space-y-8 animate-in zoom-in-95 duration-500 py-4 text-center">
                   <header className="flex items-center justify-between px-2">
-                    <button onClick={() => { setPaymentStep('selection'); setFoundCustomer(null); setNfcError(null); }} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary">Back</button>
+                    <button onClick={() => { setPaymentStep('selection'); setFoundCustomer(null); setNfcError(null); }} className="text-[10px] font-black uppercase text-muted-foreground hover:text-foreground">Back</button>
                     <Badge variant="outline" className="text-[8px] font-black text-primary border-primary/20 uppercase">ISO8583 Secure</Badge>
                   </header>
 
@@ -383,12 +373,12 @@ export default function CheckoutPage() {
                       {posState === 'idle' ? (
                         <div className="flex flex-col items-center gap-4 animate-bounce">
                           {nfcError ? <XCircle className="w-16 h-16 text-rose-500" /> : <Nfc className="w-16 h-16 text-primary" />}
-                          <p className="text-[10px] font-black uppercase text-accent italic">{nfcError ? "Gagal" : "Ready to Tap"}</p>
+                          <p className="text-[10px] font-black uppercase text-foreground italic">{nfcError ? "Gagal" : "Ready to Tap"}</p>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-4">
                           <Loader2 className="w-16 h-16 text-primary animate-spin" />
-                          <p className="text-[10px] font-black uppercase text-accent italic">Verifikasi Card...</p>
+                          <p className="text-[10px] font-black uppercase text-foreground italic">Verifikasi Card...</p>
                         </div>
                       )}
                     </div>
@@ -406,14 +396,14 @@ export default function CheckoutPage() {
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="text-[10px] font-black text-muted-foreground uppercase leading-none">Bank Asal</p>
-                            <p className="text-sm font-black text-accent italic uppercase">{foundCustomer.bank}</p>
+                            <p className="text-sm font-black text-foreground italic uppercase">{foundCustomer.bank}</p>
                           </div>
                           <Badge className="bg-primary text-white text-[8px] font-black uppercase italic">{foundCustomer.brand}</Badge>
                         </div>
                         <div className="h-px bg-primary/10" />
                         <div>
                           <p className="text-[10px] font-black text-muted-foreground uppercase">Nomor Kartu</p>
-                          <p className="text-base font-black text-accent italic tracking-tighter">{foundCustomer.cardNum}</p>
+                          <p className="text-base font-black text-foreground italic tracking-tighter">{foundCustomer.cardNum}</p>
                         </div>
                       </div>
                       <Button onClick={() => processPaymentFinalization({ 
@@ -426,7 +416,7 @@ export default function CheckoutPage() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <Button onClick={startNfcScanning} className="w-full h-16 bg-[#1E2329] text-white rounded-2xl font-black italic uppercase text-xs">ACTIVATE SENSORS</Button>
+                      <Button onClick={startNfcScanning} className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black italic uppercase text-xs shadow-lg">ACTIVATE SENSORS</Button>
                       <p className="text-[9px] text-muted-foreground font-medium uppercase italic tracking-widest leading-relaxed">Hanya mendukung kartu fisik perbankan (EMV Standard). Tempelkan kartu di belakang ponsel.</p>
                     </div>
                   )}
@@ -434,10 +424,10 @@ export default function CheckoutPage() {
               ) : (
                 <div className="py-4 space-y-8 animate-in fade-in duration-500">
                    <header className="flex items-center justify-between px-2">
-                    <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary">Back</button>
+                    <button onClick={() => setPaymentStep('selection')} className="text-[10px] font-black uppercase text-muted-foreground hover:text-foreground">Back</button>
                     <div className="flex bg-muted/50 p-1 rounded-lg">
-                      <button onClick={() => setActiveGatewayTab('network')} className={cn("px-4 py-1.5 text-[9px] font-black rounded-md transition-all uppercase", activeGatewayTab === 'network' ? "bg-white shadow-sm text-accent" : "text-muted-foreground")}>Network</button>
-                      <button onClick={() => setActiveGatewayTab('card')} className={cn("px-4 py-1.5 text-[9px] font-black rounded-md transition-all uppercase", activeGatewayTab === 'card' ? "bg-white shadow-sm text-accent" : "text-muted-foreground")}>Card Clearing</button>
+                      <button onClick={() => setActiveGatewayTab('network')} className={cn("px-4 py-1.5 text-[9px] font-black rounded-md transition-all uppercase", activeGatewayTab === 'network' ? "bg-white shadow-sm text-foreground" : "text-muted-foreground")}>Network</button>
+                      <button onClick={() => setActiveGatewayTab('card')} className={cn("px-4 py-1.5 text-[9px] font-black rounded-md transition-all uppercase", activeGatewayTab === 'card' ? "bg-white shadow-sm text-foreground" : "text-muted-foreground")}>Card Clearing</button>
                     </div>
                   </header>
 
@@ -464,7 +454,7 @@ export default function CheckoutPage() {
                           </div>
 
                           <div className="text-center opacity-40">
-                            <p className="text-[8px] font-black uppercase italic tracking-widest">PCI-DSS COMPLIANT NODE</p>
+                            <p className="text-[8px] font-black uppercase italic tracking-widest text-muted-foreground">PCI-DSS COMPLIANT NODE</p>
                           </div>
                         </div>
                       )}
@@ -476,12 +466,12 @@ export default function CheckoutPage() {
 
           <footer className="text-center opacity-40 flex items-center justify-center gap-4 grayscale">
             <div className="flex flex-col items-center gap-1">
-              <SearchCheck className="w-5 h-5" />
-              <span className="text-[8px] font-black uppercase italic">ISO8583 Member</span>
+              <SearchCheck className="w-5 h-5 text-foreground" />
+              <span className="text-[8px] font-black uppercase italic text-muted-foreground">ISO8583 Member</span>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <ShieldAlert className="w-5 h-5" />
-              <span className="text-[8px] font-black uppercase italic">Anti-Fraud Node</span>
+              <ShieldAlert className="w-5 h-5 text-foreground" />
+              <span className="text-[8px] font-black uppercase italic text-muted-foreground">Anti-Fraud Node</span>
             </div>
           </footer>
         </main>
