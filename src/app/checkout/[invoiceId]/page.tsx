@@ -140,7 +140,10 @@ export default function CheckoutPage() {
   }, [db, invoiceId]);
 
   useEffect(() => {
-    if (paymentStep === 'bridge_gate' && paypalReady && window.paypal) {
+    if (paymentStep === 'bridge_gate' && paypalReady && window.paypal && invoice) {
+      // PayPal strictly requires 2 decimal places for amounts
+      const formattedAmount = parseFloat(invoice.amountUsd.toString()).toFixed(2);
+
       const appContent = {
         shipping_preference: 'NO_SHIPPING',
         user_action: 'PAY_NOW',
@@ -161,40 +164,51 @@ export default function CheckoutPage() {
         } : undefined
       } : undefined;
 
+      const createOrderOptions = {
+        purchase_units: [{
+          amount: { 
+            currency_code: "USD", 
+            value: formattedAmount 
+          },
+          description: `AliBank Global Settlement - INV ${invoice?.invoiceId}`
+        }],
+        payer: payerInfo,
+        application_context: appContent
+      };
+
       if (paypalContainerRef.current) {
         paypalContainerRef.current.innerHTML = "";
         window.paypal.Buttons({
           style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
-          createOrder: (data: any, actions: any) => {
-            return actions.order.create({
-              purchase_units: [{
-                amount: { currency_code: "USD", value: invoice?.amountUsd.toString() || "0.00" },
-                description: `AliBank Global Settlement - INV ${invoice?.invoiceId}`
-              }],
-              payer: payerInfo,
-              application_context: appContent
-            });
-          },
+          createOrder: (data: any, actions: any) => actions.order.create(createOrderOptions),
           onApprove: async (data: any, actions: any) => {
             try {
               const details = await actions.order.capture();
-              processPaymentFinalization({
-                id: details.id,
-                gateway: "Ali-Global Network",
-                payerEmail: details.payer.email_address
-              });
+              
+              if (details.status === 'COMPLETED') {
+                processPaymentFinalization({
+                  id: details.id,
+                  gateway: "Ali-Global Network",
+                  payerEmail: details.payer.email_address
+                });
+              } else {
+                throw new Error("Transaction status not completed: " + details.status);
+              }
             } catch (error: any) {
-              // DETEKSI INSTRUMENT_DECLINED
-              if (error?.name === 'INSTRUMENT_DECLINED' || error?.message?.includes('INSTRUMENT_DECLINED')) {
+              const isDeclined = error?.name === 'INSTRUMENT_DECLINED' || 
+                               error?.message?.includes('INSTRUMENT_DECLINED') || 
+                               error?.details?.[0]?.issue === 'INSTRUMENT_DECLINED';
+
+              if (isDeclined) {
                 toast({ 
                   variant: "destructive", 
-                  title: "Kartu Ditolak", 
-                  description: "Bank Anda menolak transaksi ini. Silakan gunakan kartu atau metode lain di PayPal." 
+                  title: "Kartu Ditolak Bank", 
+                  description: "Bank Anda menolak transaksi. Silakan aktifkan 'Transaksi Online Internasional' di aplikasi bank Anda atau gunakan kartu lain." 
                 });
-                return actions.restart(); // Mengembalikan user ke pemilihan kartu di dalam modal PayPal
+                return actions.restart();
               }
               console.error("PayPal Capture Error:", error);
-              toast({ variant: "destructive", title: "Pembayaran Gagal", description: "Terjadi kesalahan pada jaringan kliring." });
+              toast({ variant: "destructive", title: "Pembayaran Gagal", description: "Gagal melakukan kliring dana. Silakan coba lagi." });
             }
           }
         }).render(paypalContainerRef.current);
@@ -205,34 +219,34 @@ export default function CheckoutPage() {
         window.paypal.Buttons({
           fundingSource: window.paypal.FUNDING.CARD,
           style: { layout: 'vertical', color: 'black', shape: 'rect', label: 'checkout' },
-          createOrder: (data: any, actions: any) => {
-            return actions.order.create({
-              purchase_units: [{
-                amount: { currency_code: "USD", value: invoice?.amountUsd.toString() || "0.00" },
-                description: `AliBank Card Settlement - INV ${invoice?.invoiceId}`
-              }],
-              payer: payerInfo,
-              application_context: appContent
-            });
-          },
+          createOrder: (data: any, actions: any) => actions.order.create(createOrderOptions),
           onApprove: async (data: any, actions: any) => {
             try {
               const details = await actions.order.capture();
-              processPaymentFinalization({
-                id: details.id,
-                gateway: "Ali-Global Card Clearing",
-                bankName: details.payment_source?.card?.name || "International Issuer"
-              });
+              
+              if (details.status === 'COMPLETED') {
+                processPaymentFinalization({
+                  id: details.id,
+                  gateway: "Ali-Global Card Clearing",
+                  bankName: details.payment_source?.card?.name || "International Issuer"
+                });
+              } else {
+                throw new Error("Capture status: " + details.status);
+              }
             } catch (error: any) {
-              if (error?.name === 'INSTRUMENT_DECLINED' || error?.message?.includes('INSTRUMENT_DECLINED')) {
+              const isDeclined = error?.name === 'INSTRUMENT_DECLINED' || 
+                               error?.message?.includes('INSTRUMENT_DECLINED') ||
+                               error?.details?.[0]?.issue === 'INSTRUMENT_DECLINED';
+
+              if (isDeclined) {
                 toast({ 
                   variant: "destructive", 
-                  title: "Kartu Tidak Dapat Digunakan", 
-                  description: "Saldo tidak cukup atau bank memblokir transaksi online. Gunakan kartu lain." 
+                  title: "Otorisasi Gagal", 
+                  description: "Kartu tidak dapat digunakan. Pastikan saldo cukup dan fitur transaksi luar negeri aktif." 
                 });
                 return actions.restart();
               }
-              toast({ variant: "destructive", title: "Error Kliring", description: "Gagal memproses kartu." });
+              toast({ variant: "destructive", title: "Error Kliring", description: "Gagal memproses kartu melalui jaringan Ali-Global." });
             }
           }
         }).render(cardButtonRef.current);
