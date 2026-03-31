@@ -138,7 +138,7 @@ export default function CheckoutPage() {
   }, [db, invoiceId]);
 
   useEffect(() => {
-    if (paymentStep === 'bridge_gate' && paypalReady && window.paypal && invoice) {
+    if (paymentStep === 'bridge_gate' && paypalReady && window.paypal && window.paypal.Buttons && invoice) {
       // ULTRA-CLEAN NOMINAL FORMATTING (Strict 2 decimals for PayPal)
       const formattedAmount = parseFloat(invoice.amountUsd.toString()).toFixed(2);
 
@@ -169,8 +169,7 @@ export default function CheckoutPage() {
             title: "Pembayaran Ditolak Bank", 
             description: "Bank Anda menolak transaksi ini. Silakan aktifkan 'Transaksi Internasional' di aplikasi bank Anda atau gunakan kartu lain." 
           });
-          // Memberikan kesempatan user mencoba kartu lain tanpa menutup modal
-          return actions.restart();
+          if (actions && actions.restart) return actions.restart();
         }
         
         console.error("PayPal Capture Error:", error);
@@ -190,12 +189,15 @@ export default function CheckoutPage() {
                 processPaymentFinalization({
                   id: details.id,
                   gateway: "Ali-Global Network",
-                  payerEmail: details.payer.email_address
+                  payerEmail: details.payer?.email_address
                 });
               }
             } catch (error: any) {
               handleCaptureDecline(error, actions);
             }
+          },
+          onError: (err: any) => {
+            console.error("PayPal Global Error:", err);
           }
         }).render(paypalContainerRef.current);
       }
@@ -219,6 +221,9 @@ export default function CheckoutPage() {
             } catch (error: any) {
               handleCaptureDecline(error, actions);
             }
+          },
+          onError: (err: any) => {
+            console.error("PayPal Card Error:", err);
           }
         }).render(cardButtonRef.current);
       }
@@ -284,9 +289,6 @@ export default function CheckoutPage() {
       ndef.onreading = (event: any) => {
         setPosState('verifying');
         
-        // VALIDASI KETAT: Memeriksa muatan NDEF
-        // Kartu perbankan asli (EMV) biasanya tidak memiliki record NDEF standar.
-        // Jika ada record teks/uri, kemungkinan besar itu smartwatch, e-money, atau tag NFC biasa.
         const records = event.message.records;
         if (records.length > 0) {
           setTimeout(() => {
@@ -296,7 +298,6 @@ export default function CheckoutPage() {
           return;
         }
 
-        // Jika pembacaan "kosong" tapi sensor aktif, itu ciri khas Chip Kartu Bank (ISO8583/EMV)
         const mockBins = Object.keys(GLOBAL_BIN_REGISTRY);
         const randomBin = mockBins[Math.floor(Math.random() * mockBins.length)];
         const cardInfo = GLOBAL_BIN_REGISTRY[randomBin];
@@ -354,10 +355,9 @@ export default function CheckoutPage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background pb-20 relative overflow-hidden transition-colors duration-300">
-        {/* PAYPAL WEB SDK V6 CORE INTEGRATION */}
+        {/* PAYPAL STANDARD SDK (Includes Buttons & Real-Time Card Processing) */}
         <Script 
-          src="https://www.paypal.com/web-sdk/v6/core" 
-          data-client-id={PAYPAL_CLIENT_ID}
+          src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&intent=capture&enable-funding=card`}
           onLoad={() => setPaypalReady(true)}
         />
         
