@@ -94,10 +94,8 @@ export default function CheckoutPage() {
   const paypalContainerRef = useRef<HTMLDivElement>(null);
   const cardButtonRef = useRef<HTMLDivElement>(null);
 
-  // PRODUCTION CLIENT ID
   const PAYPAL_CLIENT_ID = "AbHG-qL9bHR0-rhmrDMV7TH-PiYAFHFNimv3LfxBUPmSIMaQPrbvFd7cJah1bc8YqlUkS7i3OpD0nvGF";
 
-  // Ambil Data Profil Riil untuk Pre-fill PayPal
   const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
@@ -141,39 +139,40 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (paymentStep === 'bridge_gate' && paypalReady && window.paypal && invoice) {
-      // PayPal strictly requires 2 decimal places for amounts
       const formattedAmount = parseFloat(invoice.amountUsd.toString()).toFixed(2);
 
-      const appContent = {
-        shipping_preference: 'NO_SHIPPING',
-        user_action: 'PAY_NOW',
-        brand_name: 'ALIBANK SECURE V3'
-      };
-
-      const payerInfo = userData ? {
-        email_address: userData.email || user?.email || undefined,
-        name: {
-          given_name: userData.name?.split(' ')[0] || "Nasabah",
-          surname: userData.name?.split(' ').slice(1).join(' ') || "AliBank"
-        },
-        phone: userData.phone ? {
-          phone_type: "MOBILE",
-          phone_number: {
-            national_number: userData.phone.replace(/[^0-9]/g, '')
-          }
-        } : undefined
-      } : undefined;
-
       const createOrderOptions = {
+        intent: 'CAPTURE',
         purchase_units: [{
           amount: { 
             currency_code: "USD", 
             value: formattedAmount 
           },
-          description: `AliBank Global Settlement - INV ${invoice?.invoiceId}`
+          description: `AliBank Global - INV ${invoice?.invoiceId}`
         }],
-        payer: payerInfo,
-        application_context: appContent
+        application_context: {
+          shipping_preference: 'NO_SHIPPING',
+          user_action: 'PAY_NOW',
+          brand_name: 'ALIBANK SECURE V3'
+        }
+      };
+
+      const handleCaptureDecline = (error: any, actions: any) => {
+        const isDeclined = error?.name === 'INSTRUMENT_DECLINED' || 
+                         error?.message?.includes('INSTRUMENT_DECLINED') || 
+                         (error?.details && error.details[0]?.issue === 'INSTRUMENT_DECLINED');
+
+        if (isDeclined) {
+          toast({ 
+            variant: "destructive", 
+            title: "Pembayaran Ditolak Bank", 
+            description: "Bank Anda menolak transaksi ini. Silakan aktifkan 'Transaksi Internasional' di aplikasi bank Anda atau gunakan kartu lain." 
+          });
+          return actions.restart();
+        }
+        
+        console.error("PayPal Capture Error:", error);
+        toast({ variant: "destructive", title: "Kegagalan Kliring", description: "Terjadi gangguan koneksi dengan bank. Silakan coba lagi." });
       };
 
       if (paypalContainerRef.current) {
@@ -184,31 +183,15 @@ export default function CheckoutPage() {
           onApprove: async (data: any, actions: any) => {
             try {
               const details = await actions.order.capture();
-              
               if (details.status === 'COMPLETED') {
                 processPaymentFinalization({
                   id: details.id,
                   gateway: "Ali-Global Network",
                   payerEmail: details.payer.email_address
                 });
-              } else {
-                throw new Error("Transaction status not completed: " + details.status);
               }
             } catch (error: any) {
-              const isDeclined = error?.name === 'INSTRUMENT_DECLINED' || 
-                               error?.message?.includes('INSTRUMENT_DECLINED') || 
-                               error?.details?.[0]?.issue === 'INSTRUMENT_DECLINED';
-
-              if (isDeclined) {
-                toast({ 
-                  variant: "destructive", 
-                  title: "Kartu Ditolak Bank", 
-                  description: "Bank Anda menolak transaksi. Silakan aktifkan 'Transaksi Online Internasional' di aplikasi bank Anda atau gunakan kartu lain." 
-                });
-                return actions.restart();
-              }
-              console.error("PayPal Capture Error:", error);
-              toast({ variant: "destructive", title: "Pembayaran Gagal", description: "Gagal melakukan kliring dana. Silakan coba lagi." });
+              handleCaptureDecline(error, actions);
             }
           }
         }).render(paypalContainerRef.current);
@@ -223,36 +206,21 @@ export default function CheckoutPage() {
           onApprove: async (data: any, actions: any) => {
             try {
               const details = await actions.order.capture();
-              
               if (details.status === 'COMPLETED') {
                 processPaymentFinalization({
                   id: details.id,
                   gateway: "Ali-Global Card Clearing",
                   bankName: details.payment_source?.card?.name || "International Issuer"
                 });
-              } else {
-                throw new Error("Capture status: " + details.status);
               }
             } catch (error: any) {
-              const isDeclined = error?.name === 'INSTRUMENT_DECLINED' || 
-                               error?.message?.includes('INSTRUMENT_DECLINED') ||
-                               error?.details?.[0]?.issue === 'INSTRUMENT_DECLINED';
-
-              if (isDeclined) {
-                toast({ 
-                  variant: "destructive", 
-                  title: "Otorisasi Gagal", 
-                  description: "Kartu tidak dapat digunakan. Pastikan saldo cukup dan fitur transaksi luar negeri aktif." 
-                });
-                return actions.restart();
-              }
-              toast({ variant: "destructive", title: "Error Kliring", description: "Gagal memproses kartu melalui jaringan Ali-Global." });
+              handleCaptureDecline(error, actions);
             }
           }
         }).render(cardButtonRef.current);
       }
     }
-  }, [paymentStep, paypalReady, invoice, user, userData]);
+  }, [paymentStep, paypalReady, invoice]);
 
   const processPaymentFinalization = async (details: any) => {
     if (!db || !invoice) return;
@@ -299,7 +267,6 @@ export default function CheckoutPage() {
   const startNfcScanning = async () => {
     if (!('NDEFReader' in window)) {
       setNfcError("NFC Tidak Didukung di perangkat ini.");
-      toast({ variant: "destructive", title: "Hardware Error", description: "Gunakan browser berkemampuan NFC." });
       return;
     }
     
