@@ -31,7 +31,8 @@ import {
   ArrowRight,
   Copy,
   Code2,
-  QrCode
+  QrCode,
+  Info
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
