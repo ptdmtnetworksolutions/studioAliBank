@@ -20,7 +20,7 @@ import {
   Wifi,
   Zap,
   Cpu,
-  Contactless
+  Nfc
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -468,7 +468,7 @@ export default function CheckoutPage() {
                     )}>
                       {posState === 'idle' ? (
                         <div className="flex flex-col items-center gap-4 animate-bounce">
-                          <Contactless className="w-16 h-16 text-primary" />
+                          <Nfc className="w-16 h-16 text-primary" />
                           <p className="text-[10px] font-black uppercase tracking-tighter text-accent italic">Ready to Tap</p>
                         </div>
                       ) : posState === 'scanning' ? (
