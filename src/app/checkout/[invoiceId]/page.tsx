@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useUser, useFirestore, useDoc } from "@/firebase";
+import { useUser, useDoc, useFirestore } from "@/firebase";
 import { 
   doc, 
   getDoc,
@@ -279,20 +279,29 @@ export default function CheckoutPage() {
   };
 
   const startNfcPayment = async () => {
-    if (!('NDEFReader' in window)) {
+    if (typeof window === 'undefined' || !('NDEFReader' in window)) {
       setNfcError("NFC tidak didukung pada browser ini. Gunakan Chrome di Android.");
       return;
     }
 
     try {
       setPosState('scanning');
-      const ndef = new window.NDEFReader();
-      await ndef.scan();
+      setNfcError(null);
       
+      const ndef = new window.NDEFReader();
+      
+      // AbortController untuk membatalkan jika user berpindah halaman
+      const controller = new AbortController();
+      await ndef.scan({ signal: controller.signal });
+      
+      console.log("NFC Scan started successfully");
+
       ndef.onreading = async (event: any) => {
+        console.log("NFC Tag detected:", event.serialNumber);
         setPosState('processing');
+        
         // Identifikasi unik dari kartu/tag NFC sebagai "Proof of Presence"
-        const serialNumber = event.serialNumber;
+        const serialNumber = event.serialNumber || `NFC-${Date.now()}`;
         
         await processPaymentFinalization({
           id: `NFC-POS-${serialNumber}`,
@@ -301,12 +310,29 @@ export default function CheckoutPage() {
       };
 
       ndef.onreadingerror = () => {
-        toast({ variant: "destructive", title: "NFC Read Error", description: "Gagal membaca tag. Dekatkan kembali kartu Anda." });
+        console.error("NFC Reading Error: Signal interrupted or tag unsupported.");
+        toast({ 
+          variant: "destructive", 
+          title: "Gagal Membaca Kartu", 
+          description: "Sinyal terputus atau kartu tidak mendukung protokol NDEF. Dekatkan kembali kartu dan tahan selama 2 detik." 
+        });
         setPosState('idle');
       };
 
     } catch (error: any) {
-      setNfcError(error.message || "Gagal mengaktifkan sensor NFC.");
+      console.error("NFC Scan Exception:", error);
+      let errorMsg = "Gagal mengaktifkan sensor NFC.";
+      
+      if (error.name === 'NotAllowedError') {
+        errorMsg = "Izin NFC ditolak. Berikan izin di setelan browser Anda.";
+      } else if (error.name === 'NotSupportedError') {
+        errorMsg = "Perangkat tidak memiliki perangkat keras NFC.";
+      } else if (error.name === 'InvalidStateError') {
+        errorMsg = "Sensor NFC sedang digunakan oleh aplikasi lain.";
+      }
+
+      setNfcError(errorMsg);
+      toast({ variant: "destructive", title: "NFC Error", description: errorMsg });
       setPosState('idle');
     }
   };
@@ -488,11 +514,11 @@ export default function CheckoutPage() {
                   <div className="space-y-4">
                     {nfcError ? (
                       <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20">
-                        <p className="text-[10px] text-destructive font-black uppercase italic">{nfcError}</p>
+                        <p className="text-[10px] text-destructive font-black uppercase italic leading-relaxed">{nfcError}</p>
                       </div>
                     ) : (
-                      <p className="text-xs font-medium text-muted-foreground uppercase italic px-10">
-                        Tempelkan kartu debit/kredit Anda ke sensor NFC di bagian belakang perangkat ini untuk penyelesaian riil.
+                      <p className="text-xs font-medium text-muted-foreground uppercase italic px-10 leading-relaxed">
+                        Tempelkan kartu Anda ke sensor NFC (biasanya di dekat kamera belakang) dan tahan hingga proses kliring selesai.
                       </p>
                     )}
                     
