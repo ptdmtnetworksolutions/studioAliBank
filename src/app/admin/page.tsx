@@ -1,4 +1,4 @@
-"use client";
+["use client";
 
 import { Navbar } from "@/components/layout/Navbar";
 import { 
@@ -18,6 +18,7 @@ import {
   CreditCard,
   DollarSign,
   Plus,
+  Minus,
   Trash2,
   Users,
   ArrowRightLeft,
@@ -142,6 +143,9 @@ function AdminContent() {
   const [onChainEth, setOnChainEth] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
   
+  // Balance Adjustment States
+  const [adjustAmounts, setAdjustAmounts] = useState<Record<string, string>>({});
+
   // Vault Disbursement States
   const [disburseAmount, setDisburseAmount] = useState("");
   const [isDisbursing, setIsDisbursing] = useState(false);
@@ -204,6 +208,39 @@ function AdminContent() {
   const copyAddress = () => {
     navigator.clipboard.writeText(ALIX_CONTRACT);
     toast({ title: "Alamat Disalin", description: "Alamat brankas Mainnet siap digunakan." });
+  };
+
+  const handleUpdateUserBalance = async (uid: string, type: 'add' | 'sub') => {
+    if (!db) return;
+    const amountStr = adjustAmounts[uid] || "0";
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ variant: "destructive", title: "Nominal tidak valid", description: "Masukkan jumlah angka yang benar." });
+      return;
+    }
+
+    try {
+      const userRef = doc(db, "users", uid);
+      await updateDoc(userRef, {
+        totalBalance: increment(type === 'add' ? amount : -amount)
+      });
+      
+      // Log ke Audit System
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `ADJ-${Date.now()}`,
+        category: "Manual Adjustment",
+        amountIdr: amount,
+        type: type === 'add' ? 'income' : 'expense',
+        status: "success",
+        timestamp: serverTimestamp(),
+        description: `Manual adjustment by Admin for User UID: ${uid}`
+      });
+
+      toast({ title: "Saldo Diperbarui", description: `Berhasil ${type === 'add' ? 'menambah' : 'mengurangi'} Rp ${amount.toLocaleString()} dari saldo nasabah.` });
+      setAdjustAmounts(prev => ({ ...prev, [uid]: "" }));
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Update", description: err.message });
+    }
   };
 
   const handleVaultDisbursement = async () => {
@@ -465,7 +502,7 @@ function AdminContent() {
             </div>
 
             <TabsContent value="overview" className="space-y-10 animate-in fade-in zoom-in-95 duration-500">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              <div className="grid grid-cols-1 grid-cols-2 lg:grid-cols-4 gap-8">
                 <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-primary/5 shadow-2xl relative overflow-hidden group">
                   <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
                   <div className="flex items-center justify-between">
@@ -789,7 +826,7 @@ function AdminContent() {
                       <label className="text-[11px] font-black uppercase text-muted-foreground ml-3">Amount to Incinerate (ALX)</label>
                       <div className="relative">
                         <Input type="number" placeholder="0.00" value={alixBurnAmount} onChange={(e) => setAlixBurnAmount(e.target.value)} className="h-20 rounded-[2rem] bg-destructive/5 border-none font-black italic text-3xl px-10 text-destructive shadow-inner" />
-                        <Flame className="absolute right-10 top-1/2 -translate-y-1/2 w-10 h-10 text-destructive opacity-20" />
+                        <Flame className="absolute right-10 top-1/2 -translate-y-1/2 -translate-y-1/2 w-10 h-10 text-destructive opacity-20" />
                       </div>
                     </div>
                     <Button onClick={handleBurnAlix} disabled={isBurning || !alixBurnAmount} className="w-full h-20 bg-destructive hover:bg-destructive/90 text-white rounded-[2.5rem] font-black uppercase italic text-lg shadow-[0_20px_50px_rgba(239,68,68,0.3)] hover:scale-[1.02] transition-all">
@@ -946,8 +983,37 @@ function AdminContent() {
                             <Badge variant="outline" className="text-[9px] font-black uppercase border-primary/30 text-primary px-4 py-1 rounded-md">{u.tier || "Standard"}</Badge>
                           </td>
                           <td className="px-12 py-8 text-right">
-                            <p className="text-lg font-black italic text-foreground tracking-tighter">Rp {u.totalBalance?.toLocaleString()}</p>
-                            <p className="text-[9px] font-bold text-muted-foreground mt-1 uppercase">Official Balance</p>
+                            <div className="flex flex-col items-end gap-3">
+                              <div>
+                                <p className="text-lg font-black italic text-foreground tracking-tighter">Rp {u.totalBalance?.toLocaleString()}</p>
+                                <p className="text-[9px] font-bold text-muted-foreground mt-1 uppercase">Official Balance</p>
+                              </div>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Input 
+                                  type="number" 
+                                  placeholder="Amt"
+                                  value={adjustAmounts[u.uid] || ""}
+                                  onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [u.uid]: e.target.value }))}
+                                  className="h-10 w-28 rounded-xl liquid-glass border-primary/10 text-[11px] font-black italic px-3 shadow-inner"
+                                />
+                                <div className="flex gap-1">
+                                  <Button 
+                                    size="icon"
+                                    onClick={() => handleUpdateUserBalance(u.uid, 'add')}
+                                    className="h-10 w-10 rounded-xl bg-green-500 hover:bg-green-600 text-white shadow-lg"
+                                  >
+                                    <Plus className="w-4 h-4" />
+                                  </Button>
+                                  <Button 
+                                    size="icon"
+                                    onClick={() => handleUpdateUserBalance(u.uid, 'sub')}
+                                    className="h-10 w-10 rounded-xl bg-rose-500 hover:bg-rose-600 text-white shadow-lg"
+                                  >
+                                    <Minus className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
                           </td>
                           <td className="px-12 py-8 text-right">
                             <Button 
@@ -1003,7 +1069,7 @@ function AdminContent() {
                         <tr key={log.id} className="hover:bg-primary/5 transition-colors">
                           <td className="px-12 py-8 font-mono text-[10px] text-muted-foreground">{log.id}</td>
                           <td className="px-12 py-8">
-                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") || log.category?.includes("Vault") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
+                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") || log.category?.includes("Vault") || log.category?.includes("Manual") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
                               {log.category}
                             </Badge>
                           </td>
