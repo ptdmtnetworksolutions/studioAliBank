@@ -181,40 +181,62 @@ function AdminContent() {
       const balance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
       setOnChainEth(formatEther(balance));
 
-      // FETCH REAL TRANSACTION DATA FROM ETHERSCAN
+      // FETCH REAL TRANSACTION DATA FROM ETHERSCAN (Dual-Track: Normal and Token Transfers)
       try {
-        const response = await fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=10&sort=desc`);
-        const data = await response.json();
-        
-        if (data.status === "1" && data.result) {
-          const realHistory = data.result.map((tx: any) => {
-            const isOut = tx.from.toLowerCase() === ALX_CONTRACT.toLowerCase();
-            const timeAgo = (ts: string) => {
-              const seconds = Math.floor((Date.now() - parseInt(ts) * 1000) / 1000);
-              if (seconds < 60) return `${seconds}s ago`;
-              if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
-              if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
-              return `${Math.floor(seconds / 86400)} days ago`;
-            };
+        const [normalRes, tokenRes] = await Promise.all([
+          fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=15&sort=desc`),
+          fetch(`https://api.etherscan.io/api?module=account&action=tokentx&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=15&sort=desc`)
+        ]);
 
-            return {
-              hash: tx.hash.slice(0, 10) + "...",
-              fullHash: tx.hash,
-              from: tx.from,
-              to: tx.to,
-              value: parseFloat(formatEther(tx.value)).toFixed(4),
-              type: isOut ? "OUT" : "IN",
-              time: timeAgo(tx.timeStamp)
-            };
-          });
-          setOnChainHistory(realHistory);
+        const normalData = await normalRes.json();
+        const tokenData = await tokenRes.json();
+        
+        let combined = [] as any[];
+
+        if (normalData.status === "1" && normalData.result) {
+          combined.push(...normalData.result.map((tx: any) => ({ ...tx, category: 'Normal' })));
         }
+        if (tokenData.status === "1" && tokenData.result) {
+          combined.push(...tokenData.result.map((tx: any) => ({ ...tx, category: 'Token' })));
+        }
+
+        // Sort by timestamp desc
+        combined.sort((a, b) => parseInt(b.timeStamp) - parseInt(a.timeStamp));
+
+        const timeAgo = (ts: string) => {
+          const seconds = Math.floor((Date.now() - parseInt(ts) * 1000) / 1000);
+          if (seconds < 0) return 'Just now';
+          if (seconds < 60) return `${seconds}s ago`;
+          if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+          if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+          return `${Math.floor(seconds / 86400)}d ago`;
+        };
+
+        const realHistory = combined.slice(0, 15).map((tx: any) => {
+          const isOut = tx.from.toLowerCase() === ALX_CONTRACT.toLowerCase();
+          const valFormatted = tx.category === 'Token' 
+            ? `${(parseFloat(tx.value) / Math.pow(10, parseInt(tx.tokenDecimal || "18"))).toFixed(2)} ${tx.tokenSymbol}`
+            : `${parseFloat(formatEther(tx.value)).toFixed(4)} ETH`;
+
+          return {
+            hash: tx.hash.slice(0, 10) + "...",
+            fullHash: tx.hash,
+            from: tx.from,
+            to: tx.to,
+            value: valFormatted,
+            type: isOut ? "OUT" : "IN",
+            time: timeAgo(tx.timeStamp),
+            method: tx.category === 'Token' ? 'Token Transfer' : (tx.input !== '0x' ? 'Contract Call' : 'Transfer')
+          };
+        });
+
+        setOnChainHistory(realHistory);
       } catch (apiErr) {
         console.warn("Etherscan API fetch failed", apiErr);
       }
       
       if (manual) {
-        toast({ title: "Vault Synced", description: "Ethereum Mainnet node data has been updated with real Etherscan records." });
+        toast({ title: "Vault Synced", description: "Mainnet data has been updated with latest Etherscan records." });
       }
     } catch (err) {
       console.error("Sync error:", err);
@@ -1028,7 +1050,7 @@ function AdminContent() {
                           <HistoryIcon className="w-6 h-6" />
                         </div>
                         <div>
-                          <h4 className="text-lg font-black italic uppercase tracking-tight text-foreground transition-colors">Node Node Records</h4>
+                          <h4 className="text-lg font-black italic uppercase tracking-tight text-foreground transition-colors">Node Transaction Records</h4>
                           <p className="text-[9px] font-bold text-muted-foreground uppercase transition-colors">Mainnet Transaction Ledger</p>
                         </div>
                       </div>
@@ -1064,11 +1086,11 @@ function AdminContent() {
                                   "border-none text-[8px] font-black px-2 h-5 uppercase",
                                   tx.type === 'IN' ? "bg-green-100 text-green-600" : "bg-rose-100 text-rose-600"
                                 )}>
-                                  {tx.type === 'IN' ? 'Deposit' : 'Transfer'}
+                                  {tx.method || (tx.type === 'IN' ? 'Deposit' : 'Transfer')}
                                 </Badge>
                               </td>
                               <td className="px-10 py-5">
-                                <p className="text-xs font-black italic text-foreground transition-colors">{tx.value} ETH</p>
+                                <p className="text-xs font-black italic text-foreground transition-colors">{tx.value}</p>
                               </td>
                               <td className="px-10 py-5 text-right">
                                 <p className="text-[10px] font-bold text-muted-foreground italic transition-colors">{tx.time}</p>
