@@ -20,7 +20,10 @@ import {
   VolumeX,
   Sparkles,
   Dice5,
-  LayoutGrid
+  LayoutGrid,
+  FileText,
+  TrendingUp,
+  Wallet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -196,7 +199,7 @@ export default function AliSpinPage() {
         </button>
       </header>
 
-      {/* Stats Bar - Ditampilkan Saldo Taruhan & Saldo ALX */}
+      {/* Stats Bar */}
       <div className="px-4 h-14 flex items-center justify-between bg-[#1C2024] shrink-0 border-b border-white/5">
         <div className="flex gap-6">
           <div className="flex items-center gap-2">
@@ -205,7 +208,7 @@ export default function AliSpinPage() {
             </div>
             <div className="flex flex-col">
               <span className="text-[10px] font-black italic uppercase text-white leading-none">
-                {stakeCurrency === 'IDR' ? `Rp ${(userData?.totalBalance ?? 0).toLocaleString()}` : `${(userData?.cryptoBalances?.[stakeCurrency] ?? 0).toFixed(6)} ${stakeCurrency}`}
+                {stakeCurrency === 'IDR' ? `Rp ${(userData?.totalBalance ?? 0).toLocaleString('id-ID')}` : `${(userData?.cryptoBalances?.[stakeCurrency] ?? 0).toFixed(6)} ${stakeCurrency}`}
               </span>
               <span className="text-[7px] font-bold text-white/30 uppercase tracking-widest">Saldo Taruhan</span>
             </div>
@@ -219,7 +222,9 @@ export default function AliSpinPage() {
               <span className="text-[10px] font-black italic uppercase text-primary leading-none">
                 {(userData?.cryptoBalances?.ALX ?? 0).toFixed(6)} ALX
               </span>
-              <span className="text-[7px] font-bold text-primary/40 uppercase tracking-widest">Winnings (ALX)</span>
+              <span className="text-[7px] font-bold text-primary/40 uppercase tracking-widest leading-none mt-0.5">
+                ≈ Rp {((userData?.cryptoBalances?.ALX ?? 0) * ALX_PRICE_IDR).toLocaleString('id-ID')}
+              </span>
             </div>
           </div>
         </div>
