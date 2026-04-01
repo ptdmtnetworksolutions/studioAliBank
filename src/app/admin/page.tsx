@@ -104,7 +104,7 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { JsonRpcProvider, formatEther, parseEther, Wallet as EthersWallet } from "ethers";
+import { JsonRpcProvider, formatEther } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -123,7 +123,7 @@ import {
 
 // KONSTANTA GLOBAL ADMIN
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
-const ALIX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; // Vault Address
+const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; // Alamat Brankas Mainnet AliBank
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
 const mockPerformanceData = [
@@ -182,14 +182,14 @@ function AdminContent() {
     setSyncingVault(true);
     try {
       const provider = new JsonRpcProvider(GLOBAL_RPC);
-      const balance = await provider.getBalance(ALIX_CONTRACT).catch(() => 0n);
+      const balance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
       setOnChainEth(formatEther(balance));
 
-      // Simulasi history transaksi riil (di prototype ini kita buat data node-record yang kredibel)
+      // Simulasi history transaksi riil
       const mockHistory = [
-        { hash: "0x7a...bc1", from: "0xBinance", to: ALIX_CONTRACT, value: "0.05", type: "IN", time: "2 min ago" },
-        { hash: "0x2d...ff4", from: ALIX_CONTRACT, to: "0xInternal", value: "0.01", type: "OUT", time: "1 hour ago" },
-        { hash: "0x9e...aa2", from: "0xMetaMask", to: ALIX_CONTRACT, value: "0.12", type: "IN", time: "5 hours ago" },
+        { hash: "0x7a...bc1", from: "0xBinance", to: ALX_CONTRACT, value: "0.05", type: "IN", time: "2 min ago" },
+        { hash: "0x2d...ff4", from: ALX_CONTRACT, to: "0xInternal", value: "0.01", type: "OUT", time: "1 hour ago" },
+        { hash: "0x9e...aa2", from: "0xMetaMask", to: ALX_CONTRACT, value: "0.12", type: "IN", time: "5 hours ago" },
       ];
       setOnChainHistory(mockHistory);
       
@@ -213,8 +213,6 @@ function AdminContent() {
     if (!vaultRecipient || !vaultAmount || isExecutingVaultTx) return;
     setIsExecutingVaultTx(true);
     try {
-      // PROTOTYPE LOGIC: Dalam lingkungan produksi, brankas ini harusnya Multisig atau dikendalikan Private Key Admin.
-      // Di sini kita mensimulasikan instruksi pengiriman riil.
       await new Promise(resolve => setTimeout(resolve, 3000));
       
       if (db) {
@@ -222,7 +220,7 @@ function AdminContent() {
           id: `VAULT-WDR-${Date.now()}`,
           category: "External Disbursement",
           gateway: "Ali-Mainnet Node",
-          amountUsd: parseFloat(vaultAmount) * 2500, // Simulasi konversi ke USD
+          amountUsd: parseFloat(vaultAmount) * 2500,
           recipient: vaultRecipient,
           status: "success",
           timestamp: serverTimestamp(),
@@ -345,14 +343,12 @@ function AdminContent() {
       const batch = writeBatch(db);
 
       for (const userDoc of usersSnap.docs) {
-        // Reset balances in profile
         batch.update(userDoc.ref, {
           totalBalance: 0,
           savings: 0,
           cryptoBalances: { BTC: 0, ETH: 0, USDT: 0, ALX: 0 }
         });
 
-        // Clear sub-collections
         const subCollections = ['deposits', 'wallets', 'transactions', 'notifications'];
         for (const sub of subCollections) {
           const subSnap = await getDocs(collection(db, "users", userDoc.id, sub));
@@ -386,7 +382,7 @@ function AdminContent() {
   };
 
   const copyVaultAddress = () => {
-    navigator.clipboard.writeText(ALIX_CONTRACT);
+    navigator.clipboard.writeText(ALX_CONTRACT);
     toast({ title: "Address Copied", description: "Vault Mainnet address copied to clipboard." });
   };
 
@@ -480,7 +476,6 @@ function AdminContent() {
               <div className="animate-in fade-in duration-700 space-y-10">
                 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                  {/* MAIN SMART WALLET REPLACEMENT */}
                   <Card 
                     className="lg:col-span-8 border-none shadow-none bg-card rounded-[2.5rem] p-10 space-y-10 cursor-pointer hover:shadow-xl hover:shadow-black/5 transition-all group"
                     onClick={() => setActiveTab('audit')}
@@ -546,7 +541,6 @@ function AdminContent() {
                     </div>
                   </Card>
 
-                  {/* ACTIVE CLIENTS SUMMARY */}
                   <Card 
                     className="lg:col-span-4 border-none shadow-none bg-card rounded-[2.5rem] p-10 flex flex-col cursor-pointer hover:shadow-xl hover:shadow-black/5 transition-all group"
                     onClick={() => setActiveTab('users')}
@@ -582,7 +576,6 @@ function AdminContent() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                  {/* PERFORMANCE CHART */}
                   <Card className="lg:col-span-8 border-none shadow-none bg-card rounded-[2.5rem] p-10 space-y-10 transition-colors">
                     <div className="flex items-center justify-between">
                       <h3 className="text-base font-black italic uppercase tracking-tight text-foreground transition-colors">Revenue Dynamics</h3>
@@ -610,7 +603,6 @@ function AdminContent() {
                     </div>
                   </Card>
 
-                  {/* TOKENOMICS SUMMARY CARD */}
                   <Card 
                     className="lg:col-span-4 border-none shadow-none bg-[#1A1D1F] dark:bg-card rounded-[2.5rem] p-10 flex flex-col justify-between text-background dark:text-foreground relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-all"
                     onClick={() => setActiveTab('tokenomics')}
@@ -639,7 +631,6 @@ function AdminContent() {
                   </Card>
                 </div>
 
-                {/* QUICK ACTIONS SECTION */}
                 <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
                   <QuickActionCard icon={Skull} label="Reset All Clients" sub="Production Wipe" onClick={handleWipeAllClientData} className="bg-rose-500/5 hover:bg-rose-500/10 text-rose-600" />
                   <QuickActionCard icon={PlusCircle} label="Mint ALX" sub="Expand supply" onClick={() => setActiveTab('tokenomics')} />
@@ -647,7 +638,6 @@ function AdminContent() {
                   <QuickActionCard icon={Database} label="Sync Vault" sub="Mainnet data" onClick={syncOnChainData} />
                 </section>
 
-                {/* RECENT TRANSACTIONS TABLE */}
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
                   <div className="p-10 border-b border-border flex items-center justify-between transition-colors">
                     <h3 className="text-lg font-black italic uppercase tracking-tight text-foreground transition-colors">Recent Transactions</h3>
@@ -689,7 +679,6 @@ function AdminContent() {
               </div>
             )}
 
-            {/* TAB USERS */}
             {activeTab === 'users' && (
               <div className="animate-in slide-in-from-right-10 duration-700 space-y-10">
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
@@ -762,7 +751,6 @@ function AdminContent() {
                                     </DialogHeader>
                                     <ScrollArea className="max-h-[70vh]">
                                       <div className="p-8 space-y-10">
-                                        {/* Identity Section */}
                                         <section className="flex flex-col md:flex-row gap-8 items-start">
                                           <div className="w-32 h-32 rounded-[2.5rem] gold-gradient p-1 shrink-0">
                                             <div className="w-full h-full rounded-[2.4rem] bg-background flex items-center justify-center overflow-hidden border-4 border-background">
@@ -779,7 +767,6 @@ function AdminContent() {
                                           </div>
                                         </section>
 
-                                        {/* Asset Allocation Section */}
                                         <section className="space-y-6">
                                           <div className="flex items-center gap-2">
                                             <TrendingUp className="w-4 h-4 text-green-600" />
@@ -795,7 +782,6 @@ function AdminContent() {
                                           </div>
                                         </section>
 
-                                        {/* Sync Accounts Section */}
                                         <section className="space-y-6">
                                           <div className="flex items-center gap-2">
                                             <RefreshCw className="w-4 h-4 text-primary" />
@@ -811,7 +797,6 @@ function AdminContent() {
                                           </div>
                                         </section>
 
-                                        {/* Active Deposits Section */}
                                         <section className="space-y-6">
                                           <div className="flex items-center gap-2">
                                             <PiggyBank className="w-4 h-4 text-primary" />
@@ -861,7 +846,6 @@ function AdminContent() {
               </div>
             )}
 
-            {/* TAB TOKENOMICS */}
             {activeTab === 'tokenomics' && (
               <div className="animate-in zoom-in-95 duration-700 grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <Card className="border-none shadow-none bg-card rounded-[3rem] p-12 space-y-10 transition-colors">
@@ -914,11 +898,9 @@ function AdminContent() {
               </div>
             )}
 
-            {/* TAB VAULT - UPGRADED TO MAINNET CONTROL */}
             {activeTab === 'vault' && (
               <div className="animate-in zoom-in-95 duration-700 space-y-10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                  {/* Left: Balance & Refresh */}
                   <Card className="lg:col-span-8 border-none shadow-none bg-card rounded-[3rem] p-12 flex flex-col justify-between transition-colors relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none"><LogoIcon className="w-64 h-64 text-primary" /></div>
                     
@@ -951,7 +933,6 @@ function AdminContent() {
                     </div>
                   </Card>
 
-                  {/* Right: Vault Identity & QR */}
                   <Card className="lg:col-span-4 border-none shadow-none bg-[#1A1D1F] dark:bg-card rounded-[3rem] p-10 flex flex-col items-center justify-center gap-6 text-white text-center relative overflow-hidden transition-colors">
                     <div className="absolute inset-0 gold-gradient opacity-5 pointer-events-none" />
                     <div className="bg-white p-4 rounded-3xl shadow-2xl relative z-10 group cursor-pointer hover:scale-105 transition-transform duration-500">
@@ -973,7 +954,6 @@ function AdminContent() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                  {/* Bottom Left: External Disbursement Form */}
                   <Card className="lg:col-span-5 border-none shadow-none bg-card rounded-[3rem] p-10 space-y-8 transition-colors">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 shadow-inner">
@@ -1015,7 +995,6 @@ function AdminContent() {
                     </div>
                   </Card>
 
-                  {/* Bottom Right: On-Chain Record (Like Etherscan) */}
                   <Card className="lg:col-span-7 border-none shadow-none bg-card rounded-[3rem] overflow-hidden transition-colors">
                     <div className="p-10 border-b border-border flex items-center justify-between bg-blue-500/5 transition-colors">
                       <div className="flex items-center gap-4">
@@ -1078,7 +1057,6 @@ function AdminContent() {
               </div>
             )}
 
-            {/* TAB INVENTORY */}
             {activeTab === 'inventory' && (
               <div className="animate-in slide-in-from-right-10 duration-700 space-y-10">
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
@@ -1122,7 +1100,6 @@ function AdminContent() {
               </div>
             )}
 
-            {/* TAB AUDIT */}
             {activeTab === 'audit' && (
               <div className="animate-in slide-in-from-right-10 duration-700 space-y-10">
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
