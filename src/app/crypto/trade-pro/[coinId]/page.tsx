@@ -277,9 +277,7 @@ export default function TradeProPage() {
               <Tooltip content={() => null} />
               
               {/* CURRENT PRICE LINE & LABEL */}
-              <ReferenceLine y={price} stroke="rgba(255,255,255,0.2)" strokeDasharray="2 2" isFront>
-                <rect x="0" y={0} width="100%" height="1" fill="rgba(255,255,255,0.1)" />
-              </ReferenceLine>
+              <ReferenceLine y={price} stroke="rgba(255,255,255,0.2)" strokeDasharray="2 2" isFront />
 
               {/* CANDLE BODY */}
               <Bar dataKey="body" isAnimationActive={false} barSize={zoomLevel > 60 ? 4 : 8}>
@@ -409,7 +407,7 @@ export default function TradeProPage() {
             </button>
           </div>
         </div>
-      </header>
+      </main>
 
       <footer className="h-16 bg-[#171A1D] border-t border-white/5 flex items-center justify-around shrink-0 px-2 pb-safe">
         <button className="flex flex-col items-center gap-1 group w-full">
