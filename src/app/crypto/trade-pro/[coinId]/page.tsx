@@ -17,7 +17,17 @@ import {
   Trophy,
   Skull,
   Coins,
-  Wallet
+  Wallet,
+  User,
+  Plus,
+  Minus,
+  Settings2,
+  LineChart,
+  Clock,
+  LayoutGrid,
+  HelpCircle,
+  ShoppingBag,
+  ArrowRightLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,34 +35,22 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { 
-  BarChart,
-  Bar,
   XAxis, 
   YAxis, 
   ResponsiveContainer, 
   Tooltip,
   Cell,
   ReferenceLine,
-  ComposedChart
+  ComposedChart,
+  Bar,
+  Line
 } from "recharts";
 import { useUser, useFirestore, useDoc } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 
-const DURATIONS = [
-  { label: "5s", value: 5 },
-  { label: "30s", value: 30 },
-  { label: "1m", value: 60 },
-  { label: "2m", value: 120 },
-  { label: "5m", value: 300 },
-  { label: "30m", value: 1800 },
-  { label: "1j", value: 3600 },
-  { label: "1h", value: 86400 },
-  { label: "1mgu", value: 604800 },
-];
-
-const ALX_PRICE_IDR = 194004; // Harga jangkar AliBank V3
+const ALX_PRICE_IDR = 194004;
 
 export default function TradeProPage() {
   const { coinId } = useParams();
@@ -67,7 +65,7 @@ export default function TradeProPage() {
   const [mounted, setMounted] = useState(false);
   const [price, setPrice] = useState(isAlix ? 12.24 : 66450.00);
   const [candles, setCandles] = useState<any[]>([]);
-  const [amount, setAmount] = useState("100000");
+  const [amount, setAmount] = useState(100000);
   const [duration, setDuration] = useState(60);
   const [isTrading, setIsTrading] = useState(false);
   const [prediction, setPrediction] = useState<'high' | 'low' | null>(null);
@@ -80,8 +78,7 @@ export default function TradeProPage() {
 
   useEffect(() => {
     setMounted(true);
-    // Init candles
-    const initial = Array.from({ length: 20 }, (_, i) => generateCandle(i, price));
+    const initial = Array.from({ length: 30 }, (_, i) => generateCandle(i, price));
     setCandles(initial);
   }, []);
 
@@ -97,16 +94,15 @@ export default function TradeProPage() {
       high,
       low,
       isUp: close >= open,
-      candleHeight: Math.abs(close - open),
+      candleHeight: Math.max(0.01, Math.abs(close - open)),
       candleBottom: Math.min(open, close)
     };
   }
 
-  // Real-time Tick Price Simulation
   useEffect(() => {
     if (!mounted) return;
     const interval = setInterval(() => {
-      const move = Math.random() * 0.1 - 0.05;
+      const move = Math.random() * 0.04 - 0.02;
       setPrice(prev => {
         const next = prev + move;
         setCandles(prevCandles => {
@@ -117,11 +113,11 @@ export default function TradeProPage() {
             high: Math.max(last.high, next),
             low: Math.min(last.low, next),
             isUp: next >= last.open,
-            candleHeight: Math.abs(next - last.open),
+            candleHeight: Math.max(0.01, Math.abs(next - last.open)),
             candleBottom: Math.min(last.open, next)
           };
           
-          if (Date.now() % 10000 < 1000) {
+          if (Date.now() % 5000 < 1000) {
             return [...prevCandles.slice(1), generateCandle(last.time + 1, next)];
           }
           return [...prevCandles.slice(0, -1), updatedLast];
@@ -132,7 +128,6 @@ export default function TradeProPage() {
     return () => clearInterval(interval);
   }, [mounted]);
 
-  // Trading Countdown Logic
   useEffect(() => {
     if (isTrading && timeLeft > 0) {
       const timer = setTimeout(() => setTimeLeft(prev => prev - 1), 1000);
@@ -144,361 +139,224 @@ export default function TradeProPage() {
 
   const startTrade = async (type: 'high' | 'low') => {
     if (isTrading || !userDocRef || !userData || !db) return;
-    
-    const betAmount = parseFloat(amount);
-    if (isNaN(betAmount) || betAmount <= 0) return;
-    
-    if (userData.totalBalance < betAmount) {
-      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: "Isi saldo IDR Anda untuk mulai bertransaksi Pro." });
+    if (userData.totalBalance < amount) {
+      toast({ variant: "destructive", title: "Saldo Tidak Cukup" });
       return;
     }
 
-    // 1. Eksekusi Pengurangan Saldo Riil Nasabah
-    updateDoc(userDocRef, {
-      totalBalance: increment(-betAmount)
-    });
-
-    // 2. TAMPUNG DANA KE KAS NEGARA ALIBANK (Revenue Capture)
+    updateDoc(userDocRef, { totalBalance: increment(-amount) });
     const liquidityRef = doc(db, "system", "liquidity");
-    updateDoc(liquidityRef, {
-      totalFiatInjected: increment(betAmount),
-      tradeXGrossVolumeIdr: increment(betAmount)
-    });
-
-    // 3. Catat di Audit Log Global sebagai "Aktivitas Perdagangan"
-    addDoc(collection(db, "system", "audit", "global_transactions"), {
-      id: `TRADEX-${Date.now()}`,
-      category: "Trade-X Investment",
-      amountIdr: betAmount,
-      status: "success",
-      timestamp: serverTimestamp(),
-      description: `Nasabah ${userData.name} membuka posisi ${type.toUpperCase()} pada ${symbol}.`
-    });
+    updateDoc(liquidityRef, { totalFiatInjected: increment(amount), tradeXGrossVolumeIdr: increment(amount) });
 
     setPrediction(type);
     setEntryPrice(price);
     setIsTrading(true);
     setTimeLeft(duration);
-    
-    toast({ title: "Posisi Dibuka", description: `Investasi Rp ${betAmount.toLocaleString()} pada ${type.toUpperCase()}` });
+    toast({ title: "Order Berhasil", description: `Prediksi ${type.toUpperCase()} sebesar Rp ${amount.toLocaleString()}` });
   };
 
   const finishTrade = async () => {
     if (!entryPrice || !userDocRef || !user || !db) return;
-
     const isWin = prediction === 'high' ? price > entryPrice : price < entryPrice;
-    const betAmount = parseFloat(amount);
-    const profitIdr = isWin ? betAmount * 0.9 : 0; // 90% Yield
-    const totalReturnIdr = isWin ? betAmount + profitIdr : 0;
-    
-    // Konversi Hadiah ke ALX (Real-Time Settlement)
-    const rewardInAlx = isWin ? totalReturnIdr / ALX_PRICE_IDR : 0;
+    const rewardInAlx = isWin ? (amount * 1.9) / ALX_PRICE_IDR : 0;
 
     if (isWin) {
-      // Eksekusi Penambahan Saldo ALX (Kemenangan)
-      updateDoc(userDocRef, {
-        "cryptoBalances.ALX": increment(rewardInAlx)
-      });
-
-      // Notifikasi Kemenangan
+      updateDoc(userDocRef, { "cryptoBalances.ALX": increment(rewardInAlx) });
       addDoc(collection(db, "users", user.uid, "notifications"), {
         title: "Trade-X Profit!",
-        message: `Selamat! Anda memenangkan ${rewardInAlx.toFixed(8)} ALX dari hasil prediksi Trade-X Pro.`,
+        message: `Kemenangan Trade-X: +${rewardInAlx.toFixed(6)} ALX`,
         type: "success",
         read: false,
         createdAt: new Date().toISOString()
       });
-
-      // Update Audit Log: Pembayaran Hadiah (Minting Logic Simulation)
-      addDoc(collection(db, "system", "audit", "global_transactions"), {
-        id: `WIN-${Date.now()}`,
-        category: "Trade-X Payout",
-        cryptoAmount: rewardInAlx,
-        cryptoCurrency: "ALX",
-        status: "success",
-        timestamp: serverTimestamp(),
-        description: `Pembayaran hadiah ALX kepada nasabah ${userData?.name} atas kemenangan Trade-X.`
-      });
-    } else {
-      // LOG KEKALAHAN: Dana tetap di bank (Sudah ditarik di awal)
-      addDoc(collection(db, "system", "audit", "global_transactions"), {
-        id: `LOSS-${Date.now()}`,
-        category: "Trade-X Bank Profit",
-        amountIdr: betAmount,
-        status: "success",
-        timestamp: serverTimestamp(),
-        description: `Nasabah meleset. Investasi Rp ${betAmount.toLocaleString()} resmi menjadi laba operasional AliBank.`
-      });
     }
 
-    // Catat Riwayat Transaksi Nasabah
     addDoc(collection(db, "users", user.uid, "transactions"), {
       date: new Date().toISOString(),
-      description: `Trade-X Pro: ${prediction?.toUpperCase()} ${symbol}`,
-      category: "Trade-X Pro",
-      amount: betAmount,
+      description: `Trade-X: ${prediction?.toUpperCase()} ${symbol}`,
+      category: "Trade-X",
+      amount: amount,
       rewardAlx: rewardInAlx,
       status: isWin ? "WIN" : "LOSS",
       type: "expense",
       timestamp: serverTimestamp()
     });
 
-    setTradeHistory(prev => [{
-      id: Date.now(),
-      type: prediction,
-      entry: entryPrice,
-      exit: price,
-      amount: betAmount,
-      rewardAlx: rewardInAlx,
-      status: isWin ? 'WIN' : 'LOSS',
-      time: new Date().toLocaleTimeString()
-    }, ...prev]);
-
     setIsTrading(false);
     setPrediction(null);
     setEntryPrice(null);
-
     toast({
       variant: isWin ? "default" : "destructive",
-      title: isWin ? "TRANSAKSI PROFIT!" : "PREDIKSI MELESET",
-      description: isWin 
-        ? `Anda mendapatkan ${rewardInAlx.toFixed(8)} ALX!` 
-        : `Investasi Rp ${betAmount.toLocaleString()} menjadi profit bank.`
+      title: isWin ? "PROFIT!" : "LOSS",
+      description: isWin ? `Dapatkan ${rewardInAlx.toFixed(6)} ALX` : "Coba lagi strategi Anda."
     });
   };
 
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-[#0B0E11] text-white flex flex-col font-body overflow-hidden">
-      <header className="px-4 h-14 flex items-center justify-between border-b border-white/5 bg-[#161A1E] shrink-0">
-        <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="p-2 hover:bg-white/5 rounded-full transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 gold-gradient rounded flex items-center justify-center p-1">
-              <LogoIcon className="text-white" />
+    <div className="min-h-screen bg-[#0F1113] text-white flex flex-col font-body overflow-hidden">
+      {/* PROFESSIONAL TOP HEADER */}
+      <header className="px-4 h-16 flex items-center justify-between bg-[#171A1D] border-b border-white/5 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center relative cursor-pointer active:scale-95 transition-transform" onClick={() => router.push('/profile')}>
+            <User className="w-5 h-5 text-white/60" />
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#171A1D] flex items-center justify-center text-[8px] font-black text-white">7</div>
+          </div>
+          <div className="flex flex-col items-center">
+            <div className="flex items-center gap-1.5 cursor-pointer group" onClick={() => router.push('/')}>
+              <span className="text-sm font-black italic tracking-tighter">IDR {(userData?.totalBalance ?? 0).toLocaleString()}</span>
+              <ChevronDown className="w-3 h-3 text-white/40 group-hover:text-primary transition-colors" />
             </div>
-            <h1 className="text-sm font-black italic tracking-tighter uppercase">{symbol}/USDT <span className="text-primary">PRO</span></h1>
+            <span className="text-[8px] font-bold text-white/30 uppercase tracking-widest leading-none">IDR Akun Anda</span>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right mr-2 hidden xs:block">
-            <p className="text-[8px] font-bold text-white/40 uppercase">Saldo Riil</p>
-            <p className="text-[10px] font-black text-primary italic">Rp {(userData?.totalBalance ?? 0).toLocaleString()}</p>
-          </div>
-          <Badge variant="outline" className="border-primary/20 text-primary font-black text-[8px] h-5 uppercase">Yield 90%</Badge>
-          <Activity className="w-4 h-4 text-green-500 animate-pulse" />
-        </div>
+        <button onClick={() => router.push('/topup')} className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20 active:scale-95 transition-transform">
+          <Wallet className="w-5 h-5 text-white" />
+        </button>
       </header>
 
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        <div className="flex-1 relative border-r border-white/5 flex flex-col min-h-0">
-          <div className="p-4 flex justify-between items-center bg-[#161A1E]/50 shrink-0">
-            <div className="space-y-0.5">
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Live Tick Price</p>
-              <h2 className={cn(
-                "text-2xl font-black italic tracking-tighter transition-colors",
-                entryPrice ? (price >= entryPrice ? "text-green-500" : "text-rose-500") : "text-primary"
-              )}>
-                {price.toFixed(4)}
-              </h2>
-            </div>
-            {isTrading && (
-              <div className="flex items-center gap-3 bg-primary/10 px-4 py-2 rounded-xl border border-primary/20 animate-in zoom-in">
-                <Timer className="w-4 h-4 text-primary animate-spin" />
-                <span className="text-lg font-black italic text-primary">{timeLeft}s</span>
-              </div>
-            )}
+      {/* ASSET SELECTOR BAR */}
+      <div className="px-4 h-12 flex items-center justify-between bg-[#1C2024] shrink-0">
+        <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5 cursor-pointer active:bg-white/10 transition-colors">
+          <div className="w-5 h-5 rounded bg-primary flex items-center justify-center p-1">
+            <LogoIcon className="text-black" />
           </div>
+          <span className="text-xs font-black italic uppercase tracking-tighter">{symbol} Index - <span className="text-green-500">90%</span></span>
+          <ChevronDown className="w-3 h-3 text-white/40" />
+        </div>
+        <div className="flex items-center gap-4">
+          <Settings2 className="w-4 h-4 text-white/60" />
+          <div className="text-[10px] font-black bg-white/10 px-2 py-1 rounded text-white/80">5s</div>
+          <Activity className="w-4 h-4 text-white/60" />
+        </div>
+      </div>
 
-          <div className="flex-1 w-full pt-4 min-h-[200px] lg:min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={candles} margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-                <YAxis domain={['auto', 'auto']} hide />
-                <Tooltip 
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload;
-                      return (
-                        <div className="bg-[#161A1E] border border-white/10 p-2 rounded-lg text-[8px] font-bold uppercase">
-                          <p className="text-white/40">Open: <span className="text-white">{data.open.toFixed(4)}</span></p>
-                          <p className="text-white/40">Close: <span className="text-white">{data.close.toFixed(4)}</span></p>
-                          <p className="text-white/40">High: <span className="text-white">{data.high.toFixed(4)}</span></p>
-                          <p className="text-white/40">Low: <span className="text-white">{data.low.toFixed(4)}</span></p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                {entryPrice && (
-                  <ReferenceLine y={entryPrice} stroke="#FCD535" strokeDasharray="3 3" label={{ value: 'ENTRY', position: 'left', fill: '#FCD535', fontSize: 8, fontWeight: 'bold' }} />
-                )}
-                <Bar dataKey="high" fill="none" isAnimationActive={false}>
-                  {candles.map((entry, index) => (
-                    <Cell key={`wick-${index}`} fill={entry.isUp ? "#22c55e" : "#f43f5e"} />
-                  ))}
-                </Bar>
-                <Bar dataKey="candleHeight" isAnimationActive={false}>
-                  {candles.map((entry, index) => (
-                    <Cell key={`body-${index}`} fill={entry.isUp ? "#22c55e" : "#f43f5e"} />
-                  ))}
-                </Bar>
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
+      {/* CHART AREA */}
+      <main className="flex-1 relative overflow-hidden flex flex-col">
+        <div className="flex-1 relative pt-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={candles} margin={{ top: 20, right: 0, bottom: 20, left: 0 }}>
+              <YAxis domain={['auto', 'auto']} orientation="right" axisLine={false} tickLine={false} tick={{fontSize: 9, fill: 'rgba(255,255,255,0.3)'}} />
+              <Tooltip content={() => null} />
+              
+              {/* CURRENT PRICE LINE */}
+              <ReferenceLine y={price} stroke="rgba(255,255,255,0.2)" strokeDasharray="2 2">
+                <label value={price.toFixed(2)} position="right" fill="#fff" fontSize={10} fontWeight="bold" className="bg-white text-black" />
+              </ReferenceLine>
 
-          <div className="h-32 lg:h-48 border-t border-white/5 bg-[#161A1E]/30 overflow-y-auto no-scrollbar p-4 shrink-0">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 text-white/40">
-                <History className="w-3.5 h-3.5" />
-                <span className="text-[9px] font-black uppercase tracking-widest">Trade Logs</span>
-              </div>
-              <Badge variant="outline" className="text-[7px] border-white/10 text-white/40 uppercase">Auto-Settlement Active</Badge>
-            </div>
-            <div className="space-y-2">
-              {tradeHistory.map(log => (
-                <div key={log.id} className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/5 animate-in slide-in-from-top-2">
-                  <div className="flex items-center gap-3">
-                    <div className={cn("w-6 h-6 rounded flex items-center justify-center", log.type === 'high' ? "bg-green-500/20 text-green-500" : "bg-rose-500/20 text-rose-500")}>
-                      {log.type === 'high' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black italic uppercase">Rp {log.amount.toLocaleString()}</p>
-                      <p className="text-[8px] font-bold text-white/30">{log.time} • Entry: {log.entry.toFixed(4)}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center gap-1 justify-end">
-                      {log.status === 'WIN' ? (
-                        <>
-                          <p className="text-[10px] font-black text-green-500 italic">+{log.rewardAlx.toFixed(6)} ALX</p>
-                          <Trophy className="w-3 h-3 text-primary" />
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-[10px] font-black text-rose-500 italic">LOST</p>
-                          <Skull className="w-3 h-3 text-rose-500" />
-                        </>
-                      )}
-                    </div>
-                    <Badge className={cn("text-[7px] font-black h-4 px-1 border-none mt-1", log.status === 'WIN' ? "bg-green-500" : "bg-rose-500")}>{log.status}</Badge>
-                  </div>
-                </div>
-              ))}
-              {tradeHistory.length === 0 && (
-                <div className="py-6 text-center opacity-20">
-                  <Activity className="w-8 h-8 mx-auto mb-2" />
-                  <p className="text-[8px] font-black uppercase tracking-widest">Waiting for orders...</p>
-                </div>
+              {entryPrice && (
+                <ReferenceLine y={entryPrice} stroke="#FCD535" strokeDasharray="3 3" />
               )}
-            </div>
+
+              <Bar dataKey="candleHeight" isAnimationActive={false}>
+                {candles.map((entry, index) => (
+                  <Cell key={`body-${index}`} fill={entry.isUp ? "#26A69A" : "#EF5350"} />
+                ))}
+              </Bar>
+            </ComposedChart>
+          </ResponsiveContainer>
+
+          {/* ZOOM CONTROLS */}
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1 bg-[#1C2024]/80 backdrop-blur p-1 rounded-lg border border-white/5">
+            <button className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded"><Minus className="w-4 h-4 text-white/60" /></button>
+            <div className="w-px h-4 bg-white/10 self-center" />
+            <button className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded"><Plus className="w-4 h-4 text-white/60" /></button>
           </div>
         </div>
 
-        <div className="w-full lg:w-80 bg-[#161A1E] p-6 space-y-6 shadow-2xl overflow-y-auto no-scrollbar pb-32 lg:pb-6 shrink-0">
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <div className="flex justify-between items-center px-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Investasi (IDR)</label>
-                <div className="flex items-center gap-1 text-[9px] font-bold text-primary italic">
-                  <Wallet className="w-2.5 h-2.5" />
-                  <span>Rp {(userData?.totalBalance ?? 0).toLocaleString()}</span>
-                </div>
-              </div>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-primary italic">Rp</span>
-                <Input 
-                  type="number" 
-                  value={amount} 
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="h-14 pl-12 bg-white/5 border-white/10 rounded-xl font-black italic text-lg focus:ring-primary/20" 
-                />
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                {["50k", "100k", "500k", "1M"].map(v => (
-                  <button 
-                    key={v} 
-                    onClick={() => setAmount((parseInt(v.replace('k', '000').replace('M', '1000000'))).toString())}
-                    className="py-1.5 rounded-md bg-white/5 border border-white/10 text-[9px] font-black uppercase hover:bg-white/10 transition-colors"
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <label className="text-[10px] font-black uppercase tracking-widest text-white/40 px-1">Durasi Kontrak</label>
-              <div className="grid grid-cols-3 gap-2">
-                {DURATIONS.map(d => (
-                  <button 
-                    key={d.label} 
-                    onClick={() => setDuration(d.value)}
-                    className={cn(
-                      "py-3 rounded-xl border-2 font-black text-[10px] transition-all uppercase italic",
-                      duration === d.value ? "border-primary bg-primary/10 text-primary shadow-[0_0_15px_rgba(252,213,53,0.2)]" : "border-white/5 bg-white/5 text-white/40"
-                    )}
-                  >
-                    {d.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-primary/5 border border-primary/10 space-y-3">
-              <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-tight">
-                <span className="text-white/40">Potensi Profit (90%)</span>
-                <span className="text-green-500">+ Rp {(parseFloat(amount) * 0.9).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-end border-t border-white/5 pt-3">
-                <div>
-                  <p className="text-[8px] text-white/20 uppercase font-black">Estimasi Reward</p>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <p className="text-lg font-black italic text-primary">
-                      {((parseFloat(amount) * 1.9) / ALX_PRICE_IDR).toFixed(6)}
-                    </p>
-                    <span className="text-[10px] font-black text-primary uppercase">ALX</span>
-                  </div>
-                </div>
-                <Coins className="w-6 h-6 text-primary/20" />
-              </div>
+        {/* TRADING TERMINAL PANEL */}
+        <div className="bg-[#171A1D] border-t border-white/5 p-4 space-y-4 pb-8 shrink-0">
+          <div className="flex justify-between items-center px-1">
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Fixed Time mode</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold text-white/40 uppercase">Profit:</span>
+              <span className="text-xs font-black text-green-500 italic">+Rp {(amount * 0.9).toLocaleString()}</span>
+              <HelpCircle className="w-3 h-3 text-white/20" />
             </div>
           </div>
 
-          <div className="space-y-4 pt-2">
-            <Button 
-              onClick={() => startTrade('high')}
-              disabled={isTrading || !amount}
-              className="w-full h-20 bg-green-500 hover:bg-green-600 text-white rounded-2xl flex flex-col items-center justify-center gap-1 shadow-[0_10px_30px_rgba(34,197,94,0.3)] transition-all active:scale-95 group"
-            >
-              <TrendingUp className="w-6 h-6 group-hover:translate-y-[-2px] transition-transform" />
-              <span className="text-lg font-black uppercase italic tracking-tighter">HIGH (NAIK)</span>
-            </Button>
+          <div className="grid grid-cols-2 gap-3">
+            {/* DURATION SELECTOR */}
+            <div className="bg-[#1C2024] rounded-xl p-1 flex items-center justify-between border border-white/5 h-14">
+              <button onClick={() => setDuration(Math.max(5, duration - 15))} className="w-10 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Minus className="w-4 h-4 text-white/40" /></button>
+              <div className="flex-1 text-center">
+                <p className="text-base font-black italic">{duration >= 60 ? `${duration/60} min` : `${duration} s`}</p>
+              </div>
+              <button onClick={() => setDuration(duration + 15)} className="w-10 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Plus className="w-4 h-4 text-white/40" /></button>
+            </div>
 
-            <Button 
+            {/* AMOUNT SELECTOR */}
+            <div className="bg-[#1C2024] rounded-xl p-1 flex items-center justify-between border border-white/5 h-14">
+              <button onClick={() => setAmount(Math.max(10000, amount - 50000))} className="w-10 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Minus className="w-4 h-4 text-white/40" /></button>
+              <div className="flex-1 text-center">
+                <p className="text-[11px] font-black italic uppercase leading-none mt-1">Rp</p>
+                <p className="text-sm font-black italic">{amount.toLocaleString()}</p>
+              </div>
+              <button onClick={() => setAmount(amount + 50000)} className="w-10 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Plus className="w-4 h-4 text-white/40" /></button>
+            </div>
+          </div>
+
+          <div className="flex gap-3 h-16">
+            {/* DOWN BUTTON */}
+            <button 
               onClick={() => startTrade('low')}
-              disabled={isTrading || !amount}
-              className="w-full h-20 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl flex flex-col items-center justify-center gap-1 shadow-[0_10px_30px_rgba(244,63,94,0.3)] transition-all active:scale-95 group"
+              disabled={isTrading}
+              className={cn(
+                "flex-1 rounded-2xl bg-[#EF5350] hover:bg-[#D32F2F] active:scale-95 transition-all flex items-center justify-between px-6 shadow-lg shadow-red-500/10",
+                isTrading && "opacity-50 grayscale"
+              )}
             >
-              <TrendingDown className="w-6 h-6 group-hover:translate-y-[2px] transition-transform" />
-              <span className="text-lg font-black uppercase italic tracking-tighter">LOW (TURUN)</span>
-            </Button>
-          </div>
+              <div className="text-left">
+                <span className="text-xs font-black uppercase italic tracking-tighter block">Down</span>
+                <p className="text-[8px] font-bold text-white/60 uppercase">Meleset</p>
+              </div>
+              <TrendingDown className="w-6 h-6" />
+            </button>
 
-          <div className="pt-4 text-center space-y-4">
-            <div className="flex items-center justify-center gap-2 text-white/20">
-              <ShieldCheck className="w-4 h-4" />
-              <span className="text-[8px] font-black uppercase tracking-[0.3em]">Institutional Node V3.2</span>
-            </div>
-            <p className="text-[8px] text-white/30 italic uppercase leading-relaxed px-2">
-              Investasi derivatif berisiko tinggi. Setiap kekalahan akan memotong saldo IDR Anda, dan kemenangan akan dibayarkan langsung dalam aset Kedaulatan ALX.
-            </p>
+            {/* STATUS / CLOCK ICON */}
+            <button className="w-16 h-full bg-[#1C2024] rounded-2xl border border-white/5 flex items-center justify-center active:scale-95 transition-transform">
+              {isTrading ? <span className="text-primary font-black italic text-lg">{timeLeft}</span> : <Clock className="w-6 h-6 text-white/40" />}
+            </button>
+
+            {/* UP BUTTON */}
+            <button 
+              onClick={() => startTrade('high')}
+              disabled={isTrading}
+              className={cn(
+                "flex-1 rounded-2xl bg-[#26A69A] hover:bg-[#00897B] active:scale-95 transition-all flex items-center justify-between px-6 shadow-lg shadow-teal-500/10",
+                isTrading && "opacity-50 grayscale"
+              )}
+            >
+              <div className="text-left">
+                <span className="text-xs font-black uppercase italic tracking-tighter block">Up</span>
+                <p className="text-[8px] font-bold text-white/60 uppercase">Naik</p>
+              </div>
+              <TrendingUp className="w-6 h-6" />
+            </button>
           </div>
         </div>
       </main>
+
+      {/* TERMINAL NAVIGATION */}
+      <footer className="h-16 bg-[#171A1D] border-t border-white/5 flex items-center justify-around shrink-0 px-2">
+        <button className="flex flex-col items-center gap-1 group">
+          <LineChart className="w-5 h-5 text-primary" />
+          <div className="w-1 h-1 bg-primary rounded-full" />
+        </button>
+        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+          <ArrowRightLeft className="w-5 h-5" />
+        </button>
+        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+          <ShoppingBag className="w-5 h-5" />
+        </button>
+        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+          <Trophy className="w-5 h-5" />
+        </button>
+        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+          <HelpCircle className="w-5 h-5" />
+        </button>
+      </footer>
     </div>
   );
 }
