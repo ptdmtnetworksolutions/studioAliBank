@@ -80,8 +80,13 @@ function HandCoinIcon({ className }: { className?: string }) {
   );
 }
 
+// KONFIGURASI HARGA RIIL ALX
+const ALX_PRICE_USD = 12.24;
+const USDT_IDR_RATE = 15850;
+const ALX_PRICE_IDR = ALX_PRICE_USD * USDT_IDR_RATE; // Rp 194,004
+
 const INITIAL_COINS = [
-  { symbol: "ALX", price: 12.24, baseIdr: 194000, change: 1.14, isUp: true },
+  { symbol: "ALX", price: ALX_PRICE_USD, baseIdr: ALX_PRICE_IDR, change: 1.14, isUp: true, isNative: true },
   { symbol: "BTC", price: 66262.29, baseIdr: 1125133021, change: -3.76, isUp: false },
   { symbol: "ETH", price: 1987.12, baseIdr: 33741277, change: -3.98, isUp: false },
   { symbol: "SOL", price: 82.63, baseIdr: 1403056, change: -4.69, isUp: false },
@@ -119,6 +124,14 @@ function DashboardContent() {
   }, [db, user]);
 
   const { data: userData } = useDoc(userDocRef);
+
+  // HITUNG TOTAL ESTIMASI NILAI (IDR Balance + ALX Value)
+  const totalValueCalculated = useMemo(() => {
+    const idrBalance = userData?.totalBalance ?? 0;
+    const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
+    const alxValueIdr = alxHoldings * ALX_PRICE_IDR;
+    return idrBalance + alxValueIdr;
+  }, [userData]);
 
   const unreadQuery = useMemo(() => {
     if (!db || !user) return null;
@@ -160,6 +173,9 @@ function DashboardContent() {
     if (!mounted) return;
     const interval = setInterval(() => {
       setMarketCoins(prev => prev.map(coin => {
+        // ALX tetap stabil di harga target, koin lain berfluktuasi
+        if (coin.symbol === "ALX") return coin; 
+        
         const move = (Math.random() * 0.002 - 0.001); // 0.2% max move
         const newPrice = coin.price * (1 + move);
         const newChange = coin.change + (Math.random() * 0.1 - 0.05);
@@ -260,13 +276,6 @@ function DashboardContent() {
     );
   }
 
-  const popularSearches = [
-    { name: "扭羊歌", symbol: "NYG", price: "Rp16,72", change: "+13,77%", color: "text-green-500", vol: "Rp6,24B", cap: "Rp16,6B" },
-    { name: "PIXEL", symbol: "PIXEL", price: "Rp0,3968", change: "+3,67%", color: "text-green-500", vol: "Rp89,78M", cap: "Rp396,85M" },
-  ];
-
-  const IDR_RATE = 15850;
-
   return (
     <div 
       className="min-h-screen bg-background pb-32 text-foreground transition-colors duration-300 relative overflow-x-hidden"
@@ -345,7 +354,7 @@ function DashboardContent() {
         <div className="relative mb-2">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
-            placeholder={activeTab === 'bursa' ? "ALX pencarian terpopuler" : "Pencarian Teratas: 扭羊歌"}
+            placeholder={activeTab === 'bursa' ? "ALX pencarian terpopuler" : "Pencarian Teratas: ALX"}
             className="h-10 pl-11 pr-4 bg-muted border-none rounded-md text-xs font-medium placeholder:text-muted-foreground shadow-sm"
           />
         </div>
@@ -379,12 +388,12 @@ function DashboardContent() {
                   <ChevronDown className="w-3 h-3" />
                 </div>
                 <h1 className="text-4xl font-black tracking-tight text-foreground">
-                  Rp{(userData?.totalBalance ?? 0).toLocaleString('id-ID')}
+                  Rp{totalValueCalculated.toLocaleString('id-ID')}
                 </h1>
                 <div className="flex items-center gap-1.5 text-[10px] font-bold">
                   <span className="text-muted-foreground">PNL hari ini</span>
-                  <span className="text-rose-500">-Rp0.000679 (-0.00%)</span>
-                  <ChevronDown className="w-3 h-3 text-rose-500" />
+                  <span className="text-green-500">+Rp1.240 (+0.01%)</span>
+                  <ChevronDown className="w-3 h-3 text-green-500" />
                 </div>
               </div>
               <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-black px-4 h-10 rounded-lg shadow-none text-xs" onClick={openAddFunds}>
@@ -548,11 +557,17 @@ function DashboardContent() {
                   <div key={coin.symbol} className="grid grid-cols-3 items-center group cursor-pointer active:opacity-70 transition-opacity" onClick={() => router.push(`/crypto/market/${coin.symbol.toLowerCase()}`)}>
                     <div className="flex items-center gap-1">
                       <span className="text-sm font-black italic tracking-tight text-foreground">{coin.symbol}</span>
-                      <Flame className="w-3.5 h-3.5 text-orange-500" />
+                      {coin.isNative ? (
+                        <div className="w-4 h-4 bg-primary/20 text-primary rounded flex items-center justify-center text-[7px] font-black">V3</div>
+                      ) : (
+                        <Flame className="w-3.5 h-3.5 text-orange-500" />
+                      )}
                     </div>
                     <div className="text-right space-y-0.5">
-                      <p className="text-sm font-black italic tracking-tight text-foreground">{coin.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
-                      <p className="text-[9px] font-bold text-muted-foreground">Rp{(coin.price * IDR_RATE).toLocaleString('id-ID')}</p>
+                      <p className="text-sm font-black italic tracking-tight text-foreground">
+                        {coin.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: coin.price < 1 ? 4 : 2 })}
+                      </p>
+                      <p className="text-[9px] font-bold text-muted-foreground">Rp{coin.baseIdr.toLocaleString('id-ID')}</p>
                     </div>
                     <div className="flex justify-end">
                       <div className={cn(
@@ -584,7 +599,7 @@ function DashboardContent() {
 
             <div className="flex justify-between items-center px-1">
               <h1 className="text-5xl font-black tracking-tighter text-foreground italic">
-                Rp{(userData?.totalBalance ?? 0).toLocaleString('id-ID')}
+                Rp{totalValueCalculated.toLocaleString('id-ID')}
               </h1>
               <div className="flex gap-2">
                 <Button 
