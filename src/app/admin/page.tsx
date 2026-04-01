@@ -1,4 +1,3 @@
-
 "use client";
 
 import { 
@@ -122,6 +121,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+// KONSTANTA GLOBAL ADMIN
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
 const ALIX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; // Vault Address
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
