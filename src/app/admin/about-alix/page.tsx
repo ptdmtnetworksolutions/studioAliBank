@@ -36,7 +36,10 @@ import {
   Flame,
   Cpu,
   Target,
-  BarChart3
+  BarChart3,
+  Rocket,
+  Users,
+  Layers
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -319,94 +322,85 @@ export default function AboutAlixPage() {
 
           <TabsContent value="liquidity" className="space-y-12 animate-in fade-in zoom-in-95 duration-500">
             <header className="text-center max-w-3xl mx-auto space-y-4">
-              <Badge className="gold-gradient text-white font-black uppercase text-[9px] px-6 py-1.5 rounded-full">Stage 2: Global Listing</Badge>
-              <h2 className="text-4xl font-black text-accent dark:text-white uppercase italic tracking-tighter">Strategi Likuiditas Uniswap</h2>
+              <Badge className="gold-gradient text-white font-black uppercase text-[9px] px-6 py-1.5 rounded-full">Liquidity Roadmap</Badge>
+              <h2 className="text-4xl font-black text-accent dark:text-white uppercase italic tracking-tighter">Strategi Nilai Aset ALX</h2>
               <p className="text-xs font-medium text-muted-foreground uppercase leading-relaxed italic">
-                Pelajari cara memberikan nilai nyata pada ALX melalui Uniswap Liquidity Pool.
+                Pilih jalur yang sesuai dengan kapasitas modal Anda untuk memberikan harga pada ALX.
               </p>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <Card className="liquid-glass border-none rounded-[2.5rem] p-10 space-y-6 shadow-xl">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-                    <Target className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-lg font-black uppercase italic tracking-tight">Target Harga: $12.24</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6 shadow-xl border-t-4 border-blue-500/30">
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner">
+                  <Building2 className="w-6 h-6" />
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed italic uppercase">
-                  Agar harga pembukaan ALX di Uniswap sesuai dengan sistem AliBank ($12.24), Anda harus menggunakan rumus rasio tetap saat pembuatan Pool.
+                <h3 className="text-lg font-black uppercase italic tracking-tight">1. Internal First</h3>
+                <p className="text-[10px] text-muted-foreground leading-relaxed italic uppercase">
+                  Nasabah membeli ALX langsung di aplikasi AliBank. Uang penjualan dikumpulkan di Vault Anda untuk modal Uniswap nantinya.
                 </p>
-                <div className="p-6 rounded-2xl bg-accent/5 border border-primary/10 space-y-4">
-                  <p className="text-[10px] font-black text-primary uppercase tracking-widest">Formula Dasar</p>
-                  <div className="bg-black/20 dark:bg-white/5 p-4 rounded-xl font-mono text-center text-lg font-bold">
-                    Price = USDT / ALX
-                  </div>
-                </div>
+                <Badge className="bg-blue-100 text-blue-600 border-none font-black text-[8px] uppercase italic">Zero Upfront Cost</Badge>
               </Card>
 
-              <Card className="liquid-glass border-none rounded-[2.5rem] p-10 space-y-6 shadow-xl">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner">
-                    <Calculator className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-lg font-black uppercase italic tracking-tight">Kalkulator Modal</h3>
+              <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6 shadow-xl border-t-4 border-orange-500/30">
+                <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600 shadow-inner">
+                  <Rocket className="w-6 h-6" />
                 </div>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center text-[11px] font-bold uppercase italic">
-                    <span className="text-muted-foreground">Token ALX</span>
-                    <span className="text-accent">1.000 ALX</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[11px] font-bold uppercase italic">
-                    <span className="text-muted-foreground">Modal USDT</span>
-                    <span className="text-primary">12.240 USDT</span>
-                  </div>
-                  <div className="h-px bg-primary/10" />
-                  <div className="flex justify-between items-center text-[11px] font-bold uppercase italic">
-                    <span className="text-muted-foreground">Token ALX</span>
-                    <span className="text-accent">10.000 ALX</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[11px] font-bold uppercase italic">
-                    <span className="text-muted-foreground">Modal USDT</span>
-                    <span className="text-primary">122.400 USDT</span>
-                  </div>
-                </div>
-                <p className="text-[9px] text-muted-foreground italic leading-relaxed font-bold uppercase">
-                  Catatan: USDT adalah "uang nyata" yang menjamin likuiditas nasabah. Dana ini akan disimpan di Smart Contract Uniswap.
+                <h3 className="text-lg font-black uppercase italic tracking-tight">2. Micro-Liquidity</h3>
+                <p className="text-[10px] text-muted-foreground leading-relaxed italic uppercase">
+                  Mulai dengan kolam kecil di Uniswap (misal 100 ALX + $1,224). ALX resmi punya harga global tanpa harus mem-back up seluruh suplai.
                 </p>
+                <Badge className="bg-orange-100 text-orange-600 border-none font-black text-[8px] uppercase italic">Low Budget Start</Badge>
+              </Card>
+
+              <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-6 shadow-xl border-t-4 border-green-500/30">
+                <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-600 shadow-inner">
+                  <Users className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-black uppercase italic tracking-tight">3. Community IDO</h3>
+                <p className="text-[10px] text-muted-foreground leading-relaxed italic uppercase">
+                  Lakukan penjualan awal (Presale) kepada komunitas AliBank. Gunakan dana hasil penjualan untuk menyediakan likuiditas publik.
+                </p>
+                <Badge className="bg-green-100 text-green-600 border-none font-black text-[8px] uppercase italic">Crowdfunded</Badge>
               </Card>
             </div>
 
             <section className="liquid-glass-dark rounded-[3.5rem] p-12 text-white space-y-10 relative overflow-hidden shadow-2xl">
               <div className="absolute inset-0 gold-gradient opacity-5" />
               <div className="relative z-10 flex items-center gap-6">
-                <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center text-primary shadow-lg"><Sparkles className="w-8 h-8" /></div>
+                <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center text-primary shadow-lg"><Layers className="w-8 h-8" /></div>
                 <div>
-                  <h3 className="text-2xl font-black text-white uppercase italic tracking-tight leading-none">The Market Maker Protocol</h3>
-                  <p className="text-[10px] text-primary font-black uppercase tracking-widest mt-2">Menjadi Penyedia Likuiditas Pertama</p>
+                  <h3 className="text-2xl font-black text-white uppercase italic tracking-tight leading-none">The Pricing Formula</h3>
+                  <p className="text-[10px] text-primary font-black uppercase tracking-widest mt-2">Target Harga Pembukaan: $12.24</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
-                <div className="space-y-4">
-                  <div className="text-primary font-black text-2xl italic">01.</div>
-                  <h4 className="font-black uppercase text-sm italic">Add Liquidity</h4>
-                  <p className="text-[10px] text-white/60 leading-relaxed uppercase">Buka Uniswap V2/V3, pilih pair ALX/USDT. Masukkan jumlah koin dan USDT sesuai rasio target harga.</p>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 relative z-10">
+                <div className="space-y-6">
+                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-4">
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Rasio Uniswap V3</p>
+                    <div className="bg-black/20 p-4 rounded-xl font-mono text-center text-lg font-bold">
+                      Price = USDT / ALX
+                    </div>
+                    <p className="text-[9px] text-white/40 italic leading-relaxed uppercase">
+                      Anda bebas menentukan berapa pun jumlah ALX & USDT yang dimasukkan, selama hasilnya pembagiannya adalah 12.24.
+                    </p>
+                  </div>
                 </div>
+
                 <div className="space-y-4">
-                  <div className="text-primary font-black text-2xl italic">02.</div>
-                  <h4 className="font-black uppercase text-sm italic">Mint LP Tokens</h4>
-                  <p className="text-[10px] text-white/60 leading-relaxed uppercase">Uniswap akan memberikan Anda token LP sebagai bukti kepemilikan modal di kolam tersebut.</p>
+                  <div className="flex justify-between items-center text-[11px] font-bold uppercase italic border-b border-white/10 pb-2">
+                    <span className="text-white/60">Contoh Modal Kecil</span>
+                    <span className="text-primary">100 ALX : $1,224</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[11px] font-bold uppercase italic border-b border-white/10 pb-2">
+                    <span className="text-white/60">Contoh Modal Menengah</span>
+                    <span className="text-primary">1,000 ALX : $12,240</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[11px] font-bold uppercase italic">
+                    <span className="text-white/60">Contoh Modal Institusi</span>
+                    <span className="text-primary">10,000 ALX : $122,400</span>
+                  </div>
                 </div>
-                <div className="space-y-4">
-                  <div className="text-primary font-black text-2xl italic">03.</div>
-                  <h4 className="font-black uppercase text-sm italic">Price Discovery</h4>
-                  <p className="text-[10px] text-white/60 leading-relaxed uppercase">Saat orang mulai membeli ALX, USDT di kolam bertambah, dan harga ALX naik secara otomatis.</p>
-                </div>
-              </div>
-              <div className="pt-8 border-t border-white/10 text-center relative z-10">
-                <p className="text-[11px] font-bold text-white/40 uppercase italic tracking-widest">
-                  ALIBANK LIQUIDITY ENGINE • POWERED BY UNISWAP V3 PROTOCOL
-                </p>
               </div>
             </section>
           </TabsContent>
