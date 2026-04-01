@@ -195,7 +195,6 @@ function AdminContent() {
         
         const updates: any = {};
         if (logData.amountIdr) {
-          // Hanya kurangi jika saldo di dashboard masih ada (cegah negatif ekstrem)
           updates.totalFiatInjected = increment(-logData.amountIdr);
           
           if (logData.category === "Trade-X Capture") {
@@ -235,6 +234,7 @@ function AdminContent() {
       });
 
       // Reset metrik likuiditas dashboard ke nol (Fresh State) - Paksa overwrite
+      // Menghapus seluruh akumulasi pendapatan game dan cadangan vault
       const liquidityRef = doc(db, "system", "liquidity");
       batch.set(liquidityRef, {
         totalFiatInjected: 0,
@@ -246,10 +246,10 @@ function AdminContent() {
         alixVaultBalance: 0,
         totalAlixMinted: 0,
         totalAlixBurned: 0
-      }, { merge: false }); // Gunakan merge false untuk membersihkan korupsi data
+      }, { merge: false });
 
       await batch.commit();
-      toast({ title: "Sistem Dibersihkan", description: "Audit dihapus dan dashboard kembali ke Nol Mutlak." });
+      toast({ title: "Sistem Dibersihkan", description: "Audit dihapus dan seluruh angka dashboard kembali ke Nol Mutlak." });
     } catch (err) {
       toast({ variant: "destructive", title: "Gagal Membersihkan Audit" });
     } finally {
@@ -257,7 +257,6 @@ function AdminContent() {
     }
   };
 
-  // Helper untuk membersihkan tampilan angka (Cegah tampilan minus di UI)
   const displayVal = (val: number) => Math.max(0, val || 0);
 
   if (userLoading || !isAuthorized) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
@@ -386,7 +385,7 @@ function AdminContent() {
                         <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Total Net Capital (IDR)</p>
                         <Badge className="bg-green-500/10 text-green-600 border-none text-[10px] font-black px-2">+12.01%</Badge>
                       </div>
-                      <h2 className="text-6xl font-black tracking-tighter italic text-[#1A1D1F] dark:text-foreground transition-colors">Rp {displayVal(globalLiquidity?.totalFiatInjected).toLocaleString()}</h2>
+                      <h2 className="text-6xl font-black tracking-tighter italic text-[#1A1D1F] dark:text-foreground transition-colors">Rp {displayVal(globalLiquidity?.totalFiatInjected).toLocaleString('id-ID')}</h2>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
@@ -395,14 +394,14 @@ function AdminContent() {
                           <Globe className="w-4 h-4" />
                           <span className="text-[10px] font-bold uppercase">Vault Reserve (USD)</span>
                         </div>
-                        <p className="text-xl font-black italic text-[#1A1D1F] dark:text-foreground">$ {displayVal(globalLiquidity?.totalUsdInjected).toLocaleString()}</p>
+                        <p className="text-xl font-black italic text-[#1A1D1F] dark:text-foreground">$ {displayVal(globalLiquidity?.totalUsdInjected).toLocaleString('id-ID', { minimumFractionDigits: 2 })}</p>
                       </div>
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <TrendingUp className="w-4 h-4 text-green-600" />
                           <span className="text-[10px] font-bold uppercase">Gaming Profit (IDR)</span>
                         </div>
-                        <p className="text-xl font-black italic text-green-600 transition-colors">Rp {displayVal((globalLiquidity?.tradeXGrossVolumeIdr || 0) + (globalLiquidity?.spinGrossVolumeIdr || 0)).toLocaleString()}</p>
+                        <p className="text-xl font-black italic text-green-600 transition-colors">Rp {displayVal((globalLiquidity?.tradeXGrossVolumeIdr || 0) + (globalLiquidity?.spinGrossVolumeIdr || 0)).toLocaleString('id-ID')}</p>
                       </div>
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-muted-foreground">
@@ -496,7 +495,7 @@ function AdminContent() {
                       <div className="flex justify-between items-end">
                         <div>
                           <p className="text-[8px] font-black uppercase opacity-40 mb-1">Vault Inventory</p>
-                          <p className="text-sm font-black italic">{displayVal(globalLiquidity?.alixVaultBalance).toLocaleString()} ALX</p>
+                          <p className="text-sm font-black italic">{displayVal(globalLiquidity?.alixVaultBalance).toLocaleString('id-ID')} ALX</p>
                         </div>
                         <div className="text-right">
                           <p className="text-[8px] font-black uppercase opacity-40 mb-1">Anchor Price</p>
@@ -542,11 +541,11 @@ function AdminContent() {
                             </td>
                             <td className="px-10 py-6">
                               <p className="text-sm font-black italic text-[#1A1D1F] dark:text-foreground">
-                                {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : log.cryptoAmount ? `${log.cryptoAmount} ${log.cryptoCurrency}` : '---'}
+                                {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString('id-ID')}` : log.cryptoAmount ? `${log.cryptoAmount} ${log.cryptoCurrency}` : '---'}
                               </p>
                             </td>
                             <td className="px-10 py-6 text-right">
-                              <p className="text-[10px] font-bold text-muted-foreground italic">{log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString() : '---'}</p>
+                              <p className="text-[10px] font-bold text-muted-foreground italic">{log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString('id-ID') : '---'}</p>
                             </td>
                           </tr>
                         ))}
@@ -599,7 +598,7 @@ function AdminContent() {
                             <td className="px-10 py-6 font-mono text-[11px] text-muted-foreground">{u.accountNumber}</td>
                             <td className="px-10 py-6 text-right">
                               <div className="flex flex-col items-end gap-2">
-                                <p className="text-base font-black italic tracking-tighter text-[#1A1D1F] dark:text-foreground">Rp {u.totalBalance?.toLocaleString()}</p>
+                                <p className="text-base font-black italic tracking-tighter text-[#1A1D1F] dark:text-foreground">Rp {u.totalBalance?.toLocaleString('id-ID')}</p>
                                 <div className="flex items-center gap-2">
                                   <Input type="number" placeholder="Amt" className="h-8 w-20 text-[10px] font-black bg-muted border-none shadow-none rounded-lg text-foreground transition-colors" value={adjustAmounts[u.uid] || ""} onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [u.uid]: e.target.value }))} />
                                   <div className="flex gap-1">
@@ -639,7 +638,7 @@ function AdminContent() {
                   <div className="space-y-6">
                     <div className="bg-muted p-8 rounded-[2rem] space-y-2 transition-colors">
                       <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Global Anchor Reserve (USD)</p>
-                      <p className="text-3xl font-black italic text-[#1A1D1F] dark:text-foreground">$ {displayVal(globalLiquidity?.totalUsdInjected).toLocaleString()}</p>
+                      <p className="text-3xl font-black italic text-[#1A1D1F] dark:text-foreground">$ {displayVal(globalLiquidity?.totalUsdInjected).toLocaleString('id-ID', { minimumFractionDigits: 2 })}</p>
                     </div>
                     <div className="space-y-3">
                       <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Amount to Authorize (ALX)</label>
@@ -664,7 +663,7 @@ function AdminContent() {
                   <div className="space-y-6">
                     <div className="bg-background/10 p-8 rounded-[2rem] space-y-2">
                       <p className="text-[9px] font-black uppercase opacity-40 tracking-widest">Permanently Incinerated</p>
-                      <p className="text-3xl font-black italic">{displayVal(globalLiquidity?.totalAlixBurned).toLocaleString()} ALX</p>
+                      <p className="text-3xl font-black italic">{displayVal(globalLiquidity?.totalAlixBurned).toLocaleString('id-ID')} ALX</p>
                     </div>
                     <div className="space-y-3">
                       <label className="text-[10px] font-black uppercase opacity-40 ml-2">Amount to Burn (ALX)</label>
@@ -743,7 +742,7 @@ function AdminContent() {
                           <Badge className="bg-primary/10 text-primary border-none font-black text-[8px] uppercase px-2 mb-2">{item.category}</Badge>
                           <h4 className="text-sm font-black italic uppercase text-foreground">{item.name}</h4>
                           <div className="flex justify-between items-center mt-2">
-                            <p className="text-xs font-black text-foreground">Rp {item.priceIdr?.toLocaleString()}</p>
+                            <p className="text-xs font-black text-foreground">Rp {item.priceIdr?.toLocaleString('id-ID')}</p>
                             <p className="text-[10px] font-bold text-muted-foreground">Stock: {item.stock || 0}</p>
                           </div>
                         </div>
@@ -800,7 +799,7 @@ function AdminContent() {
                               <div className="flex items-center gap-2">
                                 <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                                 <span className="text-[10px] font-bold text-muted-foreground italic">
-                                  {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString() : '---'}
+                                  {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString('id-ID') : '---'}
                                 </span>
                               </div>
                             </td>
@@ -813,7 +812,7 @@ function AdminContent() {
                             </td>
                             <td className="px-10 py-6 text-right">
                               <p className="text-sm font-black italic text-[#1A1D1F] dark:text-foreground">
-                                {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : log.cryptoAmount ? `${log.cryptoAmount} ${log.cryptoCurrency}` : '---'}
+                                {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString('id-ID')}` : log.cryptoAmount ? `${log.cryptoAmount} ${log.cryptoCurrency}` : '---'}
                               </p>
                             </td>
                             <td className="px-10 py-6 text-center">
