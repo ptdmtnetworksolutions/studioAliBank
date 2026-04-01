@@ -117,11 +117,10 @@ import {
   CartesianGrid, 
   Tooltip as RechartsTooltip, 
   ResponsiveContainer,
-  Cell,
-  ReferenceLine
+  Cell
 } from "recharts";
 
-// KONSTANTA GLOBAL ADMIN - ALIBANK VAULT V3 (WEB3 NATIVE)
+// KONSTANTA GLOBAL ADMIN - ALIBANK VAULT V3
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
 const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
@@ -171,12 +170,12 @@ function AdminContent() {
 
   const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
   const { data: globalLiquidity } = useDoc(liquidityDocRef);
+  
   const usersQuery = useMemo(() => (db ? query(collection(db, "users"), limit(100)) : null), [db]);
   const { data: allUsers } = useCollection(usersQuery);
+  
   const auditQuery = useMemo(() => (db ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(100)) : null), [db]);
   const { data: auditLogs } = useCollection(auditQuery);
-  const marketplaceQuery = useMemo(() => (db ? query(collection(db, "marketplace"), limit(50)) : null), [db]);
-  const { data: inventoryItems } = useCollection(marketplaceQuery);
 
   const userProfileRef = useMemo(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: userData } = useDoc(userProfileRef);
@@ -185,18 +184,14 @@ function AdminContent() {
     setSyncingVault(true);
     try {
       const provider = new JsonRpcProvider(GLOBAL_RPC);
-      
-      // 1. Ambil Saldo Kontrak Brankas
       const vaultBalance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
       setOnChainEth(formatEther(vaultBalance));
 
-      // 2. Ambil Saldo Dompet Operasional Admin (untuk Gas)
       if (userData?.walletAddress) {
         const adminBal = await provider.getBalance(userData.walletAddress).catch(() => 0n);
         setAdminWalletEth(formatEther(adminBal));
       }
 
-      // 3. Ambil Riwayat Transaksi Riil
       try {
         const [resNormal, resInternal] = await Promise.all([
           fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${ETHERSCAN_API_KEY}`),
@@ -240,7 +235,6 @@ function AdminContent() {
         console.warn("Etherscan API failed", apiErr);
       }
       
-      // Update grafik simulasi
       setCandleData(generateMockCandles());
 
       if (manual) {
@@ -278,20 +272,10 @@ function AdminContent() {
     try {
       const provider = new JsonRpcProvider(GLOBAL_RPC);
       const wallet = new ethers.Wallet(userData.privateKey, provider);
-      
-      const balance = await provider.getBalance(wallet.address);
-      if (balance === 0n) {
-        throw new Error("Insufficient Funds: Dompet admin tidak memiliki ETH untuk gas fee.");
-      }
-
-      toast({ title: "Memulai Kliring", description: "Menyiapkan transaksi on-chain..." });
-
       const tx = await wallet.sendTransaction({
         to: vaultRecipient,
         value: ethers.parseEther(vaultAmount)
       });
-
-      toast({ title: "Transaksi Disiarkan", description: `Hash: ${tx.hash.slice(0,10)}...` });
       await tx.wait();
       
       if (db) {
@@ -299,60 +283,27 @@ function AdminContent() {
           id: `VAULT-WDR-${Date.now()}`,
           category: "External Disbursement",
           gateway: "Ali-Mainnet Node",
-          amountUsd: parseFloat(vaultAmount) * 2500, 
+          amountIdr: parseFloat(vaultAmount) * 33000000, 
           recipient: vaultRecipient,
           status: "success",
           txHash: tx.hash,
           timestamp: serverTimestamp(),
-          description: `Real withdrawal executed via Web3 Node.`
+          description: `Withdrawal to ${vaultRecipient}`
         });
       }
-
-      toast({ title: "Pencairan Berhasil", description: "Dana telah dipindahkan di Mainnet." });
-      setVaultRecipient("");
-      setVaultAmount("");
+      toast({ title: "Pencairan Berhasil" });
+      setVaultRecipient(""); setVaultAmount("");
       syncOnChainData(true);
     } catch (err: any) {
-      console.error("TX Error:", err);
       toast({ variant: "destructive", title: "Gagal Eksekusi", description: err.message });
     } finally {
       setIsExecutingVaultTx(false);
     }
   };
 
-  const handleUpdateUserBalance = async (uid: string, type: 'add' | 'sub') => {
-    if (!db) return;
-    const amount = parseFloat(adjustAmounts[uid] || "0");
-    if (isNaN(amount) || amount <= 0) return;
-    try {
-      await updateDoc(doc(db, "users", uid), { totalBalance: increment(type === 'add' ? amount : -amount) });
-      toast({ title: "Balance Updated" });
-      setAdjustAmounts(prev => ({ ...prev, [uid]: "" }));
-    } catch (e) {}
-  };
-
-  const handleMintAlix = async () => {
-    if (!db || !alixMintAmount) return;
-    const amount = parseFloat(alixMintAmount);
-    setIsMinting(true);
-    try {
-      await updateDoc(doc(db, "system", "liquidity"), { alixVaultBalance: increment(amount), totalAlixMinted: increment(amount) });
-      toast({ title: "Token Minted" });
-      setAlixMintAmount("");
-    } catch (e) {} finally { setIsMinting(false); }
-  };
-
-  const handleDeleteAuditLog = async (logId: string) => {
-    if (!db) return;
-    try {
-      await deleteDoc(doc(db, "system", "audit", "global_transactions", logId));
-      toast({ title: "Log Dihapus" });
-    } catch (err) {}
-  };
-
   const handlePurgeAuditLogs = async () => {
     if (!db || isPurging) return;
-    if (!confirm("Hapus seluruh riwayat operasi?")) return;
+    if (!confirm("Hapus seluruh riwayat operasi? Tindakan ini tidak dapat dibatalkan.")) return;
     setIsPurging(true);
     try {
       const q = query(collection(db, "system", "audit", "global_transactions"));
@@ -360,7 +311,7 @@ function AdminContent() {
       const batch = writeBatch(db);
       snapshot.docs.forEach((doc) => batch.delete(doc.ref));
       await batch.commit();
-      toast({ title: "Sistem Dibersihkan" });
+      toast({ title: "Sistem Dibersihkan", description: "Semua log audit telah dihapus." });
     } catch (err) {} finally { setIsPurging(false); }
   };
 
@@ -390,20 +341,32 @@ function AdminContent() {
             <SidebarItem icon={FileText} label="Audit Logs" active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} />
           </nav>
 
-          <div className="p-6 border-t border-border">
-            <div className="flex items-center justify-between mb-4 px-2">
-              <span className="text-[10px] font-black uppercase text-muted-foreground">Theme</span>
-              <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                {theme === 'dark' ? <Sun className="w-5 h-5 text-primary" /> : <Moon className="w-5 h-5" />}
-              </button>
+          <div className="p-6 mt-auto space-y-6">
+            <div className="bg-muted/50 rounded-2xl p-4 border border-border">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] font-black uppercase text-muted-foreground">Interface Theme</span>
+                <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center">
+                  {theme === 'dark' ? <Sun className="w-4 h-4 text-primary" /> : <Moon className="w-4 h-4" />}
+                </button>
+              </div>
+              <SidebarItem icon={Settings} label="Settings" onClick={() => {}} />
+              <SidebarItem icon={LogOut} label="Logout" className="text-rose-500 mt-2" onClick={() => auth?.signOut()} />
             </div>
-            <SidebarItem icon={LogOut} label="Logout" className="text-rose-500" onClick={() => auth?.signOut()} />
+
+            <div className="bg-green-600/10 border border-green-600/20 rounded-2xl p-5 space-y-4">
+              <h4 className="text-[10px] font-black text-green-600 uppercase tracking-widest leading-none">Kickoff Plan!</h4>
+              <p className="text-[10px] font-medium text-muted-foreground leading-tight">Upgrade to enterprise plan for real-time Web3 analytics!</p>
+              <Button onClick={() => router.push('/admin/about-alix')} className="w-full bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase h-9 rounded-xl border-none shadow-lg">View Strategy</Button>
+            </div>
           </div>
         </aside>
 
         <main className="flex-1 flex flex-col min-w-0 bg-background transition-colors">
           <header className="h-20 bg-card border-b border-border flex items-center justify-between px-10 sticky top-0 z-40">
-            <h1 className="text-2xl font-black tracking-tight capitalize">{activeTab === 'dashboard' ? 'Overview' : activeTab}</h1>
+            <div className="relative w-96">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Search global data..." className="h-11 pl-12 bg-muted border-none rounded-xl text-xs font-bold" />
+            </div>
             <div className="flex gap-4">
                <button onClick={() => syncOnChainData(true)} className="p-2 hover:bg-muted rounded-full transition-colors">
                   <RefreshCw className={cn("w-5 h-5", syncingVault && "animate-spin")} />
@@ -411,7 +374,7 @@ function AdminContent() {
                <div className="flex items-center gap-3">
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-black leading-none">Super Admin</p>
-                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">Node Active</p>
+                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">AliBank Web3 Node</p>
                 </div>
                 <div className="w-10 h-10 rounded-full gold-gradient p-[2px]">
                   <div className="w-full h-full rounded-full bg-background flex items-center justify-center overflow-hidden border-2 border-background">
@@ -425,6 +388,7 @@ function AdminContent() {
           <div className="p-10 space-y-10 overflow-y-auto no-scrollbar pb-20">
             {activeTab === 'dashboard' && (
               <div className="animate-in fade-in duration-700 space-y-10">
+                {/* Metrik Atas */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                   <Card className="lg:col-span-8 border-none bg-card rounded-[2.5rem] p-10 space-y-10 shadow-sm">
                     <div className="flex items-center justify-between">
@@ -446,12 +410,12 @@ function AdminContent() {
                         <p className="text-xl font-black italic">$ {displayVal(globalLiquidity?.totalUsdInjected).toLocaleString('id-ID')}</p>
                       </div>
                       <div className="space-y-3">
-                        <span className="text-[10px] font-bold uppercase text-muted-foreground">Gaming Profit</span>
-                        <p className="text-xl font-black italic text-green-600">Rp {displayVal((globalLiquidity?.tradeXGrossVolumeIdr || 0) + (globalLiquidity?.spinGrossVolumeIdr || 0)).toLocaleString('id-ID')}</p>
+                        <span className="text-[10px] font-bold uppercase text-muted-foreground">Internal AUM</span>
+                        <p className="text-xl font-black italic text-green-600">Rp {displayVal(globalLiquidity?.totalInternalAumIdr).toLocaleString('id-ID')}</p>
                       </div>
                       <div className="space-y-3">
                         <span className="text-[10px] font-bold uppercase text-muted-foreground">Node Status</span>
-                        <p className="text-xl font-black italic text-blue-600">MAINNET ACTIVE</p>
+                        <p className="text-xl font-black italic text-blue-600 uppercase">Production</p>
                       </div>
                     </div>
                   </Card>
@@ -460,14 +424,14 @@ function AdminContent() {
                     <h3 className="text-base font-black italic uppercase mb-8">Verified Clients</h3>
                     <div className="flex -space-x-3 mb-10">
                       {allUsers?.slice(0, 5).map((u, i) => (
-                        <div key={i} className="h-12 w-12 rounded-full ring-4 ring-card overflow-hidden">
+                        <div key={i} className="h-12 w-12 rounded-full ring-4 ring-card overflow-hidden border border-border">
                           <Image src={`https://picsum.photos/seed/${u.uid}/100/100`} alt="u" width={48} height={48} className="object-cover" />
                         </div>
                       ))}
                     </div>
                     <div className="mt-auto space-y-2">
                       <div className="flex justify-between items-center text-[10px] font-black uppercase text-muted-foreground">
-                        <span>Accounts</span>
+                        <span>Active Accounts</span>
                         <span>{allUsers?.length || 0}</span>
                       </div>
                       <Progress value={Math.min(100, (allUsers?.length || 0) * 2)} className="h-1" />
@@ -475,13 +439,17 @@ function AdminContent() {
                   </Card>
                 </div>
 
+                {/* Grafik & Token Info */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                   <Card className="lg:col-span-8 border-none bg-card rounded-[2.5rem] p-10 space-y-8 shadow-sm overflow-hidden">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2">
                         <CandlestickChart className="w-4 h-4 text-primary" /> Revenue Dynamics Pro
                       </h3>
-                      <Badge className="bg-primary/10 text-primary text-[8px] font-black">5S INTERVAL</Badge>
+                      <div className="flex bg-muted p-1 rounded-lg">
+                        <button className="px-4 py-1.5 bg-background text-[9px] font-black uppercase rounded shadow-sm">Monthly</button>
+                        <button className="px-4 py-1.5 text-[9px] font-black uppercase text-muted-foreground">Yearly</button>
+                      </div>
                     </div>
                     <div className="h-64 w-full">
                       <ResponsiveContainer width="100%" height="100%">
@@ -506,19 +474,63 @@ function AdminContent() {
                   <Card className="lg:col-span-4 border-none bg-[#1A1D1F] dark:bg-card rounded-[2.5rem] p-10 flex flex-col justify-between text-white relative overflow-hidden shadow-sm">
                     <div className="absolute top-0 right-0 p-8 opacity-10"><LogoIcon className="w-32 h-32 text-primary" /></div>
                     <div className="relative z-10">
-                      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-2">Sovereign Asset</p>
-                      <h3 className="text-2xl font-black italic uppercase tracking-tighter">Alix Token (ALX)</h3>
+                      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-2">Sovereign Asset</p>
+                      <h3 className="text-3xl font-black italic uppercase tracking-tighter">ALIX TOKEN (ALX)</h3>
+                      <p className="text-[9px] font-bold text-white/30 uppercase mt-2 tracking-widest">ALX V3 PROTOCOL</p>
                     </div>
                     <div className="relative z-10 flex justify-between items-end">
                       <div>
-                        <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Inventory</p>
-                        <p className="text-lg font-black italic">{displayVal(globalLiquidity?.alixVaultBalance).toLocaleString('id-ID')} ALX</p>
+                        <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Vault Inventory</p>
+                        <p className="text-xl font-black italic">{displayVal(globalLiquidity?.alixVaultBalance).toLocaleString('id-ID')} ALX</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Anchor Price</p>
-                        <p className="text-lg font-black italic text-primary">$ 12.24</p>
+                        <p className="text-xl font-black italic text-primary">$ 12.24</p>
                       </div>
                     </div>
+                  </Card>
+                </div>
+
+                {/* Quick Ops Row (The ones requested by user) */}
+                <div className="grid grid-cols-4 gap-6">
+                  <QuickOpButton icon={Skull} label="Reset All Clients" sub="Production Wipe" color="text-rose-500" onClick={handlePurgeAuditLogs} />
+                  <QuickOpButton icon={PlusCircle} label="Mint ALX" sub="Authorized Supply" color="text-green-500" onClick={() => setActiveTab('tokenomics')} />
+                  <QuickOpButton icon={Pickaxe} label="Burn ALX" sub="Deflation Protocol" color="text-orange-500" onClick={() => setActiveTab('tokenomics')} />
+                  <QuickOpButton icon={RefreshCw} label="Sync Vault" sub="Etherscan Hook" color="text-blue-500" onClick={() => syncOnChainData(true)} />
+                </div>
+
+                {/* Recent Activity Ledger (The one requested by user) */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between px-1">
+                    <h3 className="text-sm font-black italic uppercase tracking-widest">Recent Activity Ledger</h3>
+                    <button onClick={() => setActiveTab('audit')} className="text-[10px] font-black text-primary uppercase flex items-center gap-1 hover:underline">View All Logs <ArrowUpRight className="w-3 h-3" /></button>
+                  </div>
+                  <Card className="border-none bg-card rounded-[2rem] overflow-hidden shadow-sm">
+                    <table className="w-full text-left">
+                      <thead className="bg-muted/50 text-[9px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
+                        <tr>
+                          <th className="px-8 py-5">Operation ID</th>
+                          <th className="px-8 py-5">Context</th>
+                          <th className="px-8 py-5">Value</th>
+                          <th className="px-8 py-5 text-right">Synchronization</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {auditLogs?.slice(0, 5).map((log) => (
+                          <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-8 py-4 text-[10px] font-mono font-bold text-accent">{log.id.slice(0, 15)}...</td>
+                            <td className="px-8 py-4"><Badge className="bg-muted text-foreground border-none text-[8px] font-black h-5 uppercase px-2">{log.category}</Badge></td>
+                            <td className="px-8 py-4 text-[10px] font-black italic">{log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : '---'}</td>
+                            <td className="px-8 py-4 text-right text-[9px] font-bold text-muted-foreground italic">{log.timestamp?.toDate?.().toLocaleString() || '---'}</td>
+                          </tr>
+                        ))}
+                        {(!auditLogs || auditLogs.length === 0) && (
+                          <tr>
+                            <td colSpan={4} className="px-8 py-10 text-center text-[10px] font-black text-muted-foreground uppercase opacity-20 italic">No activity recorded</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </Card>
                 </div>
               </div>
@@ -557,7 +569,7 @@ function AdminContent() {
 
                   <Card className="lg:col-span-4 border-none bg-[#1A1D1F] dark:bg-card rounded-[3rem] p-10 flex flex-col items-center justify-center gap-6 text-white text-center relative overflow-hidden shadow-sm">
                     <div className="absolute inset-0 gold-gradient opacity-5" />
-                    <div className="bg-white p-4 rounded-3xl shadow-2xl relative z-10 group cursor-pointer hover:scale-105 transition-transform duration-500">
+                    <div className="bg-white p-4 rounded-3xl shadow-2xl relative z-10 group cursor-pointer hover:scale-105 transition-transform duration-500 overflow-hidden">
                       <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${ALX_CONTRACT}`} alt="Vault QR" className="w-32 h-32 rounded-lg" />
                       <div className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Scan className="w-8 h-8 text-white" /></div>
                     </div>
@@ -598,7 +610,7 @@ function AdminContent() {
                       {parseFloat(adminWalletEth) === 0 && (
                         <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[10px] font-bold uppercase italic flex gap-3">
                           <Skull className="w-4 h-4 shrink-0" />
-                          <span>Insufficient Gas: Dompet operasional admin memiliki saldo 0 ETH. Top-up alamat {userData?.walletAddress} untuk mengeksekusi transaksi.</span>
+                          <span>Insufficient Gas: Top-up alamat {userData?.walletAddress} untuk mengeksekusi transaksi.</span>
                         </div>
                       )}
                       <Button onClick={handleExecuteVaultWithdrawal} disabled={isExecutingVaultTx || !vaultRecipient || !vaultAmount || parseFloat(adminWalletEth) === 0} className="w-full h-16 bg-[#1A1D1F] dark:bg-muted text-background dark:text-foreground rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none">
@@ -637,7 +649,7 @@ function AdminContent() {
                           ))}
                           {onChainHistory.length === 0 && (
                             <tr>
-                              <td colSpan={4} className="px-10 py-20 text-center text-[10px] font-black text-muted-foreground uppercase opacity-20 italic">No blockchain data found yet</td>
+                              <td colSpan={4} className="px-10 py-20 text-center text-[10px] font-black text-muted-foreground uppercase opacity-20 italic">No blockchain data found</td>
                             </tr>
                           )}
                         </tbody>
@@ -676,7 +688,7 @@ function AdminContent() {
                             <td className="px-10 py-6"><Badge className="bg-muted text-foreground border-none text-[8px] font-black px-3 h-5 uppercase">{log.category}</Badge></td>
                             <td className="px-10 py-6 text-[10px] font-black italic uppercase">{log.gateway || log.description || 'System Node'}</td>
                             <td className="px-10 py-6 text-right text-sm font-black italic">Rp {log.amountIdr?.toLocaleString() || '0'}</td>
-                            <td className="px-10 py-6 text-center"><button onClick={() => handleDeleteAuditLog(log.id)} className="p-2 text-muted-foreground hover:text-rose-500"><Trash2 className="w-4 h-4" /></button></td>
+                            <td className="px-10 py-6 text-center"><button onClick={async () => { if(db) await deleteDoc(doc(db, "system", "audit", "global_transactions", log.id)); }} className="p-2 text-muted-foreground hover:text-rose-500"><Trash2 className="w-4 h-4" /></button></td>
                           </tr>
                         ))}
                       </tbody>
@@ -699,16 +711,30 @@ function SidebarItem({ icon: Icon, label, active, onClick, className }: any) {
       className={cn(
         "w-full flex items-center justify-between px-6 py-4 rounded-2xl transition-all duration-300 group",
         active 
-          ? "bg-green-500/10 text-green-600 shadow-sm" 
+          ? "bg-primary/10 text-primary shadow-sm" 
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
         className
       )}
     >
       <div className="flex items-center gap-4">
-        <Icon className={cn("w-5 h-5", active ? "text-green-600" : "text-muted-foreground")} />
+        <Icon className={cn("w-5 h-5", active ? "text-primary" : "text-muted-foreground")} />
         <span className={cn("text-sm font-black italic uppercase tracking-tight", active ? "opacity-100" : "opacity-80")}>{label}</span>
       </div>
-      {active && <div className="w-1.5 h-1.5 rounded-full bg-green-600" />}
+      {active && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
+    </button>
+  );
+}
+
+function QuickOpButton({ icon: Icon, label, sub, color, onClick }: any) {
+  return (
+    <button onClick={onClick} className="flex flex-col items-center gap-3 p-6 rounded-[2.5rem] bg-card border border-border/50 hover:bg-muted/50 transition-all group shadow-sm active:scale-95">
+      <div className={cn("w-14 h-14 rounded-full bg-muted flex items-center justify-center border border-border group-hover:scale-110 transition-transform shadow-inner", color)}>
+        <Icon className="w-6 h-6" />
+      </div>
+      <div className="text-center">
+        <p className="text-[11px] font-black uppercase italic leading-none">{label}</p>
+        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mt-1">{sub}</p>
+      </div>
     </button>
   );
 }
