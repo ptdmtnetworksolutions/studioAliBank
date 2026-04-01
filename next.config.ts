@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Firebase App Hosting mengoptimalkan performa dengan output standalone
+  output: 'standalone',
   images: {
     remotePatterns: [
       {
