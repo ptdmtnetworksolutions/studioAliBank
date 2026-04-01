@@ -63,7 +63,8 @@ import {
   ArrowUpFromLine,
   ArrowDownToLine,
   History as HistoryIcon,
-  Link2
+  Link2,
+  Scan
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -732,7 +733,7 @@ function AdminContent() {
                               <div className="flex flex-col items-end gap-2">
                                 <p className="text-base font-black italic tracking-tighter text-[#1A1D1F] dark:text-foreground transition-colors">Rp {u.totalBalance?.toLocaleString('id-ID')}</p>
                                 <div className="flex items-center gap-2">
-                                  <Input type="number" placeholder="Amt" className="h-8 w-20 text-[10px] font-black bg-muted border-none shadow-none rounded-lg text-foreground transition-colors" value={adjustAmounts[u.uid] || ""} onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [u.uid]: e.target.value }))} />
+                                  <input type="number" placeholder="Amt" className="h-8 w-20 text-[10px] font-black bg-muted border-none shadow-none rounded-lg text-foreground transition-colors px-2 outline-none" value={adjustAmounts[u.uid] || ""} onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [u.uid]: e.target.value }))} />
                                   <div className="flex gap-1">
                                     <button onClick={() => handleUpdateUserBalance(u.uid, 'add')} className="w-6 h-6 rounded bg-green-600 text-white flex items-center justify-center hover:bg-green-700 transition-colors"><Plus className="w-3 h-3" /></button>
                                     <button onClick={() => handleUpdateUserBalance(u.uid, 'sub')} className="w-6 h-6 rounded bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600 transition-colors"><Minus className="w-3 h-3" /></button>
@@ -880,7 +881,7 @@ function AdminContent() {
                     </div>
                     <div className="space-y-3">
                       <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Amount to Authorize (ALX)</label>
-                      <Input type="number" placeholder="0.00" value={alixMintAmount} onChange={(e) => setAlixMintAmount(e.target.value)} className="h-16 rounded-2xl bg-muted border-none text-xl font-black italic px-8 shadow-none text-foreground transition-colors" />
+                      <input type="number" placeholder="0.00" value={alixMintAmount} onChange={(e) => setAlixMintAmount(e.target.value)} className="h-16 rounded-2xl bg-muted border-none text-xl font-black italic px-8 shadow-none text-foreground transition-colors outline-none" />
                     </div>
                     <Button onClick={handleMintAlix} disabled={isMinting || !alixMintAmount} className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none">
                       {isMinting ? <Loader2 className="animate-spin" /> : "Authorize Mint"}
@@ -905,7 +906,7 @@ function AdminContent() {
                     </div>
                     <div className="space-y-3">
                       <label className="text-[10px] font-black uppercase opacity-40 ml-2">Amount to Burn (ALX)</label>
-                      <Input type="number" placeholder="0.00" className="h-16 rounded-2xl bg-background/10 border-none text-xl font-black italic px-8 text-foreground shadow-none transition-colors" />
+                      <input type="number" placeholder="0.00" className="h-16 rounded-2xl bg-background/10 border-none text-xl font-black italic px-8 text-foreground shadow-none transition-colors outline-none" />
                     </div>
                     <Button className="w-full h-16 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none">Execute Burn</Button>
                   </div>
@@ -919,7 +920,7 @@ function AdminContent() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                   {/* Left: Balance & Refresh */}
                   <Card className="lg:col-span-8 border-none shadow-none bg-card rounded-[3rem] p-12 flex flex-col justify-between transition-colors relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-8 opacity-5"><LogoIcon className="w-64 h-64 text-primary" /></div>
+                    <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none"><LogoIcon className="w-64 h-64 text-primary" /></div>
                     
                     <div className="flex items-center justify-between mb-10">
                       <div className="flex items-center gap-6">
@@ -987,21 +988,21 @@ function AdminContent() {
                     <div className="space-y-6">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Recipient Wallet Address</label>
-                        <Input 
+                        <input 
                           placeholder="0x... MetaMask / Binance" 
                           value={vaultRecipient}
                           onChange={(e) => setVaultRecipient(e.target.value)}
-                          className="h-14 bg-muted border-none font-bold text-xs rounded-xl px-6 shadow-none text-foreground transition-colors" 
+                          className="h-14 bg-muted border-none font-bold text-xs rounded-xl px-6 shadow-none text-foreground transition-colors outline-none w-full" 
                         />
                       </div>
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Amount to Transfer (ETH)</label>
-                        <Input 
+                        <input 
                           type="number" 
                           placeholder="0.00" 
                           value={vaultAmount}
                           onChange={(e) => setVaultAmount(e.target.value)}
-                          className="h-14 bg-muted border-none font-black italic rounded-xl px-6 shadow-none text-foreground transition-colors" 
+                          className="h-14 bg-muted border-none font-black italic rounded-xl px-6 shadow-none text-foreground transition-colors outline-none w-full" 
                         />
                       </div>
                       <Button 
