@@ -123,7 +123,7 @@ import {
 
 // KONSTANTA GLOBAL ADMIN
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
-const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; // Alamat Brankas Mainnet AliBank
+const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
 const mockPerformanceData = [
@@ -155,19 +155,16 @@ function AdminContent() {
   const [isMinting, setIsMinting] = useState(false);
   const [isPurging, setIsPurging] = useState(false);
 
-  // States for Vault Withdrawal
   const [vaultRecipient, setVaultRecipient] = useState("");
   const [vaultAmount, setVaultAmount] = useState("");
   const [isExecutingVaultTx, setIsExecutingVaultTx] = useState(false);
   const [onChainHistory, setOnChainHistory] = useState<any[]>([]);
 
-  // States for User Detail
   const [viewingUser, setViewingUser] = useState<any>(null);
   const [viewingUserDeposits, setViewingUserDeposits] = useState<any[]>([]);
   const [viewingUserWallets, setViewingUserWallets] = useState<any[]>([]);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
 
-  // Data Listeners
   const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
   const { data: globalLiquidity } = useDoc(liquidityDocRef);
   const usersQuery = useMemo(() => (db ? query(collection(db, "users"), limit(100)) : null), [db]);
@@ -177,15 +174,13 @@ function AdminContent() {
   const marketplaceQuery = useMemo(() => (db ? query(collection(db, "marketplace"), limit(50)) : null), [db]);
   const { data: inventoryItems } = useCollection(marketplaceQuery);
 
-  const syncOnChainData = useCallback(async () => {
-    if (syncingVault) return;
+  const syncOnChainData = useCallback(async (manual = false) => {
     setSyncingVault(true);
     try {
       const provider = new JsonRpcProvider(GLOBAL_RPC);
       const balance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
       setOnChainEth(formatEther(balance));
 
-      // Simulasi history transaksi riil
       const mockHistory = [
         { hash: "0x7a...bc1", from: "0xBinance", to: ALX_CONTRACT, value: "0.05", type: "IN", time: "2 min ago" },
         { hash: "0x2d...ff4", from: ALX_CONTRACT, to: "0xInternal", value: "0.01", type: "OUT", time: "1 hour ago" },
@@ -193,11 +188,15 @@ function AdminContent() {
       ];
       setOnChainHistory(mockHistory);
       
-      toast({ title: "Vault Synced", description: "Ethereum Mainnet node data has been updated." });
+      if (manual) {
+        toast({ title: "Vault Synced", description: "Ethereum Mainnet node data has been updated." });
+      }
     } catch (err) {
       console.error("Sync error:", err);
-    } finally { setSyncingVault(false); }
-  }, [syncingVault, toast]);
+    } finally { 
+      setSyncingVault(false); 
+    }
+  }, [toast]);
 
   useEffect(() => {
     if (userLoading) return;
@@ -206,8 +205,13 @@ function AdminContent() {
       return;
     }
     setIsAuthorized(true);
-    syncOnChainData();
-  }, [user, userLoading, router, syncOnChainData]);
+  }, [user, userLoading, router]);
+
+  useEffect(() => {
+    if (isAuthorized) {
+      syncOnChainData(false);
+    }
+  }, [isAuthorized, syncOnChainData]);
 
   const handleExecuteVaultWithdrawal = async () => {
     if (!vaultRecipient || !vaultAmount || isExecutingVaultTx) return;
@@ -231,7 +235,7 @@ function AdminContent() {
       toast({ title: "Withdrawal Sent", description: "Transaction broadcasted to Ethereum network." });
       setVaultRecipient("");
       setVaultAmount("");
-      syncOnChainData();
+      syncOnChainData(true);
     } catch (err) {
       toast({ variant: "destructive", title: "Withdrawal Failed" });
     } finally {
@@ -394,7 +398,6 @@ function AdminContent() {
     <TooltipProvider delayDuration={0}>
       <div className="min-h-screen bg-background text-foreground flex font-body transition-colors duration-300">
         
-        {/* SIDEBAR */}
         <aside className="w-72 bg-card border-r border-border flex flex-col sticky top-0 h-screen z-50 transition-colors">
           <div className="p-8 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg">
@@ -436,10 +439,8 @@ function AdminContent() {
           </div>
         </aside>
 
-        {/* MAIN CONTENT AREA */}
         <main className="flex-1 flex flex-col min-w-0 bg-background transition-colors">
           
-          {/* TOP BAR */}
           <header className="h-20 bg-card border-b border-border flex items-center justify-between px-10 sticky top-0 z-40 transition-colors">
             <div className="flex items-center gap-4 flex-1 max-w-xl">
               <h1 className="text-2xl font-black tracking-tight capitalize text-foreground transition-colors">{activeTab === 'dashboard' ? 'Overview' : activeTab}</h1>
@@ -502,7 +503,7 @@ function AdminContent() {
                       <Button 
                         variant="outline" 
                         className="rounded-xl border-border font-black uppercase text-[10px] h-10 px-6 italic text-foreground transition-colors" 
-                        onClick={(e) => { e.stopPropagation(); syncOnChainData(); }}
+                        onClick={(e) => { e.stopPropagation(); syncOnChainData(true); }}
                       >
                         <RefreshCw className={cn("w-3.5 h-3.5 mr-2", syncingVault && "animate-spin")} /> Sync System
                       </Button>
@@ -635,7 +636,7 @@ function AdminContent() {
                   <QuickActionCard icon={Skull} label="Reset All Clients" sub="Production Wipe" onClick={handleWipeAllClientData} className="bg-rose-500/5 hover:bg-rose-500/10 text-rose-600" />
                   <QuickActionCard icon={PlusCircle} label="Mint ALX" sub="Expand supply" onClick={() => setActiveTab('tokenomics')} />
                   <QuickActionCard icon={Pickaxe} label="Burn ALX" sub="Scarcity control" onClick={() => setActiveTab('tokenomics')} />
-                  <QuickActionCard icon={Database} label="Sync Vault" sub="Mainnet data" onClick={syncOnChainData} />
+                  <QuickActionCard icon={Database} label="Sync Vault" sub="Mainnet data" onClick={() => syncOnChainData(true)} />
                 </section>
 
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
@@ -927,7 +928,7 @@ function AdminContent() {
                         </p>
                         <p className="text-xs font-bold text-muted-foreground mt-2 uppercase italic">≈ Rp {(parseFloat(onChainEth) * 33000000).toLocaleString('id-ID')} Value</p>
                       </div>
-                      <Button onClick={syncOnChainData} disabled={syncingVault} className="h-16 px-12 rounded-2xl gold-gradient text-white font-black uppercase italic tracking-widest shadow-xl border-none active:scale-95 transition-all">
+                      <Button onClick={() => syncOnChainData(true)} disabled={syncingVault} className="h-16 px-12 rounded-2xl gold-gradient text-white font-black uppercase italic tracking-widest shadow-xl border-none active:scale-95 transition-all">
                         {syncingVault ? <Loader2 className="animate-spin" /> : "REFRESH CHAIN"}
                       </Button>
                     </div>
@@ -1112,7 +1113,7 @@ function AdminContent() {
                       <Button onClick={handlePurgeAuditLogs} disabled={isPurging} variant="outline" className="rounded-xl border-rose-200 text-rose-600 font-black uppercase text-[10px] h-10 px-6 italic hover:bg-rose-50 transition-colors">
                         {isPurging ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Eraser className="w-4 h-4 mr-2" />} Purge All Logs
                       </Button>
-                      <Button onClick={() => syncOnChainData()} className="rounded-xl gold-gradient text-white font-black uppercase text-[10px] h-10 px-6 italic border-none shadow-lg">
+                      <Button onClick={() => syncOnChainData(true)} className="rounded-xl gold-gradient text-white font-black uppercase text-[10px] h-10 px-6 italic border-none shadow-lg">
                         <RefreshCw className={cn("w-4 h-4 mr-2", syncingVault && "animate-spin")} /> Refresh Ledger
                       </Button>
                     </div>
