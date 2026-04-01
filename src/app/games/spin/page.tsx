@@ -115,8 +115,6 @@ export default function AliSpinPage() {
       SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]
     ];
     
-    // Cheat Logic: ALX simbol punya probabilitas sedikit lebih rendah tapi reward tinggi
-    // Untuk demo, kita gunakan random murni
     setReels(finalReels);
     
     const [r1, r2, r3] = finalReels;
@@ -198,22 +196,37 @@ export default function AliSpinPage() {
         </button>
       </header>
 
-      {/* Stats Bar */}
-      <div className="px-4 h-12 flex items-center justify-between bg-[#1C2024] shrink-0 border-b border-white/5">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-            <Coins className="w-4 h-4 text-primary" />
+      {/* Stats Bar - Ditampilkan Saldo Taruhan & Saldo ALX */}
+      <div className="px-4 h-14 flex items-center justify-between bg-[#1C2024] shrink-0 border-b border-white/5">
+        <div className="flex gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shadow-inner">
+              <Coins className="w-4 h-4 text-primary" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black italic uppercase text-white leading-none">
+                {stakeCurrency === 'IDR' ? `Rp ${(userData?.totalBalance ?? 0).toLocaleString()}` : `${(userData?.cryptoBalances?.[stakeCurrency] ?? 0).toFixed(6)} ${stakeCurrency}`}
+              </span>
+              <span className="text-[7px] font-bold text-white/30 uppercase tracking-widest">Saldo Taruhan</span>
+            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] font-black italic uppercase text-white leading-none">
-              {stakeCurrency === 'IDR' ? `Rp ${(userData?.totalBalance ?? 0).toLocaleString()}` : `${(userData?.cryptoBalances?.[stakeCurrency] ?? 0).toFixed(6)} ${stakeCurrency}`}
-            </span>
-            <span className="text-[7px] font-bold text-white/30 uppercase tracking-widest">Saldo Anda</span>
+
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shadow-lg shadow-primary/5">
+              <LogoIcon className="w-4 h-4 text-primary" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black italic uppercase text-primary leading-none">
+                {(userData?.cryptoBalances?.ALX ?? 0).toFixed(6)} ALX
+              </span>
+              <span className="text-[7px] font-bold text-primary/40 uppercase tracking-widest">Winnings (ALX)</span>
+            </div>
           </div>
         </div>
+
         {freeSpins > 0 && (
-          <Badge className="bg-orange-500 animate-pulse text-white font-black italic text-[9px] px-3 h-6 rounded-full border-none">
-            {freeSpins} FREE SPINS LEFT
+          <Badge className="bg-orange-500 animate-pulse text-white font-black italic text-[9px] px-3 h-6 rounded-full border-none shadow-xl shadow-orange-500/20">
+            {freeSpins} SPINS
           </Badge>
         )}
       </div>
@@ -335,7 +348,7 @@ export default function AliSpinPage() {
       <footer className="h-16 bg-[#171A1D] border-t border-white/5 flex items-center justify-around shrink-0 px-2 pb-safe">
         <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity w-full" onClick={() => router.push('/')}>
           <LayoutGrid className="w-5 h-5" />
-          <span className="text-[8px] font-black uppercase italic">Dashboard</span>
+          <span className="text-[8px] font-black uppercase italic">Beranda</span>
         </button>
         <button className="flex flex-col items-center gap-1 opacity-100 w-full text-primary">
           <RotateCw className="w-5 h-5" />
@@ -343,7 +356,7 @@ export default function AliSpinPage() {
         </button>
         <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity w-full">
           <Trophy className="w-5 h-5" />
-          <span className="text-[8px] font-black uppercase italic">Tournament</span>
+          <span className="text-[8px] font-black uppercase italic">Turnamen</span>
         </button>
       </footer>
     </div>
