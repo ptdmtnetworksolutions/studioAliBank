@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -23,7 +24,8 @@ import {
   LayoutGrid,
   FileText,
   TrendingUp,
-  Wallet
+  Wallet,
+  Delete
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,12 +60,63 @@ export default function AliSpinPage() {
   const [lastWin, setLastWin] = useState<number | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
+  const audioCtx = useRef<AudioContext | null>(null);
+
   const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { 
+    setMounted(true);
+    return () => {
+      if (audioCtx.current) audioCtx.current.close();
+    };
+  }, []);
 
-  // Mekanisme Spin Utama
+  // Audio Synthesizer Engine
+  const playSound = (type: 'spin' | 'win' | 'loss') => {
+    if (!soundEnabled) return;
+    
+    try {
+      if (!audioCtx.current) audioCtx.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const ctx = audioCtx.current;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (type === 'spin') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.1);
+      } else if (type === 'win') {
+        osc.type = 'triangle';
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, i) => {
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.1);
+        });
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.5);
+      } else if (type === 'loss') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(50, ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      }
+    } catch (e) {
+      console.warn("Audio Context Error", e);
+    }
+  };
+
   const handleSpin = async () => {
     if (isSpinning || !userDocRef || !userData || !db) return;
 
@@ -71,7 +124,6 @@ export default function AliSpinPage() {
     if (stakeCurrency === 'IDR') balance = userData.totalBalance || 0;
     else balance = userData.cryptoBalances?.[stakeCurrency] || 0;
 
-    // Hanya potong saldo jika bukan free spin
     if (freeSpins <= 0 && balance < betAmount) {
       toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Isi ulang ${stakeCurrency} Anda.` });
       return;
@@ -80,12 +132,10 @@ export default function AliSpinPage() {
     setIsSpinning(true);
     setLastWin(null);
 
-    // 1. Potong Saldo (Jika bukan free spin)
     if (freeSpins <= 0) {
       const balanceKey = stakeCurrency === 'IDR' ? "totalBalance" : `cryptoBalances.${stakeCurrency}`;
       updateDoc(userDocRef, { [balanceKey]: increment(-betAmount) });
       
-      // Update likuiditas sistem (Bank Profit)
       const systemRef = doc(db, "system", "liquidity");
       updateDoc(systemRef, { 
         totalFiatInjected: increment(stakeCurrency === 'IDR' ? betAmount : 0),
@@ -95,9 +145,9 @@ export default function AliSpinPage() {
       setFreeSpins(prev => prev - 1);
     }
 
-    // 2. Animasi Acak (Client Side Simulation)
     let spinCount = 0;
     const interval = setInterval(() => {
+      playSound('spin');
       setReels([
         SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)],
         SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)],
@@ -108,7 +158,7 @@ export default function AliSpinPage() {
         clearInterval(interval);
         finalizeResult();
       }
-    }, 80);
+    }, 100);
   };
 
   const finalizeResult = () => {
@@ -125,42 +175,25 @@ export default function AliSpinPage() {
     let earnedFreeSpins = 0;
     let winDescription = "";
 
-    // CEK KONDISI MENANG
     if (r1 === r2 && r2 === r3) {
-      // 3 Matching
-      if (r1 === "ALX") {
-        multiplier = 50;
-        earnedFreeSpins = 10;
-        winDescription = "ALX JACKPOT!";
-      } else {
-        multiplier = 10;
-        winDescription = "BIG WIN!";
-      }
+      if (r1 === "ALX") { multiplier = 50; earnedFreeSpins = 10; winDescription = "ALX JACKPOT!"; }
+      else { multiplier = 10; winDescription = "BIG WIN!"; }
     } else if (r1 === r2 || r2 === r3 || r1 === r3) {
-      // 2 Matching
       const match = r1 === r2 ? r1 : r3;
-      if (match === "ALX") {
-        multiplier = 5;
-        earnedFreeSpins = 3;
-        winDescription = "ALX SCATTER";
-      } else {
-        multiplier = 2;
-        winDescription = "MATCH!";
-      }
+      if (match === "ALX") { multiplier = 5; earnedFreeSpins = 3; winDescription = "ALX SCATTER"; }
+      else { multiplier = 2; winDescription = "MATCH!"; }
     }
 
     if (multiplier > 0) {
+      playSound('win');
       const stakeInIdr = betAmount * (stakeCurrency === 'IDR' ? 1 : 15850);
       const winAmountInIdr = stakeInIdr * multiplier;
       const winAmountInAlx = winAmountInIdr / ALX_PRICE_IDR;
 
-      // Berikan Hadiah dalam ALX
       updateDoc(userDocRef!, { "cryptoBalances.ALX": increment(winAmountInAlx) });
       setLastWin(winAmountInAlx);
-      
       if (earnedFreeSpins > 0) setFreeSpins(prev => prev + earnedFreeSpins);
 
-      // Log & Notif
       addDoc(collection(db!, "users", user!.uid, "transactions"), {
         date: new Date().toISOString(),
         description: `Ali-Spin Win: ${winDescription} (${multiplier}x)`,
@@ -176,6 +209,8 @@ export default function AliSpinPage() {
         title: winDescription,
         description: `Selamat! Anda mendapatkan +${winAmountInAlx.toFixed(6)} ALX ${earnedFreeSpins > 0 ? `& ${earnedFreeSpins} Free Spins!` : ""}`,
       });
+    } else {
+      playSound('loss');
     }
 
     setIsSpinning(false);
@@ -185,7 +220,7 @@ export default function AliSpinPage() {
 
   return (
     <div className="min-h-screen bg-[#0F1113] text-white flex flex-col font-body overflow-hidden">
-      {/* Header Elit */}
+      {/* Header */}
       <header className="px-4 h-16 flex items-center justify-between bg-[#171A1D] border-b border-white/5 shrink-0">
         <button onClick={() => router.back()} className="p-2 hover:bg-white/5 rounded-full transition-colors">
           <ArrowLeft className="w-6 h-6 text-white/60" />
@@ -240,7 +275,6 @@ export default function AliSpinPage() {
       <main className="flex-1 flex flex-col items-center justify-center p-6 relative">
         <div className="absolute inset-0 gold-gradient opacity-5 blur-[120px]" />
         
-        {/* Slot Machine Container */}
         <div className="w-full max-w-sm aspect-square bg-[#171A1D] rounded-[3rem] border-4 border-white/5 shadow-2xl p-8 flex flex-col items-center justify-between relative overflow-hidden group">
           <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/matrix/800/800')] opacity-[0.02] mix-blend-overlay" />
           
@@ -263,7 +297,6 @@ export default function AliSpinPage() {
           <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#171A1D] to-transparent z-20 pointer-events-none" />
         </div>
 
-        {/* Win Display */}
         <div className="h-24 flex flex-col items-center justify-center mt-8">
           {lastWin ? (
             <div className="animate-in zoom-in duration-500 text-center space-y-1">
@@ -280,9 +313,8 @@ export default function AliSpinPage() {
       </main>
 
       {/* Control Panel */}
-      <div className="bg-[#171A1D] p-6 space-y-6 pb-12 shrink-0 border-t border-white/5">
+      <div className="bg-[#171A1D] p-4 space-y-4 pb-12 shrink-0 border-t border-white/5">
         <div className="grid grid-cols-2 gap-4">
-          {/* Bet Selector */}
           <div className="bg-[#1C2024] rounded-2xl p-1 flex items-center justify-between border border-white/5 h-16 relative">
             <button 
               onClick={() => setBetAmount(prev => Math.max(1000, prev - (stakeCurrency === 'IDR' ? 10000 : 0.001)))}
@@ -325,7 +357,6 @@ export default function AliSpinPage() {
             </button>
           </div>
 
-          {/* Spin Button */}
           <Button 
             onClick={handleSpin}
             disabled={isSpinning}
@@ -345,9 +376,7 @@ export default function AliSpinPage() {
           </div>
           <div className="flex items-center gap-4">
             <History className="w-4 h-4 text-white/40 cursor-pointer hover:text-primary transition-colors" />
-            <div className="w-4 h-4 text-white/40 cursor-pointer hover:text-primary transition-colors">
-              <Info className="w-4 h-4" />
-            </div>
+            <Info className="w-4 h-4 text-white/40 cursor-pointer hover:text-primary transition-colors" />
           </div>
         </div>
       </div>
@@ -356,7 +385,7 @@ export default function AliSpinPage() {
       <footer className="h-16 bg-[#171A1D] border-t border-white/5 flex items-center justify-around shrink-0 px-2 pb-safe">
         <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity w-full" onClick={() => router.push('/')}>
           <LayoutGrid className="w-5 h-5" />
-          <span className="text-[8px] font-black uppercase italic">Beranda</span>
+          <span className="text-[8px] font-black uppercase italic">Dashboard</span>
         </button>
         <button className="flex flex-col items-center gap-1 opacity-100 w-full text-primary">
           <RotateCw className="w-5 h-5" />
