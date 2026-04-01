@@ -56,7 +56,7 @@ export default function ConvertPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState<'input' | 'success'>('input');
   const [direction, setDirection] = useState<'FROM_ALX' | 'TO_ALX'>('TO_ALX');
-  const [counterCurrency, setCounterCurrency] = useState<'USDT' | 'IDR'>('USDT');
+  const [counterCurrency, setCounterCurrency] = useState<'USDT' | 'IDR'>('IDR');
 
   const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
@@ -65,10 +65,10 @@ export default function ConvertPage() {
     setMounted(true);
   }, []);
 
-  // KONFIGURASI HARGA REALISTIS ALX
+  // KONFIGURASI HARGA STRATEGIS ALIBANK V3
   const ALX_PRICE_USDT = 12.24;
   const USDT_IDR_RATE = 15850;
-  const ALX_PRICE_IDR = ALX_PRICE_USDT * USDT_IDR_RATE;
+  const ALX_PRICE_IDR = ALX_PRICE_USDT * USDT_IDR_RATE; // Rp 194,004
   
   const currentRate = counterCurrency === 'USDT' ? ALX_PRICE_USDT : ALX_PRICE_IDR;
 
@@ -101,7 +101,11 @@ export default function ConvertPage() {
     }
 
     if (!hasBalance) {
-      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: "Silakan isi ulang dompet Anda terlebih dahulu." });
+      toast({ 
+        variant: "destructive", 
+        title: "Saldo Tidak Cukup", 
+        description: `Anda membutuhkan saldo ${direction === 'FROM_ALX' ? 'ALX' : counterCurrency} yang lebih besar untuk transaksi ini.` 
+      });
       return;
     }
 
@@ -110,7 +114,7 @@ export default function ConvertPage() {
       const resultNum = parseFloat(convertedValue);
 
       if (direction === 'FROM_ALX') {
-        // ALX -> (USDT / IDR)
+        // JUAL ALX -> (DITERIMA USDT / IDR)
         const updates: any = { "cryptoBalances.ALX": increment(-numAmount) };
         if (counterCurrency === 'USDT') {
           updates["cryptoBalances.USDT"] = increment(resultNum);
@@ -119,7 +123,7 @@ export default function ConvertPage() {
         }
         await updateDoc(userDocRef, updates);
       } else {
-        // (USDT / IDR) -> ALX
+        // BELI ALX DENGAN (USDT / IDR)
         const updates: any = { "cryptoBalances.ALX": increment(resultNum) };
         if (counterCurrency === 'USDT') {
           updates["cryptoBalances.USDT"] = increment(-numAmount);
@@ -129,10 +133,11 @@ export default function ConvertPage() {
         await updateDoc(userDocRef, updates);
       }
 
+      // Catat ke Audit Internal & Transaksi User
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
-        description: `Konversi ${direction === 'FROM_ALX' ? 'ALX' : counterCurrency} ke ${direction === 'FROM_ALX' ? counterCurrency : 'ALX'}`,
-        category: "Crypto Swap",
+        description: direction === 'FROM_ALX' ? `Jual ALX ke ${counterCurrency}` : `Beli ALX dengan ${counterCurrency}`,
+        category: "Ali-Exchange",
         fromAmount: numAmount,
         fromCurrency: direction === 'FROM_ALX' ? "ALX" : counterCurrency,
         toAmount: resultNum,
@@ -142,8 +147,17 @@ export default function ConvertPage() {
         timestamp: serverTimestamp()
       });
 
+      // Update Likuiditas Global System (Jika beli ALX, IDR masuk ke kas sistem)
+      if (direction === 'TO_ALX' && counterCurrency === 'IDR') {
+        const systemRef = doc(db, "system", "liquidity");
+        await updateDoc(systemRef, {
+          totalInternalAumIdr: increment(numAmount),
+          totalAlixSoldInternally: increment(resultNum)
+        });
+      }
+
       setStep('success');
-      toast({ title: "Konversi Selesai", description: "Aset telah diperbarui di dompet Anda." });
+      toast({ title: "Transaksi Berhasil", description: "Aset ALX Anda telah diperbarui." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal Konversi", description: err.message });
     } finally {
@@ -159,8 +173,8 @@ export default function ConvertPage() {
         <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-4">
           <CheckCircle2 className="w-10 h-10 text-green-600" />
         </div>
-        <h2 className="text-xl font-black italic uppercase tracking-tight text-foreground mb-1">Konversi Berhasil</h2>
-        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-6 italic">Tervalidasi oleh AliBank V3 Protocol</p>
+        <h2 className="text-xl font-black italic uppercase tracking-tight text-foreground mb-1">Transaksi Berhasil</h2>
+        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-6 italic">Verified by AliBank Settlement Node</p>
         
         <div className="w-full bg-muted/50 rounded-[2rem] p-6 mb-8 space-y-4 shadow-inner">
           <div>
@@ -171,7 +185,7 @@ export default function ConvertPage() {
           </div>
           <div className="h-px bg-border" />
           <div className="flex justify-between items-center text-[9px] font-bold uppercase text-muted-foreground">
-            <span>Rate</span>
+            <span>Harga Eksekusi</span>
             <span>1 ALX = {counterCurrency === 'USDT' ? `${ALX_PRICE_USDT} USDT` : `Rp${ALX_PRICE_IDR.toLocaleString()}`}</span>
           </div>
         </div>
@@ -190,7 +204,7 @@ export default function ConvertPage() {
     <div className="min-h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
       <header className="px-4 h-12 flex items-center justify-between sticky top-0 bg-background z-50">
         <button onClick={() => router.back()} className="p-1 hover:bg-muted rounded-full transition-colors"><ArrowLeft className="w-5 h-5" /></button>
-        <h1 className="text-base font-black tracking-tight italic uppercase">AliBank Convert</h1>
+        <h1 className="text-base font-black tracking-tight italic uppercase">Beli / Jual ALX</h1>
         <div className="flex gap-2">
           <History onClick={() => router.push('/transactions')} className="w-4 h-4 text-muted-foreground cursor-pointer" />
         </div>
@@ -198,19 +212,19 @@ export default function ConvertPage() {
 
       <main className="flex-1 px-4 pt-1 space-y-3 overflow-hidden">
         <div className="bg-primary/10 border border-primary/20 rounded-xl p-2.5 flex items-center gap-3">
-          <Gift className="w-4 h-4 text-primary shrink-0" />
-          <p className="text-[9px] font-bold text-foreground leading-tight">Dapatkan Rabat dengan Konversi Berulang</p>
+          <Sparkles className="w-4 h-4 text-primary shrink-0" />
+          <p className="text-[9px] font-bold text-foreground leading-tight">Beli ALX sekarang sebelum listing di Uniswap untuk mendapatkan harga terbaik!</p>
         </div>
 
         <div className="flex items-center justify-between px-1">
           <p className="text-[11px] font-black text-foreground italic">
-            1 ALX ≈ {counterCurrency === 'USDT' ? `${ALX_PRICE_USDT} USDT` : `Rp${ALX_PRICE_IDR.toLocaleString()}`}
+            Harga ALX: {counterCurrency === 'USDT' ? `$${ALX_PRICE_USDT}` : `Rp${ALX_PRICE_IDR.toLocaleString()}`}
           </p>
           <div 
             className="flex items-center gap-1 text-[10px] font-black bg-muted/50 px-2 py-1 rounded-md cursor-pointer"
             onClick={() => setCounterCurrency(counterCurrency === 'USDT' ? 'IDR' : 'USDT')}
           >
-            Beli dengan {counterCurrency === 'USDT' ? 'IDR' : 'USDT'} <ChevronDown className="w-3 h-3" />
+            Bayar dengan {counterCurrency === 'USDT' ? 'IDR' : 'USDT'} <ChevronDown className="w-3 h-3" />
           </div>
         </div>
 
@@ -224,12 +238,14 @@ export default function ConvertPage() {
         </div>
 
         <div className="space-y-1">
-          {/* DARI */}
+          {/* ASAL */}
           <div className="space-y-1">
             <div className="flex justify-between items-center px-1">
-              <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Dari</label>
+              <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                {direction === 'TO_ALX' ? 'Bayar' : 'Jual'}
+              </label>
               <span className="text-[9px] font-black text-muted-foreground italic">
-                Saldo: {direction === 'TO_ALX' ? (counterCurrency === 'USDT' ? `${userData?.cryptoBalances?.USDT ?? 0} USDT` : `Rp${userData?.totalBalance?.toLocaleString() ?? 0}`) : `${userData?.cryptoBalances?.ALX ?? 0} ALX`}
+                Saldo: {direction === 'TO_ALX' ? (counterCurrency === 'USDT' ? `${userData?.cryptoBalances?.USDT ?? 0} USDT` : `Rp${(userData?.totalBalance ?? 0).toLocaleString()}`) : `${userData?.cryptoBalances?.ALX ?? 0} ALX`}
               </span>
             </div>
             <div className="bg-muted/30 rounded-xl p-3 flex items-center justify-between border border-border shadow-sm">
@@ -247,9 +263,11 @@ export default function ConvertPage() {
             <button onClick={() => { setDirection(prev => prev === 'TO_ALX' ? 'FROM_ALX' : 'TO_ALX'); setAmount(""); }} className="w-8 h-8 bg-background border border-border rounded-full shadow-md flex items-center justify-center text-foreground active:scale-90 transition-transform"><ArrowUpDown className="w-4 h-4" /></button>
           </div>
 
-          {/* KE */}
+          {/* TUJUAN */}
           <div className="space-y-1">
-            <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Ke</label>
+            <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">
+              {direction === 'TO_ALX' ? 'Terima' : 'Dapatkan'}
+            </label>
             <div className="bg-muted/30 rounded-xl p-3 flex items-center justify-between border border-border shadow-sm">
               <div className="flex items-center gap-2">
                 <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-2 shadow-sm", direction === 'FROM_ALX' ? (counterCurrency === 'USDT' ? "bg-[#0D9488]" : "bg-rose-600") : "bg-foreground")}>
@@ -261,11 +279,22 @@ export default function ConvertPage() {
             </div>
           </div>
         </div>
+
+        <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
+          <Info className="w-4 h-4 text-blue-500 shrink-0" />
+          <p className="text-[8px] font-bold text-muted-foreground leading-relaxed uppercase italic">
+            Seluruh hasil penjualan ALX secara internal akan dikumpulkan untuk penyediaan Likuiditas Global (USDT) di Uniswap V3.
+          </p>
+        </div>
       </main>
 
       <div className="p-4 bg-background border-t border-border mt-auto">
-        <Button disabled={!amount || isProcessing} onClick={handleConvert} className="w-full h-12 bg-primary text-primary-foreground font-black italic uppercase rounded-2xl shadow-none text-xs tracking-widest">
-          {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : "KONFIRMASI KONVERSI"}
+        <Button 
+          disabled={!amount || isProcessing} 
+          onClick={handleConvert} 
+          className="w-full h-12 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-xs tracking-widest"
+        >
+          {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : (direction === 'TO_ALX' ? 'KONFIRMASI PEMBELIAN' : 'KONFIRMASI PENJUALAN')}
         </Button>
       </div>
     </div>
