@@ -58,12 +58,11 @@ import {
   CreditCard as CardIcon,
   PiggyBank,
   Skull,
-  QrCode,
+  Scan,
   Copy,
   ArrowUpFromLine,
   ArrowDownToLine,
-  History as HistoryIcon,
-  Scan
+  History as HistoryIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -975,7 +974,12 @@ function AdminContent() {
                   <Card className="lg:col-span-4 border-none shadow-none bg-[#1A1D1F] dark:bg-card rounded-[3rem] p-10 flex flex-col items-center justify-center gap-6 text-white text-center relative overflow-hidden transition-colors">
                     <div className="absolute inset-0 gold-gradient opacity-5 pointer-events-none" />
                     <div className="bg-white p-4 rounded-3xl shadow-2xl relative z-10 group cursor-pointer hover:scale-105 transition-transform duration-500">
-                      <QrCode className="w-32 h-32 text-black" />
+                      {/* REAL SCANABLE QR CODE */}
+                      <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${ALX_CONTRACT}`} 
+                        alt="Vault QR"
+                        className="w-32 h-32 rounded-lg"
+                      />
                       <div className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                         <Scan className="w-8 h-8 text-white" />
                       </div>
