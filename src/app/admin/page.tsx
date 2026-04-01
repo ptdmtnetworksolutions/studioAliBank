@@ -62,7 +62,8 @@ import {
   Copy,
   ArrowUpFromLine,
   ArrowDownToLine,
-  History as HistoryIcon
+  History as HistoryIcon,
+  CandlestickChart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -101,7 +102,6 @@ import {
   addDoc,
   serverTimestamp
 } from "firebase/firestore";
-import { sendPasswordResetEmail } from "firebase/auth";
 import { JsonRpcProvider, formatEther, ethers } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -110,13 +110,15 @@ import { LogoIcon } from "@/components/ui/logo";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { 
-  AreaChart, 
-  Area, 
+  ComposedChart,
+  Bar,
   XAxis, 
   YAxis, 
   CartesianGrid, 
   Tooltip as RechartsTooltip, 
   ResponsiveContainer,
+  Cell,
+  ReferenceLine
 } from "recharts";
 
 // KONSTANTA GLOBAL ADMIN - ALIBANK VAULT V3 (WEB3 NATIVE)
@@ -125,15 +127,21 @@ const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const ETHERSCAN_API_KEY = "M1S7MDTBQSG1A3URQKYNVF31PSPE48UA8R";
 
-const mockPerformanceData = [
-  { name: 'Jan', revenue: 4000 },
-  { name: 'Feb', revenue: 3000 },
-  { name: 'Mar', revenue: 2000 },
-  { name: 'Apr', revenue: 2780 },
-  { name: 'May', revenue: 1890 },
-  { name: 'Jun', revenue: 2390 },
-  { name: 'Jul', revenue: 3490 },
-];
+// Simulasi Data Candle untuk Revenue Dynamics
+const generateMockCandles = () => {
+  return Array.from({ length: 24 }, (_, i) => {
+    const open = 3000 + Math.random() * 2000;
+    const close = open + (Math.random() * 1000 - 500);
+    return {
+      time: `${i}:00`,
+      open,
+      close,
+      high: Math.max(open, close) + Math.random() * 200,
+      low: Math.min(open, close) - Math.random() * 200,
+      isUp: close >= open
+    };
+  });
+};
 
 function AdminContent() {
   const { user, loading: userLoading } = useUser();
@@ -147,7 +155,9 @@ function AdminContent() {
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || "dashboard");
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [onChainEth, setOnChainEth] = useState<string>("0");
+  const [adminWalletEth, setAdminWalletEth] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
+  const [candleData, setCandleData] = useState(generateMockCandles());
   
   const [adjustAmounts, setAdjustAmounts] = useState<Record<string, string>>({});
   const [alixMintAmount, setAlixMintAmount] = useState("");
@@ -158,11 +168,6 @@ function AdminContent() {
   const [vaultAmount, setVaultAmount] = useState("");
   const [isExecutingVaultTx, setIsExecutingVaultTx] = useState(false);
   const [onChainHistory, setOnChainHistory] = useState<any[]>([]);
-
-  const [viewingUser, setViewingUser] = useState<any>(null);
-  const [viewingUserDeposits, setViewingUserDeposits] = useState<any[]>([]);
-  const [viewingUserWallets, setViewingUserWallets] = useState<any[]>([]);
-  const [isDetailLoading, setIsDetailLoading] = useState(false);
 
   const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
   const { data: globalLiquidity } = useDoc(liquidityDocRef);
@@ -180,9 +185,18 @@ function AdminContent() {
     setSyncingVault(true);
     try {
       const provider = new JsonRpcProvider(GLOBAL_RPC);
-      const balance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
-      setOnChainEth(formatEther(balance));
+      
+      // 1. Ambil Saldo Kontrak Brankas
+      const vaultBalance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
+      setOnChainEth(formatEther(vaultBalance));
 
+      // 2. Ambil Saldo Dompet Operasional Admin (untuk Gas)
+      if (userData?.walletAddress) {
+        const adminBal = await provider.getBalance(userData.walletAddress).catch(() => 0n);
+        setAdminWalletEth(formatEther(adminBal));
+      }
+
+      // 3. Ambil Riwayat Transaksi Riil
       try {
         const [resNormal, resInternal] = await Promise.all([
           fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${ETHERSCAN_API_KEY}`),
@@ -217,7 +231,7 @@ function AdminContent() {
               value: `${parseFloat(val).toFixed(6)} ETH`,
               type: isOut ? "OUT" : "IN",
               time: timeAgo(tx.timeStamp),
-              method: tx.functionName ? tx.functionName.split('(')[0] : (tx.input && tx.input !== '0x' ? 'Contract Call' : (tx.hash ? 'Transfer' : 'Internal'))
+              method: tx.functionName ? tx.functionName.split('(')[0] : (tx.input && tx.input !== '0x' ? 'Contract' : (tx.hash ? 'Transfer' : 'Internal'))
             };
           });
           setOnChainHistory(realHistory);
@@ -226,15 +240,18 @@ function AdminContent() {
         console.warn("Etherscan API failed", apiErr);
       }
       
+      // Update grafik simulasi
+      setCandleData(generateMockCandles());
+
       if (manual) {
-        toast({ title: "Vault Synced", description: "Infrastruktur Mainnet telah diperbarui." });
+        toast({ title: "Vault Synced", description: "Node Mainnet telah diperbarui." });
       }
     } catch (err) {
       console.error("Sync error:", err);
     } finally { 
       setSyncingVault(false); 
     }
-  }, [toast]);
+  }, [toast, userData?.walletAddress]);
 
   useEffect(() => {
     if (userLoading) return;
@@ -253,7 +270,7 @@ function AdminContent() {
 
   const handleExecuteVaultWithdrawal = async () => {
     if (!vaultRecipient || !vaultAmount || isExecutingVaultTx || !userData?.privateKey) {
-      toast({ variant: "destructive", title: "Otoritas Ditolak", description: "Kunci Privat diperlukan untuk transaksi riil." });
+      toast({ variant: "destructive", title: "Otoritas Ditolak", description: "Kunci Privat & Saldo Gas diperlukan." });
       return;
     }
     
@@ -262,6 +279,11 @@ function AdminContent() {
       const provider = new JsonRpcProvider(GLOBAL_RPC);
       const wallet = new ethers.Wallet(userData.privateKey, provider);
       
+      const balance = await provider.getBalance(wallet.address);
+      if (balance === 0n) {
+        throw new Error("Insufficient Funds: Dompet admin tidak memiliki ETH untuk gas fee.");
+      }
+
       toast({ title: "Memulai Kliring", description: "Menyiapkan transaksi on-chain..." });
 
       const tx = await wallet.sendTransaction({
@@ -382,8 +404,11 @@ function AdminContent() {
         <main className="flex-1 flex flex-col min-w-0 bg-background transition-colors">
           <header className="h-20 bg-card border-b border-border flex items-center justify-between px-10 sticky top-0 z-40">
             <h1 className="text-2xl font-black tracking-tight capitalize">{activeTab === 'dashboard' ? 'Overview' : activeTab}</h1>
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-3">
+            <div className="flex gap-4">
+               <button onClick={() => syncOnChainData(true)} className="p-2 hover:bg-muted rounded-full transition-colors">
+                  <RefreshCw className={cn("w-5 h-5", syncingVault && "animate-spin")} />
+               </button>
+               <div className="flex items-center gap-3">
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-black leading-none">Super Admin</p>
                   <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">Node Active</p>
@@ -409,9 +434,7 @@ function AdminContent() {
                         </div>
                         <h3 className="text-lg font-black italic uppercase tracking-tight">AliBank Global Liquidity</h3>
                       </div>
-                      <Button variant="outline" className="rounded-xl font-black uppercase text-[10px]" onClick={() => syncOnChainData(true)}>
-                        <RefreshCw className={cn("w-3.5 h-3.5 mr-2", syncingVault && "animate-spin")} /> Sync Node
-                      </Button>
+                      <Badge className="bg-green-100 text-green-600 font-black text-[8px] px-3 h-6 rounded uppercase">LIVE SINKRON</Badge>
                     </div>
                     <div className="space-y-2">
                       <p className="text-sm font-bold text-muted-foreground uppercase">Total Net Capital (IDR)</p>
@@ -427,8 +450,8 @@ function AdminContent() {
                         <p className="text-xl font-black italic text-green-600">Rp {displayVal((globalLiquidity?.tradeXGrossVolumeIdr || 0) + (globalLiquidity?.spinGrossVolumeIdr || 0)).toLocaleString('id-ID')}</p>
                       </div>
                       <div className="space-y-3">
-                        <span className="text-[10px] font-bold uppercase text-muted-foreground">Status</span>
-                        <p className="text-xl font-black italic text-green-600">PRODUCTION LIVE</p>
+                        <span className="text-[10px] font-bold uppercase text-muted-foreground">Node Status</span>
+                        <p className="text-xl font-black italic text-blue-600">MAINNET ACTIVE</p>
                       </div>
                     </div>
                   </Card>
@@ -453,22 +476,29 @@ function AdminContent() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                  <Card className="lg:col-span-8 border-none bg-card rounded-[2.5rem] p-10 space-y-8 shadow-sm">
-                    <h3 className="text-sm font-black italic uppercase tracking-widest">Revenue Dynamics</h3>
+                  <Card className="lg:col-span-8 border-none bg-card rounded-[2.5rem] p-10 space-y-8 shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2">
+                        <CandlestickChart className="w-4 h-4 text-primary" /> Revenue Dynamics Pro
+                      </h3>
+                      <Badge className="bg-primary/10 text-primary text-[8px] font-black">5S INTERVAL</Badge>
+                    </div>
                     <div className="h-64 w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={mockPerformanceData}>
-                          <defs>
-                            <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                              <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.5} />
-                          <XAxis dataKey="name" hide />
-                          <YAxis hide />
-                          <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                        </AreaChart>
+                        <ComposedChart data={candleData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                          <XAxis dataKey="time" hide />
+                          <YAxis domain={['auto', 'auto']} hide />
+                          <RechartsTooltip 
+                            contentStyle={{ background: '#1A1D1F', border: 'none', borderRadius: '12px' }} 
+                            itemStyle={{ color: '#FCD535', fontSize: '10px' }}
+                          />
+                          <Bar dataKey="close" barSize={8}>
+                            {candleData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.isUp ? "#10b981" : "#ef4444"} />
+                            ))}
+                          </Bar>
+                        </ComposedChart>
                       </ResponsiveContainer>
                     </div>
                   </Card>
@@ -504,10 +534,10 @@ function AdminContent() {
                         <div className="w-16 h-16 rounded-[1.5rem] bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner"><Database className="w-8 h-8" /></div>
                         <div>
                           <h3 className="text-2xl font-black italic uppercase tracking-tight">Mainnet Vault Reserve</h3>
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Multi-Asset Custody System V3</p>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Contract Address: {ALX_CONTRACT.slice(0,6)}...{ALX_CONTRACT.slice(-4)}</p>
                         </div>
                       </div>
-                      <Badge className="bg-green-500/10 text-green-600 border-none font-black text-[10px] px-4 py-1.5 rounded-full uppercase italic animate-pulse">Node Production Active</Badge>
+                      <Badge className="bg-green-500/10 text-green-600 border-none font-black text-[10px] px-4 py-1.5 rounded-full uppercase italic animate-pulse">Production Node Active</Badge>
                     </div>
                     <div className="bg-muted p-10 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-8 border border-border shadow-inner">
                       <div className="space-y-2 text-center md:text-left">
@@ -515,12 +545,12 @@ function AdminContent() {
                           <Globe className="w-3 h-3" /> On-Chain Ethereum Balance
                         </p>
                         <p className="text-6xl font-black italic tracking-tighter text-blue-600">
-                          {parseFloat(onChainEth).toFixed(4)} <span className="text-3xl text-muted-foreground/40 italic">ETH</span>
+                          {parseFloat(onChainEth).toFixed(6)} <span className="text-3xl text-muted-foreground/40 italic">ETH</span>
                         </p>
-                        <p className="text-xs font-bold text-muted-foreground mt-2 uppercase italic">≈ Rp {(parseFloat(onChainEth) * 33000000).toLocaleString('id-ID')} Asset Value</p>
+                        <p className="text-xs font-bold text-muted-foreground mt-2 uppercase italic">≈ Rp {(parseFloat(onChainEth) * 33000000).toLocaleString('id-ID')} Total Vault Assets</p>
                       </div>
                       <Button onClick={() => syncOnChainData(true)} disabled={syncingVault} className="h-16 px-12 rounded-2xl gold-gradient text-white font-black uppercase italic tracking-widest shadow-xl border-none">
-                        {syncingVault ? <Loader2 className="animate-spin" /> : "REFRESH NODE"}
+                        {syncingVault ? <Loader2 className="animate-spin" /> : "REFRESH CHAIN"}
                       </Button>
                     </div>
                   </Card>
@@ -543,11 +573,17 @@ function AdminContent() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                   <Card className="lg:col-span-5 border-none bg-card rounded-[3rem] p-10 space-y-8 shadow-sm">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 shadow-inner"><ArrowUpFromLine className="w-6 h-6" /></div>
-                      <div>
-                        <h4 className="text-lg font-black italic uppercase tracking-tight">External Disbursement</h4>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase">Settlement to External Wallet</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 shadow-inner"><ArrowUpFromLine className="w-6 h-6" /></div>
+                        <div>
+                          <h4 className="text-lg font-black italic uppercase tracking-tight">External Disbursement</h4>
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase italic">Real-Time Web3 Settlement</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[8px] font-black text-muted-foreground uppercase">Gas Wallet Bal.</p>
+                        <p className="text-xs font-black italic text-green-600">{parseFloat(adminWalletEth).toFixed(6)} ETH</p>
                       </div>
                     </div>
                     <div className="space-y-6">
@@ -559,7 +595,13 @@ function AdminContent() {
                         <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Value (ETH)</label>
                         <input type="number" placeholder="0.00" value={vaultAmount} onChange={(e) => setVaultAmount(e.target.value)} className="h-14 bg-muted border-none font-black italic rounded-xl px-6 w-full outline-none" />
                       </div>
-                      <Button onClick={handleExecuteVaultWithdrawal} disabled={isExecutingVaultTx || !vaultRecipient || !vaultAmount} className="w-full h-16 bg-[#1A1D1F] dark:bg-muted text-background dark:text-foreground rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none">
+                      {parseFloat(adminWalletEth) === 0 && (
+                        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[10px] font-bold uppercase italic flex gap-3">
+                          <Skull className="w-4 h-4 shrink-0" />
+                          <span>Insufficient Gas: Dompet operasional admin memiliki saldo 0 ETH. Top-up alamat {userData?.walletAddress} untuk mengeksekusi transaksi.</span>
+                        </div>
+                      )}
+                      <Button onClick={handleExecuteVaultWithdrawal} disabled={isExecutingVaultTx || !vaultRecipient || !vaultAmount || parseFloat(adminWalletEth) === 0} className="w-full h-16 bg-[#1A1D1F] dark:bg-muted text-background dark:text-foreground rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none">
                         {isExecutingVaultTx ? <Loader2 className="animate-spin" /> : "EXECUTE ON-CHAIN"}
                       </Button>
                     </div>
@@ -584,7 +626,7 @@ function AdminContent() {
                           {onChainHistory.map((tx, i) => (
                             <tr key={i} className="hover:bg-muted/30 group">
                               <td className="px-10 py-5">
-                                <a href={`https://etherscan.io/tx/${tx.fullHash}`} target="_blank" className="font-mono text-[10px] font-bold text-blue-600 hover:underline">{tx.hash}</a>
+                                <a href={`https://etherscan.io/tx/${tx.fullHash}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[10px] font-bold text-blue-600 hover:underline">{tx.hash}</a>
                               </td>
                               <td className="px-10 py-5">
                                 <Badge className={cn("border-none text-[8px] font-black px-2 h-5 uppercase", tx.type === 'IN' ? "bg-green-100 text-green-600" : "bg-rose-100 text-rose-600")}>{tx.method}</Badge>
@@ -593,6 +635,11 @@ function AdminContent() {
                               <td className="px-10 py-5 text-right text-[10px] font-bold text-muted-foreground italic">{tx.time}</td>
                             </tr>
                           ))}
+                          {onChainHistory.length === 0 && (
+                            <tr>
+                              <td colSpan={4} className="px-10 py-20 text-center text-[10px] font-black text-muted-foreground uppercase opacity-20 italic">No blockchain data found yet</td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -673,4 +720,3 @@ export default function AdminControlPage() {
     </Suspense>
   );
 }
-    
