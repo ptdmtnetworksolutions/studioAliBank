@@ -21,7 +21,14 @@ import {
   Lock,
   Globe,
   BarChart3,
-  Rocket
+  Rocket,
+  MessageSquare,
+  FileText,
+  Share2,
+  Activity,
+  Target,
+  LineChart as LineChartIcon,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +44,8 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  ComposedChart
+  ComposedChart,
+  Line
 } from "recharts";
 import { LogoIcon } from "@/components/ui/logo";
 
@@ -152,7 +160,7 @@ export default function MarketDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          {isAlix && <Badge className="bg-primary/20 text-primary border-none font-black text-[8px] uppercase px-2 h-5">V3 Official</Badge>}
+          {isAlix && <Badge className="bg-primary/20 text-primary border-none font-black text-[8px] uppercase px-2 h-5">V3 OFFICIAL</Badge>}
           <Star className="w-5 h-5 text-muted-foreground" />
           <Bell className="w-5 h-5 text-muted-foreground" />
         </div>
@@ -187,7 +195,7 @@ export default function MarketDetailPage() {
                   "text-4xl font-black tracking-tighter italic transition-colors duration-500",
                   priceChange >= 0 ? "text-green-500" : "text-rose-500"
                 )}>
-                  {currentPrice.toFixed(isAlix ? 2 : 2)}
+                  {currentPrice.toFixed(2)}
                 </h2>
                 <div className="flex items-center gap-2">
                   <p className="text-xs font-bold text-muted-foreground">Rp{idrPrice}</p>
@@ -321,6 +329,64 @@ export default function MarketDetailPage() {
               </div>
             </section>
           </>
+        ) : activeTab === "Info" ? (
+          <div className="px-6 py-8 space-y-10 animate-in fade-in zoom-in-95 duration-500">
+            <section className="space-y-4">
+              <h3 className="text-xl font-black italic uppercase text-foreground">Tentang {symbol}</h3>
+              <p className="text-xs font-medium text-muted-foreground leading-relaxed italic uppercase">
+                {isAlix 
+                  ? "Alix Coin (ALX) adalah aset kripto berdaulat yang dikembangkan oleh AliBank sebagai instrumen utilitas utama dalam ekosistem perbankan V3. ALX dirancang untuk memberikan efisiensi transaksi, tata kelola desentralisasi, dan akses eksklusif ke layanan finansial premium."
+                  : `Informasi mendetail mengenai ${symbol} dapat ditemukan melalui portal data global.`
+                }
+              </p>
+            </section>
+
+            <section className="space-y-6">
+              <h4 className="text-sm font-black text-muted-foreground uppercase tracking-widest">Utilitas Utama</h4>
+              <div className="grid grid-cols-1 gap-4">
+                {[
+                  { title: "Governance", icon: ShieldCheck, desc: "Pemegang ALX memiliki hak suara dalam protokol pengembangan AliBank." },
+                  { title: "Gas Efficiency", icon: Zap, desc: "Gunakan ALX untuk membayar biaya transaksi dengan diskon signifikan." },
+                  { title: "Marketplace Access", icon: ShoppingBag, desc: "Akses produk eksklusif dan penawaran terbatas di Ali-Marketplace." },
+                ].map((item, i) => (
+                  <div key={i} className="p-5 rounded-2xl bg-muted/30 border border-border flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                      <item.icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h5 className="font-black uppercase italic text-[11px] text-foreground">{item.title}</h5>
+                      <p className="text-[9px] text-muted-foreground font-bold mt-0.5">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <h4 className="text-sm font-black text-muted-foreground uppercase tracking-widest">Informasi Proyek</h4>
+              <Card className="liquid-glass border-none rounded-2xl overflow-hidden shadow-sm">
+                <div className="divide-y divide-border/10">
+                  {[
+                    { label: "Situs Web", value: "alibank.io", icon: Globe },
+                    { label: "Whitepaper", value: "V3 Protocol Doc", icon: FileText },
+                    { label: "Komunitas", value: "Telegram / Square", icon: MessageSquare },
+                    { label: "Audit", value: "CertiK Verified", icon: ShieldCheck },
+                  ].map((link, i) => (
+                    <div key={i} className="flex justify-between items-center p-4 hover:bg-muted/50 transition-colors cursor-pointer group">
+                      <div className="flex items-center gap-3">
+                        <link.icon className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">{link.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-primary italic uppercase">{link.value}</span>
+                        <Share2 className="w-3 h-3 text-muted-foreground/40 group-hover:text-primary" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </section>
+          </div>
         ) : activeTab === "Info Institusi" && isAlix ? (
           <div className="px-6 py-8 space-y-10 animate-in fade-in zoom-in-95 duration-500">
             <header className="space-y-2">
@@ -386,6 +452,70 @@ export default function MarketDetailPage() {
                 ))}
               </div>
             </section>
+          </div>
+        ) : activeTab === "Trade-X" ? (
+          <div className="px-6 py-8 space-y-10 animate-in fade-in zoom-in-95 duration-500">
+            <header className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h3 className="text-xl font-black italic uppercase text-foreground">Advanced Analytics</h3>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Trade-X Terminal V3</p>
+              </div>
+              <Badge className="bg-primary/10 text-primary border-primary/20 px-3 h-6 rounded-md font-black text-[8px] uppercase">Alpha Pulse</Badge>
+            </header>
+
+            <Card className="liquid-glass-dark border-none rounded-3xl p-8 space-y-8 relative overflow-hidden group shadow-2xl">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:rotate-12 transition-transform duration-1000">
+                <BrainCircuit className="w-32 h-32 text-primary" />
+              </div>
+              <div className="relative z-10 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary">
+                  <Activity className="w-6 h-6 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="font-black uppercase italic text-white text-sm">AI Strategy Pulse</h4>
+                  <p className="text-[9px] text-white/50 font-bold uppercase">Sentiment Analysis Riil</p>
+                </div>
+              </div>
+              <p className="text-xs font-medium italic text-white/80 leading-relaxed uppercase relative z-10">
+                "Stabilitas ALX berada pada tingkat optimal (Confidence: 98%). Rekomendasi: Akumulasi bertahap selama fase Internal Accumulation untuk keuntungan maksimal saat Listing Global."
+              </p>
+              <div className="grid grid-cols-2 gap-4 relative z-10">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
+                  <p className="text-[8px] font-bold text-white/40 uppercase">Holding Score</p>
+                  <p className="text-xl font-black text-green-500 italic">9.2/10</p>
+                </div>
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
+                  <p className="text-[8px] font-bold text-white/40 uppercase">Whale Activity</p>
+                  <p className="text-xl font-black text-primary italic">Stable</p>
+                </div>
+              </div>
+            </Card>
+
+            <section className="space-y-6">
+              <h4 className="text-sm font-black text-muted-foreground uppercase tracking-widest px-1">Market Micro-Metrics</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-6 rounded-2xl bg-muted/30 border border-border space-y-2">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <Target className="w-3.5 h-3.5" />
+                    <span className="text-[9px] font-bold uppercase italic">Volatility</span>
+                  </div>
+                  <p className="text-lg font-black italic text-foreground tracking-tighter">0.02%</p>
+                  <Badge className="bg-green-500/10 text-green-500 border-none text-[7px] font-black h-4 px-1.5 uppercase">Low Risk</Badge>
+                </div>
+                <div className="p-6 rounded-2xl bg-muted/30 border border-border space-y-2">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <LineChartIcon className="w-3.5 h-3.5" />
+                    <span className="text-[9px] font-bold uppercase italic">Liquidity</span>
+                  </div>
+                  <p className="text-lg font-black italic text-foreground tracking-tighter">Rp1.24B</p>
+                  <Badge className="bg-blue-500/10 text-blue-500 border-none text-[7px] font-black h-4 px-1.5 uppercase">Internal</Badge>
+                </div>
+              </div>
+            </section>
+
+            <Button className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase text-xs tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-transform">
+              Buka Terminal Trade-X Pro <ChevronRight className="w-4 h-4 ml-2" />
+            </Button>
           </div>
         ) : (
           <div className="py-20 text-center opacity-20 italic font-black uppercase tracking-widest text-sm">
