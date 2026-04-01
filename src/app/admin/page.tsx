@@ -56,7 +56,8 @@ import {
   Mail,
   MapPin,
   CreditCard as CardIcon,
-  PiggyBank
+  PiggyBank,
+  Skull
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -270,6 +271,40 @@ function AdminContent() {
       toast({ title: "Sistem Dibersihkan", description: "Audit dihapus dan seluruh angka dashboard kembali ke Nol Mutlak." });
     } catch (err) {
       toast({ variant: "destructive", title: "Gagal Membersihkan Audit" });
+    } finally {
+      setIsPurging(false);
+    }
+  };
+
+  const handleWipeAllClientData = async () => {
+    if (!db || isPurging) return;
+    if (!confirm("⚠️ PERINGATAN NUKLIR: Tindakan ini akan mengosongkan SELURUH saldo deposito, tabungan, dan aset kripto di SEMUA akun nasabah untuk persiapan publik. Lanjutkan?")) return;
+
+    setIsPurging(true);
+    try {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const batch = writeBatch(db);
+
+      for (const userDoc of usersSnap.docs) {
+        // Reset balances in profile
+        batch.update(userDoc.ref, {
+          totalBalance: 0,
+          savings: 0,
+          cryptoBalances: { BTC: 0, ETH: 0, USDT: 0, ALX: 0 }
+        });
+
+        // Clear sub-collections
+        const subCollections = ['deposits', 'wallets', 'transactions', 'notifications'];
+        for (const sub of subCollections) {
+          const subSnap = await getDocs(collection(db, "users", userDoc.id, sub));
+          subSnap.docs.forEach(d => batch.delete(d.ref));
+        }
+      }
+
+      await batch.commit();
+      toast({ title: "Reset Produksi Berhasil", description: "Seluruh saldo nasabah kini telah menjadi nol mutlak." });
+    } catch (err) {
+      toast({ variant: "destructive", title: "Gagal Melakukan Reset Massal" });
     } finally {
       setIsPurging(false);
     }
@@ -542,10 +577,10 @@ function AdminContent() {
 
                 {/* QUICK ACTIONS SECTION */}
                 <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+                  <QuickActionCard icon={Skull} label="Reset All Clients" sub="Production Wipe" onClick={handleWipeAllClientData} className="bg-rose-500/5 hover:bg-rose-500/10 text-rose-600" />
                   <QuickActionCard icon={PlusCircle} label="Mint ALX" sub="Expand supply" onClick={() => setActiveTab('tokenomics')} />
                   <QuickActionCard icon={Pickaxe} label="Burn ALX" sub="Scarcity control" onClick={() => setActiveTab('tokenomics')} />
                   <QuickActionCard icon={Database} label="Sync Vault" sub="Mainnet data" onClick={syncOnChainData} />
-                  <QuickActionCard icon={Eraser} label="Purge Audit" sub="Clean ledger" onClick={handlePurgeAuditLogs} />
                 </section>
 
                 {/* RECENT TRANSACTIONS TABLE */}
@@ -1043,9 +1078,9 @@ function SidebarItem({ icon: Icon, label, active, onClick, className }: any) {
   );
 }
 
-function QuickActionCard({ icon: Icon, label, sub, onClick }: any) {
+function QuickActionCard({ icon: Icon, label, sub, onClick, className }: any) {
   return (
-    <Card className="border-none shadow-none bg-card rounded-[2rem] p-6 flex flex-col items-center justify-center gap-3 cursor-pointer hover:scale-[1.05] active:scale-95 transition-all group transition-colors" onClick={onClick}>
+    <Card className={cn("border-none shadow-none bg-card rounded-[2rem] p-6 flex flex-col items-center justify-center gap-3 cursor-pointer hover:scale-[1.05] active:scale-95 transition-all group transition-colors", className)} onClick={onClick}>
       <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-foreground group-hover:gold-gradient group-hover:text-white transition-all duration-500 shadow-inner">
         <Icon className="w-6 h-6" />
       </div>
