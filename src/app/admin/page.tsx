@@ -125,7 +125,8 @@ import {
 // KONSTANTA GLOBAL ADMIN - ALIBANK VAULT V3
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
 const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
-const OWNER_EMAIL = "alidzulfikar075@gmail.com";
+const OWNER_EMAIL = "alidzifikar075@gmail.com";
+const ETHERSCAN_API_KEY = "M1S7MDTBQSG1A3URQKYNVF31PSPE48UA8R";
 
 const mockPerformanceData = [
   { name: 'Jan', revenue: 4000, volume: 2400 },
@@ -182,10 +183,9 @@ function AdminContent() {
       const balance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
       setOnChainEth(formatEther(balance));
 
-      // FETCH REAL TRANSACTION DATA FROM ETHERSCAN
-      // Menggunakan fallback jika API utama gagal atau membatasi akses
+      // FETCH REAL TRANSACTION DATA FROM ETHERSCAN USING API KEY
       try {
-        const res = await fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc`);
+        const res = await fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${ETHERSCAN_API_KEY}`);
         const data = await res.json();
         
         if (data.status === "1" && data.result) {
