@@ -72,7 +72,6 @@ export default function AliSpinPage() {
     };
   }, []);
 
-  // Audio Synthesizer Engine
   const playSound = (type: 'spin' | 'win' | 'loss') => {
     if (!soundEnabled) return;
     
@@ -95,7 +94,7 @@ export default function AliSpinPage() {
         osc.stop(ctx.currentTime + 0.1);
       } else if (type === 'win') {
         osc.type = 'triangle';
-        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        const notes = [523.25, 659.25, 783.99, 1046.50];
         notes.forEach((freq, i) => {
           osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.1);
         });
@@ -211,6 +210,19 @@ export default function AliSpinPage() {
       });
     } else {
       playSound('loss');
+      // LOG KEKALAHAN KE DASHBOARD ADMIN
+      if (db) {
+        addDoc(collection(db, "system", "audit", "global_transactions"), {
+          id: `SPIN-LOSS-${Date.now()}`,
+          category: "Ali-Spin Capture",
+          amountIdr: stakeCurrency === 'IDR' ? betAmount : (betAmount * 15850),
+          cryptoAmount: stakeCurrency !== 'IDR' ? betAmount : 0,
+          cryptoCurrency: stakeCurrency,
+          status: "success",
+          timestamp: serverTimestamp(),
+          description: `Bank Profit: User ${userData?.name} lost spin.`
+        });
+      }
     }
 
     setIsSpinning(false);
@@ -220,7 +232,6 @@ export default function AliSpinPage() {
 
   return (
     <div className="min-h-screen bg-[#0F1113] text-white flex flex-col font-body overflow-hidden">
-      {/* Header */}
       <header className="px-4 h-16 flex items-center justify-between bg-[#171A1D] border-b border-white/5 shrink-0">
         <button onClick={() => router.back()} className="p-2 hover:bg-white/5 rounded-full transition-colors">
           <ArrowLeft className="w-6 h-6 text-white/60" />
@@ -234,7 +245,6 @@ export default function AliSpinPage() {
         </button>
       </header>
 
-      {/* Stats Bar */}
       <div className="px-4 h-14 flex items-center justify-between bg-[#1C2024] shrink-0 border-b border-white/5">
         <div className="flex gap-6">
           <div className="flex items-center gap-2">
@@ -271,7 +281,6 @@ export default function AliSpinPage() {
         )}
       </div>
 
-      {/* Main Reel Area */}
       <main className="flex-1 flex flex-col items-center justify-center p-6 relative">
         <div className="absolute inset-0 gold-gradient opacity-5 blur-[120px]" />
         
@@ -312,7 +321,6 @@ export default function AliSpinPage() {
         </div>
       </main>
 
-      {/* Control Panel */}
       <div className="bg-[#171A1D] p-4 space-y-4 pb-12 shrink-0 border-t border-white/5">
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-[#1C2024] rounded-2xl p-1 flex items-center justify-between border border-white/5 h-16 relative">
@@ -381,7 +389,6 @@ export default function AliSpinPage() {
         </div>
       </div>
 
-      {/* Footer Navigation */}
       <footer className="h-16 bg-[#171A1D] border-t border-white/5 flex items-center justify-around shrink-0 px-2 pb-safe">
         <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity w-full" onClick={() => router.push('/')}>
           <LayoutGrid className="w-5 h-5" />

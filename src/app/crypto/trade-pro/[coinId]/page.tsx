@@ -172,7 +172,6 @@ export default function TradeProPage() {
       return;
     }
 
-    // Eksekusi Pemotongan Saldo Riil
     const balanceKey = stakeCurrency === 'IDR' ? "totalBalance" : `cryptoBalances.${stakeCurrency}`;
     updateDoc(userDocRef, { [balanceKey]: increment(-amount) });
 
@@ -194,7 +193,6 @@ export default function TradeProPage() {
     if (!entryPrice || !userDocRef || !user || !db) return;
     const isWin = prediction === 'high' ? price > entryPrice : price < entryPrice;
     
-    // Hitung Nilai Kemenangan dalam IDR lalu konversi ke ALX
     const amountInIdr = amount * ASSET_PRICES[stakeCurrency];
     const rewardInAlx = isWin ? (amountInIdr * 1.9) / ALX_PRICE_IDR : 0;
 
@@ -206,6 +204,18 @@ export default function TradeProPage() {
         type: "success",
         read: false,
         createdAt: new Date().toISOString()
+      });
+    } else {
+      // LOG KEKALAHAN KE DASHBOARD ADMIN
+      addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `TRADEX-CAPTURE-${Date.now()}`,
+        category: "Trade-X Capture",
+        amountIdr: amountInIdr,
+        cryptoAmount: stakeCurrency !== 'IDR' ? amount : 0,
+        cryptoCurrency: stakeCurrency,
+        status: "success",
+        timestamp: serverTimestamp(),
+        description: `Bank Profit: Trade-X Loss capture from ${userData?.name}.`
       });
     }
 
@@ -236,8 +246,7 @@ export default function TradeProPage() {
   if (!mounted) return null;
 
   return (
-    <div className="h-screen bg-[#0F1113] text-white flex flex-col font-body overflow-hidden selection:bg-primary/20">
-      {/* HEADER */}
+    <div className="h-screen bg-[#0F1113] text-white flex flex-col font-body overflow-hidden">
       <header className="px-4 h-16 flex items-center justify-between bg-[#171A1D] border-b border-white/5 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center relative cursor-pointer active:scale-95 transition-transform" onClick={() => router.push('/profile')}>
@@ -259,7 +268,6 @@ export default function TradeProPage() {
         </button>
       </header>
 
-      {/* ASSET SELECTOR */}
       <div className="px-4 h-12 flex items-center justify-between bg-[#1C2024] shrink-0 border-b border-white/5">
         <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5 cursor-pointer active:bg-white/10 transition-colors">
           <div className="w-5 h-5 rounded bg-primary flex items-center justify-center p-1">
@@ -275,7 +283,6 @@ export default function TradeProPage() {
         </div>
       </div>
 
-      {/* CHART */}
       <main className="flex-1 relative overflow-hidden flex flex-col bg-[#0F1113]">
         <div className="flex-1 relative">
           <ResponsiveContainer width="100%" height="100%">
@@ -321,7 +328,6 @@ export default function TradeProPage() {
            </div>
         </div>
 
-        {/* TERMINAL PANEL */}
         <div className="bg-[#171A1D] p-4 space-y-4 pb-8 shrink-0">
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-[#1C2024] rounded-xl p-1 flex items-center justify-between border border-white/5 h-14">
@@ -332,7 +338,6 @@ export default function TradeProPage() {
               <button onClick={() => setDuration(duration + 15)} className="w-10 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Plus className="w-4 h-4 text-white/40" /></button>
             </div>
 
-            {/* CURRENCY & AMOUNT SELECTOR */}
             <div className="bg-[#1C2024] rounded-xl p-1 flex items-center justify-between border border-white/5 h-14 relative">
               <button onClick={() => setAmount(prev => Math.max(0, prev - (stakeCurrency === 'IDR' ? 50000 : 0.001)))} className="w-8 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Minus className="w-3 h-3 text-white/40" /></button>
               
@@ -356,7 +361,7 @@ export default function TradeProPage() {
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-transparent text-center text-sm font-black italic outline-none border-none p-0 focus:ring-0 appearance-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-full bg-transparent text-center text-sm font-black italic outline-none border-none p-0 focus:ring-0 appearance-none text-white"
                 />
               </div>
 
@@ -409,7 +414,7 @@ export default function TradeProPage() {
 
       <footer className="h-16 bg-[#171A1D] border-t border-white/5 flex items-center justify-around shrink-0 px-2 pb-safe">
         <button className="flex flex-col items-center gap-1 group w-full" onClick={() => router.push('/')}>
-          <LineChart className="w-5 h-5 text-primary" />
+          <LayoutGrid className="w-5 h-5" />
           <span className="text-[8px] font-black uppercase italic text-primary">Beranda</span>
         </button>
         <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity w-full" onClick={() => router.push('/crypto')}>
