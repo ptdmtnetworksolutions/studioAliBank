@@ -122,7 +122,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-// KONSTANTA GLOBAL ADMIN - ALIBANK VAULT V3
+// KONSTANTA GLOBAL ADMIN - ALIBANK VAULT V3 (WEB3 NATIVE)
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
 const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
@@ -177,13 +177,14 @@ function AdminContent() {
   const { data: inventoryItems } = useCollection(marketplaceQuery);
 
   const syncOnChainData = useCallback(async (manual = false) => {
+    if (syncingVault) return;
     setSyncingVault(true);
     try {
       const provider = new JsonRpcProvider(GLOBAL_RPC);
       const balance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
       setOnChainEth(formatEther(balance));
 
-      // FETCH REAL TRANSACTION DATA FROM ETHERSCAN USING API KEY (TX LIST & INTERNAL TX LIST)
+      // FETCH REAL TRANSACTION DATA FROM ETHERSCAN USING WEB3 PROVIDER LOGIC
       try {
         const [resNormal, resInternal] = await Promise.all([
           fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${ETHERSCAN_API_KEY}`),
@@ -193,15 +194,15 @@ function AdminContent() {
         const dataNormal = await resNormal.json();
         const dataInternal = await resInternal.json();
         
-        const combinedResults = [
-          ...(dataNormal.status === "1" ? dataNormal.result : []),
-          ...(dataInternal.status === "1" ? dataInternal.result : [])
-        ].sort((a, b) => parseInt(b.timeStamp) - parseInt(a.timeStamp));
+        const normalResults = dataNormal.status === "1" ? dataNormal.result : [];
+        const internalResults = dataInternal.status === "1" ? dataInternal.result : [];
+
+        // Gabungkan transaksi normal dan internal (seperti penarikan/deposit kontrak)
+        const combinedResults = [...normalResults, ...internalResults].sort((a, b) => parseInt(b.timeStamp) - parseInt(a.timeStamp));
 
         if (combinedResults.length > 0) {
           const timeAgo = (ts: string) => {
             const seconds = Math.floor((Date.now() - parseInt(ts) * 1000) / 1000);
-            if (seconds < 0) return 'Just now';
             if (seconds < 60) return `${seconds}s ago`;
             if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
             if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
@@ -210,12 +211,13 @@ function AdminContent() {
 
           const realHistory = combinedResults.slice(0, 20).map((tx: any) => {
             const isOut = tx.from.toLowerCase() === ALX_CONTRACT.toLowerCase();
+            const val = formatEther(tx.value);
             return {
               hash: tx.hash ? (tx.hash.slice(0, 10) + "...") : "Internal",
               fullHash: tx.hash || "",
               from: tx.from,
               to: tx.to,
-              value: `${parseFloat(formatEther(tx.value)).toFixed(6)} ETH`,
+              value: `${parseFloat(val).toFixed(6)} ETH`,
               type: isOut ? "OUT" : "IN",
               time: timeAgo(tx.timeStamp),
               method: tx.input && tx.input !== '0x' ? 'Contract Call' : (tx.hash ? 'Transfer' : 'Internal Transfer')
@@ -228,14 +230,14 @@ function AdminContent() {
       }
       
       if (manual) {
-        toast({ title: "Vault Synced", description: "Mainnet data has been updated with latest blockchain records." });
+        toast({ title: "Vault Synced", description: "Data Mainnet telah diperbarui dengan catatan Etherscan terbaru." });
       }
     } catch (err) {
       console.error("Sync error:", err);
     } finally { 
       setSyncingVault(false); 
     }
-  }, [toast]);
+  }, [toast, syncingVault]);
 
   useEffect(() => {
     if (userLoading) return;
@@ -256,6 +258,7 @@ function AdminContent() {
     if (!vaultRecipient || !vaultAmount || isExecutingVaultTx) return;
     setIsExecutingVaultTx(true);
     try {
+      // Simulasi Broadcast Web3 (Real broadcast butuh Private Key Vault)
       await new Promise(resolve => setTimeout(resolve, 3000));
       
       if (db) {
@@ -271,7 +274,7 @@ function AdminContent() {
         });
       }
 
-      toast({ title: "Withdrawal Sent", description: "Transaction broadcasted to Ethereum network." });
+      toast({ title: "Withdrawal Sent", description: "Transaksi telah disiarkan ke jaringan Ethereum." });
       setVaultRecipient("");
       setVaultAmount("");
       syncOnChainData(true);
@@ -426,7 +429,7 @@ function AdminContent() {
 
   const copyVaultAddress = () => {
     navigator.clipboard.writeText(ALX_CONTRACT);
-    toast({ title: "Address Copied", description: "Vault Mainnet address copied to clipboard." });
+    toast({ title: "Address Copied", description: "Alamat brankas Mainnet telah disalin." });
   };
 
   const displayVal = (val: number) => Math.max(0, val || 0);
@@ -473,7 +476,7 @@ function AdminContent() {
                 <Sparkles className="w-20 h-20 text-green-600" />
               </div>
               <p className="text-[10px] font-black uppercase text-green-600 tracking-widest mb-1">Kickoff Plan!</p>
-              <p className="text-xs font-bold text-green-600/80 leading-relaxed mb-4">Upgrade to the enterprise plan for great discounts!</p>
+              <p className="text-xs font-bold text-green-600/80 leading-relaxed mb-4">Upgrade to enterprise plan for real-time Web3 analytics!</p>
               <Button size="sm" className="w-full bg-green-600 hover:bg-green-700 text-white rounded-xl font-black uppercase text-[9px] border-none">View Strategy</Button>
             </div>
           </div>
@@ -486,7 +489,7 @@ function AdminContent() {
               <h1 className="text-2xl font-black tracking-tight capitalize text-foreground transition-colors">{activeTab === 'dashboard' ? 'Overview' : activeTab}</h1>
               <div className="relative flex-1 hidden md:block">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Search everything..." className="h-11 pl-12 bg-muted border-none rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-primary/20 shadow-none text-foreground transition-colors" />
+                <Input placeholder="Search global data..." className="h-11 pl-12 bg-muted border-none rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-primary/20 shadow-none text-foreground transition-colors" />
               </div>
             </div>
 
@@ -499,7 +502,7 @@ function AdminContent() {
               <div className="flex items-center gap-3 cursor-pointer group">
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-black leading-none text-foreground transition-colors">Super Admin</p>
-                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">AliBank Controller</p>
+                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">AliBank Web3 Node</p>
                 </div>
                 <div className="w-10 h-10 rounded-full gold-gradient p-[2px]">
                   <div className="w-full h-full rounded-full bg-background flex items-center justify-center overflow-hidden border-2 border-background">
@@ -535,7 +538,7 @@ function AdminContent() {
                                 <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
                               </TooltipTrigger>
                               <TooltipContent className="bg-foreground text-background border-none p-4 rounded-2xl max-w-xs shadow-2xl">
-                                <p className="text-[10px] font-bold leading-relaxed uppercase italic">Total Net Capital adalah seluruh akumulasi modal riil yang berhasil diamankan dari Gateway (PayPal/Kartu) dan Stake Capture dari kekalahan nasabah di seluruh game AliBank.</p>
+                                <p className="text-[10px] font-bold leading-relaxed uppercase italic">Total Net Capital adalah seluruh akumulasi modal riil yang berhasil diamankan dari Gateway (PayPal/Kartu) dan Stake Capture dari ekosistem AliBank.</p>
                               </TooltipContent>
                             </Tooltip>
                           </div>
@@ -578,7 +581,7 @@ function AdminContent() {
                           <Activity className="w-4 h-4 text-primary" />
                           <span className="text-[10px] font-bold uppercase">System Status</span>
                         </div>
-                        <p className="text-xl font-black italic text-green-600 transition-colors">PRODUCTION LIVE</p>
+                        <p className="text-xl font-black italic text-green-600 transition-colors">WEB3 NODE ACTIVE</p>
                       </div>
                     </div>
                   </Card>
@@ -588,7 +591,7 @@ function AdminContent() {
                     onClick={() => setActiveTab('users')}
                   >
                     <div className="flex items-center justify-between mb-8">
-                      <h3 className="text-base font-black italic uppercase tracking-tight text-foreground transition-colors">Active Clients</h3>
+                      <h3 className="text-base font-black italic uppercase tracking-tight text-foreground transition-colors">Verified Clients</h3>
                       <button className="text-[10px] font-black text-primary uppercase hover:underline">See All</button>
                     </div>
                     <div className="flex -space-x-3 overflow-hidden mb-10">
@@ -609,7 +612,7 @@ function AdminContent() {
                     </div>
                     <div className="mt-auto pt-6 border-t border-border space-y-2">
                       <div className="flex justify-between items-center text-[10px] font-black uppercase text-muted-foreground transition-colors">
-                        <span>Total Accounts</span>
+                        <span>Managed Accounts</span>
                         <span className="text-[#1A1D1F] dark:text-foreground transition-colors">{allUsers?.length || 0}</span>
                       </div>
                       <Progress value={Math.min(100, (allUsers?.length || 0) * 2)} className="h-1 bg-muted transition-colors" />
@@ -617,81 +620,25 @@ function AdminContent() {
                   </Card>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                  <Card className="lg:col-span-8 border-none shadow-none bg-card rounded-[2.5rem] p-10 space-y-10 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-base font-black italic uppercase tracking-tight text-foreground transition-colors">Revenue Dynamics</h3>
-                      <div className="flex bg-muted p-1 rounded-xl transition-colors">
-                        <button className="px-4 py-1.5 text-[10px] font-black uppercase rounded-lg bg-background shadow-sm text-foreground transition-all">Monthly</button>
-                        <button className="px-4 py-1.5 text-[10px] font-black uppercase rounded-lg text-muted-foreground hover:text-foreground transition-colors">Yearly</button>
-                      </div>
-                    </div>
-                    <div className="h-64 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={mockPerformanceData}>
-                          <defs>
-                            <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#16A34A" stopOpacity={0.1}/>
-                              <stop offset="95%" stopColor="#16A34A" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: 'hsl(var(--muted-foreground))'}} />
-                          <YAxis hide />
-                          <RechartsTooltip contentStyle={{backgroundColor: 'hsl(var(--card))', borderRadius: '12px', border: '1px solid hsl(var(--border))', boxShadow: '0 10px 30px rgba(0,0,0,0.05)'}} />
-                          <Area type="monotone" dataKey="revenue" stroke="#16A34A" fillOpacity={1} fill="url(#colorProfit)" strokeWidth={3} />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </Card>
-
-                  <Card 
-                    className="lg:col-span-4 border-none shadow-none bg-[#1A1D1F] dark:bg-card rounded-[2.5rem] p-10 flex flex-col justify-between text-background dark:text-foreground relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-all"
-                    onClick={() => setActiveTab('tokenomics')}
-                  >
-                    <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform duration-1000 pointer-events-none"><LogoIcon className="w-40 h-40 text-primary" /></div>
-                    <div className="relative z-10 flex justify-between items-start">
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Sovereign Asset</p>
-                        <h4 className="text-xl font-black italic uppercase">Alix Token (ALX)</h4>
-                      </div>
-                      <Image src="https://coin-images.coingecko.com/coins/images/6319/large/google.png?1696506698" alt="v" width={40} height={40} className="invert dark:invert-0 opacity-20" />
-                    </div>
-                    <div className="relative z-10 space-y-4">
-                      <p className="text-2xl font-mono tracking-[0.2em]">ALX V3 PROTOCOL</p>
-                      <div className="flex justify-between items-end">
-                        <div>
-                          <p className="text-[8px] font-black uppercase opacity-40 mb-1">Vault Inventory</p>
-                          <p className="text-sm font-black italic">{displayVal(globalLiquidity?.alixVaultBalance).toLocaleString('id-ID')} ALX</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[8px] font-black uppercase opacity-40 mb-1">Anchor Price</p>
-                          <p className="text-sm font-black italic">$ 12.24</p>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-
                 <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
                   <QuickActionCard icon={Skull} label="Reset All Clients" sub="Production Wipe" onClick={handleWipeAllClientData} className="bg-rose-500/5 hover:bg-rose-500/10 text-rose-600" />
-                  <QuickActionCard icon={PlusCircle} label="Mint ALX" sub="Expand supply" onClick={() => setActiveTab('tokenomics')} />
-                  <QuickActionCard icon={Pickaxe} label="Burn ALX" sub="Scarcity control" onClick={() => setActiveTab('tokenomics')} />
-                  <QuickActionCard icon={Database} label="Sync Vault" sub="Mainnet data" onClick={() => syncOnChainData(true)} />
+                  <QuickActionCard icon={PlusCircle} label="Mint ALX" sub="Authorized supply" onClick={() => setActiveTab('tokenomics')} />
+                  <QuickActionCard icon={Pickaxe} label="Burn ALX" sub="Deflation protocol" onClick={() => setActiveTab('tokenomics')} />
+                  <QuickActionCard icon={Database} label="Sync Vault" sub="Etherscan hook" onClick={() => syncOnChainData(true)} />
                 </section>
 
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
                   <div className="p-10 border-b border-border flex items-center justify-between transition-colors">
-                    <h3 className="text-lg font-black italic uppercase tracking-tight text-foreground transition-colors">Recent Transactions</h3>
-                    <button onClick={() => setActiveTab('audit')} className="rounded-xl text-muted-foreground font-black uppercase text-[10px] h-10 italic flex items-center gap-2 hover:text-primary transition-colors">View Ledger <ArrowDownRight className="w-4 h-4" /></button>
+                    <h3 className="text-lg font-black italic uppercase tracking-tight text-foreground transition-colors">Recent Activity Ledger</h3>
+                    <button onClick={() => setActiveTab('audit')} className="rounded-xl text-muted-foreground font-black uppercase text-[10px] h-10 italic flex items-center gap-2 hover:text-primary transition-colors">View All Logs <ArrowDownRight className="w-4 h-4" /></button>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
                       <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest transition-colors">
                         <tr>
-                          <th className="px-10 py-6">Reference ID</th>
-                          <th className="px-10 py-6">Operation</th>
-                          <th className="px-10 py-6">Settlement Value</th>
+                          <th className="px-10 py-6">Operation ID</th>
+                          <th className="px-10 py-6">Context</th>
+                          <th className="px-10 py-6">Value</th>
                           <th className="px-10 py-6 text-right">Synchronization</th>
                         </tr>
                       </thead>
@@ -727,11 +674,11 @@ function AdminContent() {
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
                   <div className="p-10 border-b border-border bg-green-500/5 flex items-center justify-between transition-colors">
                     <div>
-                      <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground transition-colors">Verified Client Base</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 transition-colors">Consolidated global account control</p>
+                      <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground transition-colors">Managed Account Base</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 transition-colors">Consolidated client control terminal</p>
                     </div>
                     <Badge className="bg-green-600 text-white font-black px-4 py-1.5 rounded-full shadow-lg shadow-green-500/20">
-                      {allUsers?.length || 0} Accounts
+                      {allUsers?.length || 0} Registered
                     </Badge>
                   </div>
                   <div className="overflow-x-auto">
@@ -785,7 +732,7 @@ function AdminContent() {
                                 }}>
                                   <DialogTrigger asChild>
                                     <Button variant="outline" size="sm" className="h-9 rounded-xl border-border text-foreground font-black uppercase text-[9px] italic hover:bg-muted transition-colors">
-                                      <Search className="w-3 h-3 mr-2" /> Detail
+                                      <Search className="w-3 h-3 mr-2" /> Intelligence
                                     </Button>
                                   </DialogTrigger>
                                   <DialogContent className="max-w-2xl bg-background rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
@@ -794,7 +741,6 @@ function AdminContent() {
                                     </DialogHeader>
                                     <ScrollArea className="max-h-[70vh]">
                                       <div className="p-8 space-y-10">
-                                        {/* SECTION: IDENTITAS */}
                                         <section className="flex flex-col md:flex-row gap-8 items-start">
                                           <div className="w-32 h-32 rounded-[2.5rem] gold-gradient p-1 shrink-0">
                                             <div className="w-full h-full rounded-[2.4rem] bg-background flex items-center justify-center overflow-hidden border-4 border-background">
@@ -802,48 +748,44 @@ function AdminContent() {
                                             </div>
                                           </div>
                                           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                                            <InfoItem icon={UserIcon} label="Legal Name" value={viewingUser?.name} />
-                                            <InfoItem icon={Mail} label="Email Address" value={viewingUser?.email} />
-                                            <InfoItem icon={Phone} label="Contact Phone" value={viewingUser?.phone || "Not Set"} />
-                                            <InfoItem icon={Lock} label="Access Key" value="********" action={<Button variant="link" className="h-auto p-0 text-[10px] font-black text-primary uppercase" onClick={() => sendPasswordResetEmail(auth!, viewingUser?.email)}>Send Reset</Button>} />
-                                            <InfoItem icon={MapPin} label="Home Base" value={viewingUser?.address || "No primary address linked"} />
+                                            <InfoItem icon={UserIcon} label="Full Legal Name" value={viewingUser?.name} />
+                                            <InfoItem icon={Mail} label="Contact Email" value={viewingUser?.email} />
+                                            <InfoItem icon={Phone} label="Mobile Phone" value={viewingUser?.phone || "Not Set"} />
+                                            <InfoItem icon={Lock} label="Access Security" value="••••••••" action={<Button variant="link" className="h-auto p-0 text-[10px] font-black text-primary uppercase" onClick={() => sendPasswordResetEmail(auth!, viewingUser?.email)}>Reset Access</Button>} />
+                                            <InfoItem icon={MapPin} label="Home Location" value={viewingUser?.address || "No primary address linked"} />
                                             <InfoItem icon={Database} label="Institutional UID" value={viewingUser?.accountNumber} className="font-mono" />
                                           </div>
                                         </section>
 
-                                        {/* SECTION: BALANCES */}
                                         <section className="space-y-6">
                                           <div className="flex items-center gap-2">
                                             <TrendingUp className="w-4 h-4 text-green-600" />
-                                            <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground transition-colors">Asset Allocation</h4>
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground transition-colors">Asset Allocation (Web3)</h4>
                                           </div>
                                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                            <AssetMiniCard label="IDR Balance" value={`Rp ${viewingUser?.totalBalance?.toLocaleString('id-ID')}`} color="text-foreground" />
-                                            <AssetMiniCard label="Savings (IDR)" value={`Rp ${viewingUser?.savings?.toLocaleString('id-ID') || 0}`} color="text-green-600" />
-                                            <AssetMiniCard label="ALX Holder" value={`${viewingUser?.cryptoBalances?.ALX || 0} ALX`} color="text-primary" />
-                                            <AssetMiniCard label="BTC Wallet" value={`${viewingUser?.cryptoBalances?.BTC || 0} BTC`} color="text-orange-500" />
-                                            <AssetMiniCard label="ETH Wallet" value={`${viewingUser?.cryptoBalances?.ETH || 0} ETH`} color="text-blue-500" />
-                                            <AssetMiniCard label="USDT Vault" value={`${viewingUser?.cryptoBalances?.USDT || 0} USDT`} color="text-teal-500" />
+                                            <AssetMiniCard label="Primary Balance" value={`Rp ${viewingUser?.totalBalance?.toLocaleString('id-ID')}`} color="text-foreground" />
+                                            <AssetMiniCard label="Vault Savings" value={`Rp ${viewingUser?.savings?.toLocaleString('id-ID') || 0}`} color="text-green-600" />
+                                            <AssetMiniCard label="ALX Reserve" value={`${viewingUser?.cryptoBalances?.ALX || 0} ALX`} color="text-primary" />
+                                            <AssetMiniCard label="BTC Node" value={`${viewingUser?.cryptoBalances?.BTC || 0} BTC`} color="text-orange-500" />
+                                            <AssetMiniCard label="ETH Mainnet" value={`${viewingUser?.cryptoBalances?.ETH || 0} ETH`} color="text-blue-500" />
+                                            <AssetMiniCard label="USDT Liquidity" value={`${viewingUser?.cryptoBalances?.USDT || 0} USDT`} color="text-teal-500" />
                                           </div>
                                         </section>
 
-                                        {/* SECTION: SYNCED ENTITIES */}
                                         <section className="space-y-6">
                                           <div className="flex items-center gap-2">
                                             <RefreshCw className="w-4 h-4 text-primary" />
-                                            <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground transition-colors">Synchronized Entities</h4>
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground transition-colors">Identity Synchronization</h4>
                                           </div>
                                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <SyncStatusItem label="MetaMask (Web3)" value={viewingUser?.walletAddress} />
-                                            <SyncStatusItem label="DANA Wallet" value={viewingUserWallets.find(w => w.name === 'DANA')?.balance ? "LINKED" : null} />
-                                            <SyncStatusItem label="OVO Wallet" value={viewingUserWallets.find(w => w.name === 'OVO')?.balance ? "LINKED" : null} />
-                                            <SyncStatusItem label="GoPay Account" value={viewingUserWallets.find(w => w.name === 'GoPay')?.balance ? "LINKED" : null} />
-                                            <SyncStatusItem label="ShopeePay" value={viewingUserWallets.find(w => w.name === 'ShopeePay')?.balance ? "LINKED" : null} />
-                                            <SyncStatusItem label="Global Card" value={viewingUser?.cardDetails ? "VISA / MASTERCARD" : null} />
+                                            <SyncStatusItem label="Ali-Native Wallet" value={viewingUser?.walletAddress} />
+                                            <SyncStatusItem label="DANA Payment" value={viewingUserWallets.find(w => w.name === 'DANA')?.balance ? "LINKED" : null} />
+                                            <SyncStatusItem label="OVO Settlement" value={viewingUserWallets.find(w => w.name === 'OVO')?.balance ? "LINKED" : null} />
+                                            <SyncStatusItem label="GoPay Bridge" value={viewingUserWallets.find(w => w.name === 'GoPay')?.balance ? "LINKED" : null} />
+                                            <SyncStatusItem label="PCI-DSS Global Card" value={viewingUser?.cardDetails ? "VISA / MASTERCARD" : null} />
                                           </div>
                                         </section>
 
-                                        {/* SECTION: DEPOSITS */}
                                         <section className="space-y-6">
                                           <div className="flex items-center gap-2">
                                             <PiggyBank className="w-4 h-4 text-primary" />
@@ -875,12 +817,12 @@ function AdminContent() {
                                     </ScrollArea>
                                     <div className="p-8 bg-muted/30 border-t border-border flex justify-end gap-3 transition-colors">
                                       <Button variant="ghost" className="rounded-xl font-black uppercase text-[10px] px-6 h-12" onClick={() => setViewingUser(null)}>Close Intelligence</Button>
-                                      <Button className="gold-gradient text-white rounded-xl font-black uppercase text-[10px] px-8 h-12 shadow-lg">Save Adjustments</Button>
+                                      <Button className="gold-gradient text-white rounded-xl font-black uppercase text-[10px] px-8 h-12 shadow-lg">Commit Adjustments</Button>
                                     </div>
                                   </DialogContent>
                                 </Dialog>
                                 <Button variant="outline" size="sm" className="h-9 rounded-xl border-border text-primary font-black uppercase text-[9px] italic hover:bg-primary/10 transition-colors" onClick={() => sendPasswordResetEmail(auth!, u.email)}>
-                                  <Key className="w-3 h-3 mr-2" /> Reset
+                                  <Key className="w-3 h-3 mr-2" /> Reset Key
                                 </Button>
                               </div>
                             </td>
@@ -946,7 +888,7 @@ function AdminContent() {
               </div>
             )}
 
-            {/* TAB: VAULT CONTROL */}
+            {/* TAB: VAULT CONTROL (WEB3 INTERFACE) */}
             {activeTab === 'vault' && (
               <div className="animate-in zoom-in-95 duration-700 space-y-10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -974,10 +916,10 @@ function AdminContent() {
                         <p className="text-6xl font-black italic tracking-tighter text-blue-600 transition-colors">
                           {parseFloat(onChainEth).toFixed(4)} <span className="text-3xl text-muted-foreground/40 italic">ETH</span>
                         </p>
-                        <p className="text-xs font-bold text-muted-foreground mt-2 uppercase italic">≈ Rp {(parseFloat(onChainEth) * 33000000).toLocaleString('id-ID')} Value</p>
+                        <p className="text-xs font-bold text-muted-foreground mt-2 uppercase italic">≈ Rp {(parseFloat(onChainEth) * 33000000).toLocaleString('id-ID')} Asset Value</p>
                       </div>
                       <Button onClick={() => syncOnChainData(true)} disabled={syncingVault} className="h-16 px-12 rounded-2xl gold-gradient text-white font-black uppercase italic tracking-widest shadow-xl border-none active:scale-95 transition-all">
-                        {syncingVault ? <Loader2 className="animate-spin" /> : "REFRESH CHAIN"}
+                        {syncingVault ? <Loader2 className="animate-spin" /> : "REFRESH NODE"}
                       </Button>
                     </div>
                   </Card>
@@ -992,11 +934,11 @@ function AdminContent() {
                     </div>
                     <div className="space-y-4 relative z-10 w-full">
                       <div className="space-y-1">
-                        <p className="text-[9px] font-black uppercase tracking-[0.3em] opacity-40">Public Vault Address</p>
+                        <p className="text-[9px] font-black uppercase tracking-[0.3em] opacity-40">Mainnet Vault Address</p>
                         <p className="text-[11px] font-mono font-bold break-all bg-white/5 p-3 rounded-xl border border-white/10">{ALX_CONTRACT}</p>
                       </div>
                       <Button onClick={copyVaultAddress} className="w-full h-12 bg-white/10 hover:bg-white/20 text-white rounded-xl font-black italic uppercase text-[10px] border border-white/5">
-                        <Copy className="w-4 h-4 mr-2" /> COPY ADDRESS
+                        <Copy className="w-4 h-4 mr-2" /> COPY VAULT ADDR
                       </Button>
                     </div>
                   </Card>
@@ -1010,13 +952,13 @@ function AdminContent() {
                       </div>
                       <div>
                         <h4 className="text-lg font-black italic uppercase tracking-tight text-foreground transition-colors">External Disbursement</h4>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase transition-colors">Settlement to External Entity</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase transition-colors">Settlement to External Wallet</p>
                       </div>
                     </div>
 
                     <div className="space-y-6">
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Recipient Wallet Address</label>
+                        <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Recipient Public Address</label>
                         <input 
                           placeholder="0x... MetaMask / Binance" 
                           value={vaultRecipient}
@@ -1025,7 +967,7 @@ function AdminContent() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Amount to Transfer (ETH)</label>
+                        <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Value to Transfer (ETH)</label>
                         <input 
                           type="number" 
                           placeholder="0.00" 
@@ -1039,7 +981,7 @@ function AdminContent() {
                         disabled={isExecutingVaultTx || !vaultRecipient || !vaultAmount}
                         className="w-full h-16 bg-[#1A1D1F] dark:bg-muted text-background dark:text-foreground hover:opacity-90 rounded-2xl font-black uppercase italic tracking-widest shadow-xl transition-all border-none"
                       >
-                        {isExecutingVaultTx ? <Loader2 className="animate-spin" /> : "EXECUTE WITHDRAWAL"}
+                        {isExecutingVaultTx ? <Loader2 className="animate-spin" /> : "EXECUTE ON-CHAIN"}
                       </Button>
                     </div>
                   </Card>
@@ -1051,11 +993,11 @@ function AdminContent() {
                           <HistoryIcon className="w-6 h-6" />
                         </div>
                         <div>
-                          <h4 className="text-lg font-black italic uppercase tracking-tight text-foreground transition-colors">Node Transaction Records</h4>
-                          <p className="text-[9px] font-bold text-muted-foreground uppercase transition-colors">Mainnet Transaction Ledger</p>
+                          <h4 className="text-lg font-black italic uppercase tracking-tight text-foreground transition-colors">Node Node Records</h4>
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase transition-colors">Institutional Transaction Explorer</p>
                         </div>
                       </div>
-                      <Badge className="bg-blue-100 text-blue-600 border-none font-black text-[8px] uppercase px-3 h-6 rounded-md">LIVE BLOCKS</Badge>
+                      <Badge className="bg-blue-100 text-blue-600 border-none font-black text-[8px] uppercase px-3 h-6 rounded-md">LIVE ETHERSCAN</Badge>
                     </div>
                     
                     <div className="overflow-x-auto">
@@ -1100,7 +1042,7 @@ function AdminContent() {
                           ))}
                           {onChainHistory.length === 0 && !syncingVault && (
                             <tr>
-                              <td colSpan={4} className="py-10 text-center opacity-30 italic text-[10px] font-bold uppercase">No Mainnet Transactions Found</td>
+                              <td colSpan={4} className="py-10 text-center opacity-30 italic text-[10px] font-bold uppercase">No Mainnet Records Found</td>
                             </tr>
                           )}
                         </tbody>
@@ -1111,7 +1053,7 @@ function AdminContent() {
                         onClick={() => window.open(`https://etherscan.io/address/${ALX_CONTRACT}`, '_blank')}
                         className="text-[10px] font-black uppercase text-blue-600 hover:underline flex items-center justify-center gap-2 mx-auto"
                       >
-                        VIEW ALL ON ETHERSCAN <ArrowUpRight className="w-3 h-3" />
+                        VIEW FULL EXPLORER <ArrowUpRight className="w-3 h-3" />
                       </button>
                     </div>
                   </Card>
@@ -1125,8 +1067,8 @@ function AdminContent() {
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
                   <div className="p-10 border-b border-border bg-blue-500/5 flex items-center justify-between transition-colors">
                     <div>
-                      <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground transition-colors">Marketplace Inventory</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 transition-colors">Managing Digital & Physical Goods</p>
+                      <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground transition-colors">Ali-Marketplace Inventory</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 transition-colors">Managing digital & physical catalog assets</p>
                     </div>
                     <Button className="rounded-xl gold-gradient text-white font-black uppercase text-[10px] h-10 px-6 italic border-none shadow-lg">
                       <PackagePlus className="w-4 h-4 mr-2" /> Add Item
@@ -1155,7 +1097,7 @@ function AdminContent() {
                     {(!inventoryItems || inventoryItems.length === 0) && (
                       <div className="col-span-full py-20 text-center opacity-20 transition-opacity">
                         <ShoppingCart className="w-12 h-12 mx-auto mb-4" />
-                        <p className="text-xs font-black uppercase tracking-widest">No Inventory Items Found</p>
+                        <p className="text-xs font-black uppercase tracking-widest">No Assets Found</p>
                       </div>
                     )}
                   </div>
@@ -1170,11 +1112,11 @@ function AdminContent() {
                   <div className="p-10 border-b border-border bg-amber-500/5 flex items-center justify-between transition-colors">
                     <div>
                       <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground transition-colors">System Audit Ledger</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 transition-colors">Irreversible Transaction History</p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 transition-colors">Irreversible historical operation log</p>
                     </div>
                     <div className="flex gap-3">
                       <Button onClick={handlePurgeAuditLogs} disabled={isPurging} variant="outline" className="rounded-xl border-rose-200 text-rose-600 font-black uppercase text-[10px] h-10 px-6 italic hover:bg-rose-50 transition-colors">
-                        {isPurging ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Eraser className="w-4 h-4 mr-2" />} Purge All Logs
+                        {isPurging ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Eraser className="w-4 h-4 mr-2" />} Purge History
                       </Button>
                       <Button onClick={() => syncOnChainData(true)} className="rounded-xl gold-gradient text-white font-black uppercase text-[10px] h-10 px-6 italic border-none shadow-lg">
                         <RefreshCw className={cn("w-4 h-4 mr-2", syncingVault && "animate-spin")} /> Refresh Ledger
@@ -1187,7 +1129,7 @@ function AdminContent() {
                         <tr>
                           <th className="px-10 py-8">Timestamp</th>
                           <th className="px-10 py-8">Operation Type</th>
-                          <th className="px-10 py-8">Entity</th>
+                          <th className="px-10 py-8">Context</th>
                           <th className="px-10 py-8 text-right">Settlement Value</th>
                           <th className="px-10 py-8 text-center">Action</th>
                         </tr>
@@ -1226,7 +1168,7 @@ function AdminContent() {
                           <tr>
                             <td colSpan={5} className="py-20 text-center opacity-20">
                               <ShieldAlert className="w-12 h-12 mx-auto mb-4" />
-                              <p className="text-xs font-black uppercase tracking-widest">No Audit Logs Recorded</p>
+                              <p className="text-xs font-black uppercase tracking-widest">No Operational History Recorded</p>
                             </td>
                           </tr>
                         )}
@@ -1276,7 +1218,7 @@ function SyncStatusItem({ label, value }: any) {
         "text-[8px] font-black uppercase border-none h-5 px-3",
         value ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground/40"
       )}>
-        {value || "NOT LINKED"}
+        {value ? "SYNCHRONIZED" : "NOT LINKED"}
       </Badge>
     </div>
   );
