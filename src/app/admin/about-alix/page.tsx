@@ -34,7 +34,9 @@ import {
   QrCode,
   Info,
   Flame,
-  Cpu
+  Cpu,
+  Target,
+  BarChart3
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -50,113 +52,35 @@ const ALX_TOKEN_CONTRACT = "0x... (Menunggu Deployment)";
 const ALX_TOKEN_CODE = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+
 /**
- * @title Alix Token (ALX) - Official AliBank Sovereign Asset
- * @dev Standar ERC-20 dengan fitur Minting & Burning terkendali.
- * Seluruh sirkulasi ALX didukung oleh cadangan likuiditas di Brankas Pusat.
+ * @title AlixCoin (ALX) - Institutional Grade V3
+ * @dev Implementasi resmi Koin AliBank dengan standar keamanan internasional.
  */
-interface IERC20 {
-    function totalSupply() external view returns (uint256);
-    function balanceOf(address account) external view returns (uint256);
-    function transfer(address recipient, uint256 amount) external returns (bool);
-    function allowance(address owner, address spender) external view returns (uint256);
-    function approve(address spender, uint256 amount) external returns (bool);
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-}
-
-contract AlixToken is IERC20 {
-    string public name = "Alix Coin";
-    string public symbol = "ALX";
-    uint8 public decimals = 18;
-    uint256 private _totalSupply;
-    address public owner;
-
-    mapping(address => uint256) private _balances;
-    mapping(address => mapping(address => uint256)) private _allowances;
-
-    event Mint(address indexed to, uint256 amount);
-    event Burn(address indexed from, uint256 amount);
-
-    constructor() {
-        owner = msg.sender;
-        // Initial Supply: 1.000.000 ALX
-        _mint(msg.sender, 1000000 * 10**uint256(decimals));
+contract AlixCoin is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ERC20Permit {
+    constructor(address initialOwner)
+        ERC20("Alix Coin", "ALX")
+        Ownable(initialOwner)
+        ERC20Permit("Alix Coin")
+    {
+        // Mencetak suplai awal (1 Juta ALX) ke dompet pemilik resmi
+        _mint(initialOwner, 1000000 * 10 ** decimals());
     }
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Hanya otoritas AliBank");
-        _;
-    }
+    function pause() public onlyOwner { _pause(); }
+    function unpause() public onlyOwner { _unpause(); }
+    function mint(address to, uint256 amount) public onlyOwner { _mint(to, amount); }
 
-    function totalSupply() public view override returns (uint256) {
-        return _totalSupply;
-    }
-
-    function balanceOf(address account) public view override returns (uint256) {
-        return _balances[account];
-    }
-
-    function transfer(address recipient, uint256 amount) public override returns (bool) {
-        _transfer(msg.sender, recipient, amount);
-        return true;
-    }
-
-    function allowance(address ownerAddr, address spender) public view override returns (uint256) {
-        return _allowances[ownerAddr][spender];
-    }
-
-    function approve(address spender, uint256 amount) public override returns (bool) {
-        _approve(msg.sender, spender, amount);
-        return true;
-    }
-
-    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
-        _transfer(sender, recipient, amount);
-        _approve(sender, msg.sender, _allowances[sender][msg.sender] - amount);
-        return true;
-    }
-
-    /**
-     * @dev Fungsi Otoritas: Mencetak ALX baru berdasarkan injeksi likuiditas.
-     */
-    function mint(address account, uint256 amount) public onlyOwner {
-        _mint(account, amount);
-    }
-
-    /**
-     * @dev Fungsi Otoritas: Membakar ALX untuk menjaga kelangkaan aset.
-     */
-    function burn(uint256 amount) public {
-        _burn(msg.sender, amount);
-    }
-
-    function _transfer(address sender, address recipient, uint256 amount) internal {
-        require(sender != address(0), "Transfer dari alamat nol");
-        require(recipient != address(0), "Transfer ke alamat nol");
-        _balances[sender] -= amount;
-        _balances[recipient] += amount;
-        emit Transfer(sender, recipient, amount);
-    }
-
-    function _mint(address account, uint256 amount) internal {
-        _totalSupply += amount;
-        _balances[account] += amount;
-        emit Transfer(address(0), account, amount);
-        emit Mint(account, amount);
-    }
-
-    function _burn(address account, uint256 amount) internal {
-        _balances[account] -= amount;
-        _totalSupply -= amount;
-        emit Transfer(account, address(0), amount);
-        emit Burn(account, amount);
-    }
-
-    function _approve(address ownerAddr, address spender, uint256 amount) internal {
-        _allowances[ownerAddr][spender] = amount;
-        emit Approval(ownerAddr, spender, amount);
+    function _update(address from, address to, uint256 value)
+        internal
+        override(ERC20, ERC20Pausable)
+    {
+        super._update(from, to, value);
     }
 }`;
 
@@ -258,18 +182,20 @@ export default function AboutAlixPage() {
 
         <Tabs defaultValue="token" className="space-y-12">
           <div className="flex justify-center">
-            <TabsList className="liquid-glass border-primary/10 rounded-2xl h-16 p-1.5 shadow-xl">
-              <TabsTrigger value="token" className="rounded-xl px-10 font-black uppercase text-[11px] italic data-[state=active]:gold-gradient data-[state=active]:text-white">
+            <TabsList className="liquid-glass border-primary/10 rounded-2xl h-16 p-1.5 shadow-xl overflow-x-auto no-scrollbar">
+              <TabsTrigger value="token" className="rounded-xl px-10 font-black uppercase text-[11px] italic data-[state=active]:gold-gradient data-[state=active]:text-white whitespace-nowrap">
                 <Coins className="w-4 h-4 mr-2" /> Alix Token (ALX)
               </TabsTrigger>
-              <TabsTrigger value="vault" className="rounded-xl px-10 font-black uppercase text-[11px] italic data-[state=active]:gold-gradient data-[state=active]:text-white">
+              <TabsTrigger value="vault" className="rounded-xl px-10 font-black uppercase text-[11px] italic data-[state=active]:gold-gradient data-[state=active]:text-white whitespace-nowrap">
                 <Lock className="w-4 h-4 mr-2" /> Central Vault
+              </TabsTrigger>
+              <TabsTrigger value="liquidity" className="rounded-xl px-10 font-black uppercase text-[11px] italic data-[state=active]:gold-gradient data-[state=active]:text-white whitespace-nowrap">
+                <TrendingUp className="w-4 h-4 mr-2" /> Liquidity Strategy
               </TabsTrigger>
             </TabsList>
           </div>
 
           <TabsContent value="token" className="space-y-16 animate-in fade-in zoom-in-95 duration-500">
-            {/* TOKEN INFO */}
             <section>
               <div className="liquid-glass border-none rounded-[3rem] p-10 bg-primary/5 flex items-center gap-8 flex-col md:flex-row shadow-2xl">
                 <div className="w-24 h-24 rounded-[2rem] bg-background flex items-center justify-center text-primary shrink-0 shadow-xl border-4 border-primary/20">
@@ -297,7 +223,6 @@ export default function AboutAlixPage() {
               </div>
             </section>
 
-            {/* TOKEN CODE */}
             <section>
               <div className="liquid-glass-dark rounded-[3rem] p-12 border-none shadow-2xl space-y-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10">
@@ -307,8 +232,8 @@ export default function AboutAlixPage() {
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px] mb-2">Protocol ALX V1.0</Badge>
-                      <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">ALX Token Source Code</h2>
+                      <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px] mb-2">Protocol ALX V3.0 (Institutional)</Badge>
+                      <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">ALX Institutional Source Code</h2>
                     </div>
                     <Button 
                       onClick={() => copyCode(ALX_TOKEN_CODE, "Alix Token")}
@@ -327,7 +252,7 @@ export default function AboutAlixPage() {
                   <div className="mt-8 p-6 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex gap-4">
                     <Flame className="w-6 h-6 text-orange-500 shrink-0" />
                     <p className="text-[9px] text-white/70 italic leading-relaxed uppercase font-bold">
-                      PENTING: Gunakan Compiler **0.8.20** atau lebih tinggi di Remix IDE. Setuju untuk mencetak 1.000.000 ALX ke alamat deployer Anda sebagai suplai awal kedaulatan.
+                      PENTING: Gunakan Compiler **0.8.24** atau lebih tinggi di Remix IDE. Kode ini menggunakan standar OpenZeppelin 5.0 terbaru.
                     </p>
                   </div>
                 </div>
@@ -336,7 +261,6 @@ export default function AboutAlixPage() {
           </TabsContent>
 
           <TabsContent value="vault" className="space-y-16 animate-in fade-in zoom-in-95 duration-500">
-            {/* VAULT INFO */}
             <section>
               <div className="liquid-glass border-none rounded-[3rem] p-10 bg-primary/5 flex items-center gap-8 flex-col md:flex-row shadow-2xl">
                 <div className="w-24 h-24 rounded-[2rem] bg-background flex items-center justify-center text-primary shrink-0 shadow-xl border-4 border-primary/20">
@@ -363,7 +287,6 @@ export default function AboutAlixPage() {
               </div>
             </section>
 
-            {/* VAULT CODE */}
             <section>
               <div className="liquid-glass-dark rounded-[3rem] p-12 border-none shadow-2xl space-y-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10">
@@ -393,6 +316,100 @@ export default function AboutAlixPage() {
               </div>
             </section>
           </TabsContent>
+
+          <TabsContent value="liquidity" className="space-y-12 animate-in fade-in zoom-in-95 duration-500">
+            <header className="text-center max-w-3xl mx-auto space-y-4">
+              <Badge className="gold-gradient text-white font-black uppercase text-[9px] px-6 py-1.5 rounded-full">Stage 2: Global Listing</Badge>
+              <h2 className="text-4xl font-black text-accent dark:text-white uppercase italic tracking-tighter">Strategi Likuiditas Uniswap</h2>
+              <p className="text-xs font-medium text-muted-foreground uppercase leading-relaxed italic">
+                Pelajari cara memberikan nilai nyata pada ALX melalui Uniswap Liquidity Pool.
+              </p>
+            </header>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <Card className="liquid-glass border-none rounded-[2.5rem] p-10 space-y-6 shadow-xl">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                    <Target className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-lg font-black uppercase italic tracking-tight">Target Harga: $12.24</h3>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed italic uppercase">
+                  Agar harga pembukaan ALX di Uniswap sesuai dengan sistem AliBank ($12.24), Anda harus menggunakan rumus rasio tetap saat pembuatan Pool.
+                </p>
+                <div className="p-6 rounded-2xl bg-accent/5 border border-primary/10 space-y-4">
+                  <p className="text-[10px] font-black text-primary uppercase tracking-widest">Formula Dasar</p>
+                  <div className="bg-black/20 dark:bg-white/5 p-4 rounded-xl font-mono text-center text-lg font-bold">
+                    Price = USDT / ALX
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="liquid-glass border-none rounded-[2.5rem] p-10 space-y-6 shadow-xl">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner">
+                    <Calculator className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-lg font-black uppercase italic tracking-tight">Kalkulator Modal</h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center text-[11px] font-bold uppercase italic">
+                    <span className="text-muted-foreground">Token ALX</span>
+                    <span className="text-accent">1.000 ALX</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[11px] font-bold uppercase italic">
+                    <span className="text-muted-foreground">Modal USDT</span>
+                    <span className="text-primary">12.240 USDT</span>
+                  </div>
+                  <div className="h-px bg-primary/10" />
+                  <div className="flex justify-between items-center text-[11px] font-bold uppercase italic">
+                    <span className="text-muted-foreground">Token ALX</span>
+                    <span className="text-accent">10.000 ALX</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[11px] font-bold uppercase italic">
+                    <span className="text-muted-foreground">Modal USDT</span>
+                    <span className="text-primary">122.400 USDT</span>
+                  </div>
+                </div>
+                <p className="text-[9px] text-muted-foreground italic leading-relaxed font-bold uppercase">
+                  Catatan: USDT adalah "uang nyata" yang menjamin likuiditas nasabah. Dana ini akan disimpan di Smart Contract Uniswap.
+                </p>
+              </Card>
+            </div>
+
+            <section className="liquid-glass-dark rounded-[3.5rem] p-12 text-white space-y-10 relative overflow-hidden shadow-2xl">
+              <div className="absolute inset-0 gold-gradient opacity-5" />
+              <div className="relative z-10 flex items-center gap-6">
+                <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center text-primary shadow-lg"><Sparkles className="w-8 h-8" /></div>
+                <div>
+                  <h3 className="text-2xl font-black text-white uppercase italic tracking-tight leading-none">The Market Maker Protocol</h3>
+                  <p className="text-[10px] text-primary font-black uppercase tracking-widest mt-2">Menjadi Penyedia Likuiditas Pertama</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
+                <div className="space-y-4">
+                  <div className="text-primary font-black text-2xl italic">01.</div>
+                  <h4 className="font-black uppercase text-sm italic">Add Liquidity</h4>
+                  <p className="text-[10px] text-white/60 leading-relaxed uppercase">Buka Uniswap V2/V3, pilih pair ALX/USDT. Masukkan jumlah koin dan USDT sesuai rasio target harga.</p>
+                </div>
+                <div className="space-y-4">
+                  <div className="text-primary font-black text-2xl italic">02.</div>
+                  <h4 className="font-black uppercase text-sm italic">Mint LP Tokens</h4>
+                  <p className="text-[10px] text-white/60 leading-relaxed uppercase">Uniswap akan memberikan Anda token LP sebagai bukti kepemilikan modal di kolam tersebut.</p>
+                </div>
+                <div className="space-y-4">
+                  <div className="text-primary font-black text-2xl italic">03.</div>
+                  <h4 className="font-black uppercase text-sm italic">Price Discovery</h4>
+                  <p className="text-[10px] text-white/60 leading-relaxed uppercase">Saat orang mulai membeli ALX, USDT di kolam bertambah, dan harga ALX naik secara otomatis.</p>
+                </div>
+              </div>
+              <div className="pt-8 border-t border-white/10 text-center relative z-10">
+                <p className="text-[11px] font-bold text-white/40 uppercase italic tracking-widest">
+                  ALIBANK LIQUIDITY ENGINE • POWERED BY UNISWAP V3 PROTOCOL
+                </p>
+              </div>
+            </section>
+          </TabsContent>
         </Tabs>
 
         <section className="mt-16">
@@ -409,7 +426,7 @@ export default function AboutAlixPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div className="space-y-6">
                   <p className="text-xs font-medium text-white/70 leading-relaxed italic uppercase">
-                    Koin ALX bertindak sebagai unit hitung digital yang mewakili nilai likuiditas di Brankas Pusat. Setiap kali admin melakukan **Minting**, itu harus didasarkan pada penambahan dana riil (USDT/ETH) ke dalam Brankas.
+                    Koin ALX bertindak sebagai unit hitung digital yang mewakili nilai likuiditas di Brankas Pusat. Setiap kali admin melakukan **Minting**, itu harus didasarkan pada penambahan dana riil (USDT/ETH) ke dalam Brankas atau Pool.
                   </p>
                   <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-4">
                     <p className="text-[10px] font-black text-primary uppercase tracking-widest">Kesesuaian Aset</p>
