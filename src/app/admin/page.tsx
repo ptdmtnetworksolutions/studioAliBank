@@ -65,7 +65,8 @@ import {
   Eraser,
   RotateCcw,
   Banknote,
-  PiggyBank
+  PiggyBank,
+  RotateCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -628,10 +629,10 @@ function AdminContent() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-8 shadow-2xl">
                   <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner"><Activity className="w-8 h-8" /></div>
+                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner"><Gamepad2 className="w-8 h-8" /></div>
                     <div>
-                      <h3 className="text-2xl font-black text-foreground uppercase italic">Trade-X Performance</h3>
-                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Revenue captured from high-speed prediction terminal.</p>
+                      <h3 className="text-2xl font-black text-foreground uppercase italic">Gaming Revenue Hub</h3>
+                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Accumulated profit captured from interactive terminals.</p>
                     </div>
                   </div>
                   <div className="space-y-6">
@@ -640,8 +641,17 @@ function AdminContent() {
                         <span className="text-[11px] font-black uppercase text-muted-foreground">Total Trade-X Volume (IDR)</span>
                         <p className="text-2xl font-black text-foreground italic mt-1">Rp {(globalLiquidity?.tradeXGrossVolumeIdr || 0).toLocaleString()}</p>
                       </div>
-                      <Gamepad2 className="w-10 h-10 text-primary opacity-20" />
+                      <Zap className="w-10 h-10 text-primary opacity-20" />
                     </div>
+
+                    <div className="p-8 rounded-3xl bg-accent/5 border border-primary/10 flex justify-between items-center group hover:bg-primary/5 transition-all">
+                      <div>
+                        <span className="text-[11px] font-black uppercase text-muted-foreground">Total Ali-Spin Pro (IDR)</span>
+                        <p className="text-2xl font-black text-foreground italic mt-1">Rp {(globalLiquidity?.spinGrossVolumeIdr || 0).toLocaleString()}</p>
+                      </div>
+                      <RotateCw className="w-10 h-10 text-primary opacity-20" />
+                    </div>
+
                     <div className="p-6 rounded-3xl bg-green-500/5 border border-green-500/10 flex justify-between items-center">
                       <span className="text-[11px] font-black uppercase text-green-600">Net Cash Capture</span>
                       <span className="text-sm font-black text-green-600 uppercase italic">100% Retained in Vault</span>
@@ -656,7 +666,7 @@ function AdminContent() {
                     <h3 className="text-2xl font-black text-white uppercase italic">Sovereign Asset Sentinel</h3>
                   </div>
                   <p className="text-sm font-medium italic text-white/70 leading-relaxed uppercase relative z-10">
-                    Setiap Rupiah dari kekalahan Trade-X nasabah secara riil menambah modal bank (IDR), sementara hadiah kemenangan dibayarkan via aset ALX yang Anda kontrol.
+                    Setiap Rupiah dari kekalahan permainan nasabah secara riil menambah modal bank (IDR), sementara hadiah kemenangan dibayarkan via aset ALX yang Anda kontrol.
                   </p>
                   <Button onClick={() => router.push('/admin/about-alix')} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-xs tracking-widest relative z-10 shadow-2xl flex items-center justify-between px-8">
                     View Strategic Protocols <ChevronRight className="w-5 h-5" />
@@ -1211,7 +1221,7 @@ function AdminContent() {
                         <tr key={log.id} className="hover:bg-primary/5 transition-colors">
                           <td className="px-12 py-8 font-mono text-[10px] text-muted-foreground">{log.id}</td>
                           <td className="px-12 py-8">
-                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") || log.category?.includes("Vault") || log.category?.includes("Manual") || log.category?.includes("Global") || log.category?.includes("Savings") || log.category?.includes("Trade-X") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
+                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") || log.category?.includes("Vault") || log.category?.includes("Manual") || log.category?.includes("Global") || log.category?.includes("Savings") || log.category?.includes("Trade-X") || log.category?.includes("Spin") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
                               {log.category}
                             </Badge>
                           </td>
