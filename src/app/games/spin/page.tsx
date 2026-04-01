@@ -259,11 +259,14 @@ export default function AliSpinPage() {
         </div>
 
         {/* Win Display */}
-        <div className="h-20 flex flex-col items-center justify-center mt-8">
+        <div className="h-24 flex flex-col items-center justify-center mt-8">
           {lastWin ? (
-            <div className="animate-in zoom-in duration-500 text-center">
-              <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-1 italic">YOU WON</p>
+            <div className="animate-in zoom-in duration-500 text-center space-y-1">
+              <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] italic">YOU WON</p>
               <p className="text-4xl font-black italic tracking-tighter text-white">+{lastWin.toFixed(6)} ALX</p>
+              <p className="text-xs font-black text-green-500 uppercase tracking-widest italic bg-green-500/10 px-3 py-1 rounded-full">
+                ≈ Rp {(lastWin * ALX_PRICE_IDR).toLocaleString('id-ID')}
+              </p>
             </div>
           ) : (
             <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] italic">Press SPIN to start</p>
