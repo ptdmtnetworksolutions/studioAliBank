@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -272,7 +271,7 @@ export default function TradeProPage() {
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-bold text-white/40 uppercase italic">Profit:</span>
               <span className="text-xs font-black text-green-500 italic">+Rp {(amount * 0.9).toLocaleString()}</span>
-              <HelpCircle className="w-3 h-3 text-white/20" />
+              <HelpCircle className="w-3.5 h-3.5 text-white/20" />
             </div>
           </div>
 
@@ -297,31 +296,31 @@ export default function TradeProPage() {
             </div>
           </div>
 
-          <div className="flex gap-3 h-20">
+          <div className="flex gap-3 h-16">
             {/* DOWN BUTTON */}
             <button 
               onClick={() => startTrade('low')}
               disabled={isTrading}
               className={cn(
-                "flex-1 rounded-2xl bg-[#EF5350] hover:bg-[#D32F2F] active:scale-95 transition-all flex items-center justify-between px-6 shadow-xl",
+                "flex-1 rounded-2xl bg-[#EF5350] hover:bg-[#D32F2F] active:scale-95 transition-all flex items-center justify-between px-4 shadow-xl",
                 isTrading && "opacity-50 grayscale"
               )}
             >
               <div className="text-left">
-                <span className="text-sm font-black uppercase italic tracking-tighter block leading-none">Down</span>
-                <p className="text-[9px] font-bold text-white/60 uppercase mt-1">Meleset</p>
+                <span className="text-[11px] font-black uppercase italic tracking-tighter block leading-none">Down</span>
+                <p className="text-[8px] font-bold text-white/60 uppercase mt-1">Meleset</p>
               </div>
-              <TrendingDown className="w-8 h-8" />
+              <TrendingDown className="w-6 h-6" />
             </button>
 
             {/* STATUS / CLOCK ICON */}
             <button className="w-20 h-full bg-[#1C2024] rounded-2xl border border-white/5 flex items-center justify-center active:scale-95 transition-transform shadow-inner">
               {isTrading ? (
                 <div className="flex flex-col items-center">
-                  <span className="text-primary font-black italic text-xl leading-none">{timeLeft}</span>
-                  <span className="text-[8px] text-white/20 font-bold uppercase mt-1">SEC</span>
+                  <span className="text-primary font-black italic text-lg leading-none">{timeLeft}</span>
+                  <span className="text-[7px] text-white/20 font-bold uppercase mt-0.5">SEC</span>
                 </div>
-              ) : <Clock className="w-8 h-8 text-white/40" />}
+              ) : <Clock className="w-6 h-6 text-white/40" />}
             </button>
 
             {/* UP BUTTON */}
@@ -329,15 +328,15 @@ export default function TradeProPage() {
               onClick={() => startTrade('high')}
               disabled={isTrading}
               className={cn(
-                "flex-1 rounded-2xl bg-[#26A69A] hover:bg-[#00897B] active:scale-95 transition-all flex items-center justify-between px-6 shadow-xl",
+                "flex-1 rounded-2xl bg-[#26A69A] hover:bg-[#00897B] active:scale-95 transition-all flex items-center justify-between px-4 shadow-xl",
                 isTrading && "opacity-50 grayscale"
               )}
             >
               <div className="text-left">
-                <span className="text-sm font-black uppercase italic tracking-tighter block leading-none">Up</span>
-                <p className="text-[9px] font-bold text-white/60 uppercase mt-1">Naik</p>
+                <span className="text-[11px] font-black uppercase italic tracking-tighter block leading-none">Up</span>
+                <p className="text-[8px] font-bold text-white/60 uppercase mt-1">Naik</p>
               </div>
-              <TrendingUp className="w-8 h-8" />
+              <TrendingUp className="w-6 h-6" />
             </button>
           </div>
         </div>
