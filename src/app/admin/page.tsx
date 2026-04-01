@@ -110,7 +110,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
-import Image from "next/image";
+import Image from "image/next";
 import { useTheme } from "next-themes";
 import { 
   AreaChart, 
@@ -125,7 +125,7 @@ import {
 // KONSTANTA GLOBAL ADMIN - ALIBANK VAULT V3
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
 const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
-const OWNER_EMAIL = "alidzifikar075@gmail.com";
+const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const ETHERSCAN_API_KEY = "M1S7MDTBQSG1A3URQKYNVF31PSPE48UA8R";
 
 const mockPerformanceData = [
