@@ -63,7 +63,6 @@ import {
   ArrowUpFromLine,
   ArrowDownToLine,
   History as HistoryIcon,
-  Link2,
   Scan
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -177,13 +176,14 @@ function AdminContent() {
   const { data: inventoryItems } = useCollection(marketplaceQuery);
 
   const syncOnChainData = useCallback(async (manual = false) => {
-    if (syncingVault) return;
     setSyncingVault(true);
     try {
+      // 1. Ambil Saldo Langsung dari Node Mainnet
       const provider = new JsonRpcProvider(GLOBAL_RPC);
       const balance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
       setOnChainEth(formatEther(balance));
 
+      // 2. Ambil Riwayat Transaksi dari Etherscan API (Normal & Internal)
       try {
         const [resNormal, resInternal] = await Promise.all([
           fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${ETHERSCAN_API_KEY}`),
@@ -196,6 +196,7 @@ function AdminContent() {
         const normalResults = dataNormal.status === "1" ? dataNormal.result : [];
         const internalResults = dataInternal.status === "1" ? dataInternal.result : [];
 
+        // Gabungkan dan sortir berdasarkan waktu terbaru
         const combinedResults = [...normalResults, ...internalResults].sort((a, b) => parseInt(b.timeStamp) - parseInt(a.timeStamp));
 
         if (combinedResults.length > 0) {
@@ -218,7 +219,7 @@ function AdminContent() {
               value: `${parseFloat(val).toFixed(6)} ETH`,
               type: isOut ? "OUT" : "IN",
               time: timeAgo(tx.timeStamp),
-              method: tx.input && tx.input !== '0x' ? 'Contract Call' : (tx.hash ? 'Transfer' : 'Internal Transfer')
+              method: tx.functionName ? tx.functionName.split('(')[0] : (tx.input && tx.input !== '0x' ? 'Contract Call' : (tx.hash ? 'Transfer' : 'Internal Transfer'))
             };
           });
           setOnChainHistory(realHistory);
@@ -235,7 +236,7 @@ function AdminContent() {
     } finally { 
       setSyncingVault(false); 
     }
-  }, [toast, syncingVault]);
+  }, [toast]);
 
   useEffect(() => {
     if (userLoading) return;
@@ -256,6 +257,7 @@ function AdminContent() {
     if (!vaultRecipient || !vaultAmount || isExecutingVaultTx) return;
     setIsExecutingVaultTx(true);
     try {
+      // Simulasi eksekusi broadcast (memerlukan wallet owner)
       await new Promise(resolve => setTimeout(resolve, 3000));
       
       if (db) {
@@ -1039,7 +1041,7 @@ function AdminContent() {
                           <HistoryIcon className="w-6 h-6" />
                         </div>
                         <div>
-                          <h4 className="text-lg font-black italic uppercase tracking-tight text-foreground transition-colors">Node Node Records</h4>
+                          <h4 className="text-lg font-black italic uppercase tracking-tight text-foreground transition-colors">Node Transaction Records</h4>
                           <p className="text-[9px] font-bold text-muted-foreground uppercase transition-colors">Institutional Transaction Explorer</p>
                         </div>
                       </div>
