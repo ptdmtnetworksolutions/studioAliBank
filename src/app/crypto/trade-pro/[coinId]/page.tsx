@@ -336,10 +336,10 @@ export default function TradeProPage() {
             <div className="bg-[#1C2024] rounded-xl p-1 flex items-center justify-between border border-white/5 h-14 relative">
               <button onClick={() => setAmount(prev => Math.max(0, prev - (stakeCurrency === 'IDR' ? 50000 : 0.001)))} className="w-8 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Minus className="w-3 h-3 text-white/40" /></button>
               
-              <div className="flex-1 text-center flex flex-col items-center justify-center">
+              <div className="flex-1 text-center flex flex-col items-center justify-center overflow-hidden">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex items-center gap-1 text-[8px] font-black italic uppercase leading-none text-primary hover:text-primary/80 transition-colors">
+                    <button className="flex items-center gap-1 text-[8px] font-black italic uppercase leading-none text-primary hover:text-primary/80 transition-colors mb-1">
                       {stakeCurrency} <ChevronDown className="w-2 h-2" />
                     </button>
                   </DropdownMenuTrigger>
@@ -351,7 +351,13 @@ export default function TradeProPage() {
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <p className="text-sm font-black italic">{stakeCurrency === 'IDR' ? amount.toLocaleString() : amount.toFixed(stakeCurrency === 'ALX' || stakeCurrency === 'USDT' ? 2 : 6)}</p>
+                
+                <input 
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-transparent text-center text-sm font-black italic outline-none border-none p-0 focus:ring-0 appearance-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
               </div>
 
               <button onClick={() => setAmount(prev => prev + (stakeCurrency === 'IDR' ? 50000 : 0.001))} className="w-8 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Plus className="w-3 h-3 text-white/40" /></button>
