@@ -110,7 +110,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
-import Image from "image/next";
+import Image from "next/image";
 import { useTheme } from "next-themes";
 import { 
   AreaChart, 
@@ -183,12 +183,22 @@ function AdminContent() {
       const balance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
       setOnChainEth(formatEther(balance));
 
-      // FETCH REAL TRANSACTION DATA FROM ETHERSCAN USING API KEY
+      // FETCH REAL TRANSACTION DATA FROM ETHERSCAN USING API KEY (TX LIST & INTERNAL TX LIST)
       try {
-        const res = await fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${ETHERSCAN_API_KEY}`);
-        const data = await res.json();
+        const [resNormal, resInternal] = await Promise.all([
+          fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${ETHERSCAN_API_KEY}`),
+          fetch(`https://api.etherscan.io/api?module=account&action=txlistinternal&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${ETHERSCAN_API_KEY}`)
+        ]);
+
+        const dataNormal = await resNormal.json();
+        const dataInternal = await resInternal.json();
         
-        if (data.status === "1" && data.result) {
+        const combinedResults = [
+          ...(dataNormal.status === "1" ? dataNormal.result : []),
+          ...(dataInternal.status === "1" ? dataInternal.result : [])
+        ].sort((a, b) => parseInt(b.timeStamp) - parseInt(a.timeStamp));
+
+        if (combinedResults.length > 0) {
           const timeAgo = (ts: string) => {
             const seconds = Math.floor((Date.now() - parseInt(ts) * 1000) / 1000);
             if (seconds < 0) return 'Just now';
@@ -198,17 +208,17 @@ function AdminContent() {
             return `${Math.floor(seconds / 86400)}d ago`;
           };
 
-          const realHistory = data.result.map((tx: any) => {
+          const realHistory = combinedResults.slice(0, 20).map((tx: any) => {
             const isOut = tx.from.toLowerCase() === ALX_CONTRACT.toLowerCase();
             return {
-              hash: tx.hash.slice(0, 10) + "...",
-              fullHash: tx.hash,
+              hash: tx.hash ? (tx.hash.slice(0, 10) + "...") : "Internal",
+              fullHash: tx.hash || "",
               from: tx.from,
               to: tx.to,
               value: `${parseFloat(formatEther(tx.value)).toFixed(6)} ETH`,
               type: isOut ? "OUT" : "IN",
               time: timeAgo(tx.timeStamp),
-              method: tx.input !== '0x' ? 'Contract Call' : 'Transfer'
+              method: tx.input && tx.input !== '0x' ? 'Contract Call' : (tx.hash ? 'Transfer' : 'Internal Transfer')
             };
           });
           setOnChainHistory(realHistory);
