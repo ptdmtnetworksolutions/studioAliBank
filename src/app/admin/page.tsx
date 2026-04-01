@@ -158,7 +158,6 @@ function AdminContent() {
   const [syncingVault, setSyncingVault] = useState(false);
   const [candleData, setCandleData] = useState(generateMockCandles());
   
-  const [adjustAmounts, setAdjustAmounts] = useState<Record<string, string>>({});
   const [alixMintAmount, setAlixMintAmount] = useState("");
   const [isMinting, setIsMinting] = useState(false);
   const [isPurging, setIsPurging] = useState(false);
@@ -388,7 +387,6 @@ function AdminContent() {
           <div className="p-10 space-y-10 overflow-y-auto no-scrollbar pb-20">
             {activeTab === 'dashboard' && (
               <div className="animate-in fade-in duration-700 space-y-10">
-                {/* Metrik Atas */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                   <Card className="lg:col-span-8 border-none bg-card rounded-[2.5rem] p-10 space-y-10 shadow-sm">
                     <div className="flex items-center justify-between">
@@ -439,7 +437,6 @@ function AdminContent() {
                   </Card>
                 </div>
 
-                {/* Grafik & Token Info */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                   <Card className="lg:col-span-8 border-none bg-card rounded-[2.5rem] p-10 space-y-8 shadow-sm overflow-hidden">
                     <div className="flex items-center justify-between mb-4">
@@ -491,7 +488,6 @@ function AdminContent() {
                   </Card>
                 </div>
 
-                {/* Quick Ops Row (The ones requested by user) */}
                 <div className="grid grid-cols-4 gap-6">
                   <QuickOpButton icon={Skull} label="Reset All Clients" sub="Production Wipe" color="text-rose-500" onClick={handlePurgeAuditLogs} />
                   <QuickOpButton icon={PlusCircle} label="Mint ALX" sub="Authorized Supply" color="text-green-500" onClick={() => setActiveTab('tokenomics')} />
@@ -499,7 +495,6 @@ function AdminContent() {
                   <QuickOpButton icon={RefreshCw} label="Sync Vault" sub="Etherscan Hook" color="text-blue-500" onClick={() => syncOnChainData(true)} />
                 </div>
 
-                {/* Recent Activity Ledger (The one requested by user) */}
                 <div className="space-y-6">
                   <div className="flex items-center justify-between px-1">
                     <h3 className="text-sm font-black italic uppercase tracking-widest">Recent Activity Ledger</h3>
@@ -533,6 +528,84 @@ function AdminContent() {
                     </table>
                   </Card>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'users' && (
+              <div className="animate-in slide-in-from-right-10 duration-700 space-y-8">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-black italic uppercase tracking-tight">Client Directory</h3>
+                  <Badge className="bg-primary/10 text-primary border-none font-black text-[10px] px-4 py-1.5 rounded-full uppercase">
+                    {allUsers?.length || 0} Registered Users
+                  </Badge>
+                </div>
+
+                <Card className="border-none bg-card rounded-[2.5rem] overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
+                        <tr>
+                          <th className="px-8 py-6">Client / Identity</th>
+                          <th className="px-8 py-6">UID / Account</th>
+                          <th className="px-8 py-6">Liquid Balance</th>
+                          <th className="px-8 py-6">ALX Holdings</th>
+                          <th className="px-8 py-6 text-center">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {allUsers?.map((u) => (
+                          <tr key={u.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-8 py-5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full overflow-hidden border border-border">
+                                  <Image src={`https://picsum.photos/seed/${u.uid}/100/100`} alt="avatar" width={40} height={40} className="object-cover" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-black italic uppercase">{u.name}</p>
+                                  <p className="text-[9px] font-bold text-muted-foreground uppercase">{u.email}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-8 py-5">
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-mono font-bold text-accent">{u.accountNumber}</span>
+                                <span className="text-[8px] text-muted-foreground uppercase font-black tracking-tighter">Tier: {u.tier || 'Regular'}</span>
+                              </div>
+                            </td>
+                            <td className="px-8 py-5">
+                              <p className="text-sm font-black italic text-green-600">Rp {(u.totalBalance || 0).toLocaleString('id-ID')}</p>
+                            </td>
+                            <td className="px-8 py-5">
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded bg-primary flex items-center justify-center p-1">
+                                  <LogoIcon className="text-white" />
+                                </div>
+                                <span className="text-sm font-black italic">{(u.cryptoBalances?.ALX || 0).toFixed(4)} ALX</span>
+                              </div>
+                            </td>
+                            <td className="px-8 py-5 text-center">
+                              <div className="flex justify-center gap-2">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary">
+                                  <Settings className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-rose-100 hover:text-rose-600">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {(!allUsers || allUsers.length === 0) && (
+                          <tr>
+                            <td colSpan={5} className="px-8 py-20 text-center text-[10px] font-black text-muted-foreground uppercase opacity-20 italic">
+                              No clients detected in node
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
               </div>
             )}
 
@@ -697,6 +770,14 @@ function AdminContent() {
                 </Card>
               </div>
             )}
+
+            {(activeTab === 'tokenomics' || activeTab === 'inventory') && (
+              <div className="flex flex-col items-center justify-center py-40 opacity-20">
+                <Database className="w-20 h-20 mb-4" />
+                <h3 className="text-xl font-black uppercase italic italic tracking-widest">Protocol Staging</h3>
+                <p className="text-xs font-bold uppercase mt-2">Section reserved for V3.5 Deployment</p>
+              </div>
+            )}
           </div>
         </main>
       </div>
@@ -727,7 +808,7 @@ function SidebarItem({ icon: Icon, label, active, onClick, className }: any) {
 
 function QuickOpButton({ icon: Icon, label, sub, color, onClick }: any) {
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-3 p-6 rounded-[2.5rem] bg-card border border-border/50 hover:bg-muted/50 transition-all group shadow-sm active:scale-95">
+    <button onClick={onClick} className="flex flex-col items-center gap-3 p-6 rounded-[2.5rem] bg-card border border-border/50 hover:bg-muted/50 transition-all group shadow-sm active:scale-95 text-left w-full">
       <div className={cn("w-14 h-14 rounded-full bg-muted flex items-center justify-center border border-border group-hover:scale-110 transition-transform shadow-inner", color)}>
         <Icon className="w-6 h-6" />
       </div>
