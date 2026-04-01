@@ -66,7 +66,9 @@ import {
   CandlestickChart,
   Edit2,
   Save,
-  AlertCircle
+  AlertCircle,
+  Gamepad2,
+  Trophy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -87,6 +89,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
 import { useUser, useDoc, useCollection, useFirestore, useAuth } from "@/firebase";
@@ -106,6 +109,7 @@ import {
   addDoc,
   serverTimestamp
 } from "firebase/firestore";
+import { sendPasswordResetEmail } from "firebase/auth";
 import { JsonRpcProvider, formatEther, ethers } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -169,6 +173,12 @@ function AdminContent() {
   const [balanceAdjustment, setBalanceAdjustment] = useState("");
   const [alxAdjustment, setAlxAdjustment] = useState("");
 
+  // Detailed User States
+  const [selectedUserWallets, setSelectedUserWallets] = useState<any[]>([]);
+  const [selectedUserDeposits, setSelectedUserDeposits] = useState<any[]>([]);
+  const [selectedUserTransactions, setSelectedUserTransactions] = useState<any[]>([]);
+  const [loadingSubData, setLoadingSubData] = useState(false);
+
   const [vaultRecipient, setVaultRecipient] = useState("");
   const [vaultAmount, setVaultAmount] = useState("");
   const [isExecutingVaultTx, setIsExecutingVaultTx] = useState(false);
@@ -185,6 +195,29 @@ function AdminContent() {
 
   const userProfileRef = useMemo(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: userData } = useDoc(userProfileRef);
+
+  // Fetch detailed user data for dialog
+  useEffect(() => {
+    async function fetchSubData() {
+      if (!selectedUser || !db || !isUserDialogOpen) return;
+      setLoadingSubData(true);
+      try {
+        const walletsSnap = await getDocs(collection(db, "users", selectedUser.id, "wallets"));
+        setSelectedUserWallets(walletsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+        const depositsSnap = await getDocs(collection(db, "users", selectedUser.id, "deposits"));
+        setSelectedUserDeposits(depositsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+        const txsSnap = await getDocs(query(collection(db, "users", selectedUser.id, "transactions"), orderBy("timestamp", "desc"), limit(50)));
+        setSelectedUserTransactions(txsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (err) {
+        console.error("Error fetching user detail data:", err);
+      } finally {
+        setLoadingSubData(false);
+      }
+    }
+    fetchSubData();
+  }, [selectedUser, isUserDialogOpen, db]);
 
   const syncOnChainData = useCallback(async (manual = false) => {
     setSyncingVault(true);
@@ -268,7 +301,6 @@ function AdminContent() {
     }
   }, [isAuthorized, syncOnChainData]);
 
-  // Handle User Edit / Balance Adjustment
   const handleUpdateUserBalance = async (type: 'idr' | 'alx', amount: string, operation: 'add' | 'sub') => {
     if (!db || !selectedUser || !amount) return;
     const num = parseFloat(amount);
@@ -285,7 +317,6 @@ function AdminContent() {
 
       await updateDoc(userRef, updateData);
       
-      // Audit log
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `MANUAL-ADJ-${Date.now()}`,
         category: "Manual Adjustment",
@@ -306,12 +337,22 @@ function AdminContent() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!auth || !selectedUser?.email) return;
+    try {
+      await sendPasswordResetEmail(auth, selectedUser.email);
+      toast({ title: "Email Terkirim", description: `Tautan riset sandi telah dikirim ke ${selectedUser.email}` });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Kirim", description: err.message });
+    }
+  };
+
   const handleDeleteUser = async (userId: string) => {
     if (!db) return;
-    if (!confirm("Hapus data nasabah secara permanen?")) return;
+    if (!confirm("Hapus data nasabah secara permanen? Tindakan ini tidak dapat dibatalkan.")) return;
     try {
       await deleteDoc(doc(db, "users", userId));
-      toast({ title: "User Deleted" });
+      toast({ title: "User Deleted", description: "Data nasabah telah dihapus dari sistem." });
     } catch (err) {}
   };
 
@@ -369,6 +410,17 @@ function AdminContent() {
   };
 
   const [isPurging, setIsPurging] = useState(false);
+
+  // Statistics Calculation
+  const totalGamingEarnings = useMemo(() => {
+    return selectedUserTransactions
+      .filter(tx => tx.category === "Game" || tx.category === "Trade-X")
+      .reduce((acc, tx) => acc + (tx.rewardAlx || 0), 0);
+  }, [selectedUserTransactions]);
+
+  const totalDepositsValue = useMemo(() => {
+    return selectedUserDeposits.reduce((acc, dep) => acc + (dep.amount || 0), 0);
+  }, [selectedUserDeposits]);
 
   const displayVal = (val: number) => Math.max(0, val || 0);
 
@@ -847,73 +899,163 @@ function AdminContent() {
           </div>
         </main>
 
-        {/* User Management Dialog (The Popup) */}
+        {/* User Management Dialog - PROFESSIONAL CONSOLE */}
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-          <DialogContent className="max-w-xl rounded-[2.5rem] p-10 bg-card border-border shadow-2xl">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-black italic uppercase tracking-tight">Manage Client Portfolio</DialogTitle>
-              <DialogDescription className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Adjust liquidity & assets for {selectedUser?.name}</DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-8 py-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-rose-600 flex items-center justify-center text-[8px] font-black text-white">ID</div>
-                    <span className="text-[10px] font-black uppercase text-muted-foreground">IDR Liquidity</span>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-muted border border-border">
-                    <p className="text-2xl font-black italic">Rp {selectedUser?.totalBalance?.toLocaleString() || '0'}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Input 
-                      placeholder="Adj. Amount" 
-                      type="number" 
-                      value={balanceAdjustment} 
-                      onChange={(e) => setBalanceAdjustment(e.target.value)}
-                      className="h-12 rounded-xl bg-muted border-none font-black italic"
-                    />
-                    <div className="flex gap-2">
-                      <Button onClick={() => handleUpdateUserBalance('idr', balanceAdjustment, 'add')} disabled={isUpdatingUser} className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white rounded-xl font-black italic uppercase text-[10px]"><Plus className="w-3 h-3 mr-1" /> Add</Button>
-                      <Button onClick={() => handleUpdateUserBalance('idr', balanceAdjustment, 'sub')} disabled={isUpdatingUser} className="flex-1 h-10 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black italic uppercase text-[10px]"><Minus className="w-3 h-3 mr-1" /> Sub</Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full gold-gradient p-1.5 flex items-center justify-center"><LogoIcon className="text-white" /></div>
-                    <span className="text-[10px] font-black uppercase text-muted-foreground">ALX Holdings</span>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-muted border border-border">
-                    <p className="text-2xl font-black italic">{selectedUser?.cryptoBalances?.ALX?.toFixed(4) || '0.0000'} ALX</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Input 
-                      placeholder="Adj. ALX" 
-                      type="number" 
-                      value={alxAdjustment} 
-                      onChange={(e) => setAlxAdjustment(e.target.value)}
-                      className="h-12 rounded-xl bg-muted border-none font-black italic"
-                    />
-                    <div className="flex gap-2">
-                      <Button onClick={() => handleUpdateUserBalance('alx', alxAdjustment, 'add')} disabled={isUpdatingUser} className="flex-1 h-10 gold-gradient text-white rounded-xl font-black italic uppercase text-[10px]"><Plus className="w-3 h-3 mr-1" /> Mint</Button>
-                      <Button onClick={() => handleUpdateUserBalance('alx', alxAdjustment, 'sub')} disabled={isUpdatingUser} className="flex-1 h-10 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-black italic uppercase text-[10px]"><Minus className="w-3 h-3 mr-1" /> Burn</Button>
-                    </div>
-                  </div>
-                </div>
+          <DialogContent className="max-w-4xl rounded-[3rem] p-0 bg-card border-border shadow-2xl overflow-hidden">
+            <div className="gold-gradient h-32 w-full relative">
+              <div className="absolute -bottom-12 left-10 w-24 h-24 rounded-[2rem] bg-background border-4 border-card flex items-center justify-center overflow-hidden shadow-xl">
+                <Image src={`https://picsum.photos/seed/${selectedUser?.uid}/200/200`} alt="client" width={100} height={100} className="object-cover" />
               </div>
-
-              <div className="p-6 rounded-[2rem] bg-primary/5 border border-primary/10 flex gap-4">
-                <AlertCircle className="w-6 h-6 text-primary shrink-0" />
-                <p className="text-[10px] font-bold text-muted-foreground leading-relaxed italic uppercase">
-                  Peringatan: Perubahan saldo ini bersifat manual dan akan tercatat secara riil di audit ledger pusat. Pastikan instruksi sesuai dengan deposit fisik nasabah.
-                </p>
-              </div>
+              <button onClick={() => setIsUserDialogOpen(false)} className="absolute top-6 right-6 p-2 bg-white/20 rounded-full text-white hover:bg-white/30 transition-colors"><X className="w-5 h-5" /></button>
             </div>
 
-            <DialogFooter>
-              <Button onClick={() => setIsUserDialogOpen(false)} variant="ghost" className="h-14 px-8 rounded-2xl font-black uppercase italic text-xs">Close Console</Button>
+            <div className="pt-16 px-10 pb-10 space-y-8">
+              <header className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <h2 className="text-3xl font-black italic uppercase tracking-tighter">{selectedUser?.name}</h2>
+                  <div className="flex items-center gap-3">
+                    <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase px-2">UID: {selectedUser?.accountNumber}</Badge>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">{selectedUser?.email}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleResetPassword} variant="outline" className="h-10 rounded-xl border-primary/20 text-primary font-black uppercase italic text-[10px] px-6">Riset Sandi</Button>
+                  <Button onClick={() => handleDeleteUser(selectedUser?.id)} variant="outline" className="h-10 rounded-xl border-rose-200 text-rose-600 font-black uppercase italic text-[10px] px-6">Freeze Account</Button>
+                </div>
+              </header>
+
+              <Tabs defaultValue="profile" className="space-y-8">
+                <TabsList className="bg-muted/50 p-1 rounded-2xl h-14 w-full justify-start gap-2 border border-border">
+                  <TabsTrigger value="profile" className="rounded-xl px-8 font-black uppercase text-[10px] italic data-[state=active]:gold-gradient data-[state=active]:text-white">Profile</TabsTrigger>
+                  <TabsTrigger value="financials" className="rounded-xl px-8 font-black uppercase text-[10px] italic data-[state=active]:gold-gradient data-[state=active]:text-white">Financials</TabsTrigger>
+                  <TabsTrigger value="wallets" className="rounded-xl px-8 font-black uppercase text-[10px] italic data-[state=active]:gold-gradient data-[state=active]:text-white">Wallets</TabsTrigger>
+                  <TabsTrigger value="earnings" className="rounded-xl px-8 font-black uppercase text-[10px] italic data-[state=active]:gold-gradient data-[state=active]:text-white">Earnings</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="profile" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+                  <div className="grid grid-cols-2 gap-6">
+                    <ProfileField icon={UserIcon} label="Full Name" value={selectedUser?.name} />
+                    <ProfileField icon={Mail} label="Email Address" value={selectedUser?.email} />
+                    <ProfileField icon={Phone} label="Phone Number" value={selectedUser?.phone || "Not Set"} />
+                    <ProfileField icon={ShieldCheck} label="Account Tier" value={selectedUser?.tier || "Regular"} />
+                    <div className="col-span-2">
+                      <ProfileField icon={Key} label="Web3 Native Address" value={selectedUser?.walletAddress} isMono />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="financials" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">IDR Liquidity Pool</label>
+                      <div className="p-6 rounded-[2rem] bg-muted/50 border border-border flex items-center justify-between">
+                        <p className="text-3xl font-black italic text-foreground">Rp {selectedUser?.totalBalance?.toLocaleString() || '0'}</p>
+                        <div className="flex gap-2">
+                          <Input placeholder="Amount" type="number" value={balanceAdjustment} onChange={(e) => setBalanceAdjustment(e.target.value)} className="w-24 h-10 bg-background border-none text-xs font-black italic" />
+                          <button onClick={() => handleUpdateUserBalance('idr', balanceAdjustment, 'add')} className="w-8 h-8 rounded-lg bg-green-600 text-white flex items-center justify-center"><Plus className="w-4 h-4" /></button>
+                          <button onClick={() => handleUpdateUserBalance('idr', balanceAdjustment, 'sub')} className="w-8 h-8 rounded-lg bg-rose-600 text-white flex items-center justify-center"><Minus className="w-4 h-4" /></button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">ALX Asset Holdings</label>
+                      <div className="p-6 rounded-[2rem] bg-muted/50 border border-border flex items-center justify-between">
+                        <p className="text-3xl font-black italic text-primary">{selectedUser?.cryptoBalances?.ALX?.toFixed(4) || '0.0000'} ALX</p>
+                        <div className="flex gap-2">
+                          <Input placeholder="ALX" type="number" value={alxAdjustment} onChange={(e) => setAlxAdjustment(e.target.value)} className="w-24 h-10 bg-background border-none text-xs font-black italic" />
+                          <button onClick={() => handleUpdateUserBalance('alx', alxAdjustment, 'add')} className="w-8 h-8 rounded-lg gold-gradient text-white flex items-center justify-center"><Plus className="w-4 h-4" /></button>
+                          <button onClick={() => handleUpdateUserBalance('alx', alxAdjustment, 'sub')} className="w-8 h-8 rounded-lg bg-slate-800 text-white flex items-center justify-center"><Minus className="w-4 h-4" /></button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 rounded-[2rem] bg-primary/5 border border-primary/10 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner"><PiggyBank className="w-6 h-6" /></div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-muted-foreground">Total Wealth Deposits</p>
+                        <p className="text-xl font-black italic">Rp {totalDepositsValue.toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <Badge className="bg-primary text-white font-black italic">{selectedUserDeposits.length} ACTIVE DEPOSITS</Badge>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="wallets" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedUserWallets.length > 0 ? selectedUserWallets.map((w, i) => (
+                      <div key={i} className="p-5 rounded-2xl bg-muted/30 border border-border flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center"><Wallet className="w-5 h-5 text-primary" /></div>
+                          <div>
+                            <p className="text-xs font-black uppercase italic">{w.name}</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase">Linked Account</p>
+                          </div>
+                        </div>
+                        <p className="text-sm font-black italic text-green-600">Rp {w.balance?.toLocaleString()}</p>
+                      </div>
+                    )) : (
+                      <div className="col-span-2 py-10 text-center opacity-20">
+                        <Wallet className="w-12 h-12 mx-auto mb-2" />
+                        <p className="text-[10px] font-black uppercase">No External Wallets Linked</p>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="earnings" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+                  <div className="grid grid-cols-3 gap-6">
+                    <Card className="p-6 rounded-[2rem] bg-orange-500/5 border-none text-center space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 mx-auto shadow-inner"><RotateCw className="w-6 h-6" /></div>
+                      <div>
+                        <p className="text-[9px] font-black uppercase text-muted-foreground">Ali-Spin Profit</p>
+                        <p className="text-2xl font-black italic text-orange-500">{totalGamingEarnings.toFixed(4)} ALX</p>
+                      </div>
+                    </Card>
+                    <Card className="p-6 rounded-[2rem] bg-blue-500/5 border-none text-center space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 mx-auto shadow-inner"><Zap className="w-6 h-6" /></div>
+                      <div>
+                        <p className="text-[9px] font-black uppercase text-muted-foreground">Trade-X Yield</p>
+                        <p className="text-2xl font-black italic text-blue-500">Live Monitoring</p>
+                      </div>
+                    </Card>
+                    <Card className="p-6 rounded-[2rem] bg-green-500/5 border-none text-center space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-600 mx-auto shadow-inner"><Trophy className="w-6 h-6" /></div>
+                      <div>
+                        <p className="text-[9px] font-black uppercase text-muted-foreground">Grand Total Rewards</p>
+                        <p className="text-2xl font-black italic text-green-600">{(totalGamingEarnings * ALX_PRICE_IDR).toLocaleString()} IDR</p>
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-black uppercase text-muted-foreground ml-2">Recent Settlement History</h4>
+                    <div className="rounded-[2rem] bg-muted/30 border border-border overflow-hidden">
+                      <table className="w-full text-left">
+                        <tbody className="divide-y divide-border">
+                          {selectedUserTransactions.slice(0, 5).map((tx, i) => (
+                            <tr key={i}>
+                              <td className="px-6 py-4 text-[10px] font-bold text-muted-foreground">{tx.date?.split('T')[0]}</td>
+                              <td className="px-6 py-4 text-[10px] font-black italic uppercase">{tx.description}</td>
+                              <td className="px-6 py-4 text-right text-[10px] font-black italic text-green-600">+{tx.rewardAlx?.toFixed(6) || 0} ALX</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            <DialogFooter className="bg-muted/30 p-8 border-t border-border">
+              <div className="flex items-center gap-4 text-muted-foreground grayscale opacity-40">
+                <Smartphone className="w-4 h-4" /><Globe className="w-4 h-4" /><ShieldCheck className="w-4 h-4" />
+                <span className="text-[8px] font-black uppercase tracking-widest italic">Encrypted Admin Terminal V3</span>
+              </div>
+              <Button onClick={() => setIsUserDialogOpen(false)} variant="ghost" className="h-12 px-10 rounded-xl font-black uppercase italic text-xs ml-auto">Close Console</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -954,6 +1096,20 @@ function QuickOpButton({ icon: Icon, label, sub, color, onClick }: any) {
         <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mt-1">{sub}</p>
       </div>
     </button>
+  );
+}
+
+function ProfileField({ icon: Icon, label, value, isMono = false }: any) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Icon className="w-3.5 h-3.5" />
+        <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
+      </div>
+      <div className="p-4 rounded-2xl bg-muted/50 border border-border">
+        <p className={cn("text-xs font-bold truncate italic uppercase", isMono && "font-mono text-[10px]")}>{value || "---"}</p>
+      </div>
+    </div>
   );
 }
 
