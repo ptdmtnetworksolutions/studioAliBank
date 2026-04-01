@@ -602,7 +602,24 @@ function AdminContent() {
                   <Badge className="bg-blue-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">MAINNET</Badge>
                 </div>
                 <div>
-                  <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Vault Reserve (USD)</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Vault Reserve (USD)</p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="p-1 cursor-help hover:bg-muted rounded-full transition-colors">
+                          <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/60" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-accent text-white border-none p-4 rounded-2xl max-w-xs shadow-2xl">
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-black uppercase text-primary tracking-widest">Reserve Origin</p>
+                          <p className="text-[10px] font-bold leading-relaxed">
+                            Total akumulasi modal riil dalam USD yang masuk melalui AliBank Secure Gateway (PayPal & Kartu Kredit). Ini adalah modal dasar yang menjamin likuiditas seluruh ekosistem bank.
+                          </p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                   <p className="text-4xl font-black text-blue-600 italic tracking-tighter">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
                 </div>
               </Card>
