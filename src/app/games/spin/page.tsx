@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -20,7 +19,8 @@ import {
   Volume2,
   VolumeX,
   Sparkles,
-  Dice5
+  Dice5,
+  LayoutGrid
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -324,7 +324,9 @@ export default function AliSpinPage() {
           </div>
           <div className="flex items-center gap-4">
             <History className="w-4 h-4 text-white/40 cursor-pointer hover:text-primary transition-colors" />
-            <Info className="w-4 h-4 text-white/40 cursor-pointer hover:text-primary transition-colors" />
+            <div className="w-4 h-4 text-white/40 cursor-pointer hover:text-primary transition-colors">
+              <Info className="w-4 h-4" />
+            </div>
           </div>
         </div>
       </div>
