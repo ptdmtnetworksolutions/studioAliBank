@@ -121,7 +121,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-// KONSTANTA GLOBAL ADMIN
+// KONSTANTA GLOBAL ADMIN - ALIBANK VAULT V3
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
 const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
@@ -181,56 +181,36 @@ function AdminContent() {
       const balance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
       setOnChainEth(formatEther(balance));
 
-      // FETCH REAL TRANSACTION DATA FROM ETHERSCAN (Dual-Track: Normal and Token Transfers)
+      // FETCH REAL TRANSACTION DATA FROM ETHERSCAN
       try {
-        const [normalRes, tokenRes] = await Promise.all([
-          fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=15&sort=desc`),
-          fetch(`https://api.etherscan.io/api?module=account&action=tokentx&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=15&sort=desc`)
-        ]);
-
-        const normalData = await normalRes.json();
-        const tokenData = await tokenRes.json();
+        const res = await fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=15&sort=desc`);
+        const data = await res.json();
         
-        let combined = [] as any[];
-
-        if (normalData.status === "1" && normalData.result) {
-          combined.push(...normalData.result.map((tx: any) => ({ ...tx, category: 'Normal' })));
-        }
-        if (tokenData.status === "1" && tokenData.result) {
-          combined.push(...tokenData.result.map((tx: any) => ({ ...tx, category: 'Token' })));
-        }
-
-        // Sort by timestamp desc
-        combined.sort((a, b) => parseInt(b.timeStamp) - parseInt(a.timeStamp));
-
-        const timeAgo = (ts: string) => {
-          const seconds = Math.floor((Date.now() - parseInt(ts) * 1000) / 1000);
-          if (seconds < 0) return 'Just now';
-          if (seconds < 60) return `${seconds}s ago`;
-          if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-          if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-          return `${Math.floor(seconds / 86400)}d ago`;
-        };
-
-        const realHistory = combined.slice(0, 15).map((tx: any) => {
-          const isOut = tx.from.toLowerCase() === ALX_CONTRACT.toLowerCase();
-          const valFormatted = tx.category === 'Token' 
-            ? `${(parseFloat(tx.value) / Math.pow(10, parseInt(tx.tokenDecimal || "18"))).toFixed(2)} ${tx.tokenSymbol}`
-            : `${parseFloat(formatEther(tx.value)).toFixed(4)} ETH`;
-
-          return {
-            hash: tx.hash.slice(0, 10) + "...",
-            fullHash: tx.hash,
-            from: tx.from,
-            to: tx.to,
-            value: valFormatted,
-            type: isOut ? "OUT" : "IN",
-            time: timeAgo(tx.timeStamp),
-            method: tx.category === 'Token' ? 'Token Transfer' : (tx.input !== '0x' ? 'Contract Call' : 'Transfer')
+        if (data.status === "1" && data.result) {
+          const timeAgo = (ts: string) => {
+            const seconds = Math.floor((Date.now() - parseInt(ts) * 1000) / 1000);
+            if (seconds < 0) return 'Just now';
+            if (seconds < 60) return `${seconds}s ago`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+            return `${Math.floor(seconds / 86400)}d ago`;
           };
-        });
 
-        setOnChainHistory(realHistory);
+          const realHistory = data.result.map((tx: any) => {
+            const isOut = tx.from.toLowerCase() === ALX_CONTRACT.toLowerCase();
+            return {
+              hash: tx.hash.slice(0, 10) + "...",
+              fullHash: tx.hash,
+              from: tx.from,
+              to: tx.to,
+              value: `${parseFloat(formatEther(tx.value)).toFixed(4)} ETH`,
+              type: isOut ? "OUT" : "IN",
+              time: timeAgo(tx.timeStamp),
+              method: tx.input !== '0x' ? 'Contract Call' : 'Transfer'
+            };
+          });
+          setOnChainHistory(realHistory);
+        }
       } catch (apiErr) {
         console.warn("Etherscan API fetch failed", apiErr);
       }
@@ -264,6 +244,8 @@ function AdminContent() {
     if (!vaultRecipient || !vaultAmount || isExecutingVaultTx) return;
     setIsExecutingVaultTx(true);
     try {
+      // Simulate real execution logic for Prototyping
+      // In production, this would call ethers.js wallet.sendTransaction
       await new Promise(resolve => setTimeout(resolve, 3000));
       
       if (db) {
@@ -271,7 +253,7 @@ function AdminContent() {
           id: `VAULT-WDR-${Date.now()}`,
           category: "External Disbursement",
           gateway: "Ali-Mainnet Node",
-          amountUsd: parseFloat(vaultAmount) * 2500,
+          amountUsd: parseFloat(vaultAmount) * 2500, // Sim value
           recipient: vaultRecipient,
           status: "success",
           timestamp: serverTimestamp(),
@@ -315,6 +297,7 @@ function AdminContent() {
   const handleDeleteAuditLog = async (logId: string) => {
     if (!db) return;
     try {
+      // Get the log data first to subtract from dashboard
       const logRef = doc(db, "system", "audit", "global_transactions", logId);
       const logSnap = await getDoc(logRef);
       
@@ -362,6 +345,7 @@ function AdminContent() {
         batch.delete(doc.ref);
       });
 
+      // Reset total liquidity metrics to zero
       const liquidityRef = doc(db, "system", "liquidity");
       batch.set(liquidityRef, {
         totalFiatInjected: 0,
@@ -394,12 +378,14 @@ function AdminContent() {
       const batch = writeBatch(db);
 
       for (const userDoc of usersSnap.docs) {
+        // Reset balances
         batch.update(userDoc.ref, {
           totalBalance: 0,
           savings: 0,
           cryptoBalances: { BTC: 0, ETH: 0, USDT: 0, ALX: 0 }
         });
 
+        // Delete all subcollections (deposits, wallets, txs, notifications)
         const subCollections = ['deposits', 'wallets', 'transactions', 'notifications'];
         for (const sub of subCollections) {
           const subSnap = await getDocs(collection(db, "users", userDoc.id, sub));
@@ -445,6 +431,7 @@ function AdminContent() {
     <TooltipProvider delayDuration={0}>
       <div className="min-h-screen bg-background text-foreground flex font-body transition-colors duration-300">
         
+        {/* SIDEBAR NAVIGATION */}
         <aside className="w-72 bg-card border-r border-border flex flex-col sticky top-0 h-screen z-50 transition-colors">
           <div className="p-8 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg">
@@ -520,6 +507,7 @@ function AdminContent() {
 
           <div className="p-10 space-y-10 overflow-y-auto no-scrollbar pb-20">
             
+            {/* TAB: DASHBOARD */}
             {activeTab === 'dashboard' && (
               <div className="animate-in fade-in duration-700 space-y-10">
                 
@@ -727,6 +715,7 @@ function AdminContent() {
               </div>
             )}
 
+            {/* TAB: CLIENTS */}
             {activeTab === 'users' && (
               <div className="animate-in slide-in-from-right-10 duration-700 space-y-10">
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
@@ -799,6 +788,7 @@ function AdminContent() {
                                     </DialogHeader>
                                     <ScrollArea className="max-h-[70vh]">
                                       <div className="p-8 space-y-10">
+                                        {/* SECTION: IDENTITAS */}
                                         <section className="flex flex-col md:flex-row gap-8 items-start">
                                           <div className="w-32 h-32 rounded-[2.5rem] gold-gradient p-1 shrink-0">
                                             <div className="w-full h-full rounded-[2.4rem] bg-background flex items-center justify-center overflow-hidden border-4 border-background">
@@ -815,6 +805,7 @@ function AdminContent() {
                                           </div>
                                         </section>
 
+                                        {/* SECTION: BALANCES */}
                                         <section className="space-y-6">
                                           <div className="flex items-center gap-2">
                                             <TrendingUp className="w-4 h-4 text-green-600" />
@@ -830,6 +821,7 @@ function AdminContent() {
                                           </div>
                                         </section>
 
+                                        {/* SECTION: SYNCED ENTITIES */}
                                         <section className="space-y-6">
                                           <div className="flex items-center gap-2">
                                             <RefreshCw className="w-4 h-4 text-primary" />
@@ -845,6 +837,7 @@ function AdminContent() {
                                           </div>
                                         </section>
 
+                                        {/* SECTION: DEPOSITS */}
                                         <section className="space-y-6">
                                           <div className="flex items-center gap-2">
                                             <PiggyBank className="w-4 h-4 text-primary" />
@@ -894,6 +887,7 @@ function AdminContent() {
               </div>
             )}
 
+            {/* TAB: TOKENOMICS */}
             {activeTab === 'tokenomics' && (
               <div className="animate-in zoom-in-95 duration-700 grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <Card className="border-none shadow-none bg-card rounded-[3rem] p-12 space-y-10 transition-colors">
@@ -946,6 +940,7 @@ function AdminContent() {
               </div>
             )}
 
+            {/* TAB: VAULT CONTROL */}
             {activeTab === 'vault' && (
               <div className="animate-in zoom-in-95 duration-700 space-y-10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -1118,6 +1113,7 @@ function AdminContent() {
               </div>
             )}
 
+            {/* TAB: INVENTORY */}
             {activeTab === 'inventory' && (
               <div className="animate-in slide-in-from-right-10 duration-700 space-y-10">
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
@@ -1161,6 +1157,7 @@ function AdminContent() {
               </div>
             )}
 
+            {/* TAB: AUDIT LOGS */}
             {activeTab === 'audit' && (
               <div className="animate-in slide-in-from-right-10 duration-700 space-y-10">
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
