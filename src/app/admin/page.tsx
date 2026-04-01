@@ -1,4 +1,3 @@
-
 "use client";
 
 import { 
@@ -52,6 +51,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { 
   TooltipProvider,
   Tooltip,
@@ -226,8 +226,8 @@ function AdminContent() {
               <div className="h-8 w-px bg-[#EFF0F2]" />
               <div className="flex items-center gap-3 cursor-pointer group">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-black leading-none text-[#1A1D1F]">Bronson Dalton</p>
-                  <p className="text-[10px] font-bold text-[#9A9FA5] mt-1 uppercase">Super Admin</p>
+                  <p className="text-sm font-black leading-none text-[#1A1D1F]">Super Admin</p>
+                  <p className="text-[10px] font-bold text-[#9A9FA5] mt-1 uppercase">AliBank Controller</p>
                 </div>
                 <div className="w-10 h-10 rounded-full gold-gradient p-[2px]">
                   <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-white">
@@ -306,7 +306,7 @@ function AdminContent() {
                           <Activity className="w-4 h-4 text-primary" />
                           <span className="text-[10px] font-bold uppercase">System Status</span>
                         </div>
-                        <p className="text-xl font-black italic text-green-600">PRODUCTION LIVE</p>
+                        <p className="text-xl font-black italic-green-600">PRODUCTION LIVE</p>
                       </div>
                     </div>
                   </Card>
