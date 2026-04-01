@@ -581,7 +581,7 @@ function AdminContent() {
                 onClick={() => setActiveTab('users')}
                 className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-primary/5 shadow-2xl relative overflow-hidden group cursor-pointer hover:scale-[1.03] transition-all"
               >
-                <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
+                <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity pointer-events-none" />
                 <div className="flex items-center justify-between">
                   <Users className="w-8 h-8 text-primary" />
                   <Badge className="bg-primary text-white uppercase text-[9px] font-black border-none px-3 py-1">ACTIVE</Badge>
@@ -596,7 +596,7 @@ function AdminContent() {
                 onClick={() => setActiveTab('vault')}
                 className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-blue-500/5 shadow-2xl relative overflow-hidden group cursor-pointer hover:scale-[1.03] transition-all"
               >
-                <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                 <div className="flex items-center justify-between">
                   <DollarSign className="w-8 h-8 text-blue-600" />
                   <Badge className="bg-blue-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">MAINNET</Badge>
@@ -606,11 +606,14 @@ function AdminContent() {
                     <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Vault Reserve (USD)</p>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="p-1 cursor-help hover:bg-muted rounded-full transition-colors">
+                        <button 
+                          onClick={(e) => e.stopPropagation()} 
+                          className="p-1 cursor-help hover:bg-muted rounded-full transition-colors relative z-10"
+                        >
                           <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/60" />
-                        </div>
+                        </button>
                       </TooltipTrigger>
-                      <TooltipContent className="bg-accent text-white border-none p-4 rounded-2xl max-w-xs shadow-2xl">
+                      <TooltipContent className="bg-accent text-white border-none p-4 rounded-2xl max-w-xs shadow-2xl z-[100]">
                         <div className="space-y-2">
                           <p className="text-[10px] font-black uppercase text-primary tracking-widest">Reserve Origin</p>
                           <p className="text-[10px] font-bold leading-relaxed">
@@ -628,7 +631,7 @@ function AdminContent() {
                 onClick={() => setActiveTab('alix')}
                 className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-orange-500/5 shadow-2xl relative overflow-hidden group cursor-pointer hover:scale-[1.03] transition-all"
               >
-                <div className="absolute inset-0 bg-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute inset-0 bg-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                 <div className="flex items-center justify-between">
                   <LogoIcon className="w-8 h-8 text-orange-600" />
                   <Badge className="bg-orange-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">ALX</Badge>
@@ -643,7 +646,7 @@ function AdminContent() {
                 onClick={() => setActiveTab('audit')}
                 className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-green-500/5 shadow-2xl relative overflow-hidden group cursor-pointer hover:scale-[1.03] transition-all"
               >
-                <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                 <div className="flex items-center justify-between">
                   <ShoppingBag className="w-8 h-8 text-green-600" />
                   <Badge className="bg-green-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">BANK PROFIT</Badge>
@@ -653,11 +656,14 @@ function AdminContent() {
                     <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Gross Cash Reserve (IDR)</p>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="p-1 cursor-help hover:bg-muted rounded-full transition-colors">
+                        <button 
+                          onClick={(e) => e.stopPropagation()} 
+                          className="p-1 cursor-help hover:bg-muted rounded-full transition-colors relative z-10"
+                        >
                           <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/60" />
-                        </div>
+                        </button>
                       </TooltipTrigger>
-                      <TooltipContent className="bg-accent text-white border-none p-4 rounded-2xl max-w-xs shadow-2xl">
+                      <TooltipContent className="bg-accent text-white border-none p-4 rounded-2xl max-w-xs shadow-2xl z-[100]">
                         <div className="space-y-2">
                           <p className="text-[10px] font-black uppercase text-primary tracking-widest">Financial Origin</p>
                           <p className="text-[10px] font-bold leading-relaxed">
@@ -706,7 +712,7 @@ function AdminContent() {
               </Card>
 
               <Card className="liquid-glass-dark border-none rounded-[3.5rem] p-12 text-white space-y-8 shadow-[0_50px_100px_rgba(0,0,0,0.4)] relative overflow-hidden group">
-                <div className="absolute right-[-10%] top-[-10%] p-12 opacity-10 group-hover:rotate-12 transition-transform duration-1000"><Sparkles className="w-64 h-64" /></div>
+                <div className="absolute right-[-10%] top-[-10%] p-12 opacity-10 group-hover:rotate-12 transition-transform duration-1000 pointer-events-none"><Sparkles className="w-64 h-64" /></div>
                 <div className="relative z-10 flex items-center gap-6">
                   <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center text-primary shadow-lg"><Zap className="w-8 h-8" /></div>
                   <h3 className="text-2xl font-black text-white uppercase italic">Sovereign Asset Sentinel</h3>
@@ -784,19 +790,21 @@ function AdminContent() {
                   </Button>
                 </div>
               </Card>
-            </div>
 
-            <div className="liquid-glass-dark rounded-[3.5rem] p-12 text-center space-y-8 relative overflow-hidden shadow-2xl">
-              <div className="absolute inset-0 gold-gradient opacity-5" />
-              <Milestone className="w-16 h-16 text-primary mx-auto opacity-20" />
-              <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">Status Migrasi: <span className="text-primary">Staging</span></h3>
-              <p className="text-sm font-medium text-white/60 italic max-w-3xl mx-auto uppercase leading-relaxed">
-                Blockchain Mandiri (AliChain) akan diluncurkan secara otomatis ketika volume ekosistem mencapai nilai ekuivalen Rp 10 Triliun. Seluruh Token ERC-20 akan dikonversi menjadi Koin Native melalui mekanisme Snapshot otomatis.
-              </p>
-              <div className="flex justify-center gap-6">
-                <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">EVM Compatible</Badge>
-                <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">Proof of Stake (PoS)</Badge>
-                <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">Zero-Fee Layer</Badge>
+              <div className="lg:col-span-2">
+                <Card className="liquid-glass-dark rounded-[3.5rem] p-12 text-center space-y-8 relative overflow-hidden shadow-2xl">
+                  <div className="absolute inset-0 gold-gradient opacity-5 pointer-events-none" />
+                  <Milestone className="w-16 h-16 text-primary mx-auto opacity-20" />
+                  <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">Status Migrasi: <span className="text-primary">Staging</span></h3>
+                  <p className="text-sm font-medium text-white/60 italic max-w-3xl mx-auto uppercase leading-relaxed">
+                    Blockchain Mandiri (AliChain) akan diluncurkan secara otomatis ketika volume ekosistem mencapai nilai ekuivalen Rp 10 Triliun. Seluruh Token ERC-20 akan dikonversi menjadi Koin Native melalui mekanisme Snapshot otomatis.
+                  </p>
+                  <div className="flex justify-center gap-6">
+                    <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">EVM Compatible</Badge>
+                    <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">Proof of Stake (PoS)</Badge>
+                    <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">Zero-Fee Layer</Badge>
+                  </div>
+                </Card>
               </div>
             </div>
           </TabsContent>
@@ -967,7 +975,7 @@ function AdminContent() {
           <TabsContent value="vault" className="space-y-10 animate-in zoom-in-95 duration-500">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
               <Card className="lg:col-span-8 liquid-glass border-none rounded-[4rem] p-16 text-foreground space-y-12 shadow-2xl relative overflow-hidden">
-                <div className="absolute right-[-5%] bottom-[-5%] opacity-5"><LogoIcon className="w-96 h-96 text-primary" /></div>
+                <div className="absolute right-[-5%] bottom-[-5%] opacity-5 pointer-events-none"><LogoIcon className="w-96 h-96 text-primary" /></div>
                 <div className="flex items-center justify-between relative z-10">
                   <div className="flex items-center gap-8">
                     <div className="w-24 h-24 rounded-[2.5rem] bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner"><Database className="w-12 h-12" /></div>
@@ -1027,7 +1035,7 @@ function AdminContent() {
               </Card>
 
               <Card className="lg:col-span-4 liquid-glass-dark border-none rounded-[3.5rem] p-10 space-y-8 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-6 opacity-10"><ArrowDownLeft className="w-32 h-32 text-primary" /></div>
+                <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none"><ArrowDownLeft className="w-32 h-32 text-primary" /></div>
                 <div className="relative z-10 space-y-8">
                   <div>
                     <Badge className="bg-primary text-white font-black uppercase text-[8px] tracking-widest mb-2">Internal Protocol</Badge>
@@ -1308,7 +1316,7 @@ function AdminContent() {
 
 export default function AdminControlPage() {
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={0}>
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>}>
         <AdminContent />
       </Suspense>
