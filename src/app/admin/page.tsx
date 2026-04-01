@@ -63,7 +63,10 @@ import {
   ArrowUpFromLine,
   ArrowDownToLine,
   History as HistoryIcon,
-  CandlestickChart
+  CandlestickChart,
+  Edit2,
+  Save,
+  AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -81,7 +84,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
@@ -158,9 +162,12 @@ function AdminContent() {
   const [syncingVault, setSyncingVault] = useState(false);
   const [candleData, setCandleData] = useState(generateMockCandles());
   
-  const [alixMintAmount, setAlixMintAmount] = useState("");
-  const [isMinting, setIsMinting] = useState(false);
-  const [isPurging, setIsPurging] = useState(false);
+  // States for User Management
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
+  const [isUpdatingUser, setIsUpdatingUser] = useState(false);
+  const [balanceAdjustment, setBalanceAdjustment] = useState("");
+  const [alxAdjustment, setAlxAdjustment] = useState("");
 
   const [vaultRecipient, setVaultRecipient] = useState("");
   const [vaultAmount, setVaultAmount] = useState("");
@@ -261,6 +268,53 @@ function AdminContent() {
     }
   }, [isAuthorized, syncOnChainData]);
 
+  // Handle User Edit / Balance Adjustment
+  const handleUpdateUserBalance = async (type: 'idr' | 'alx', amount: string, operation: 'add' | 'sub') => {
+    if (!db || !selectedUser || !amount) return;
+    const num = parseFloat(amount);
+    if (isNaN(num)) return;
+
+    setIsUpdatingUser(true);
+    try {
+      const userRef = doc(db, "users", selectedUser.id);
+      const val = operation === 'add' ? num : -num;
+      
+      const updateData: any = {};
+      if (type === 'idr') updateData.totalBalance = increment(val);
+      else updateData["cryptoBalances.ALX"] = increment(val);
+
+      await updateDoc(userRef, updateData);
+      
+      // Audit log
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `MANUAL-ADJ-${Date.now()}`,
+        category: "Manual Adjustment",
+        gateway: "Super Admin",
+        amountIdr: type === 'idr' ? val : 0,
+        description: `Manual ${operation} ${num} ${type.toUpperCase()} for ${selectedUser.name}`,
+        timestamp: serverTimestamp(),
+        status: "success"
+      });
+
+      toast({ title: "Update Berhasil", description: `Saldo ${type.toUpperCase()} telah disesuaikan.` });
+      setBalanceAdjustment("");
+      setAlxAdjustment("");
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Update Gagal", description: err.message });
+    } finally {
+      setIsUpdatingUser(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!db) return;
+    if (!confirm("Hapus data nasabah secara permanen?")) return;
+    try {
+      await deleteDoc(doc(db, "users", userId));
+      toast({ title: "User Deleted" });
+    } catch (err) {}
+  };
+
   const handleExecuteVaultWithdrawal = async () => {
     if (!vaultRecipient || !vaultAmount || isExecutingVaultTx || !userData?.privateKey) {
       toast({ variant: "destructive", title: "Otoritas Ditolak", description: "Kunci Privat & Saldo Gas diperlukan." });
@@ -313,6 +367,8 @@ function AdminContent() {
       toast({ title: "Sistem Dibersihkan", description: "Semua log audit telah dihapus." });
     } catch (err) {} finally { setIsPurging(false); }
   };
+
+  const [isPurging, setIsPurging] = useState(false);
 
   const displayVal = (val: number) => Math.max(0, val || 0);
 
@@ -489,7 +545,7 @@ function AdminContent() {
                 </div>
 
                 <div className="grid grid-cols-4 gap-6">
-                  <QuickOpButton icon={Skull} label="Reset All Clients" sub="Production Wipe" color="text-rose-500" onClick={handlePurgeAuditLogs} />
+                  <QuickOpButton icon={Skull} label="Reset All Clients" sub="Production Wipe" color="text-rose-500" onClick={() => setActiveTab('users')} />
                   <QuickOpButton icon={PlusCircle} label="Mint ALX" sub="Authorized Supply" color="text-green-500" onClick={() => setActiveTab('tokenomics')} />
                   <QuickOpButton icon={Pickaxe} label="Burn ALX" sub="Deflation Protocol" color="text-orange-500" onClick={() => setActiveTab('tokenomics')} />
                   <QuickOpButton icon={RefreshCw} label="Sync Vault" sub="Etherscan Hook" color="text-blue-500" onClick={() => syncOnChainData(true)} />
@@ -585,10 +641,20 @@ function AdminContent() {
                             </td>
                             <td className="px-8 py-5 text-center">
                               <div className="flex justify-center gap-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary">
-                                  <Settings className="w-4 h-4" />
+                                <Button 
+                                  onClick={() => { setSelectedUser(u); setIsUserDialogOpen(true); }}
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary"
+                                >
+                                  <Edit2 className="w-4 h-4" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-rose-100 hover:text-rose-600">
+                                <Button 
+                                  onClick={() => handleDeleteUser(u.id)}
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 rounded-lg hover:bg-rose-100 hover:text-rose-600"
+                                >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>
@@ -780,6 +846,77 @@ function AdminContent() {
             )}
           </div>
         </main>
+
+        {/* User Management Dialog (The Popup) */}
+        <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+          <DialogContent className="max-w-xl rounded-[2.5rem] p-10 bg-card border-border shadow-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black italic uppercase tracking-tight">Manage Client Portfolio</DialogTitle>
+              <DialogDescription className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Adjust liquidity & assets for {selectedUser?.name}</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-8 py-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-rose-600 flex items-center justify-center text-[8px] font-black text-white">ID</div>
+                    <span className="text-[10px] font-black uppercase text-muted-foreground">IDR Liquidity</span>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-muted border border-border">
+                    <p className="text-2xl font-black italic">Rp {selectedUser?.totalBalance?.toLocaleString() || '0'}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Input 
+                      placeholder="Adj. Amount" 
+                      type="number" 
+                      value={balanceAdjustment} 
+                      onChange={(e) => setBalanceAdjustment(e.target.value)}
+                      className="h-12 rounded-xl bg-muted border-none font-black italic"
+                    />
+                    <div className="flex gap-2">
+                      <Button onClick={() => handleUpdateUserBalance('idr', balanceAdjustment, 'add')} disabled={isUpdatingUser} className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white rounded-xl font-black italic uppercase text-[10px]"><Plus className="w-3 h-3 mr-1" /> Add</Button>
+                      <Button onClick={() => handleUpdateUserBalance('idr', balanceAdjustment, 'sub')} disabled={isUpdatingUser} className="flex-1 h-10 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black italic uppercase text-[10px]"><Minus className="w-3 h-3 mr-1" /> Sub</Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full gold-gradient p-1.5 flex items-center justify-center"><LogoIcon className="text-white" /></div>
+                    <span className="text-[10px] font-black uppercase text-muted-foreground">ALX Holdings</span>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-muted border border-border">
+                    <p className="text-2xl font-black italic">{selectedUser?.cryptoBalances?.ALX?.toFixed(4) || '0.0000'} ALX</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Input 
+                      placeholder="Adj. ALX" 
+                      type="number" 
+                      value={alxAdjustment} 
+                      onChange={(e) => setAlxAdjustment(e.target.value)}
+                      className="h-12 rounded-xl bg-muted border-none font-black italic"
+                    />
+                    <div className="flex gap-2">
+                      <Button onClick={() => handleUpdateUserBalance('alx', alxAdjustment, 'add')} disabled={isUpdatingUser} className="flex-1 h-10 gold-gradient text-white rounded-xl font-black italic uppercase text-[10px]"><Plus className="w-3 h-3 mr-1" /> Mint</Button>
+                      <Button onClick={() => handleUpdateUserBalance('alx', alxAdjustment, 'sub')} disabled={isUpdatingUser} className="flex-1 h-10 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-black italic uppercase text-[10px]"><Minus className="w-3 h-3 mr-1" /> Burn</Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 rounded-[2rem] bg-primary/5 border border-primary/10 flex gap-4">
+                <AlertCircle className="w-6 h-6 text-primary shrink-0" />
+                <p className="text-[10px] font-bold text-muted-foreground leading-relaxed italic uppercase">
+                  Peringatan: Perubahan saldo ini bersifat manual dan akan tercatat secara riil di audit ledger pusat. Pastikan instruksi sesuai dengan deposit fisik nasabah.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button onClick={() => setIsUserDialogOpen(false)} variant="ghost" className="h-14 px-8 rounded-2xl font-black uppercase italic text-xs">Close Console</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );
