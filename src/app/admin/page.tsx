@@ -47,7 +47,9 @@ import {
   Key,
   Sparkles,
   Sun,
-  Moon
+  Moon,
+  Clock,
+  ShoppingCart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -129,6 +131,8 @@ function AdminContent() {
   const { data: allUsers } = useCollection(usersQuery);
   const auditQuery = useMemo(() => (db ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(50)) : null), [db]);
   const { data: auditLogs } = useCollection(auditQuery);
+  const marketplaceQuery = useMemo(() => (db ? query(collection(db, "marketplace"), limit(50)) : null), [db]);
+  const { data: inventoryItems } = useCollection(marketplaceQuery);
 
   const syncOnChainData = useCallback(async () => {
     if (syncingVault) return;
@@ -431,7 +435,7 @@ function AdminContent() {
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
                   <div className="p-10 border-b border-border flex items-center justify-between">
                     <h3 className="text-lg font-black italic uppercase tracking-tight text-foreground">Recent Transactions</h3>
-                    <Button variant="ghost" className="rounded-xl text-muted-foreground font-black uppercase text-[10px] h-10 italic">View Ledger <ArrowDownRight className="w-4 h-4 ml-2" /></Button>
+                    <Button onClick={() => setActiveTab('audit')} variant="ghost" className="rounded-xl text-muted-foreground font-black uppercase text-[10px] h-10 italic">View Ledger <ArrowDownRight className="w-4 h-4 ml-2" /></Button>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
@@ -627,6 +631,122 @@ function AdminContent() {
                         <p className="text-[10px] font-bold text-muted-foreground leading-relaxed uppercase italic">Every external settlement is verified by AliBank V3 Protocol to ensure 100% solvency.</p>
                       </div>
                     </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* TAB INVENTORY */}
+            {activeTab === 'inventory' && (
+              <div className="animate-in slide-in-from-right-10 duration-700 space-y-10">
+                <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
+                  <div className="p-10 border-b border-border bg-blue-500/5 flex items-center justify-between transition-colors">
+                    <div>
+                      <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground">Marketplace Inventory</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Managing Digital & Physical Goods</p>
+                    </div>
+                    <Button className="rounded-xl gold-gradient text-white font-black uppercase text-[10px] h-10 px-6 italic border-none shadow-lg">
+                      <PackagePlus className="w-4 h-4 mr-2" /> Add Item
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-10">
+                    {inventoryItems?.map((item) => (
+                      <Card key={item.id} className="bg-muted/30 border border-border rounded-2xl p-6 space-y-4 relative group overflow-hidden transition-all hover:shadow-xl">
+                        <div className="w-full h-32 rounded-xl bg-muted border border-border flex items-center justify-center mb-4 relative overflow-hidden">
+                          <Image src={item.image || `https://picsum.photos/seed/${item.id}/200/200`} alt={item.name} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                        </div>
+                        <div>
+                          <Badge className="bg-primary/10 text-primary border-none font-black text-[8px] uppercase px-2 mb-2">{item.category}</Badge>
+                          <h4 className="text-sm font-black italic uppercase text-foreground">{item.name}</h4>
+                          <div className="flex justify-between items-center mt-2">
+                            <p className="text-xs font-black text-foreground">Rp {item.priceIdr?.toLocaleString()}</p>
+                            <p className="text-[10px] font-bold text-muted-foreground">Stock: {item.stock || 0}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <Button variant="outline" size="sm" className="flex-1 rounded-lg border-border font-black uppercase text-[9px] h-8">Edit</Button>
+                          <Button variant="ghost" size="sm" className="w-8 h-8 rounded-lg text-rose-500 hover:bg-rose-500/10 p-0"><Trash2 className="w-4 h-4" /></Button>
+                        </div>
+                      </Card>
+                    ))}
+                    {(!inventoryItems || inventoryItems.length === 0) && (
+                      <div className="col-span-full py-20 text-center opacity-20">
+                        <ShoppingCart className="w-12 h-12 mx-auto mb-4" />
+                        <p className="text-xs font-black uppercase tracking-widest">No Inventory Items Found</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* TAB AUDIT */}
+            {activeTab === 'audit' && (
+              <div className="animate-in slide-in-from-right-10 duration-700 space-y-10">
+                <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
+                  <div className="p-10 border-b border-border bg-amber-500/5 flex items-center justify-between transition-colors">
+                    <div>
+                      <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground">System Audit Ledger</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Irreversible Transaction History</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <Button variant="outline" className="rounded-xl border-border font-black uppercase text-[10px] h-10 px-6 italic text-foreground transition-colors">
+                        <ExternalLink className="w-4 h-4 mr-2" /> Export CSV
+                      </Button>
+                      <Button onClick={() => syncOnChainData()} className="rounded-xl gold-gradient text-white font-black uppercase text-[10px] h-10 px-6 italic border-none shadow-lg">
+                        <RefreshCw className={cn("w-4 h-4 mr-2", syncingVault && "animate-spin")} /> Refresh Logs
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
+                        <tr>
+                          <th className="px-10 py-8">Timestamp</th>
+                          <th className="px-10 py-8">Operation Type</th>
+                          <th className="px-10 py-8">Entity</th>
+                          <th className="px-10 py-8 text-right">Settlement Value</th>
+                          <th className="px-10 py-8 text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {auditLogs?.map((log) => (
+                          <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-10 py-6">
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span className="text-[10px] font-bold text-muted-foreground italic">
+                                  {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString() : '---'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-10 py-6">
+                              <Badge className="bg-muted text-foreground border-none text-[8px] font-black px-3 h-5 uppercase">{log.category}</Badge>
+                            </td>
+                            <td className="px-10 py-6">
+                              <p className="text-[10px] font-black italic text-foreground uppercase">{log.gateway || log.description || 'System Node'}</p>
+                              <p className="text-[8px] font-mono text-muted-foreground mt-1">{log.id}</p>
+                            </td>
+                            <td className="px-10 py-6 text-right">
+                              <p className="text-sm font-black italic text-foreground">
+                                {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : log.cryptoAmount ? `${log.cryptoAmount} ${log.cryptoCurrency}` : '---'}
+                              </p>
+                            </td>
+                            <td className="px-10 py-6 text-right">
+                              <Badge className="bg-green-500/10 text-green-600 border-none text-[8px] font-black px-3 h-5 uppercase italic">Verified</Badge>
+                            </td>
+                          </tr>
+                        ))}
+                        {(!auditLogs || auditLogs.length === 0) && (
+                          <tr>
+                            <td colSpan={5} className="py-20 text-center opacity-20">
+                              <ShieldAlert className="w-12 h-12 mx-auto mb-4" />
+                              <p className="text-xs font-black uppercase tracking-widest">No Audit Logs Recorded</p>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </Card>
               </div>
