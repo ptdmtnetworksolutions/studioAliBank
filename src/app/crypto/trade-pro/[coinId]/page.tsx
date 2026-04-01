@@ -45,7 +45,7 @@ import {
   Bar,
   Line
 } from "recharts";
-import { useUser, useFirestore, useDoc } from "@/firebase";
+import { useUser, useDoc, useFirestore } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
@@ -71,7 +71,6 @@ export default function TradeProPage() {
   const [prediction, setPrediction] = useState<'high' | 'low' | null>(null);
   const [entryPrice, setEntryPrice] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [tradeHistory, setTradeHistory] = useState<any[]>([]);
 
   const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
@@ -144,6 +143,7 @@ export default function TradeProPage() {
       return;
     }
 
+    // Eksekusi Riil: Potong Saldo IDR
     updateDoc(userDocRef, { totalBalance: increment(-amount) });
     const liquidityRef = doc(db, "system", "liquidity");
     updateDoc(liquidityRef, { totalFiatInjected: increment(amount), tradeXGrossVolumeIdr: increment(amount) });
@@ -195,7 +195,7 @@ export default function TradeProPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-[#0F1113] text-white flex flex-col font-body overflow-hidden">
+    <div className="h-screen bg-[#0F1113] text-white flex flex-col font-body overflow-hidden">
       {/* PROFESSIONAL TOP HEADER */}
       <header className="px-4 h-16 flex items-center justify-between bg-[#171A1D] border-b border-white/5 shrink-0">
         <div className="flex items-center gap-3">
@@ -203,15 +203,15 @@ export default function TradeProPage() {
             <User className="w-5 h-5 text-white/60" />
             <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#171A1D] flex items-center justify-center text-[8px] font-black text-white">7</div>
           </div>
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col">
             <div className="flex items-center gap-1.5 cursor-pointer group" onClick={() => router.push('/')}>
-              <span className="text-sm font-black italic tracking-tighter">IDR {(userData?.totalBalance ?? 0).toLocaleString()}</span>
+              <span className="text-sm font-black italic tracking-tighter uppercase text-white">IDR {(userData?.totalBalance ?? 0).toLocaleString()}</span>
               <ChevronDown className="w-3 h-3 text-white/40 group-hover:text-primary transition-colors" />
             </div>
             <span className="text-[8px] font-bold text-white/30 uppercase tracking-widest leading-none">IDR Akun Anda</span>
           </div>
         </div>
-        <button onClick={() => router.push('/topup')} className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20 active:scale-95 transition-transform">
+        <button onClick={() => router.push('/topup')} className="w-10 h-10 bg-[#26A69A] rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20 active:scale-95 transition-transform">
           <Wallet className="w-5 h-5 text-white" />
         </button>
       </header>
@@ -257,20 +257,20 @@ export default function TradeProPage() {
             </ComposedChart>
           </ResponsiveContainer>
 
-          {/* ZOOM CONTROLS */}
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1 bg-[#1C2024]/80 backdrop-blur p-1 rounded-lg border border-white/5">
-            <button className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded"><Minus className="w-4 h-4 text-white/60" /></button>
+          {/* ZOOM CONTROLS Overlay */}
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1 bg-[#1C2024]/80 backdrop-blur p-1 rounded-lg border border-white/5 z-20">
+            <button className="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded"><Minus className="w-4 h-4 text-white/60" /></button>
             <div className="w-px h-4 bg-white/10 self-center" />
-            <button className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded"><Plus className="w-4 h-4 text-white/60" /></button>
+            <button className="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded"><Plus className="w-4 h-4 text-white/60" /></button>
           </div>
         </div>
 
         {/* TRADING TERMINAL PANEL */}
         <div className="bg-[#171A1D] border-t border-white/5 p-4 space-y-4 pb-8 shrink-0">
           <div className="flex justify-between items-center px-1">
-            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Fixed Time mode</span>
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest italic">Fixed Time mode</span>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-white/40 uppercase">Profit:</span>
+              <span className="text-[10px] font-bold text-white/40 uppercase italic">Profit:</span>
               <span className="text-xs font-black text-green-500 italic">+Rp {(amount * 0.9).toLocaleString()}</span>
               <HelpCircle className="w-3 h-3 text-white/20" />
             </div>
@@ -290,33 +290,38 @@ export default function TradeProPage() {
             <div className="bg-[#1C2024] rounded-xl p-1 flex items-center justify-between border border-white/5 h-14">
               <button onClick={() => setAmount(Math.max(10000, amount - 50000))} className="w-10 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Minus className="w-4 h-4 text-white/40" /></button>
               <div className="flex-1 text-center">
-                <p className="text-[11px] font-black italic uppercase leading-none mt-1">Rp</p>
+                <p className="text-[8px] font-black italic uppercase leading-none mt-1 text-white/40">Rp</p>
                 <p className="text-sm font-black italic">{amount.toLocaleString()}</p>
               </div>
               <button onClick={() => setAmount(amount + 50000)} className="w-10 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Plus className="w-4 h-4 text-white/40" /></button>
             </div>
           </div>
 
-          <div className="flex gap-3 h-16">
+          <div className="flex gap-3 h-20">
             {/* DOWN BUTTON */}
             <button 
               onClick={() => startTrade('low')}
               disabled={isTrading}
               className={cn(
-                "flex-1 rounded-2xl bg-[#EF5350] hover:bg-[#D32F2F] active:scale-95 transition-all flex items-center justify-between px-6 shadow-lg shadow-red-500/10",
+                "flex-1 rounded-2xl bg-[#EF5350] hover:bg-[#D32F2F] active:scale-95 transition-all flex items-center justify-between px-6 shadow-xl",
                 isTrading && "opacity-50 grayscale"
               )}
             >
               <div className="text-left">
-                <span className="text-xs font-black uppercase italic tracking-tighter block">Down</span>
-                <p className="text-[8px] font-bold text-white/60 uppercase">Meleset</p>
+                <span className="text-sm font-black uppercase italic tracking-tighter block leading-none">Down</span>
+                <p className="text-[9px] font-bold text-white/60 uppercase mt-1">Meleset</p>
               </div>
-              <TrendingDown className="w-6 h-6" />
+              <TrendingDown className="w-8 h-8" />
             </button>
 
             {/* STATUS / CLOCK ICON */}
-            <button className="w-16 h-full bg-[#1C2024] rounded-2xl border border-white/5 flex items-center justify-center active:scale-95 transition-transform">
-              {isTrading ? <span className="text-primary font-black italic text-lg">{timeLeft}</span> : <Clock className="w-6 h-6 text-white/40" />}
+            <button className="w-20 h-full bg-[#1C2024] rounded-2xl border border-white/5 flex items-center justify-center active:scale-95 transition-transform shadow-inner">
+              {isTrading ? (
+                <div className="flex flex-col items-center">
+                  <span className="text-primary font-black italic text-xl leading-none">{timeLeft}</span>
+                  <span className="text-[8px] text-white/20 font-bold uppercase mt-1">SEC</span>
+                </div>
+              ) : <Clock className="w-8 h-8 text-white/40" />}
             </button>
 
             {/* UP BUTTON */}
@@ -324,37 +329,41 @@ export default function TradeProPage() {
               onClick={() => startTrade('high')}
               disabled={isTrading}
               className={cn(
-                "flex-1 rounded-2xl bg-[#26A69A] hover:bg-[#00897B] active:scale-95 transition-all flex items-center justify-between px-6 shadow-lg shadow-teal-500/10",
+                "flex-1 rounded-2xl bg-[#26A69A] hover:bg-[#00897B] active:scale-95 transition-all flex items-center justify-between px-6 shadow-xl",
                 isTrading && "opacity-50 grayscale"
               )}
             >
               <div className="text-left">
-                <span className="text-xs font-black uppercase italic tracking-tighter block">Up</span>
-                <p className="text-[8px] font-bold text-white/60 uppercase">Naik</p>
+                <span className="text-sm font-black uppercase italic tracking-tighter block leading-none">Up</span>
+                <p className="text-[9px] font-bold text-white/60 uppercase mt-1">Naik</p>
               </div>
-              <TrendingUp className="w-6 h-6" />
+              <TrendingUp className="w-8 h-8" />
             </button>
           </div>
         </div>
       </main>
 
       {/* TERMINAL NAVIGATION */}
-      <footer className="h-16 bg-[#171A1D] border-t border-white/5 flex items-center justify-around shrink-0 px-2">
-        <button className="flex flex-col items-center gap-1 group">
+      <footer className="h-16 bg-[#171A1D] border-t border-white/5 flex items-center justify-around shrink-0 px-2 pb-safe">
+        <button className="flex flex-col items-center gap-1 group w-full">
           <LineChart className="w-5 h-5 text-primary" />
-          <div className="w-1 h-1 bg-primary rounded-full" />
+          <span className="text-[8px] font-black uppercase italic text-primary">Beranda</span>
         </button>
-        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity w-full">
           <ArrowRightLeft className="w-5 h-5" />
+          <span className="text-[8px] font-black uppercase italic">Pasar</span>
         </button>
-        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity w-full">
           <ShoppingBag className="w-5 h-5" />
+          <span className="text-[8px] font-black uppercase italic">Perdagangan</span>
         </button>
-        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity w-full">
           <Trophy className="w-5 h-5" />
+          <span className="text-[8px] font-black uppercase italic">Futures</span>
         </button>
-        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity w-full">
           <HelpCircle className="w-5 h-5" />
+          <span className="text-[8px] font-black uppercase italic">Aset</span>
         </button>
       </footer>
     </div>
