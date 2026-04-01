@@ -186,7 +186,6 @@ function AdminContent() {
   const handleDeleteAuditLog = async (logId: string) => {
     if (!db) return;
     try {
-      // 1. Ambil data log sebelum dihapus untuk sinkronisasi Dashboard
       const logRef = doc(db, "system", "audit", "global_transactions", logId);
       const logSnap = await getDoc(logRef);
       
@@ -194,9 +193,9 @@ function AdminContent() {
         const logData = logSnap.data();
         const liquidityRef = doc(db, "system", "liquidity");
         
-        // 2. Kurangi saldo dashboard berdasarkan data log
         const updates: any = {};
         if (logData.amountIdr) {
+          // Hanya kurangi jika saldo di dashboard masih ada (cegah negatif ekstrem)
           updates.totalFiatInjected = increment(-logData.amountIdr);
           
           if (logData.category === "Trade-X Capture") {
@@ -214,9 +213,8 @@ function AdminContent() {
         }
       }
 
-      // 3. Hapus Log
       await deleteDoc(logRef);
-      toast({ title: "Log Dihapus", description: "Dashboard telah diperbarui secara otomatis." });
+      toast({ title: "Log Dihapus", description: "Saldo sistem telah diperbarui secara otomatis." });
     } catch (err) {
       toast({ variant: "destructive", title: "Gagal Menghapus" });
     }
@@ -224,7 +222,7 @@ function AdminContent() {
 
   const handlePurgeAuditLogs = async () => {
     if (!db || isPurging) return;
-    if (!confirm("Peringatan: Seluruh riwayat transaksi sistem akan dihapus secara permanen dan dashboard akan direset ke nol. Lanjutkan?")) return;
+    if (!confirm("Peringatan: Seluruh riwayat transaksi sistem akan dihapus secara permanen dan dashboard akan direset ke nol mutlak. Lanjutkan?")) return;
 
     setIsPurging(true);
     try {
@@ -236,7 +234,7 @@ function AdminContent() {
         batch.delete(doc.ref);
       });
 
-      // Reset metrik likuiditas dashboard ke nol (Fresh State)
+      // Reset metrik likuiditas dashboard ke nol (Fresh State) - Paksa overwrite
       const liquidityRef = doc(db, "system", "liquidity");
       batch.set(liquidityRef, {
         totalFiatInjected: 0,
@@ -244,17 +242,23 @@ function AdminContent() {
         tradeXGrossVolumeIdr: 0,
         spinGrossVolumeIdr: 0,
         totalInternalAumIdr: 0,
-        totalAlixSoldInternally: 0
-      }, { merge: true });
+        totalAlixSoldInternally: 0,
+        alixVaultBalance: 0,
+        totalAlixMinted: 0,
+        totalAlixBurned: 0
+      }, { merge: false }); // Gunakan merge false untuk membersihkan korupsi data
 
       await batch.commit();
-      toast({ title: "Sistem Direset", description: "Seluruh log dibersihkan dan dashboard kembali ke nol." });
+      toast({ title: "Sistem Dibersihkan", description: "Audit dihapus dan dashboard kembali ke Nol Mutlak." });
     } catch (err) {
       toast({ variant: "destructive", title: "Gagal Membersihkan Audit" });
     } finally {
       setIsPurging(false);
     }
   };
+
+  // Helper untuk membersihkan tampilan angka (Cegah tampilan minus di UI)
+  const displayVal = (val: number) => Math.max(0, val || 0);
 
   if (userLoading || !isAuthorized) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
 
@@ -382,7 +386,7 @@ function AdminContent() {
                         <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Total Net Capital (IDR)</p>
                         <Badge className="bg-green-500/10 text-green-600 border-none text-[10px] font-black px-2">+12.01%</Badge>
                       </div>
-                      <h2 className="text-6xl font-black tracking-tighter italic text-[#1A1D1F] dark:text-foreground transition-colors">Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString()}</h2>
+                      <h2 className="text-6xl font-black tracking-tighter italic text-[#1A1D1F] dark:text-foreground transition-colors">Rp {displayVal(globalLiquidity?.totalFiatInjected).toLocaleString()}</h2>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
@@ -391,14 +395,14 @@ function AdminContent() {
                           <Globe className="w-4 h-4" />
                           <span className="text-[10px] font-bold uppercase">Vault Reserve (USD)</span>
                         </div>
-                        <p className="text-xl font-black italic text-[#1A1D1F] dark:text-foreground">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
+                        <p className="text-xl font-black italic text-[#1A1D1F] dark:text-foreground">$ {displayVal(globalLiquidity?.totalUsdInjected).toLocaleString()}</p>
                       </div>
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <TrendingUp className="w-4 h-4 text-green-600" />
                           <span className="text-[10px] font-bold uppercase">Gaming Profit (IDR)</span>
                         </div>
-                        <p className="text-xl font-black italic text-green-600 transition-colors">Rp {((globalLiquidity?.tradeXGrossVolumeIdr || 0) + (globalLiquidity?.spinGrossVolumeIdr || 0)).toLocaleString()}</p>
+                        <p className="text-xl font-black italic text-green-600 transition-colors">Rp {displayVal((globalLiquidity?.tradeXGrossVolumeIdr || 0) + (globalLiquidity?.spinGrossVolumeIdr || 0)).toLocaleString()}</p>
                       </div>
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-muted-foreground">
@@ -492,7 +496,7 @@ function AdminContent() {
                       <div className="flex justify-between items-end">
                         <div>
                           <p className="text-[8px] font-black uppercase opacity-40 mb-1">Vault Inventory</p>
-                          <p className="text-sm font-black italic">{(globalLiquidity?.alixVaultBalance || 0).toLocaleString()} ALX</p>
+                          <p className="text-sm font-black italic">{displayVal(globalLiquidity?.alixVaultBalance).toLocaleString()} ALX</p>
                         </div>
                         <div className="text-right">
                           <p className="text-[8px] font-black uppercase opacity-40 mb-1">Anchor Price</p>
@@ -635,7 +639,7 @@ function AdminContent() {
                   <div className="space-y-6">
                     <div className="bg-muted p-8 rounded-[2rem] space-y-2 transition-colors">
                       <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Global Anchor Reserve (USD)</p>
-                      <p className="text-3xl font-black italic text-[#1A1D1F] dark:text-foreground">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
+                      <p className="text-3xl font-black italic text-[#1A1D1F] dark:text-foreground">$ {displayVal(globalLiquidity?.totalUsdInjected).toLocaleString()}</p>
                     </div>
                     <div className="space-y-3">
                       <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Amount to Authorize (ALX)</label>
@@ -660,7 +664,7 @@ function AdminContent() {
                   <div className="space-y-6">
                     <div className="bg-background/10 p-8 rounded-[2rem] space-y-2">
                       <p className="text-[9px] font-black uppercase opacity-40 tracking-widest">Permanently Incinerated</p>
-                      <p className="text-3xl font-black italic">{(globalLiquidity?.totalAlixBurned || 0).toLocaleString()} ALX</p>
+                      <p className="text-3xl font-black italic">{displayVal(globalLiquidity?.totalAlixBurned).toLocaleString()} ALX</p>
                     </div>
                     <div className="space-y-3">
                       <label className="text-[10px] font-black uppercase opacity-40 ml-2">Amount to Burn (ALX)</label>
