@@ -66,7 +66,8 @@ import {
   RotateCcw,
   Banknote,
   PiggyBank,
-  RotateCw
+  RotateCw,
+  HelpCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -620,7 +621,17 @@ function AdminContent() {
                     <Badge className="bg-green-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">Bank Profit</Badge>
                   </div>
                   <div>
-                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Gross Cash Reserve (IDR)</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Gross Cash Reserve (IDR)</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/40 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
+                          <p className="text-[10px] font-bold">Total Rupiah nyata dari injeksi PayPal/Kartu Kredit serta akumulasi modal dari kekalahan taruhan nasabah di ekosistem game.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <p className="text-4xl font-black text-green-600 italic tracking-tighter">Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString()}</p>
                   </div>
                 </Card>
