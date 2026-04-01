@@ -535,658 +535,321 @@ function AdminContent() {
   if (userLoading || !isAuthorized) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
 
   return (
-    <TooltipProvider>
-      <div className="min-h-screen pb-32 bg-background selection:bg-primary/20">
-        <Navbar />
-        <main className="container mx-auto px-4 max-w-7xl pt-4">
-          
-          <header className="mb-12 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
-            <div className="flex items-center gap-6">
-              <div className="w-20 h-20 rounded-[2rem] gold-gradient flex items-center justify-center border border-white/20 p-5 shadow-[0_20px_50px_rgba(184,134,11,0.3)]">
-                <ShieldAlert className="text-white w-12 h-12" />
-              </div>
-              <div>
-                <h1 className="text-5xl font-black text-foreground uppercase italic tracking-tighter leading-none">Command Center</h1>
-                <p className="text-muted-foreground text-[11px] font-black uppercase tracking-[0.3em] italic mt-2 flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-primary" /> Multi-Asset Vault Infrastructure V3
-                </p>
-              </div>
+    <div className="min-h-screen pb-32 bg-background selection:bg-primary/20">
+      <Navbar />
+      <main className="container mx-auto px-4 max-w-7xl pt-4">
+        
+        <header className="mb-12 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
+          <div className="flex items-center gap-6">
+            <div className="w-20 h-20 rounded-[2rem] gold-gradient flex items-center justify-center border border-white/20 p-5 shadow-[0_20px_50px_rgba(184,134,11,0.3)]">
+              <ShieldAlert className="text-white w-12 h-12" />
             </div>
-
-            <div className="flex flex-wrap gap-4">
-              <Button onClick={() => router.push('/admin/about-alix')} variant="outline" className="h-16 px-8 rounded-2xl font-black uppercase text-[11px] italic shadow-xl bg-card border-primary/20 text-foreground hover:bg-primary/5 transition-all">
-                <Sparkles className="w-5 h-5 mr-3 text-primary" /> Misi & Validasi Vault
-              </Button>
-              <Button onClick={syncOnChainData} disabled={syncingVault} className="h-16 w-16 rounded-2xl liquid-glass border-primary/10 text-primary flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-all">
-                <RefreshCw className={cn("w-6 h-6", syncingVault && "animate-spin")} />
-              </Button>
+            <div>
+              <h1 className="text-5xl font-black text-foreground uppercase italic tracking-tighter leading-none">Command Center</h1>
+              <p className="text-muted-foreground text-[11px] font-black uppercase tracking-[0.3em] italic mt-2 flex items-center gap-2">
+                <Globe className="w-4 h-4 text-primary" /> Multi-Asset Vault Infrastructure V3
+              </p>
             </div>
-          </header>
+          </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-10">
-            <div className="overflow-x-auto no-scrollbar pb-4">
-              <TabsList className="bg-primary/5 p-2 rounded-[3rem] h-20 border border-primary/10 flex w-max shadow-inner mx-auto gap-2">
-                <TabsTrigger value="overview" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Executive</TabsTrigger>
-                <TabsTrigger value="alichain" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">AliChain Hub</TabsTrigger>
-                <TabsTrigger value="inventory" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Inventory</TabsTrigger>
-                <TabsTrigger value="alix" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Tokenomics</TabsTrigger>
-                <TabsTrigger value="vault" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Vault V3</TabsTrigger>
-                <TabsTrigger value="users" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Clients</TabsTrigger>
-                <TabsTrigger value="audit" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Audit</TabsTrigger>
-              </TabsList>
-            </div>
+          <div className="flex flex-wrap gap-4">
+            <Button onClick={() => router.push('/admin/about-alix')} variant="outline" className="h-16 px-8 rounded-2xl font-black uppercase text-[11px] italic shadow-xl bg-card border-primary/20 text-foreground hover:bg-primary/5 transition-all">
+              <Sparkles className="w-5 h-5 mr-3 text-primary" /> Misi & Validasi Vault
+            </Button>
+            <Button onClick={syncOnChainData} disabled={syncingVault} className="h-16 w-16 rounded-2xl liquid-glass border-primary/10 text-primary flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-all">
+              <RefreshCw className={cn("w-6 h-6", syncingVault && "animate-spin")} />
+            </Button>
+          </div>
+        </header>
 
-            <TabsContent value="overview" className="space-y-10 animate-in fade-in zoom-in-95 duration-500">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-primary/5 shadow-2xl relative overflow-hidden group">
-                  <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
-                  <div className="flex items-center justify-between">
-                    <Users className="w-8 h-8 text-primary" />
-                    <Badge className="bg-primary text-white uppercase text-[9px] font-black border-none px-3 py-1">Active</Badge>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Global Accounts</p>
-                    <p className="text-4xl font-black text-foreground italic tracking-tighter">{allUsers?.length || 0}</p>
-                  </div>
-                </Card>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-10">
+          <div className="overflow-x-auto no-scrollbar pb-4">
+            <TabsList className="bg-primary/5 p-2 rounded-[3rem] h-20 border border-primary/10 flex w-max shadow-inner mx-auto gap-2">
+              <TabsTrigger value="overview" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Executive</TabsTrigger>
+              <TabsTrigger value="alichain" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">AliChain Hub</TabsTrigger>
+              <TabsTrigger value="inventory" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Inventory</TabsTrigger>
+              <TabsTrigger value="alix" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Tokenomics</TabsTrigger>
+              <TabsTrigger value="vault" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Vault V3</TabsTrigger>
+              <TabsTrigger value="users" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Clients</TabsTrigger>
+              <TabsTrigger value="audit" className="rounded-[2.5rem] font-black uppercase text-[11px] italic px-10 data-[state=active]:gold-gradient data-[state=active]:text-white transition-all text-foreground/60 data-[state=active]:text-white">Audit</TabsTrigger>
+            </TabsList>
+          </div>
 
-                <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-blue-500/5 shadow-2xl relative overflow-hidden group">
-                  <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="flex items-center justify-between">
-                    <DollarSign className="w-8 h-8 text-blue-600" />
-                    <Badge className="bg-blue-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">Mainnet</Badge>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Vault Reserve (USD)</p>
-                    <p className="text-4xl font-black text-blue-600 italic tracking-tighter">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
-                  </div>
-                </Card>
-
-                <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-orange-500/5 shadow-2xl relative overflow-hidden group">
-                  <div className="absolute inset-0 bg-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="flex items-center justify-between">
-                    <LogoIcon className="w-8 h-8 text-orange-600" />
-                    <Badge className="bg-orange-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">ALX</Badge>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Sovereign Supply</p>
-                    <p className="text-4xl font-black text-orange-600 italic tracking-tighter">{(globalLiquidity?.alixVaultBalance || 0).toLocaleString()}</p>
-                  </div>
-                </Card>
-
-                <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-green-500/5 shadow-2xl relative overflow-hidden group">
-                  <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="flex items-center justify-between">
-                    <ShoppingBag className="w-8 h-8 text-green-600" />
-                    <Badge className="bg-green-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">Bank Profit</Badge>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Gross Cash Reserve (IDR)</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/40 cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
-                          <p className="text-[10px] font-bold">Total Rupiah nyata dari injeksi PayPal/Kartu Kredit serta akumulasi modal dari kekalahan taruhan nasabah di ekosistem game.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <p className="text-4xl font-black text-green-600 italic tracking-tighter">Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString()}</p>
-                  </div>
-                </Card>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-8 shadow-2xl">
-                  <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner"><Gamepad2 className="w-8 h-8" /></div>
-                    <div>
-                      <h3 className="text-2xl font-black text-foreground uppercase italic">Gaming Revenue Hub</h3>
-                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Accumulated profit captured from interactive terminals.</p>
-                    </div>
-                  </div>
-                  <div className="space-y-6">
-                    <div className="p-8 rounded-3xl bg-accent/5 border border-primary/10 flex justify-between items-center group hover:bg-primary/5 transition-all">
-                      <div>
-                        <span className="text-[11px] font-black uppercase text-muted-foreground">Total Trade-X Volume (IDR)</span>
-                        <p className="text-2xl font-black text-foreground italic mt-1">Rp {(globalLiquidity?.tradeXGrossVolumeIdr || 0).toLocaleString()}</p>
-                      </div>
-                      <Zap className="w-10 h-10 text-primary opacity-20" />
-                    </div>
-
-                    <div className="p-8 rounded-3xl bg-accent/5 border border-primary/10 flex justify-between items-center group hover:bg-primary/5 transition-all">
-                      <div>
-                        <span className="text-[11px] font-black uppercase text-muted-foreground">Total Ali-Spin Pro (IDR)</span>
-                        <p className="text-2xl font-black text-foreground italic mt-1">Rp {(globalLiquidity?.spinGrossVolumeIdr || 0).toLocaleString()}</p>
-                      </div>
-                      <RotateCw className="w-10 h-10 text-primary opacity-20" />
-                    </div>
-
-                    <div className="p-6 rounded-3xl bg-green-500/5 border border-green-500/10 flex justify-between items-center">
-                      <span className="text-[11px] font-black uppercase text-green-600">Net Cash Capture</span>
-                      <span className="text-sm font-black text-green-600 uppercase italic">100% Retained in Vault</span>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="liquid-glass-dark border-none rounded-[3.5rem] p-12 text-white space-y-8 shadow-[0_50px_100px_rgba(0,0,0,0.4)] relative overflow-hidden group">
-                  <div className="absolute right-[-10%] top-[-10%] p-12 opacity-10 group-hover:rotate-12 transition-transform duration-1000"><Sparkles className="w-64 h-64" /></div>
-                  <div className="relative z-10 flex items-center gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center text-primary shadow-lg"><Zap className="w-8 h-8" /></div>
-                    <h3 className="text-2xl font-black text-white uppercase italic">Sovereign Asset Sentinel</h3>
-                  </div>
-                  <p className="text-sm font-medium italic text-white/70 leading-relaxed uppercase relative z-10">
-                    Setiap Rupiah dari kekalahan permainan nasabah secara riil menambah modal bank (IDR), sementara hadiah kemenangan dibayarkan via aset ALX yang Anda kontrol.
-                  </p>
-                  <Button onClick={() => router.push('/admin/about-alix')} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-xs tracking-widest relative z-10 shadow-2xl flex items-center justify-between px-8">
-                    View Strategic Protocols <ChevronRight className="w-5 h-5" />
-                  </Button>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="alichain" className="space-y-10 animate-in zoom-in-95 duration-500">
-              <header className="text-center max-w-2xl mx-auto space-y-4">
-                <Badge className="bg-primary text-white font-black uppercase tracking-widest text-[10px] px-4 py-1.5 rounded-full shadow-lg">Phase 2: Global Scaling</Badge>
-                <h2 className="text-4xl font-black text-foreground uppercase italic tracking-tighter">AliChain Migration Readiness</h2>
-                <p className="text-[11px] text-muted-foreground font-black uppercase tracking-[0.3em] leading-relaxed italic">
-                  Monitoring transisi dari Token Ethereum (ERC-20) menuju Koin Native Berdaulat AliBank V3.
-                </p>
-              </header>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-10 shadow-2xl">
-                  <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner"><TrendingUp className="w-8 h-8" /></div>
-                    <h3 className="text-2xl font-black text-foreground uppercase italic">Ekonomi & Volume</h3>
-                  </div>
-                  <div className="space-y-8">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Harian Volume (IDR)</p>
-                        <p className="text-xs font-black text-foreground italic">Rp 1.2T / Rp 10T</p>
-                      </div>
-                      <Progress value={12} className="h-3 rounded-full bg-muted shadow-inner" />
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Active Holders</p>
-                        <p className="text-xs font-black text-foreground italic">125K / 1M</p>
-                      </div>
-                      <Progress value={12.5} className="h-3 rounded-full bg-muted shadow-inner" />
-                    </div>
-                    <div className="p-6 rounded-3xl bg-blue-50 border border-blue-100">
-                      <p className="text-[9px] font-black text-blue-600 uppercase leading-relaxed italic">
-                        STRATEGI: Tingkatkan utilitas koin ALX pada marketplace dan Trade-X Pro untuk mempercepat sirkulasi.
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-10 shadow-2xl">
-                  <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600 shadow-inner"><Network className="w-8 h-8" /></div>
-                    <h3 className="text-2xl font-black text-foreground uppercase italic">Infrastruktur Node</h3>
-                  </div>
-                  <div className="space-y-8">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Global Validator Nodes</p>
-                        <p className="text-xs font-black text-foreground italic">12 / 21 Nodes</p>
-                      </div>
-                      <Progress value={57} className="h-3 rounded-full bg-muted shadow-inner" />
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Audit Security V3</p>
-                        <p className="text-xs font-black text-green-600 italic">PASSED (Ver. 1.2)</p>
-                      </div>
-                      <Progress value={100} className="h-3 rounded-full bg-muted shadow-inner" />
-                    </div>
-                    <Button className="w-full h-16 border-2 border-dashed border-primary/30 text-primary rounded-[2rem] font-black uppercase italic text-xs hover:bg-primary/5">
-                      Deploy AliChain Testnet Cluster
-                    </Button>
-                  </div>
-                </Card>
-              </div>
-
-              <div className="liquid-glass-dark rounded-[3.5rem] p-12 text-center space-y-8 relative overflow-hidden shadow-2xl">
-                <div className="absolute inset-0 gold-gradient opacity-5" />
-                <Milestone className="w-16 h-16 text-primary mx-auto opacity-20" />
-                <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">Status Migrasi: <span className="text-primary">Staging</span></h3>
-                <p className="text-sm font-medium text-white/60 italic max-w-3xl mx-auto uppercase leading-relaxed">
-                  Blockchain Mandiri (AliChain) akan diluncurkan secara otomatis ketika volume ekosistem mencapai nilai ekuivalen Rp 10 Triliun. Seluruh Token ERC-20 akan dikonversi menjadi Koin Native melalui mekanisme Snapshot otomatis.
-                </p>
-                <div className="flex justify-center gap-6">
-                  <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">EVM Compatible</Badge>
-                  <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">Proof of Stake (PoS)</Badge>
-                  <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">Zero-Fee Layer</Badge>
+          <TabsContent value="overview" className="space-y-10 animate-in fade-in zoom-in-95 duration-500">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-primary/5 shadow-2xl relative overflow-hidden group">
+                <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
+                <div className="flex items-center justify-between">
+                  <Users className="w-8 h-8 text-primary" />
+                  <Badge className="bg-primary text-white uppercase text-[9px] font-black border-none px-3 py-1">Active</Badge>
                 </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Global Accounts</p>
+                  <p className="text-4xl font-black text-foreground italic tracking-tighter">{allUsers?.length || 0}</p>
+                </div>
+              </Card>
+
+              <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-blue-500/5 shadow-2xl relative overflow-hidden group">
+                <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="flex items-center justify-between">
+                  <DollarSign className="w-8 h-8 text-blue-600" />
+                  <Badge className="bg-blue-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">Mainnet</Badge>
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Vault Reserve (USD)</p>
+                  <p className="text-4xl font-black text-blue-600 italic tracking-tighter">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
+                </div>
+              </Card>
+
+              <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-orange-500/5 shadow-2xl relative overflow-hidden group">
+                <div className="absolute inset-0 bg-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="flex items-center justify-between">
+                  <LogoIcon className="w-8 h-8 text-orange-600" />
+                  <Badge className="bg-orange-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">ALX</Badge>
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Sovereign Supply</p>
+                  <p className="text-4xl font-black text-orange-600 italic tracking-tighter">{(globalLiquidity?.alixVaultBalance || 0).toLocaleString()}</p>
+                </div>
+              </Card>
+
+              <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-green-500/5 shadow-2xl relative overflow-hidden group">
+                <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="flex items-center justify-between">
+                  <ShoppingBag className="w-8 h-8 text-green-600" />
+                  <Badge className="bg-green-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">Bank Profit</Badge>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Gross Cash Reserve (IDR)</p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/40 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
+                        <p className="text-[10px] font-bold">Total Rupiah nyata dari injeksi PayPal/Kartu Kredit serta akumulasi modal dari kekalahan taruhan nasabah di ekosistem game.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <p className="text-4xl font-black text-green-600 italic tracking-tighter">Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString()}</p>
+                </div>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+              <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-8 shadow-2xl">
+                <div className="flex items-center gap-6">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner"><Gamepad2 className="w-8 h-8" /></div>
+                  <div>
+                    <h3 className="text-2xl font-black text-foreground uppercase italic">Gaming Revenue Hub</h3>
+                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Accumulated profit captured from interactive terminals.</p>
+                  </div>
+                </div>
+                <div className="space-y-6">
+                  <div className="p-8 rounded-3xl bg-accent/5 border border-primary/10 flex justify-between items-center group hover:bg-primary/5 transition-all">
+                    <div>
+                      <span className="text-[11px] font-black uppercase text-muted-foreground">Total Trade-X Volume (IDR)</span>
+                      <p className="text-2xl font-black text-foreground italic mt-1">Rp {(globalLiquidity?.tradeXGrossVolumeIdr || 0).toLocaleString()}</p>
+                    </div>
+                    <Zap className="w-10 h-10 text-primary opacity-20" />
+                  </div>
+
+                  <div className="p-8 rounded-3xl bg-accent/5 border border-primary/10 flex justify-between items-center group hover:bg-primary/5 transition-all">
+                    <div>
+                      <span className="text-[11px] font-black uppercase text-muted-foreground">Total Ali-Spin Pro (IDR)</span>
+                      <p className="text-2xl font-black text-foreground italic mt-1">Rp {(globalLiquidity?.spinGrossVolumeIdr || 0).toLocaleString()}</p>
+                    </div>
+                    <RotateCw className="w-10 h-10 text-primary opacity-20" />
+                  </div>
+
+                  <div className="p-6 rounded-3xl bg-green-500/5 border border-green-500/10 flex justify-between items-center">
+                    <span className="text-[11px] font-black uppercase text-green-600">Net Cash Capture</span>
+                    <span className="text-sm font-black text-green-600 uppercase italic">100% Retained in Vault</span>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="liquid-glass-dark border-none rounded-[3.5rem] p-12 text-white space-y-8 shadow-[0_50px_100px_rgba(0,0,0,0.4)] relative overflow-hidden group">
+                <div className="absolute right-[-10%] top-[-10%] p-12 opacity-10 group-hover:rotate-12 transition-transform duration-1000"><Sparkles className="w-64 h-64" /></div>
+                <div className="relative z-10 flex items-center gap-6">
+                  <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center text-primary shadow-lg"><Zap className="w-8 h-8" /></div>
+                  <h3 className="text-2xl font-black text-white uppercase italic">Sovereign Asset Sentinel</h3>
+                </div>
+                <p className="text-sm font-medium italic text-white/70 leading-relaxed uppercase relative z-10">
+                  Setiap Rupiah dari kekalahan permainan nasabah secara riil menambah modal bank (IDR), sementara hadiah kemenangan dibayarkan via aset ALX yang Anda kontrol.
+                </p>
+                <Button onClick={() => router.push('/admin/about-alix')} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-xs tracking-widest relative z-10 shadow-2xl flex items-center justify-between px-8">
+                  View Strategic Protocols <ChevronRight className="w-5 h-5" />
+                </Button>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="alichain" className="space-y-10 animate-in zoom-in-95 duration-500">
+            <header className="text-center max-w-2xl mx-auto space-y-4">
+              <Badge className="bg-primary text-white font-black uppercase tracking-widest text-[10px] px-4 py-1.5 rounded-full shadow-lg">Phase 2: Global Scaling</Badge>
+              <h2 className="text-4xl font-black text-foreground uppercase italic tracking-tighter">AliChain Migration Readiness</h2>
+              <p className="text-[11px] text-muted-foreground font-black uppercase tracking-[0.3em] leading-relaxed italic">
+                Monitoring transisi dari Token Ethereum (ERC-20) menuju Koin Native Berdaulat AliBank V3.
+              </p>
+            </header>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+              <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-10 shadow-2xl">
+                <div className="flex items-center gap-6">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner"><TrendingUp className="w-8 h-8" /></div>
+                  <h3 className="text-2xl font-black text-foreground uppercase italic">Ekonomi & Volume</h3>
+                </div>
+                <div className="space-y-8">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-end">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Harian Volume (IDR)</p>
+                      <p className="text-xs font-black text-foreground italic">Rp 1.2T / Rp 10T</p>
+                    </div>
+                    <Progress value={12} className="h-3 rounded-full bg-muted shadow-inner" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-end">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Active Holders</p>
+                      <p className="text-xs font-black text-foreground italic">125K / 1M</p>
+                    </div>
+                    <Progress value={12.5} className="h-3 rounded-full bg-muted shadow-inner" />
+                  </div>
+                  <div className="p-6 rounded-3xl bg-blue-50 border border-blue-100">
+                    <p className="text-[9px] font-black text-blue-600 uppercase leading-relaxed italic">
+                      STRATEGI: Tingkatkan utilitas koin ALX pada marketplace dan Trade-X Pro untuk mempercepat sirkulasi.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-10 shadow-2xl">
+                <div className="flex items-center gap-6">
+                  <div className="w-16 h-16 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600 shadow-inner"><Network className="w-8 h-8" /></div>
+                  <h3 className="text-2xl font-black text-foreground uppercase italic">Infrastruktur Node</h3>
+                </div>
+                <div className="space-y-8">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-end">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Global Validator Nodes</p>
+                      <p className="text-xs font-black text-foreground italic">12 / 21 Nodes</p>
+                    </div>
+                    <Progress value={57} className="h-3 rounded-full bg-muted shadow-inner" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-end">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Audit Security V3</p>
+                      <p className="text-xs font-black text-green-600 italic">PASSED (Ver. 1.2)</p>
+                    </div>
+                    <Progress value={100} className="h-3 rounded-full bg-muted shadow-inner" />
+                  </div>
+                  <Button className="w-full h-16 border-2 border-dashed border-primary/30 text-primary rounded-[2rem] font-black uppercase italic text-xs hover:bg-primary/5">
+                    Deploy AliChain Testnet Cluster
+                  </Button>
+                </div>
+              </Card>
+            </div>
+
+            <div className="liquid-glass-dark rounded-[3.5rem] p-12 text-center space-y-8 relative overflow-hidden shadow-2xl">
+              <div className="absolute inset-0 gold-gradient opacity-5" />
+              <Milestone className="w-16 h-16 text-primary mx-auto opacity-20" />
+              <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">Status Migrasi: <span className="text-primary">Staging</span></h3>
+              <p className="text-sm font-medium text-white/60 italic max-w-3xl mx-auto uppercase leading-relaxed">
+                Blockchain Mandiri (AliChain) akan diluncurkan secara otomatis ketika volume ekosistem mencapai nilai ekuivalen Rp 10 Triliun. Seluruh Token ERC-20 akan dikonversi menjadi Koin Native melalui mekanisme Snapshot otomatis.
+              </p>
+              <div className="flex justify-center gap-6">
+                <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">EVM Compatible</Badge>
+                <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">Proof of Stake (PoS)</Badge>
+                <Badge variant="outline" className="border-white/20 text-white uppercase text-[9px] font-black px-6 py-2 rounded-xl">Zero-Fee Layer</Badge>
               </div>
-            </TabsContent>
+            </div>
+          </TabsContent>
 
-            <TabsContent value="inventory" className="space-y-10 animate-in slide-in-from-left-8 duration-500">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                <Card className="lg:col-span-4 liquid-glass border-none rounded-[3.5rem] p-10 space-y-8 shadow-2xl sticky top-24 h-fit">
-                  <h3 className="text-2xl font-black text-foreground uppercase italic flex items-center gap-4">
-                    <PackagePlus className="w-8 h-8 text-primary" /> {editingId ? "Update Asset" : "Deploy Asset"}
-                  </h3>
-                  <div className="space-y-6">
+          <TabsContent value="inventory" className="space-y-10 animate-in slide-in-from-left-8 duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+              <Card className="lg:col-span-4 liquid-glass border-none rounded-[3.5rem] p-10 space-y-8 shadow-2xl sticky top-24 h-fit">
+                <h3 className="text-2xl font-black text-foreground uppercase italic flex items-center gap-4">
+                  <PackagePlus className="w-8 h-8 text-primary" /> {editingId ? "Update Asset" : "Deploy Asset"}
+                </h3>
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Product Identification</label>
+                    <Input value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} placeholder="e.g. AliBank Gold Key" className="h-14 rounded-2xl liquid-glass border-none font-black italic px-6 shadow-inner" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Product Identification</label>
-                      <Input value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} placeholder="e.g. AliBank Gold Key" className="h-14 rounded-2xl liquid-glass border-none font-black italic px-6 shadow-inner" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Price (IDR)</label>
-                        <Input type="number" value={newProduct.priceIdr} onChange={(e) => setNewProduct({...newProduct, priceIdr: e.target.value})} className="h-14 rounded-2xl liquid-glass border-none font-black italic px-6 shadow-inner" />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Price (USD)</label>
-                        <Input type="number" value={newProduct.priceUsd} onChange={(e) => setNewProduct({...newProduct, priceUsd: e.target.value})} className="h-14 rounded-2xl liquid-glass border-none font-black italic px-6 shadow-inner" />
-                      </div>
+                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Price (IDR)</label>
+                      <Input type="number" value={newProduct.priceIdr} onChange={(e) => setNewProduct({...newProduct, priceIdr: e.target.value})} className="h-14 rounded-2xl liquid-glass border-none font-black italic px-6 shadow-inner" />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Category Sector</label>
-                      <Select value={newProduct.category} onValueChange={(val) => setNewProduct({...newProduct, category: val})}>
-                        <SelectTrigger className="h-14 rounded-2xl liquid-glass border-none font-black italic px-6 shadow-inner">
-                          <SelectValue placeholder="Pilih Kategori" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-2xl border-none liquid-glass">
-                          {PRODUCT_CATEGORIES.map((cat) => (
-                            <SelectItem key={cat} value={cat} className="font-bold text-xs uppercase italic">{cat}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex flex-col gap-3 mt-6">
-                      <Button onClick={handleAddProduct} disabled={isAddingProduct} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-sm shadow-2xl hover:scale-105 transition-all">
-                        {isAddingProduct ? <Loader2 className="animate-spin w-6 h-6" /> : (editingId ? "Confirm Update" : "Authorize Deployment")}
-                      </Button>
-                      {editingId && (
-                        <Button variant="ghost" onClick={handleCancelEdit} className="w-full h-12 rounded-2xl text-muted-foreground font-black uppercase italic text-[10px] hover:bg-muted">
-                          Cancel Edit
-                        </Button>
-                      )}
+                      <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Price (USD)</label>
+                      <Input type="number" value={newProduct.priceUsd} onChange={(e) => setNewProduct({...newProduct, priceUsd: e.target.value})} className="h-14 rounded-2xl liquid-glass border-none font-black italic px-6 shadow-inner" />
                     </div>
                   </div>
-                </Card>
-
-                <Card className="lg:col-span-8 liquid-glass border-none rounded-[3.5rem] overflow-hidden shadow-2xl">
-                  <div className="p-10 border-b border-primary/5 bg-accent/5 flex justify-between items-center">
-                    <h3 className="text-2xl font-black italic uppercase text-foreground">Production Inventory</h3>
-                    <Badge className="bg-primary text-white font-black px-4 py-1.5 rounded-full">{mktItems?.length || 0} Assets Online</Badge>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="bg-primary/5 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-primary/5">
-                          <th className="px-10 py-8">Asset Specifications</th>
-                          <th className="px-10 py-8">Sector</th>
-                          <th className="px-10 py-8 text-right">Liquidity Value</th>
-                          <th className="px-10 py-8 text-right">Protocol</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-primary/5">
-                        {mktItems?.map((item) => (
-                          <tr key={item.id} className="hover:bg-primary/5 transition-colors group">
-                            <td className="px-10 py-6">
-                              <p className="font-black text-foreground italic uppercase text-sm">{item.name}</p>
-                              <p className="text-[10px] text-muted-foreground font-medium mt-1 italic">{item.id}</p>
-                            </td>
-                            <td className="px-10 py-6">
-                              <Badge variant="outline" className="border-primary/30 text-primary font-black uppercase text-[9px] px-3">{item.category}</Badge>
-                            </td>
-                            <td className="px-10 py-6 text-right">
-                              <p className="font-black italic text-foreground">Rp {item.priceIdr?.toLocaleString()}</p>
-                              <p className="text-[9px] font-bold text-muted-foreground">$ {item.priceUsd?.toLocaleString()}</p>
-                            </td>
-                            <td className="px-10 py-6 text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="icon" onClick={() => handleStartEdit(item)} className="w-10 h-10 rounded-xl text-primary hover:bg-primary/10 transition-all">
-                                  <Pencil className="w-4 h-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" onClick={() => handleDeleteProduct(item.id)} className="w-10 h-10 rounded-xl text-destructive hover:bg-destructive/10 transition-all">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Category Sector</label>
+                    <Select value={newProduct.category} onValueChange={(val) => setNewProduct({...newProduct, category: val})}>
+                      <SelectTrigger className="h-14 rounded-2xl liquid-glass border-none font-black italic px-6 shadow-inner">
+                        <SelectValue placeholder="Pilih Kategori" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border-none liquid-glass">
+                        {PRODUCT_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat} value={cat} className="font-bold text-xs uppercase italic">{cat}</SelectItem>
                         ))}
-                      </tbody>
-                    </table>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="alix" className="space-y-10 animate-in slide-in-from-bottom-8 duration-500">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-10 shadow-2xl border-t-[6px] border-orange-500/30">
-                  <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 rounded-[2rem] bg-orange-500/10 flex items-center justify-center text-orange-600 shadow-inner"><Pickaxe className="w-10 h-10" /></div>
-                    <div>
-                      <h3 className="text-3xl font-black text-foreground uppercase italic leading-none">Sovereign Mint</h3>
-                      <p className="text-[11px] text-muted-foreground font-black uppercase tracking-widest mt-2 italic">Supply Expansion: Backed by USDT Reserve.</p>
-                    </div>
-                  </div>
-                  <div className="space-y-8">
-                    <div className="p-8 rounded-[2.5rem] bg-primary/5 border border-primary/10 flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Authorized USDT Agun</p>
-                        <p className="text-3xl font-black text-foreground italic tracking-tighter">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Capacity</p>
-                        <Badge className="bg-green-600 text-white font-black text-[9px] uppercase px-3 py-1">STABLE SECURE</Badge>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-[11px] font-black uppercase text-muted-foreground ml-3">Amount to Authorize (ALX)</label>
-                      <div className="relative">
-                        <input type="number" placeholder="0.00" value={alixMintAmount} onChange={(e) => setAlixMintAmount(e.target.value)} className="h-20 w-full rounded-[2rem] liquid-glass border-none font-black italic text-3xl px-10 shadow-2xl bg-transparent focus:outline-none" />
-                        <LogoIcon className="absolute right-10 top-1/2 -translate-y-1/2 w-10 h-10 text-orange-500 opacity-20" />
-                      </div>
-                    </div>
-                    <Button onClick={handleMintAlix} disabled={isMinting || !alixMintAmount} className="w-full h-20 gold-gradient text-white rounded-[2.5rem] font-black uppercase italic text-lg shadow-[0_20px_50px_rgba(184,134,11,0.4)] hover:scale-[1.02] transition-all">
-                      {isMinting ? <Loader2 className="w-8 h-8 animate-spin" /> : "Authorize Sovereign Mint"}
+                  <div className="flex flex-col gap-3 mt-6">
+                    <Button onClick={handleAddProduct} disabled={isAddingProduct} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-sm shadow-2xl hover:scale-105 transition-all">
+                      {isAddingProduct ? <Loader2 className="animate-spin w-6 h-6" /> : (editingId ? "Confirm Update" : "Authorize Deployment")}
                     </Button>
-                  </div>
-                </Card>
-
-                <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-10 shadow-2xl border-t-[6px] border-destructive/30">
-                  <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 rounded-[2rem] bg-destructive/10 flex items-center justify-center text-destructive shadow-inner"><Flame className="w-10 h-10" /></div>
-                    <div>
-                      <h3 className="text-3xl font-black text-foreground uppercase italic leading-none">Auto-Burn Protocol</h3>
-                      <p className="text-[11px] text-muted-foreground font-black uppercase tracking-widest mt-2 italic">Deflation Mechanism: Scarcity Enforcement (ALX Std).</p>
-                    </div>
-                  </div>
-                  <div className="space-y-8">
-                    <div className="p-8 rounded-[2.5rem] bg-destructive/5 border border-destructive/10 flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Permanently Burned</p>
-                        <p className="text-3xl font-black text-destructive italic tracking-tighter">{(globalLiquidity?.totalAlixBurned || 0).toLocaleString()} ALX</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Rate</p>
-                        <Badge className="bg-destructive text-white font-black text-[9px] uppercase px-3 py-1">ACCELERATING</Badge>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-[11px] font-black uppercase text-muted-foreground ml-3">Amount to Incinerate (ALX)</label>
-                      <div className="relative">
-                        <input type="number" placeholder="0.00" value={alixBurnAmount} onChange={(e) => setAlixBurnAmount(e.target.value)} className="h-20 w-full rounded-[2rem] bg-destructive/5 border-none font-black italic text-3xl px-10 text-destructive shadow-inner bg-transparent focus:outline-none" />
-                        <Flame className="absolute right-10 top-1/2 -translate-y-1/2 w-10 h-10 text-destructive opacity-20" />
-                      </div>
-                    </div>
-                    <Button onClick={handleBurnAlix} disabled={isBurning || !alixBurnAmount} className="w-full h-20 bg-destructive hover:bg-destructive/90 text-white rounded-[2.5rem] font-black uppercase italic text-lg shadow-[0_20px_50px_rgba(239,68,68,0.3)] hover:scale-[1.02] transition-all">
-                      {isBurning ? <Loader2 className="w-8 h-8 animate-spin" /> : "Execute Deflationary Burn"}
-                    </Button>
-                  </div>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="vault" className="space-y-10 animate-in zoom-in-95 duration-500">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                <Card className="lg:col-span-8 liquid-glass border-none rounded-[4rem] p-16 text-foreground space-y-12 shadow-2xl relative overflow-hidden">
-                  <div className="absolute right-[-5%] bottom-[-5%] opacity-5"><LogoIcon className="w-96 h-96 text-primary" /></div>
-                  <div className="flex items-center justify-between relative z-10">
-                    <div className="flex items-center gap-8">
-                      <div className="w-24 h-24 rounded-[2.5rem] bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner"><Database className="w-12 h-12" /></div>
-                      <div>
-                        <h3 className="text-4xl font-black uppercase italic">Mainnet Vault Reserve</h3>
-                        <p className="text-[12px] font-black text-muted-foreground uppercase tracking-[0.4em] mt-2 italic">Institutional Multi-Asset Node V3</p>
-                      </div>
-                    </div>
-                    <Badge className="bg-green-600 text-white font-black text-sm px-6 py-2 rounded-2xl shadow-xl animate-pulse">NODE ACTIVE</Badge>
-                  </div>
-
-                  <div className="p-8 rounded-[2.5rem] bg-primary/5 border border-primary/10 flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-                        <LinkIcon className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Official Mainnet Address (ERC-20 & ETH)</p>
-                        <p className="text-sm font-mono font-bold text-foreground break-all">{ALIX_CONTRACT}</p>
-                      </div>
-                    </div>
-                    <Button onClick={copyAddress} className="gold-gradient text-white font-black uppercase italic text-[10px] h-12 px-8 rounded-xl shrink-0">
-                      <Copy className="w-4 h-4 mr-2" /> Salin Alamat
-                    </Button>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
-                    <div className="p-12 rounded-[3.5rem] bg-accent/5 border border-primary/10 space-y-6 shadow-inner group hover:bg-primary/5 transition-all">
-                      <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.3em]">Vault Liquidity (ETH)</p>
-                      <p className="text-7xl font-black italic tracking-tighter text-blue-600">{parseFloat(onChainEth).toFixed(4)} <span className="text-3xl text-muted-foreground opacity-40">ETH</span></p>
-                      <div className="pt-8 flex items-center gap-3 text-[11px] font-black text-muted-foreground uppercase italic">
-                        <SearchCheck className="w-6 h-6 text-primary" /> Verified by Ethereum Node Cluster 2026
-                      </div>
-                    </div>
-                    <div className="p-12 rounded-[3.5rem] bg-accent/5 border border-primary/10 space-y-8 shadow-inner">
-                      <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.3em]">Compliance Hub (USDT)</p>
-                      <div className="space-y-6">
-                        <div className="flex justify-between items-end border-b border-primary/10 pb-4">
-                          <span className="text-[10px] font-black uppercase text-muted-foreground">USDT (ERC-20) Support</span>
-                          <Badge className="bg-green-100 text-green-600 font-black text-[10px] border-none px-3">ACTIVE</Badge>
-                        </div>
-                        <div className="flex justify-between items-end border-b border-primary/10 pb-4">
-                          <span className="text-[10px] font-black uppercase text-muted-foreground">Min. Deposit Threshold</span>
-                          <span className="text-sm font-black italic text-primary">5.000.000 USDT</span>
-                        </div>
-                        <div className="flex justify-between items-end border-b border-primary/10 pb-4">
-                          <span className="text-[10px] font-black uppercase text-muted-foreground">Compliance Guard</span>
-                          <span className="text-sm font-black italic text-foreground">Institutional Grade V3</span>
-                        </div>
-                        <div className="flex justify-between items-end border-b border-primary/10 pb-4">
-                          <span className="text-[10px] font-black uppercase text-muted-foreground">Settlement Logic</span>
-                          <span className="text-sm font-black italic text-foreground">Real-Time Clearing</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="lg:col-span-4 liquid-glass-dark border-none rounded-[3.5rem] p-10 space-y-8 shadow-2xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-6 opacity-10"><ArrowDownLeft className="w-32 h-32 text-primary" /></div>
-                  <div className="relative z-10 space-y-8">
-                    <div>
-                      <Badge className="bg-primary text-white font-black uppercase text-[8px] tracking-widest mb-2">Internal Protocol</Badge>
-                      <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter leading-tight">External Disbursement</h3>
-                      <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Keluarkan dana brankas ke dompet Admin eksternal.</p>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase text-white/40 ml-2">Amount to Withdraw (ETH)</label>
-                        <div className="relative">
-                          <input 
-                            type="number" 
-                            placeholder="0.00" 
-                            value={disburseAmount}
-                            onChange={(e) => setDisburseAmount(e.target.value)}
-                            className="h-16 w-full rounded-2xl bg-white/5 border-none font-black italic text-xl px-6 text-white shadow-inner focus:outline-none" 
-                          />
-                          <span className="absolute right-6 top-1/2 -translate-y-1/2 text-xs font-black text-primary italic">ETH</span>
-                        </div>
-                      </div>
-
-                      <div className="p-6 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex gap-4">
-                        <Info className="w-5 h-5 text-blue-500 shrink-0" />
-                        <p className="text-[9px] text-white/60 italic leading-relaxed uppercase font-bold">
-                          Dana akan dikirim langsung ke dompet MetaMask yang terhubung ke sesi Command Center ini melalui interaksi Smart Contract AliBank V3.
-                        </p>
-                      </div>
-
-                      <Button 
-                        onClick={handleVaultDisbursement}
-                        disabled={disburseAmount === "" || isDisbursing}
-                        className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic text-sm shadow-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02]"
-                      >
-                        {isDisbursing ? <Loader2 className="w-6 h-6 animate-spin" /> : <>EXECUTE DISBURSEMENT <ArrowDownRight className="w-5 h-5" /></>}
+                    {editingId && (
+                      <Button variant="ghost" onClick={handleCancelEdit} className="w-full h-12 rounded-2xl text-muted-foreground font-black uppercase italic text-[10px] hover:bg-muted">
+                        Cancel Edit
                       </Button>
-                    </div>
+                    )}
                   </div>
-                </Card>
-              </div>
-            </TabsContent>
+                </div>
+              </Card>
 
-            <TabsContent value="users" className="space-y-8 animate-in fade-in duration-500">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <Card className="liquid-glass border-none rounded-[3rem] p-10 bg-primary/5 shadow-2xl flex items-center gap-8 group">
-                  <div className="w-20 h-20 rounded-[2rem] bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                    <Banknote className="w-10 h-10" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Total Liquidity AUM</p>
-                    <p className="text-4xl font-black text-foreground italic tracking-tighter">Rp {totalClientLiquidity.toLocaleString('id-ID')}</p>
-                  </div>
-                </Card>
-                <Card className="liquid-glass border-none rounded-[3rem] p-10 bg-blue-500/5 shadow-2xl flex items-center gap-8 group">
-                  <div className="w-20 h-20 rounded-[2rem] bg-blue-500/10 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                    <PiggyBank className="w-10 h-10" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Total Deposits AUM</p>
-                    <p className="text-4xl font-black text-blue-600 italic tracking-tighter">Rp {totalClientDeposits.toLocaleString('id-ID')}</p>
-                  </div>
-                </Card>
-                <Card className="liquid-glass border-none rounded-[3rem] p-10 bg-accent/5 shadow-2xl flex items-center gap-8 group">
-                  <div className="w-20 h-20 rounded-[2rem] bg-accent/10 flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
-                    <UserCheck className="w-10 h-10" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Verified Client Base</p>
-                    <p className="text-4xl font-black text-accent italic tracking-tighter">{allUsers?.length || 0} Clients</p>
-                  </div>
-                </Card>
-              </div>
-
-              <Card className="liquid-glass border-none rounded-[3.5rem] overflow-hidden shadow-2xl">
-                <div className="p-12 border-b border-primary/5 bg-accent/5 flex justify-between items-center">
-                  <h3 className="text-3xl font-black italic uppercase text-foreground flex items-center gap-6">
-                    <Users className="w-10 h-10 text-primary" /> Client Registry & Control
-                  </h3>
-                  <div className="flex items-center gap-4">
-                    <Button 
-                      onClick={handleResetAllBalances}
-                      variant="ghost" 
-                      className="h-12 px-6 rounded-xl border border-destructive/20 text-destructive hover:bg-destructive/10 font-black uppercase text-[10px] italic gap-2"
-                    >
-                      <RotateCcw className="w-4 h-4" /> Reset All Balances
-                    </Button>
-                    <Badge className="bg-primary text-white font-black px-6 py-2 rounded-full shadow-lg">{allUsers?.length || 0} Accounts Enrolled</Badge>
-                  </div>
+              <Card className="lg:col-span-8 liquid-glass border-none rounded-[3.5rem] overflow-hidden shadow-2xl">
+                <div className="p-10 border-b border-primary/5 bg-accent/5 flex justify-between items-center">
+                  <h3 className="text-2xl font-black italic uppercase text-foreground">Production Inventory</h3>
+                  <Badge className="bg-primary text-white font-black px-4 py-1.5 rounded-full">{mktItems?.length || 0} Assets Online</Badge>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
                       <tr className="bg-primary/5 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-primary/5">
-                        <th className="px-12 py-10">Client Profile</th>
-                        <th className="px-12 py-10">Institutional UID</th>
-                        <th className="px-12 py-10">Tier Status</th>
-                        <th className="px-12 py-10 text-right">Liquidity Control</th>
-                        <th className="px-12 py-10 text-right">Deposit Control</th>
-                        <th className="px-12 py-10 text-right">Security</th>
+                        <th className="px-10 py-8">Asset Specifications</th>
+                        <th className="px-10 py-8">Sector</th>
+                        <th className="px-10 py-8 text-right">Liquidity Value</th>
+                        <th className="px-10 py-8 text-right">Protocol</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-primary/5">
-                      {allUsers?.map((u) => (
-                        <tr key={u.id} className="hover:bg-primary/5 transition-colors group cursor-default">
-                          <td className="px-12 py-8">
-                            <div className="flex items-center gap-5">
-                              <div className="w-14 h-14 rounded-full gold-gradient p-[2px] shadow-lg">
-                                <Image src={`https://picsum.photos/seed/${u.uid}/100/100`} alt="p" width={56} height={56} className="rounded-full object-cover border-4 border-white dark:border-card" />
-                              </div>
-                              <div>
-                                <p className="text-base font-black italic uppercase text-foreground leading-none">{u.name}</p>
-                                <p className="text-[10px] font-bold text-muted-foreground mt-1.5">{u.email}</p>
-                              </div>
+                      {mktItems?.map((item) => (
+                        <tr key={item.id} className="hover:bg-primary/5 transition-colors group">
+                          <td className="px-10 py-6">
+                            <p className="font-black text-foreground italic uppercase text-sm">{item.name}</p>
+                            <p className="text-[10px] text-muted-foreground font-medium mt-1 italic">{item.id}</p>
+                          </td>
+                          <td className="px-10 py-6">
+                            <Badge variant="outline" className="border-primary/30 text-primary font-black uppercase text-[9px] px-3">{item.category}</Badge>
+                          </td>
+                          <td className="px-10 py-6 text-right">
+                            <p className="font-black italic text-foreground">Rp {item.priceIdr?.toLocaleString()}</p>
+                            <p className="text-[9px] font-bold text-muted-foreground">$ {item.priceUsd?.toLocaleString()}</p>
+                          </td>
+                          <td className="px-10 py-6 text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="icon" onClick={() => handleStartEdit(item)} className="w-10 h-10 rounded-xl text-primary hover:bg-primary/10 transition-all">
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDeleteProduct(item.id)} className="w-10 h-10 rounded-xl text-destructive hover:bg-destructive/10 transition-all">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </div>
-                          </td>
-                          <td className="px-12 py-8 font-mono text-[11px] text-foreground/80">{u.accountNumber}</td>
-                          <td className="px-12 py-8">
-                            <Badge variant="outline" className="text-[9px] font-black uppercase border-primary/30 text-primary px-4 py-1 rounded-md">{u.tier || "Standard"}</Badge>
-                          </td>
-                          <td className="px-12 py-8 text-right">
-                            <div className="flex flex-col items-end gap-3">
-                              <div>
-                                <p className="text-lg font-black italic text-foreground tracking-tighter">Rp {u.totalBalance?.toLocaleString()}</p>
-                                <p className="text-[9px] font-bold text-muted-foreground mt-1 uppercase">Liquidity</p>
-                              </div>
-                              <div className="flex items-center gap-2 mt-2">
-                                <Input 
-                                  type="number" 
-                                  placeholder="Amt"
-                                  value={adjustAmounts[u.uid] || ""}
-                                  onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [u.uid]: e.target.value }))}
-                                  className="h-10 w-24 rounded-xl liquid-glass border-primary/10 text-[11px] font-black italic px-3 shadow-inner"
-                                />
-                                <div className="flex gap-1">
-                                  <Button 
-                                    size="icon"
-                                    onClick={() => handleUpdateUserBalance(u.uid, 'add')}
-                                    className="h-8 w-8 rounded-lg bg-green-500 hover:bg-green-600 text-white shadow-lg"
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </Button>
-                                  <Button 
-                                    size="icon"
-                                    onClick={() => handleUpdateUserBalance(u.uid, 'sub')}
-                                    className="h-8 w-8 rounded-lg bg-rose-500 hover:bg-rose-600 text-white shadow-lg"
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-12 py-8 text-right">
-                            <div className="flex flex-col items-end gap-3">
-                              <div>
-                                <p className="text-lg font-black italic text-blue-600 tracking-tighter">Rp {u.savings?.toLocaleString() || 0}</p>
-                                <p className="text-[9px] font-bold text-muted-foreground mt-1 uppercase">Deposits</p>
-                              </div>
-                              <div className="flex items-center gap-2 mt-2">
-                                <Input 
-                                  type="number" 
-                                  placeholder="Amt"
-                                  value={adjustSavingsAmounts[u.uid] || ""}
-                                  onChange={(e) => setAdjustSavingsAmounts(prev => ({ ...prev, [u.uid]: e.target.value }))}
-                                  className="h-10 w-24 rounded-xl bg-blue-500/5 border-blue-500/10 text-[11px] font-black italic px-3 shadow-inner"
-                                />
-                                <div className="flex gap-1">
-                                  <Button 
-                                    size="icon"
-                                    onClick={() => handleUpdateUserSavings(u.uid, 'add')}
-                                    className="h-8 w-8 rounded-lg bg-blue-500 hover:bg-blue-600 text-white shadow-lg"
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </Button>
-                                  <Button 
-                                    size="icon"
-                                    onClick={() => handleUpdateUserSavings(u.uid, 'sub')}
-                                    className="h-8 w-8 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg"
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-12 py-8 text-right">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handlePasswordReset(u.email)}
-                              className="h-10 rounded-xl text-primary hover:bg-primary/10 border border-primary/10 font-black uppercase text-[9px] italic"
-                            >
-                              <Key className="w-3 h-3 mr-2" /> Reset Pass
-                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -1194,88 +857,425 @@ function AdminContent() {
                   </table>
                 </div>
               </Card>
-            </TabsContent>
+            </div>
+          </TabsContent>
 
-            <TabsContent value="audit" className="animate-in slide-in-from-bottom-10 duration-500">
-              <Card className="liquid-glass border-none rounded-[3.5rem] overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.2)]">
-                <div className="p-12 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
+          <TabsContent value="alix" className="space-y-10 animate-in slide-in-from-bottom-8 duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+              <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-10 shadow-2xl border-t-[6px] border-orange-500/30">
+                <div className="flex items-center gap-6">
+                  <div className="w-20 h-20 rounded-[2rem] bg-orange-500/10 flex items-center justify-center text-orange-600 shadow-inner"><Pickaxe className="w-10 h-10" /></div>
                   <div>
-                    <h3 className="text-3xl font-black italic uppercase text-foreground flex items-center gap-6">
-                      <FileText className="w-10 h-10 text-primary" /> Production Audit Log
-                    </h3>
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mt-2 italic">Immutable Ledger Reconciliation</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <Button 
-                      onClick={handleClearAuditLogs}
-                      variant="ghost" 
-                      className="h-12 px-6 rounded-xl border border-destructive/20 text-destructive hover:bg-destructive/10 font-black uppercase text-[10px] italic gap-2"
-                    >
-                      <Eraser className="w-4 h-4" /> Purge Audit Logs
-                    </Button>
-                    <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/30 text-foreground px-6 py-2 rounded-2xl">Integrity Active</Badge>
+                    <h3 className="text-3xl font-black text-foreground uppercase italic leading-none">Sovereign Mint</h3>
+                    <p className="text-[11px] text-muted-foreground font-black uppercase tracking-widest mt-2 italic">Supply Expansion: Backed by USDT Reserve.</p>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left min-w-[1000px]">
-                    <thead>
-                      <tr className="bg-primary/5 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-primary/5">
-                        <th className="px-12 py-10">Trace ID</th>
-                        <th className="px-12 py-10">Event Specification</th>
-                        <th className="px-12 py-10">Settlement Value</th>
-                        <th className="px-12 py-10">Pulse Status</th>
-                        <th className="px-12 py-10 text-right">Synchronization Time</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-primary/5">
-                      {auditLogs?.map((log) => (
-                        <tr key={log.id} className="hover:bg-primary/5 transition-colors">
-                          <td className="px-12 py-8 font-mono text-[10px] text-muted-foreground">{log.id}</td>
-                          <td className="px-12 py-8">
-                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") || log.category?.includes("Vault") || log.category?.includes("Manual") || log.category?.includes("Global") || log.category?.includes("Savings") || log.category?.includes("Trade-X") || log.category?.includes("Spin") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
-                              {log.category}
-                            </Badge>
-                          </td>
-                          <td className="px-12 py-8 font-black italic text-foreground text-base">
-                            {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : log.cryptoAmount ? `${log.cryptoAmount} ${log.cryptoCurrency}` : '---'}
-                          </td>
-                          <td className="px-12 py-8">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                              <span className="text-[10px] font-black uppercase tracking-widest">{log.status}</span>
-                            </div>
-                          </td>
-                          <td className="px-12 py-8 text-right font-mono text-[10px] text-muted-foreground italic">
-                            {log.timestamp?.toDate().toLocaleString() || "---"}
-                          </td>
-                        </tr>
-                      ))}
-                      {(!auditLogs || auditLogs.length === 0) && (
-                        <tr>
-                          <td colSpan={5} className="px-12 py-32 text-center">
-                            <div className="flex flex-col items-center gap-4 opacity-20">
-                              <Eraser className="w-16 h-16" />
-                              <p className="text-sm font-black uppercase tracking-[0.3em]">Ledger is Empty</p>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                <div className="space-y-8">
+                  <div className="p-8 rounded-[2.5rem] bg-primary/5 border border-primary/10 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Authorized USDT Agun</p>
+                      <p className="text-3xl font-black text-foreground italic tracking-tighter">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Capacity</p>
+                      <Badge className="bg-green-600 text-white font-black text-[9px] uppercase px-3 py-1">STABLE SECURE</Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-black uppercase text-muted-foreground ml-3">Amount to Authorize (ALX)</label>
+                    <div className="relative">
+                      <input type="number" placeholder="0.00" value={alixMintAmount} onChange={(e) => setAlixMintAmount(e.target.value)} className="h-20 w-full rounded-[2rem] liquid-glass border-none font-black italic text-3xl px-10 shadow-2xl bg-transparent focus:outline-none" />
+                      <LogoIcon className="absolute right-10 top-1/2 -translate-y-1/2 w-10 h-10 text-orange-500 opacity-20" />
+                    </div>
+                  </div>
+                  <Button onClick={handleMintAlix} disabled={isMinting || !alixMintAmount} className="w-full h-20 gold-gradient text-white rounded-[2.5rem] font-black uppercase italic text-lg shadow-[0_20px_50px_rgba(184,134,11,0.4)] hover:scale-[1.02] transition-all">
+                    {isMinting ? <Loader2 className="w-8 h-8 animate-spin" /> : "Authorize Sovereign Mint"}
+                  </Button>
                 </div>
               </Card>
-            </TabsContent>
-          </Tabs>
-        </main>
-      </div>
-    </TooltipProvider>
+
+              <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-10 shadow-2xl border-t-[6px] border-destructive/30">
+                <div className="flex items-center gap-6">
+                  <div className="w-20 h-20 rounded-[2rem] bg-destructive/10 flex items-center justify-center text-destructive shadow-inner"><Flame className="w-10 h-10" /></div>
+                  <div>
+                    <h3 className="text-3xl font-black text-foreground uppercase italic leading-none">Auto-Burn Protocol</h3>
+                    <p className="text-[11px] text-muted-foreground font-black uppercase tracking-widest mt-2 italic">Deflation Mechanism: Scarcity Enforcement (ALX Std).</p>
+                  </div>
+                </div>
+                <div className="space-y-8">
+                  <div className="p-8 rounded-[2.5rem] bg-destructive/5 border border-destructive/10 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Permanently Burned</p>
+                      <p className="text-3xl font-black text-destructive italic tracking-tighter">{(globalLiquidity?.totalAlixBurned || 0).toLocaleString()} ALX</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Rate</p>
+                      <Badge className="bg-destructive text-white font-black text-[9px] uppercase px-3 py-1">ACCELERATING</Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-black uppercase text-muted-foreground ml-3">Amount to Incinerate (ALX)</label>
+                    <div className="relative">
+                      <input type="number" placeholder="0.00" value={alixBurnAmount} onChange={(e) => setAlixBurnAmount(e.target.value)} className="h-20 w-full rounded-[2rem] bg-destructive/5 border-none font-black italic text-3xl px-10 text-destructive shadow-inner bg-transparent focus:outline-none" />
+                      <Flame className="absolute right-10 top-1/2 -translate-y-1/2 w-10 h-10 text-destructive opacity-20" />
+                    </div>
+                  </div>
+                  <Button onClick={handleBurnAlix} disabled={isBurning || !alixBurnAmount} className="w-full h-20 bg-destructive hover:bg-destructive/90 text-white rounded-[2.5rem] font-black uppercase italic text-lg shadow-[0_20px_50px_rgba(239,68,68,0.3)] hover:scale-[1.02] transition-all">
+                    {isBurning ? <Loader2 className="w-8 h-8 animate-spin" /> : "Execute Deflationary Burn"}
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="vault" className="space-y-10 animate-in zoom-in-95 duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+              <Card className="lg:col-span-8 liquid-glass border-none rounded-[4rem] p-16 text-foreground space-y-12 shadow-2xl relative overflow-hidden">
+                <div className="absolute right-[-5%] bottom-[-5%] opacity-5"><LogoIcon className="w-96 h-96 text-primary" /></div>
+                <div className="flex items-center justify-between relative z-10">
+                  <div className="flex items-center gap-8">
+                    <div className="w-24 h-24 rounded-[2.5rem] bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner"><Database className="w-12 h-12" /></div>
+                    <div>
+                      <h3 className="text-4xl font-black uppercase italic">Mainnet Vault Reserve</h3>
+                      <p className="text-[12px] font-black text-muted-foreground uppercase tracking-[0.4em] mt-2 italic">Institutional Multi-Asset Node V3</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-green-600 text-white font-black text-sm px-6 py-2 rounded-2xl shadow-xl animate-pulse">NODE ACTIVE</Badge>
+                </div>
+
+                <div className="p-8 rounded-[2.5rem] bg-primary/5 border border-primary/10 flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                      <LinkIcon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Official Mainnet Address (ERC-20 & ETH)</p>
+                      <p className="text-sm font-mono font-bold text-foreground break-all">{ALIX_CONTRACT}</p>
+                    </div>
+                  </div>
+                  <Button onClick={copyAddress} className="gold-gradient text-white font-black uppercase italic text-[10px] h-12 px-8 rounded-xl shrink-0">
+                    <Copy className="w-4 h-4 mr-2" /> Salin Alamat
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
+                  <div className="p-12 rounded-[3.5rem] bg-accent/5 border border-primary/10 space-y-6 shadow-inner group hover:bg-primary/5 transition-all">
+                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.3em]">Vault Liquidity (ETH)</p>
+                    <p className="text-7xl font-black italic tracking-tighter text-blue-600">{parseFloat(onChainEth).toFixed(4)} <span className="text-3xl text-muted-foreground opacity-40">ETH</span></p>
+                    <div className="pt-8 flex items-center gap-3 text-[11px] font-black text-muted-foreground uppercase italic">
+                      <SearchCheck className="w-6 h-6 text-primary" /> Verified by Ethereum Node Cluster 2026
+                    </div>
+                  </div>
+                  <div className="p-12 rounded-[3.5rem] bg-accent/5 border border-primary/10 space-y-8 shadow-inner">
+                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.3em]">Compliance Hub (USDT)</p>
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-end border-b border-primary/10 pb-4">
+                        <span className="text-[10px] font-black uppercase text-muted-foreground">USDT (ERC-20) Support</span>
+                        <Badge className="bg-green-100 text-green-600 font-black text-[10px] border-none px-3">ACTIVE</Badge>
+                      </div>
+                      <div className="flex justify-between items-end border-b border-primary/10 pb-4">
+                        <span className="text-[10px] font-black uppercase text-muted-foreground">Min. Deposit Threshold</span>
+                        <span className="text-sm font-black italic text-primary">5.000.000 USDT</span>
+                      </div>
+                      <div className="flex justify-between items-end border-b border-primary/10 pb-4">
+                        <span className="text-[10px] font-black uppercase text-muted-foreground">Compliance Guard</span>
+                        <span className="text-sm font-black italic text-foreground">Institutional Grade V3</span>
+                      </div>
+                      <div className="flex justify-between items-end border-b border-primary/10 pb-4">
+                        <span className="text-[10px] font-black uppercase text-muted-foreground">Settlement Logic</span>
+                        <span className="text-sm font-black italic text-foreground">Real-Time Clearing</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="lg:col-span-4 liquid-glass-dark border-none rounded-[3.5rem] p-10 space-y-8 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-6 opacity-10"><ArrowDownLeft className="w-32 h-32 text-primary" /></div>
+                <div className="relative z-10 space-y-8">
+                  <div>
+                    <Badge className="bg-primary text-white font-black uppercase text-[8px] tracking-widest mb-2">Internal Protocol</Badge>
+                    <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter leading-tight">External Disbursement</h3>
+                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Keluarkan dana brankas ke dompet Admin eksternal.</p>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-white/40 ml-2">Amount to Withdraw (ETH)</label>
+                      <div className="relative">
+                        <input 
+                          type="number" 
+                          placeholder="0.00" 
+                          value={disburseAmount}
+                          onChange={(e) => setDisburseAmount(e.target.value)}
+                          className="h-16 w-full rounded-2xl bg-white/5 border-none font-black italic text-xl px-6 text-white shadow-inner focus:outline-none" 
+                        />
+                        <span className="absolute right-6 top-1/2 -translate-y-1/2 text-xs font-black text-primary italic">ETH</span>
+                      </div>
+                    </div>
+
+                    <div className="p-6 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex gap-4">
+                      <Info className="w-5 h-5 text-blue-500 shrink-0" />
+                      <p className="text-[9px] text-white/60 italic leading-relaxed uppercase font-bold">
+                        Dana akan dikirim langsung ke dompet MetaMask yang terhubung ke sesi Command Center ini melalui interaksi Smart Contract AliBank V3.
+                      </p>
+                    </div>
+
+                    <Button 
+                      onClick={handleVaultDisbursement}
+                      disabled={disburseAmount === "" || isDisbursing}
+                      className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic text-sm shadow-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02]"
+                    >
+                      {isDisbursing ? <Loader2 className="w-6 h-6 animate-spin" /> : <>EXECUTE DISBURSEMENT <ArrowDownRight className="w-5 h-5" /></>}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="users" className="space-y-8 animate-in fade-in duration-500">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <Card className="liquid-glass border-none rounded-[3rem] p-10 bg-primary/5 shadow-2xl flex items-center gap-8 group">
+                <div className="w-20 h-20 rounded-[2rem] bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                  <Banknote className="w-10 h-10" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Total Liquidity AUM</p>
+                  <p className="text-4xl font-black text-foreground italic tracking-tighter">Rp {totalClientLiquidity.toLocaleString('id-ID')}</p>
+                </div>
+              </Card>
+              <Card className="liquid-glass border-none rounded-[3rem] p-10 bg-blue-500/5 shadow-2xl flex items-center gap-8 group">
+                <div className="w-20 h-20 rounded-[2rem] bg-blue-500/10 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                  <PiggyBank className="w-10 h-10" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Total Deposits AUM</p>
+                  <p className="text-4xl font-black text-blue-600 italic tracking-tighter">Rp {totalClientDeposits.toLocaleString('id-ID')}</p>
+                </div>
+              </Card>
+              <Card className="liquid-glass border-none rounded-[3rem] p-10 bg-accent/5 shadow-2xl flex items-center gap-8 group">
+                <div className="w-20 h-20 rounded-[2rem] bg-accent/10 flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                  <UserCheck className="w-10 h-10" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Verified Client Base</p>
+                  <p className="text-4xl font-black text-accent italic tracking-tighter">{allUsers?.length || 0} Clients</p>
+                </div>
+              </Card>
+            </div>
+
+            <Card className="liquid-glass border-none rounded-[3.5rem] overflow-hidden shadow-2xl">
+              <div className="p-12 border-b border-primary/5 bg-accent/5 flex justify-between items-center">
+                <h3 className="text-3xl font-black italic uppercase text-foreground flex items-center gap-6">
+                  <Users className="w-10 h-10 text-primary" /> Client Registry & Control
+                </h3>
+                <div className="flex items-center gap-4">
+                  <Button 
+                    onClick={handleResetAllBalances}
+                    variant="ghost" 
+                    className="h-12 px-6 rounded-xl border border-destructive/20 text-destructive hover:bg-destructive/10 font-black uppercase text-[10px] italic gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" /> Reset All Balances
+                  </Button>
+                  <Badge className="bg-primary text-white font-black px-6 py-2 rounded-full shadow-lg">{allUsers?.length || 0} Accounts Enrolled</Badge>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-primary/5 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-primary/5">
+                      <th className="px-12 py-10">Client Profile</th>
+                      <th className="px-12 py-10">Institutional UID</th>
+                      <th className="px-12 py-10">Tier Status</th>
+                      <th className="px-12 py-10 text-right">Liquidity Control</th>
+                      <th className="px-12 py-10 text-right">Deposit Control</th>
+                      <th className="px-12 py-10 text-right">Security</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-primary/5">
+                    {allUsers?.map((u) => (
+                      <tr key={u.id} className="hover:bg-primary/5 transition-colors group cursor-default">
+                        <td className="px-12 py-8">
+                          <div className="flex items-center gap-5">
+                            <div className="w-14 h-14 rounded-full gold-gradient p-[2px] shadow-lg">
+                              <Image src={`https://picsum.photos/seed/${u.uid}/100/100`} alt="p" width={56} height={56} className="rounded-full object-cover border-4 border-white dark:border-card" />
+                            </div>
+                            <div>
+                              <p className="text-base font-black italic uppercase text-foreground leading-none">{u.name}</p>
+                              <p className="text-[10px] font-bold text-muted-foreground mt-1.5">{u.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-12 py-8 font-mono text-[11px] text-foreground/80">{u.accountNumber}</td>
+                        <td className="px-12 py-8">
+                          <Badge variant="outline" className="text-[9px] font-black uppercase border-primary/30 text-primary px-4 py-1 rounded-md">{u.tier || "Standard"}</Badge>
+                        </td>
+                        <td className="px-12 py-8 text-right">
+                          <div className="flex flex-col items-end gap-3">
+                            <div>
+                              <p className="text-lg font-black italic text-foreground tracking-tighter">Rp {u.totalBalance?.toLocaleString()}</p>
+                              <p className="text-[9px] font-bold text-muted-foreground mt-1 uppercase">Liquidity</p>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Input 
+                                type="number" 
+                                placeholder="Amt"
+                                value={adjustAmounts[u.uid] || ""}
+                                onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [u.uid]: e.target.value }))}
+                                className="h-10 w-24 rounded-xl liquid-glass border-primary/10 text-[11px] font-black italic px-3 shadow-inner"
+                              />
+                              <div className="flex gap-1">
+                                <Button 
+                                  size="icon"
+                                  onClick={() => handleUpdateUserBalance(u.uid, 'add')}
+                                  className="h-8 w-8 rounded-lg bg-green-500 hover:bg-green-600 text-white shadow-lg"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </Button>
+                                <Button 
+                                  size="icon"
+                                  onClick={() => handleUpdateUserBalance(u.uid, 'sub')}
+                                  className="h-8 w-8 rounded-lg bg-rose-500 hover:bg-rose-600 text-white shadow-lg"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-12 py-8 text-right">
+                          <div className="flex flex-col items-end gap-3">
+                            <div>
+                              <p className="text-lg font-black italic text-blue-600 tracking-tighter">Rp {u.savings?.toLocaleString() || 0}</p>
+                              <p className="text-[9px] font-bold text-muted-foreground mt-1 uppercase">Deposits</p>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Input 
+                                type="number" 
+                                placeholder="Amt"
+                                value={adjustSavingsAmounts[u.uid] || ""}
+                                onChange={(e) => setAdjustSavingsAmounts(prev => ({ ...prev, [u.uid]: e.target.value }))}
+                                className="h-10 w-24 rounded-xl bg-blue-500/5 border-blue-500/10 text-[11px] font-black italic px-3 shadow-inner"
+                              />
+                              <div className="flex gap-1">
+                                <Button 
+                                  size="icon"
+                                  onClick={() => handleUpdateUserSavings(u.uid, 'add')}
+                                  className="h-8 w-8 rounded-lg bg-blue-500 hover:bg-blue-600 text-white shadow-lg"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </Button>
+                                <Button 
+                                  size="icon"
+                                  onClick={() => handleUpdateUserSavings(u.uid, 'sub')}
+                                  className="h-8 w-8 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-12 py-8 text-right">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handlePasswordReset(u.email)}
+                            className="h-10 rounded-xl text-primary hover:bg-primary/10 border border-primary/10 font-black uppercase text-[9px] italic"
+                          >
+                            <Key className="w-3 h-3 mr-2" /> Reset Pass
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="audit" className="animate-in slide-in-from-bottom-10 duration-500">
+            <Card className="liquid-glass border-none rounded-[3.5rem] overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.2)]">
+              <div className="p-12 border-b border-primary/5 bg-accent/5 flex items-center justify-between">
+                <div>
+                  <h3 className="text-3xl font-black italic uppercase text-foreground flex items-center gap-6">
+                    <FileText className="w-10 h-10 text-primary" /> Production Audit Log
+                  </h3>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mt-2 italic">Immutable Ledger Reconciliation</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <Button 
+                    onClick={handleClearAuditLogs}
+                    variant="ghost" 
+                    className="h-12 px-6 rounded-xl border border-destructive/20 text-destructive hover:bg-destructive/10 font-black uppercase text-[10px] italic gap-2"
+                  >
+                    <Eraser className="w-4 h-4" /> Purge Audit Logs
+                  </Button>
+                  <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/30 text-foreground px-6 py-2 rounded-2xl">Integrity Active</Badge>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left min-w-[1000px]">
+                  <thead>
+                    <tr className="bg-primary/5 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-primary/5">
+                      <th className="px-12 py-10">Trace ID</th>
+                      <th className="px-12 py-10">Event Specification</th>
+                      <th className="px-12 py-10">Settlement Value</th>
+                      <th className="px-12 py-10">Pulse Status</th>
+                      <th className="px-12 py-10 text-right">Synchronization Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-primary/5">
+                    {auditLogs?.map((log) => (
+                      <tr key={log.id} className="hover:bg-primary/5 transition-colors">
+                        <td className="px-12 py-8 font-mono text-[10px] text-muted-foreground">{log.id}</td>
+                        <td className="px-12 py-8">
+                          <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") || log.category?.includes("Vault") || log.category?.includes("Manual") || log.category?.includes("Global") || log.category?.includes("Savings") || log.category?.includes("Trade-X") || log.category?.includes("Spin") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
+                            {log.category}
+                          </Badge>
+                        </td>
+                        <td className="px-12 py-8 font-black italic text-foreground text-base">
+                          {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : log.cryptoAmount ? `${log.cryptoAmount} ${log.cryptoCurrency}` : '---'}
+                        </td>
+                        <td className="px-12 py-8">
+                          <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">{log.status}</span>
+                          </div>
+                        </td>
+                        <td className="px-12 py-8 text-right font-mono text-[10px] text-muted-foreground italic">
+                          {log.timestamp?.toDate().toLocaleString() || "---"}
+                        </td>
+                      </tr>
+                    ))}
+                    {(!auditLogs || auditLogs.length === 0) && (
+                      <tr>
+                        <td colSpan={5} className="px-12 py-32 text-center">
+                          <div className="flex flex-col items-center gap-4 opacity-20">
+                            <Eraser className="w-16 h-16" />
+                            <p className="text-sm font-black uppercase tracking-[0.3em]">Ledger is Empty</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </main>
+    </div>
   );
 }
 
 export default function AdminControlPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>}>
-      <AdminContent />
-    </Suspense>
+    <TooltipProvider>
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>}>
+        <AdminContent />
+      </Suspense>
+    </TooltipProvider>
   );
 }

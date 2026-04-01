@@ -131,14 +131,17 @@ export default function AliSpinPage() {
     setIsSpinning(true);
     setLastWin(null);
 
+    const amountInIdr = betAmount * (stakeCurrency === 'IDR' ? 1 : 15850);
+
     if (freeSpins <= 0) {
       const balanceKey = stakeCurrency === 'IDR' ? "totalBalance" : `cryptoBalances.${stakeCurrency}`;
       updateDoc(userDocRef, { [balanceKey]: increment(-betAmount) });
       
       const systemRef = doc(db, "system", "liquidity");
       updateDoc(systemRef, { 
-        totalFiatInjected: increment(stakeCurrency === 'IDR' ? betAmount : 0),
-        spinGrossVolumeIdr: increment(betAmount * (stakeCurrency === 'IDR' ? 1 : 15850)) 
+        // Seluruh taruhan masuk ke kas kotor bank
+        totalFiatInjected: increment(amountInIdr),
+        spinGrossVolumeIdr: increment(amountInIdr) 
       });
     } else {
       setFreeSpins(prev => prev - 1);

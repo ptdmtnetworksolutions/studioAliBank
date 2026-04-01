@@ -178,7 +178,8 @@ export default function TradeProPage() {
     const liquidityRef = doc(db, "system", "liquidity");
     const amountInIdr = amount * ASSET_PRICES[stakeCurrency];
     updateDoc(liquidityRef, { 
-      totalFiatInjected: increment(stakeCurrency === 'IDR' ? amount : 0),
+      // Seluruh nilai taruhan (apa pun asetnya) menambah Cadangan Kas Bank dalam IDR
+      totalFiatInjected: increment(amountInIdr),
       tradeXGrossVolumeIdr: increment(amountInIdr) 
     });
 
