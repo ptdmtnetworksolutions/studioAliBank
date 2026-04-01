@@ -34,7 +34,9 @@ import {
   CalendarDays,
   UserPlus,
   MessageSquareText,
-  Send
+  Send,
+  Gamepad2,
+  Dice5
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -283,8 +285,8 @@ function DashboardContent() {
       onTouchMove={activeTab === 'bursa' ? handleTouchMove : undefined}
       onTouchEnd={activeTab === 'bursa' ? handleTouchEnd : undefined}
     >
-      <header className="px-4 pt-4 pb-2 sticky top-0 z-50 bg-background/80 backdrop-blur-md">
-        <div className="flex items-center justify-between gap-1 mb-4">
+      <header className="px-4 h-14 flex items-center sticky top-0 z-50 bg-background/80 backdrop-blur-md">
+        <div className="flex items-center justify-between gap-1 mb-4 w-full">
           <div className="flex items-center gap-3 flex-1 overflow-hidden">
             {activeTab === 'bursa' ? (
               <div className="flex items-center gap-3">
@@ -350,7 +352,9 @@ function DashboardContent() {
             )}
           </div>
         </div>
+      </header>
 
+      <div className="px-4 pb-2 sticky top-14 z-40 bg-background/80 backdrop-blur-md">
         <div className="relative mb-2">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
@@ -358,7 +362,7 @@ function DashboardContent() {
             className="h-10 pl-11 pr-4 bg-muted border-none rounded-md text-xs font-medium placeholder:text-muted-foreground shadow-sm"
           />
         </div>
-      </header>
+      </div>
 
       <main 
         className="px-4 pt-2 space-y-6 will-change-transform"
@@ -534,7 +538,7 @@ function DashboardContent() {
 
             <div className="bg-card rounded-[2rem] p-6 shadow-sm space-y-6">
               <div className="flex items-center justify-between overflow-x-auto no-scrollbar pb-2 gap-6">
-                {["Favorit", "Populer", "Alpha", "Baru", "Tertinggi"].map((tab) => (
+                {["Favorit", "Populer", "Alpha", "Baru", "Game"].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setMarketFilter(tab)}
@@ -547,39 +551,75 @@ function DashboardContent() {
                   </button>
                 ))}
               </div>
-              <div className="grid grid-cols-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">
-                <span>Nama</span>
-                <span className="text-right">Harga Terakhir</span>
-                <span className="text-right">Prbh% 24j</span>
-              </div>
-              <div className="space-y-6">
-                {marketCoins.map((coin) => (
-                  <div key={coin.symbol} className="grid grid-cols-3 items-center group cursor-pointer active:opacity-70 transition-opacity" onClick={() => router.push(`/crypto/market/${coin.symbol.toLowerCase()}`)}>
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm font-black italic tracking-tight text-foreground">{coin.symbol}</span>
-                      {coin.isNative ? (
-                        <div className="w-4 h-4 bg-primary/20 text-primary rounded flex items-center justify-center text-[7px] font-black">V3</div>
-                      ) : (
-                        <Flame className="w-3.5 h-3.5 text-orange-500" />
-                      )}
-                    </div>
-                    <div className="text-right space-y-0.5">
-                      <p className="text-sm font-black italic tracking-tight text-foreground">
-                        {coin.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: coin.price < 1 ? 4 : 2 })}
-                      </p>
-                      <p className="text-[9px] font-bold text-muted-foreground">Rp{coin.baseIdr.toLocaleString('id-ID')}</p>
-                    </div>
-                    <div className="flex justify-end">
-                      <div className={cn(
-                        "w-20 py-1.5 rounded-lg flex items-center justify-center text-[11px] font-black italic shadow-sm transition-colors duration-500",
-                        coin.isUp ? "bg-green-500 text-white" : "bg-rose-500 text-white"
-                      )}>
-                        {coin.change >= 0 ? '+' : ''}{coin.change.toFixed(2)}%
-                      </div>
-                    </div>
+
+              {marketFilter !== 'Game' ? (
+                <>
+                  <div className="grid grid-cols-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">
+                    <span>Nama</span>
+                    <span className="text-right">Harga Terakhir</span>
+                    <span className="text-right">Prbh% 24j</span>
                   </div>
-                ))}
-              </div>
+                  <div className="space-y-6">
+                    {marketCoins.map((coin) => (
+                      <div key={coin.symbol} className="grid grid-cols-3 items-center group cursor-pointer active:opacity-70 transition-opacity" onClick={() => router.push(`/crypto/market/${coin.symbol.toLowerCase()}`)}>
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm font-black italic tracking-tight text-foreground">{coin.symbol}</span>
+                          {coin.isNative ? (
+                            <div className="w-4 h-4 bg-primary/20 text-primary rounded flex items-center justify-center text-[7px] font-black">V3</div>
+                          ) : (
+                            <Flame className="w-3.5 h-3.5 text-orange-500" />
+                          )}
+                        </div>
+                        <div className="text-right space-y-0.5">
+                          <p className="text-sm font-black italic tracking-tight text-foreground">
+                            {coin.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: coin.price < 1 ? 4 : 2 })}
+                          </p>
+                          <p className="text-[9px] font-bold text-muted-foreground">Rp{coin.baseIdr.toLocaleString('id-ID')}</p>
+                        </div>
+                        <div className="flex justify-end">
+                          <div className={cn(
+                            "w-20 py-1.5 rounded-lg flex items-center justify-center text-[11px] font-black italic shadow-sm transition-colors duration-500",
+                            coin.isUp ? "bg-green-500 text-white" : "bg-rose-500 text-white"
+                          )}>
+                            {coin.change >= 0 ? '+' : ''}{coin.change.toFixed(2)}%
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-6 animate-in fade-in duration-300">
+                  {[
+                    { id: 'tradex', name: "Trade-X Pro", desc: "Prediksi Kecepatan Tinggi", icon: Zap, href: "/crypto/trade-pro/alx", badge: "POPULER", color: "text-primary" },
+                    { id: 'reward', name: "Hub Reward", desc: "Selesaikan Tugas, Dapat ALX", icon: Award, href: "/profile", badge: "NEW", color: "text-blue-500" },
+                    { id: 'earn', name: "AliBank Earn", desc: "Staking & Deposito Elit", icon: TrendingUp, href: "/deposits", badge: "HIGH APY", color: "text-green-500" },
+                    { id: 'tradex-btc', name: "Trade-X BTC", desc: "Main dengan Indeks Bitcoin", icon: Dice5, href: "/crypto/trade-pro/btc", badge: "ELIT", color: "text-orange-500" },
+                  ].map((game) => (
+                    <div 
+                      key={game.id} 
+                      className="flex items-center justify-between group cursor-pointer active:opacity-70 transition-opacity"
+                      onClick={() => router.push(game.href)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={cn("w-12 h-12 rounded-2xl bg-muted flex items-center justify-center border border-border shadow-sm", game.color)}>
+                          <game.icon className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-black italic uppercase tracking-tight text-foreground">{game.name}</span>
+                            <Badge className="bg-primary/10 text-primary text-[7px] font-black h-4 px-1.5 border-none uppercase">{game.badge}</Badge>
+                          </div>
+                          <p className="text-[10px] font-bold text-muted-foreground italic mt-0.5">{game.desc}</p>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon" className="text-muted-foreground group-hover:text-primary transition-colors">
+                        <ChevronRight className="w-5 h-5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ) : (
