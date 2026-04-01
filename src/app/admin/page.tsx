@@ -63,7 +63,8 @@ import {
   Link as LinkIcon,
   Eraser,
   RotateCcw,
-  Banknote
+  Banknote,
+  PiggyBank
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -147,6 +148,7 @@ function AdminContent() {
   
   // Balance Adjustment States
   const [adjustAmounts, setAdjustAmounts] = useState<Record<string, string>>({});
+  const [adjustSavingsAmounts, setAdjustSavingsAmounts] = useState<Record<string, string>>({});
 
   // Vault Disbursement States
   const [disburseAmount, setDisburseAmount] = useState("");
@@ -179,6 +181,10 @@ function AdminContent() {
   // Monitoring Stats
   const totalClientLiquidity = useMemo(() => {
     return allUsers?.reduce((acc, u) => acc + (u.totalBalance || 0), 0) || 0;
+  }, [allUsers]);
+
+  const totalClientDeposits = useMemo(() => {
+    return allUsers?.reduce((acc, u) => acc + (u.savings || 0), 0) || 0;
   }, [allUsers]);
 
   const syncOnChainData = useCallback(async () => {
@@ -245,6 +251,39 @@ function AdminContent() {
 
       toast({ title: "Saldo Diperbarui", description: `Berhasil ${type === 'add' ? 'menambah' : 'mengurangi'} Rp ${amount.toLocaleString()} dari saldo nasabah.` });
       setAdjustAmounts(prev => ({ ...prev, [uid]: "" }));
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Update", description: err.message });
+    }
+  };
+
+  const handleUpdateUserSavings = async (uid: string, type: 'add' | 'sub') => {
+    if (!db) return;
+    const amountStr = adjustSavingsAmounts[uid] || "0";
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ variant: "destructive", title: "Nominal tidak valid", description: "Masukkan jumlah angka yang benar." });
+      return;
+    }
+
+    try {
+      const userRef = doc(db, "users", uid);
+      await updateDoc(userRef, {
+        savings: increment(type === 'add' ? amount : -amount)
+      });
+      
+      // Log ke Audit System
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `DEP-ADJ-${Date.now()}`,
+        category: "Savings Adjustment",
+        amountIdr: amount,
+        type: type === 'add' ? 'income' : 'expense',
+        status: "success",
+        timestamp: serverTimestamp(),
+        description: `Manual savings adjustment by Admin for User UID: ${uid}`
+      });
+
+      toast({ title: "Saldo Deposito Diperbarui", description: `Berhasil ${type === 'add' ? 'menambah' : 'mengurangi'} Rp ${amount.toLocaleString()} dari saldo deposito nasabah.` });
+      setAdjustSavingsAmounts(prev => ({ ...prev, [uid]: "" }));
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal Update", description: err.message });
     }
@@ -831,7 +870,7 @@ function AdminContent() {
                     <div className="space-y-3">
                       <label className="text-[11px] font-black uppercase text-muted-foreground ml-3">Amount to Authorize (ALX)</label>
                       <div className="relative">
-                        <Input type="number" placeholder="0.00" value={alixMintAmount} onChange={(e) => setAlixMintAmount(e.target.value)} className="h-20 rounded-[2rem] liquid-glass border-none font-black italic text-3xl px-10 shadow-2xl" />
+                        <input type="number" placeholder="0.00" value={alixMintAmount} onChange={(e) => setAlixMintAmount(e.target.value)} className="h-20 w-full rounded-[2rem] liquid-glass border-none font-black italic text-3xl px-10 shadow-2xl bg-transparent focus:outline-none" />
                         <LogoIcon className="absolute right-10 top-1/2 -translate-y-1/2 w-10 h-10 text-orange-500 opacity-20" />
                       </div>
                     </div>
@@ -864,7 +903,7 @@ function AdminContent() {
                     <div className="space-y-3">
                       <label className="text-[11px] font-black uppercase text-muted-foreground ml-3">Amount to Incinerate (ALX)</label>
                       <div className="relative">
-                        <Input type="number" placeholder="0.00" value={alixBurnAmount} onChange={(e) => setAlixBurnAmount(e.target.value)} className="h-20 rounded-[2rem] bg-destructive/5 border-none font-black italic text-3xl px-10 text-destructive shadow-inner" />
+                        <input type="number" placeholder="0.00" value={alixBurnAmount} onChange={(e) => setAlixBurnAmount(e.target.value)} className="h-20 w-full rounded-[2rem] bg-destructive/5 border-none font-black italic text-3xl px-10 text-destructive shadow-inner bg-transparent focus:outline-none" />
                         <Flame className="absolute right-10 top-1/2 -translate-y-1/2 w-10 h-10 text-destructive opacity-20" />
                       </div>
                     </div>
@@ -953,12 +992,12 @@ function AdminContent() {
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-white/40 ml-2">Amount to Withdraw (ETH)</label>
                         <div className="relative">
-                          <Input 
+                          <input 
                             type="number" 
                             placeholder="0.00" 
                             value={disburseAmount}
                             onChange={(e) => setDisburseAmount(e.target.value)}
-                            className="h-16 rounded-2xl bg-white/5 border-none font-black italic text-xl px-6 text-white shadow-inner" 
+                            className="h-16 w-full rounded-2xl bg-white/5 border-none font-black italic text-xl px-6 text-white shadow-inner focus:outline-none" 
                           />
                           <span className="absolute right-6 top-1/2 -translate-y-1/2 text-xs font-black text-primary italic">ETH</span>
                         </div>
@@ -986,14 +1025,23 @@ function AdminContent() {
 
             <TabsContent value="users" className="space-y-8 animate-in fade-in duration-500">
               {/* MONITORING LIQUIDITY SUMMARY */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <Card className="liquid-glass border-none rounded-[3rem] p-10 bg-primary/5 shadow-2xl flex items-center gap-8 group">
                   <div className="w-20 h-20 rounded-[2rem] bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                     <Banknote className="w-10 h-10" />
                   </div>
                   <div>
-                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Total Assets Under Management</p>
+                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Total Liquidity AUM</p>
                     <p className="text-4xl font-black text-foreground italic tracking-tighter">Rp {totalClientLiquidity.toLocaleString('id-ID')}</p>
+                  </div>
+                </Card>
+                <Card className="liquid-glass border-none rounded-[3rem] p-10 bg-blue-500/5 shadow-2xl flex items-center gap-8 group">
+                  <div className="w-20 h-20 rounded-[2rem] bg-blue-500/10 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                    <PiggyBank className="w-10 h-10" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Total Deposits AUM</p>
+                    <p className="text-4xl font-black text-blue-600 italic tracking-tighter">Rp {totalClientDeposits.toLocaleString('id-ID')}</p>
                   </div>
                 </Card>
                 <Card className="liquid-glass border-none rounded-[3rem] p-10 bg-accent/5 shadow-2xl flex items-center gap-8 group">
@@ -1031,6 +1079,7 @@ function AdminContent() {
                         <th className="px-12 py-10">Institutional UID</th>
                         <th className="px-12 py-10">Tier Status</th>
                         <th className="px-12 py-10 text-right">Liquidity Control</th>
+                        <th className="px-12 py-10 text-right">Deposit Control</th>
                         <th className="px-12 py-10 text-right">Security</th>
                       </tr>
                     </thead>
@@ -1056,30 +1105,63 @@ function AdminContent() {
                             <div className="flex flex-col items-end gap-3">
                               <div>
                                 <p className="text-lg font-black italic text-foreground tracking-tighter">Rp {u.totalBalance?.toLocaleString()}</p>
-                                <p className="text-[9px] font-bold text-muted-foreground mt-1 uppercase">Current Liquidity</p>
+                                <p className="text-[9px] font-bold text-muted-foreground mt-1 uppercase">Liquidity</p>
                               </div>
                               <div className="flex items-center gap-2 mt-2">
                                 <Input 
                                   type="number" 
-                                  placeholder="Amount"
+                                  placeholder="Amt"
                                   value={adjustAmounts[u.uid] || ""}
                                   onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [u.uid]: e.target.value }))}
-                                  className="h-10 w-28 rounded-xl liquid-glass border-primary/10 text-[11px] font-black italic px-3 shadow-inner"
+                                  className="h-10 w-24 rounded-xl liquid-glass border-primary/10 text-[11px] font-black italic px-3 shadow-inner"
                                 />
                                 <div className="flex gap-1">
                                   <Button 
                                     size="icon"
                                     onClick={() => handleUpdateUserBalance(u.uid, 'add')}
-                                    className="h-10 w-10 rounded-xl bg-green-500 hover:bg-green-600 text-white shadow-lg"
+                                    className="h-8 w-8 rounded-lg bg-green-500 hover:bg-green-600 text-white shadow-lg"
                                   >
-                                    <Plus className="w-4 h-4" />
+                                    <Plus className="w-3 h-3" />
                                   </Button>
                                   <Button 
                                     size="icon"
                                     onClick={() => handleUpdateUserBalance(u.uid, 'sub')}
-                                    className="h-10 w-10 rounded-xl bg-rose-500 hover:bg-rose-600 text-white shadow-lg"
+                                    className="h-8 w-8 rounded-lg bg-rose-500 hover:bg-rose-600 text-white shadow-lg"
                                   >
-                                    <Minus className="w-4 h-4" />
+                                    <Minus className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-12 py-8 text-right">
+                            <div className="flex flex-col items-end gap-3">
+                              <div>
+                                <p className="text-lg font-black italic text-blue-600 tracking-tighter">Rp {u.savings?.toLocaleString() || 0}</p>
+                                <p className="text-[9px] font-bold text-muted-foreground mt-1 uppercase">Deposits</p>
+                              </div>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Input 
+                                  type="number" 
+                                  placeholder="Amt"
+                                  value={adjustSavingsAmounts[u.uid] || ""}
+                                  onChange={(e) => setAdjustSavingsAmounts(prev => ({ ...prev, [u.uid]: e.target.value }))}
+                                  className="h-10 w-24 rounded-xl bg-blue-500/5 border-blue-500/10 text-[11px] font-black italic px-3 shadow-inner"
+                                />
+                                <div className="flex gap-1">
+                                  <Button 
+                                    size="icon"
+                                    onClick={() => handleUpdateUserSavings(u.uid, 'add')}
+                                    className="h-8 w-8 rounded-lg bg-blue-500 hover:bg-blue-600 text-white shadow-lg"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </Button>
+                                  <Button 
+                                    size="icon"
+                                    onClick={() => handleUpdateUserSavings(u.uid, 'sub')}
+                                    className="h-8 w-8 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg"
+                                  >
+                                    <Minus className="w-3 h-3" />
                                   </Button>
                                 </div>
                               </div>
@@ -1092,7 +1174,7 @@ function AdminContent() {
                               onClick={() => handlePasswordReset(u.email)}
                               className="h-10 rounded-xl text-primary hover:bg-primary/10 border border-primary/10 font-black uppercase text-[9px] italic"
                             >
-                              <Key className="w-3 h-3 mr-2" /> Reset Pass Link
+                              <Key className="w-3 h-3 mr-2" /> Reset Pass
                             </Button>
                           </td>
                         </tr>
@@ -1139,7 +1221,7 @@ function AdminContent() {
                         <tr key={log.id} className="hover:bg-primary/5 transition-colors">
                           <td className="px-12 py-8 font-mono text-[10px] text-muted-foreground">{log.id}</td>
                           <td className="px-12 py-8">
-                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") || log.category?.includes("Vault") || log.category?.includes("Manual") || log.category?.includes("Global") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
+                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") || log.category?.includes("Vault") || log.category?.includes("Manual") || log.category?.includes("Global") || log.category?.includes("Savings") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
                               {log.category}
                             </Badge>
                           </td>
