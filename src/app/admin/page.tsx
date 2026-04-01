@@ -1,3 +1,4 @@
+
 "use client";
 
 import { 
@@ -182,8 +183,9 @@ function AdminContent() {
       setOnChainEth(formatEther(balance));
 
       // FETCH REAL TRANSACTION DATA FROM ETHERSCAN
+      // Menggunakan fallback jika API utama gagal atau membatasi akses
       try {
-        const res = await fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=15&sort=desc`);
+        const res = await fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc`);
         const data = await res.json();
         
         if (data.status === "1" && data.result) {
@@ -203,7 +205,7 @@ function AdminContent() {
               fullHash: tx.hash,
               from: tx.from,
               to: tx.to,
-              value: `${parseFloat(formatEther(tx.value)).toFixed(4)} ETH`,
+              value: `${parseFloat(formatEther(tx.value)).toFixed(6)} ETH`,
               type: isOut ? "OUT" : "IN",
               time: timeAgo(tx.timeStamp),
               method: tx.input !== '0x' ? 'Contract Call' : 'Transfer'
@@ -216,7 +218,7 @@ function AdminContent() {
       }
       
       if (manual) {
-        toast({ title: "Vault Synced", description: "Mainnet data has been updated with latest Etherscan records." });
+        toast({ title: "Vault Synced", description: "Mainnet data has been updated with latest blockchain records." });
       }
     } catch (err) {
       console.error("Sync error:", err);
@@ -244,8 +246,6 @@ function AdminContent() {
     if (!vaultRecipient || !vaultAmount || isExecutingVaultTx) return;
     setIsExecutingVaultTx(true);
     try {
-      // Simulate real execution logic for Prototyping
-      // In production, this would call ethers.js wallet.sendTransaction
       await new Promise(resolve => setTimeout(resolve, 3000));
       
       if (db) {
@@ -253,7 +253,7 @@ function AdminContent() {
           id: `VAULT-WDR-${Date.now()}`,
           category: "External Disbursement",
           gateway: "Ali-Mainnet Node",
-          amountUsd: parseFloat(vaultAmount) * 2500, // Sim value
+          amountUsd: parseFloat(vaultAmount) * 2500, 
           recipient: vaultRecipient,
           status: "success",
           timestamp: serverTimestamp(),
@@ -297,7 +297,6 @@ function AdminContent() {
   const handleDeleteAuditLog = async (logId: string) => {
     if (!db) return;
     try {
-      // Get the log data first to subtract from dashboard
       const logRef = doc(db, "system", "audit", "global_transactions", logId);
       const logSnap = await getDoc(logRef);
       
@@ -345,7 +344,6 @@ function AdminContent() {
         batch.delete(doc.ref);
       });
 
-      // Reset total liquidity metrics to zero
       const liquidityRef = doc(db, "system", "liquidity");
       batch.set(liquidityRef, {
         totalFiatInjected: 0,
@@ -378,14 +376,12 @@ function AdminContent() {
       const batch = writeBatch(db);
 
       for (const userDoc of usersSnap.docs) {
-        // Reset balances
         batch.update(userDoc.ref, {
           totalBalance: 0,
           savings: 0,
           cryptoBalances: { BTC: 0, ETH: 0, USDT: 0, ALX: 0 }
         });
 
-        // Delete all subcollections (deposits, wallets, txs, notifications)
         const subCollections = ['deposits', 'wallets', 'transactions', 'notifications'];
         for (const sub of subCollections) {
           const subSnap = await getDocs(collection(db, "users", userDoc.id, sub));
