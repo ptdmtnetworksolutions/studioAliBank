@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -51,7 +52,7 @@ export function Navbar() {
     { name: t('merchant_console'), href: "/merchant", icon: Store },
   ];
 
-  if (pathname === "/") return null;
+  if (pathname === "/" || pathname?.startsWith("/admin")) return null;
 
   return (
     <nav className="sticky top-0 z-50 w-full mb-6 pt-[env(safe-area-inset-top)]">

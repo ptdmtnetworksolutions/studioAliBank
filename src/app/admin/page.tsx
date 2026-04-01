@@ -1,7 +1,6 @@
 
 "use client";
 
-import { Navbar } from "@/components/layout/Navbar";
 import { 
   ShieldAlert, 
   ShieldCheck,
@@ -53,15 +52,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+  TooltipProvider,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
 import { useUser, useDoc, useCollection, useFirestore, useAuth } from "@/firebase";
 import { 
@@ -69,26 +65,15 @@ import {
   doc, 
   updateDoc, 
   increment, 
-  setDoc,
-  deleteDoc,
   query,
   orderBy,
   limit,
-  serverTimestamp,
-  addDoc,
-  writeBatch
 } from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { JsonRpcProvider, formatEther, parseEther, ethers, BrowserProvider, Contract } from "ethers";
+import { JsonRpcProvider, formatEther } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import {
-  TooltipProvider,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { LogoIcon } from "@/components/ui/logo";
 import Image from "next/image";
 import { 
@@ -99,21 +84,11 @@ import {
   CartesianGrid, 
   Tooltip as RechartsTooltip, 
   ResponsiveContainer,
-  BarChart,
-  Bar
 } from "recharts";
 
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
 const ALIX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
-
-const VAULT_ABI = [
-  "function withdraw(uint256 _amount) public",
-  "function withdrawUSDT(uint256 _amount) public",
-  "function depositUSDT(uint256 _amount) public",
-  "function getTotalVaultBalance() public view returns (uint256)",
-  "function balances(address) public view returns (uint256)"
-];
 
 const mockPerformanceData = [
   { name: 'Jan', revenue: 4000, volume: 2400 },
@@ -138,23 +113,16 @@ function AdminContent() {
   const [onChainEth, setOnChainEth] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
   
-  // States from previous logic
   const [adjustAmounts, setAdjustAmounts] = useState<Record<string, string>>({});
-  const [adjustSavingsAmounts, setAdjustSavingsAmounts] = useState<Record<string, string>>({});
   const [disburseAmount, setDisburseAmount] = useState("");
-  const [isDisbursing, setIsDisbursing] = useState(false);
   const [alixMintAmount, setAlixMintAmount] = useState("");
   const [isMinting, setIsMinting] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: "", description: "", priceIdr: "", priceUsd: "", category: "Layanan Seluler", image: "" });
-  const [isAddingProduct, setIsAddingProduct] = useState(false);
 
   // Data Listeners
   const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
   const { data: globalLiquidity } = useDoc(liquidityDocRef);
   const usersQuery = useMemo(() => (db ? query(collection(db, "users"), limit(100)) : null), [db]);
   const { data: allUsers } = useCollection(usersQuery);
-  const mktQuery = useMemo(() => (db ? collection(db, "marketplace") : null), [db]);
-  const { data: mktItems } = useCollection(mktQuery);
   const auditQuery = useMemo(() => (db ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(50)) : null), [db]);
   const { data: auditLogs } = useCollection(auditQuery);
 
@@ -206,7 +174,7 @@ function AdminContent() {
     <TooltipProvider delayDuration={0}>
       <div className="min-h-screen bg-[#F8F9FA] text-[#1A1D1F] flex font-body">
         
-        {/* SIDEBAR - REINVENTED */}
+        {/* SIDEBAR */}
         <aside className="w-72 bg-white border-r border-[#EFF0F2] flex flex-col sticky top-0 h-screen z-50">
           <div className="p-8 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg">
@@ -243,10 +211,10 @@ function AdminContent() {
           {/* TOP BAR */}
           <header className="h-20 bg-white border-b border-[#EFF0F2] flex items-center justify-between px-10 sticky top-0 z-40">
             <div className="flex items-center gap-4 flex-1 max-w-xl">
-              <h1 className="text-2xl font-black tracking-tight capitalize">{activeTab === 'dashboard' ? 'Overview' : activeTab}</h1>
+              <h1 className="text-2xl font-black tracking-tight capitalize text-[#1A1D1F]">{activeTab === 'dashboard' ? 'Overview' : activeTab}</h1>
               <div className="relative flex-1 hidden md:block">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9A9FA5]" />
-                <Input placeholder="Search everything..." className="h-11 pl-12 bg-[#F4F4F4] border-none rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-primary/20 shadow-none" />
+                <Input placeholder="Search everything..." className="h-11 pl-12 bg-[#F4F4F4] border-none rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-primary/20 shadow-none text-[#1A1D1F]" />
               </div>
             </div>
 
@@ -258,7 +226,7 @@ function AdminContent() {
               <div className="h-8 w-px bg-[#EFF0F2]" />
               <div className="flex items-center gap-3 cursor-pointer group">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-black leading-none">Bronson Dalton</p>
+                  <p className="text-sm font-black leading-none text-[#1A1D1F]">Bronson Dalton</p>
                   <p className="text-[10px] font-bold text-[#9A9FA5] mt-1 uppercase">Super Admin</p>
                 </div>
                 <div className="w-10 h-10 rounded-full gold-gradient p-[2px]">
@@ -271,64 +239,86 @@ function AdminContent() {
             </div>
           </header>
 
-          <div className="p-10 space-y-10 overflow-y-auto no-scrollbar">
+          <div className="p-10 space-y-10 overflow-y-auto no-scrollbar pb-20">
             
             {activeTab === 'dashboard' && (
               <div className="animate-in fade-in duration-700 space-y-10">
                 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                   {/* MAIN SMART WALLET REPLACEMENT */}
-                  <Card className="lg:col-span-8 border-none shadow-none bg-white rounded-[2.5rem] p-10 space-y-10">
+                  <Card 
+                    className="lg:col-span-8 border-none shadow-none bg-white rounded-[2.5rem] p-10 space-y-10 cursor-pointer hover:shadow-xl hover:shadow-black/5 transition-all group"
+                    onClick={() => setActiveTab('audit')}
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-[#F0FDF4] flex items-center justify-center text-[#16A34A]">
                           <Database className="w-6 h-6" />
                         </div>
-                        <h3 className="text-lg font-black italic uppercase tracking-tight">AliBank Global Liquidity</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-black italic uppercase tracking-tight text-[#1A1D1F]">AliBank Global Liquidity</h3>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="w-4 h-4 text-[#9A9FA5] cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-[#1A1D1F] text-white border-none p-4 rounded-2xl max-w-xs shadow-2xl">
+                                <p className="text-[10px] font-bold leading-relaxed uppercase italic">Total Net Capital adalah seluruh akumulasi modal riil yang berhasil diamankan dari Gateway (PayPal/Kartu) dan Stake Capture dari kekalahan nasabah di seluruh game AliBank.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </div>
                       </div>
-                      <Button variant="outline" className="rounded-xl border-[#EFF0F2] font-black uppercase text-[10px] h-10 px-6 italic" onClick={syncOnChainData}>
+                      <Button 
+                        variant="outline" 
+                        className="rounded-xl border-[#EFF0F2] font-black uppercase text-[10px] h-10 px-6 italic text-[#1A1D1F]" 
+                        onClick={(e) => { e.stopPropagation(); syncOnChainData(); }}
+                      >
                         <RefreshCw className={cn("w-3.5 h-3.5 mr-2", syncingVault && "animate-spin")} /> Sync System
                       </Button>
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
-                        <p className="text-sm font-bold text-[#9A9FA5] uppercase tracking-widest">Total Net Capital</p>
+                        <p className="text-sm font-bold text-[#9A9FA5] uppercase tracking-widest">Total Net Capital (IDR)</p>
                         <Badge className="bg-[#DCFCE7] text-[#16A34A] border-none text-[10px] font-black px-2">+12.01%</Badge>
                       </div>
-                      <h2 className="text-6xl font-black tracking-tighter italic">Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString()}</h2>
+                      <h2 className="text-6xl font-black tracking-tighter italic text-[#1A1D1F]">Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString()}</h2>
                     </div>
 
                     <div className="grid grid-cols-3 gap-8 pt-4">
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-[#9A9FA5]">
                           <Globe className="w-4 h-4" />
-                          <span className="text-[10px] font-bold uppercase">Vault Reserve</span>
+                          <span className="text-[10px] font-bold uppercase">Vault Reserve (USD)</span>
                         </div>
-                        <p className="text-xl font-black italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
+                        <p className="text-xl font-black italic text-[#1A1D1F]">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
                       </div>
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-[#9A9FA5]">
                           <TrendingUp className="w-4 h-4 text-[#16A34A]" />
-                          <span className="text-[10px] font-bold uppercase">Gaming Profit</span>
+                          <span className="text-[10px] font-bold uppercase">Gaming Profit (IDR)</span>
                         </div>
                         <p className="text-xl font-black italic text-[#16A34A]">Rp {((globalLiquidity?.tradeXGrossVolumeIdr || 0) + (globalLiquidity?.spinGrossVolumeIdr || 0)).toLocaleString()}</p>
                       </div>
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-[#9A9FA5]">
                           <Activity className="w-4 h-4 text-primary" />
-                          <span className="text-[10px] font-bold uppercase">AUM Status</span>
+                          <span className="text-[10px] font-bold uppercase">System Status</span>
                         </div>
-                        <p className="text-xl font-black italic">Production</p>
+                        <p className="text-xl font-black italic text-green-600">PRODUCTION LIVE</p>
                       </div>
                     </div>
                   </Card>
 
-                  {/* QUICK SEND -> RECENT CLIENTS */}
-                  <Card className="lg:col-span-4 border-none shadow-none bg-white rounded-[2.5rem] p-10 flex flex-col">
+                  {/* ACTIVE CLIENTS SUMMARY */}
+                  <Card 
+                    className="lg:col-span-4 border-none shadow-none bg-white rounded-[2.5rem] p-10 flex flex-col cursor-pointer hover:shadow-xl hover:shadow-black/5 transition-all group"
+                    onClick={() => setActiveTab('users')}
+                  >
                     <div className="flex items-center justify-between mb-8">
-                      <h3 className="text-base font-black italic uppercase tracking-tight">Active Clients</h3>
-                      <button className="text-[10px] font-black text-primary uppercase hover:underline" onClick={() => setActiveTab('users')}>See All</button>
+                      <h3 className="text-base font-black italic uppercase tracking-tight text-[#1A1D1F]">Active Clients</h3>
+                      <button className="text-[10px] font-black text-primary uppercase hover:underline">See All</button>
                     </div>
                     <div className="flex -space-x-3 overflow-hidden mb-10">
                       {allUsers?.slice(0, 5).map((u, i) => (
@@ -338,7 +328,7 @@ function AdminContent() {
                         </div>
                       ))}
                       {allUsers && allUsers.length > 5 && (
-                        <div className="flex items-center justify-center h-12 w-12 rounded-full bg-[#F4F4F4] text-xs font-black ring-4 ring-white">+{allUsers.length - 5}</div>
+                        <div className="flex items-center justify-center h-12 w-12 rounded-full bg-[#F4F4F4] text-xs font-black ring-4 ring-white text-[#1A1D1F]">+{allUsers.length - 5}</div>
                       )}
                     </div>
                     <div className="flex gap-2">
@@ -346,16 +336,23 @@ function AdminContent() {
                         <p key={i} className="text-[9px] font-bold text-[#9A9FA5] flex-1 text-center truncate">{u.name.split(' ')[0]}</p>
                       ))}
                     </div>
+                    <div className="mt-auto pt-6 border-t border-[#F4F4F4] space-y-2">
+                      <div className="flex justify-between items-center text-[10px] font-black uppercase text-[#9A9FA5]">
+                        <span>Total Accounts</span>
+                        <span className="text-[#1A1D1F]">{allUsers?.length || 0}</span>
+                      </div>
+                      <Progress value={Math.min(100, (allUsers?.length || 0) * 2)} className="h-1 bg-[#F4F4F4]" />
+                    </div>
                   </Card>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                  {/* CASH FLOW -> PERFORMANCE CHART */}
+                  {/* PERFORMANCE CHART */}
                   <Card className="lg:col-span-8 border-none shadow-none bg-white rounded-[2.5rem] p-10 space-y-10">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-base font-black italic uppercase tracking-tight">Revenue Dynamics</h3>
+                      <h3 className="text-base font-black italic uppercase tracking-tight text-[#1A1D1F]">Revenue Dynamics</h3>
                       <div className="flex bg-[#F4F4F4] p-1 rounded-xl">
-                        <button className="px-4 py-1.5 text-[10px] font-black uppercase rounded-lg bg-white shadow-sm">Monthly</button>
+                        <button className="px-4 py-1.5 text-[10px] font-black uppercase rounded-lg bg-white shadow-sm text-[#1A1D1F]">Monthly</button>
                         <button className="px-4 py-1.5 text-[10px] font-black uppercase rounded-lg text-[#9A9FA5]">Yearly</button>
                       </div>
                     </div>
@@ -378,21 +375,24 @@ function AdminContent() {
                     </div>
                   </Card>
 
-                  {/* VIRTUAL CARD -> TOKENOMICS SUMMARY */}
-                  <Card className="lg:col-span-4 border-none shadow-none bg-[#1A1D1F] rounded-[2.5rem] p-10 flex flex-col justify-between text-white relative overflow-hidden group">
+                  {/* TOKENOMICS SUMMARY CARD */}
+                  <Card 
+                    className="lg:col-span-4 border-none shadow-none bg-[#1A1D1F] rounded-[2.5rem] p-10 flex flex-col justify-between text-white relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-all"
+                    onClick={() => setActiveTab('tokenomics')}
+                  >
                     <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform duration-1000"><LogoIcon className="w-40 h-40 text-primary" /></div>
                     <div className="relative z-10 flex justify-between items-start">
                       <div className="space-y-1">
                         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Sovereign Asset</p>
                         <h4 className="text-xl font-black italic uppercase">Alix Token (ALX)</h4>
                       </div>
-                      <Image src="https://assets.coingecko.com/coins/images/6319/large/google.png?1696506698" alt="visa" width={40} height={40} className="invert opacity-20" />
+                      <Image src="https://coin-images.coingecko.com/coins/images/6319/large/google.png?1696506698" alt="v" width={40} height={40} className="invert opacity-20" />
                     </div>
                     <div className="relative z-10 space-y-4">
-                      <p className="text-2xl font-mono tracking-[0.2em]">**** **** **** 2345</p>
+                      <p className="text-2xl font-mono tracking-[0.2em]">ALX V3 PROTOCOL</p>
                       <div className="flex justify-between items-end">
                         <div>
-                          <p className="text-[8px] font-black uppercase text-white/40 mb-1">Circulating Supply</p>
+                          <p className="text-[8px] font-black uppercase text-white/40 mb-1">Vault Inventory</p>
                           <p className="text-sm font-black italic">{(globalLiquidity?.alixVaultBalance || 0).toLocaleString()} ALX</p>
                         </div>
                         <div className="text-right">
@@ -415,7 +415,7 @@ function AdminContent() {
                 {/* RECENT TRANSACTIONS TABLE */}
                 <Card className="border-none shadow-none bg-white rounded-[2.5rem] overflow-hidden">
                   <div className="p-10 border-b border-[#EFF0F2] flex items-center justify-between">
-                    <h3 className="text-lg font-black italic uppercase tracking-tight">Recent Transactions</h3>
+                    <h3 className="text-lg font-black italic uppercase tracking-tight text-[#1A1D1F]">Recent Transactions</h3>
                     <Button variant="ghost" className="rounded-xl text-[#9A9FA5] font-black uppercase text-[10px] h-10 italic">View Ledger <ArrowDownRight className="w-4 h-4 ml-2" /></Button>
                   </div>
                   <div className="overflow-x-auto">
@@ -438,7 +438,7 @@ function AdminContent() {
                               <Badge className="bg-[#F4F4F4] text-[#1A1D1F] border-none text-[8px] font-black px-3 h-5 uppercase">{log.category}</Badge>
                             </td>
                             <td className="px-10 py-6">
-                              <p className="text-sm font-black italic">
+                              <p className="text-sm font-black italic text-[#1A1D1F]">
                                 {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : log.cryptoAmount ? `${log.cryptoAmount} ${log.cryptoCurrency}` : '---'}
                               </p>
                             </td>
@@ -454,13 +454,13 @@ function AdminContent() {
               </div>
             )}
 
-            {/* TAB CONTENT HANDLERS (Users, Tokenomics, etc.) */}
+            {/* TAB USERS */}
             {activeTab === 'users' && (
               <div className="animate-in slide-in-from-right-10 duration-700 space-y-10">
                 <Card className="border-none shadow-none bg-white rounded-[2.5rem] overflow-hidden">
                   <div className="p-10 border-b border-[#EFF0F2] bg-[#F0FDF4]/30 flex items-center justify-between">
                     <div>
-                      <h3 className="text-xl font-black italic uppercase tracking-tight">Verified Client Base</h3>
+                      <h3 className="text-xl font-black italic uppercase tracking-tight text-[#1A1D1F]">Verified Client Base</h3>
                       <p className="text-[10px] font-bold text-[#9A9FA5] uppercase mt-1">Consolidated global account control</p>
                     </div>
                     <Badge className="bg-[#16A34A] text-white font-black px-4 py-1.5 rounded-full shadow-lg shadow-green-500/20">{allUsers?.length || 0} Accounts</Badge>
@@ -486,7 +486,7 @@ function AdminContent() {
                                   </div>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-black italic uppercase leading-none">{u.name}</p>
+                                  <p className="text-sm font-black italic uppercase leading-none text-[#1A1D1F]">{u.name}</p>
                                   <p className="text-[10px] font-bold text-[#9A9FA5] mt-1">{u.email}</p>
                                 </div>
                               </div>
@@ -496,7 +496,7 @@ function AdminContent() {
                               <div className="flex flex-col items-end gap-2">
                                 <p className="text-base font-black italic tracking-tighter text-[#1A1D1F]">Rp {u.totalBalance?.toLocaleString()}</p>
                                 <div className="flex items-center gap-2">
-                                  <Input type="number" placeholder="Amt" className="h-8 w-20 text-[10px] font-black bg-[#F4F4F4] border-none shadow-none rounded-lg" value={adjustAmounts[u.uid] || ""} onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [u.uid]: e.target.value }))} />
+                                  <Input type="number" placeholder="Amt" className="h-8 w-20 text-[10px] font-black bg-[#F4F4F4] border-none shadow-none rounded-lg text-[#1A1D1F]" value={adjustAmounts[u.uid] || ""} onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [u.uid]: e.target.value }))} />
                                   <div className="flex gap-1">
                                     <button onClick={() => handleUpdateUserBalance(u.uid, 'add')} className="w-6 h-6 rounded bg-[#16A34A] text-white flex items-center justify-center hover:bg-[#15803D]"><Plus className="w-3 h-3" /></button>
                                     <button onClick={() => handleUpdateUserBalance(u.uid, 'sub')} className="w-6 h-6 rounded bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600"><Minus className="w-3 h-3" /></button>
@@ -518,6 +518,7 @@ function AdminContent() {
               </div>
             )}
 
+            {/* TAB TOKENOMICS */}
             {activeTab === 'tokenomics' && (
               <div className="animate-in zoom-in-95 duration-700 grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <Card className="border-none shadow-none bg-white rounded-[3rem] p-12 space-y-10">
@@ -526,18 +527,18 @@ function AdminContent() {
                       <Pickaxe className="w-8 h-8" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-black italic uppercase tracking-tight">Sovereign Mint</h3>
+                      <h3 className="text-2xl font-black italic uppercase tracking-tight text-[#1A1D1F]">Sovereign Mint</h3>
                       <p className="text-[10px] font-bold text-[#9A9FA5] uppercase tracking-widest mt-1">Authorized Supply Expansion</p>
                     </div>
                   </div>
                   <div className="space-y-6">
                     <div className="bg-[#F4F4F4] p-8 rounded-[2rem] space-y-2">
-                      <p className="text-[9px] font-black uppercase text-[#9A9FA5] tracking-widest">Global Anchor Reserve</p>
-                      <p className="text-3xl font-black italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
+                      <p className="text-[9px] font-black uppercase text-[#9A9FA5] tracking-widest">Global Anchor Reserve (USD)</p>
+                      <p className="text-3xl font-black italic text-[#1A1D1F]">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
                     </div>
                     <div className="space-y-3">
                       <label className="text-[10px] font-black uppercase text-[#9A9FA5] ml-2">Amount to Authorize (ALX)</label>
-                      <Input type="number" placeholder="0.00" value={alixMintAmount} onChange={(e) => setAlixMintAmount(e.target.value)} className="h-16 rounded-2xl bg-[#F4F4F4] border-none text-xl font-black italic px-8 shadow-none" />
+                      <Input type="number" placeholder="0.00" value={alixMintAmount} onChange={(e) => setAlixMintAmount(e.target.value)} className="h-16 rounded-2xl bg-[#F4F4F4] border-none text-xl font-black italic px-8 shadow-none text-[#1A1D1F]" />
                     </div>
                     <Button onClick={handleMintAlix} disabled={isMinting || !alixMintAmount} className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic tracking-widest shadow-xl">
                       {isMinting ? <Loader2 className="animate-spin" /> : "Authorize Mint"}
@@ -570,7 +571,7 @@ function AdminContent() {
               </div>
             )}
 
-            {/* Other tabs remain logic-functional but visual layout follows the cards above */}
+            {/* TAB VAULT */}
             {activeTab === 'vault' && (
               <div className="animate-in zoom-in-95 duration-700 space-y-10">
                 <Card className="border-none shadow-none bg-white rounded-[3rem] p-12 space-y-10">
@@ -580,7 +581,7 @@ function AdminContent() {
                         <Database className="w-8 h-8" />
                       </div>
                       <div>
-                        <h3 className="text-2xl font-black italic uppercase tracking-tight">Mainnet Vault Reserve</h3>
+                        <h3 className="text-2xl font-black italic uppercase tracking-tight text-[#1A1D1F]">Mainnet Vault Reserve</h3>
                         <p className="text-[10px] font-bold text-[#9A9FA5] uppercase mt-1">Multi-Asset Custody System</p>
                       </div>
                     </div>
@@ -592,15 +593,15 @@ function AdminContent() {
                       <p className="text-[10px] font-black uppercase text-[#9A9FA5] tracking-widest">On-Chain Ethereum Balance</p>
                       <p className="text-5xl font-black italic tracking-tighter text-blue-600">{parseFloat(onChainEth).toFixed(4)} <span className="text-2xl text-[#9A9FA5]/40 italic">ETH</span></p>
                     </div>
-                    <Button className="h-14 px-10 rounded-2xl gold-gradient text-white font-black uppercase italic tracking-widest shadow-lg">Refresh Chain</Button>
+                    <Button onClick={syncOnChainData} className="h-14 px-10 rounded-2xl gold-gradient text-white font-black uppercase italic tracking-widest shadow-lg">Refresh Chain</Button>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
                     <div className="p-8 rounded-[2.5rem] border border-[#EFF0F2] space-y-4">
                       <p className="text-[10px] font-black uppercase text-[#9A9FA5] tracking-[0.2em]">External Disbursement</p>
                       <div className="space-y-4">
-                        <Input type="number" placeholder="0.00 ETH" value={disburseAmount} onChange={(e) => setDisburseAmount(e.target.value)} className="h-14 bg-[#F4F4F4] border-none font-black italic rounded-xl px-6 shadow-none" />
-                        <Button onClick={() => {}} disabled={isDisbursing} className="w-full h-12 bg-[#1A1D1F] hover:bg-black text-white rounded-xl font-black uppercase italic text-[10px] tracking-widest shadow-xl">Execute Withdrawal</Button>
+                        <Input type="number" placeholder="0.00 ETH" value={disburseAmount} onChange={(e) => setDisburseAmount(e.target.value)} className="h-14 bg-[#F4F4F4] border-none font-black italic rounded-xl px-6 shadow-none text-[#1A1D1F]" />
+                        <Button className="w-full h-12 bg-[#1A1D1F] hover:bg-black text-white rounded-xl font-black uppercase italic text-[10px] tracking-widest shadow-xl">Execute Withdrawal</Button>
                       </div>
                     </div>
                     <div className="p-8 rounded-[2.5rem] border border-[#EFF0F2] space-y-4 flex flex-col justify-center bg-blue-50/20">
@@ -649,7 +650,7 @@ function QuickActionCard({ icon: Icon, label, sub, onClick }: any) {
         <Icon className="w-6 h-6" />
       </div>
       <div className="text-center">
-        <p className="text-xs font-black italic uppercase leading-none mb-1">{label}</p>
+        <p className="text-xs font-black italic uppercase leading-none mb-1 text-[#1A1D1F]">{label}</p>
         <p className="text-[8px] font-bold text-[#9A9FA5] uppercase tracking-widest">{sub}</p>
       </div>
     </Card>
