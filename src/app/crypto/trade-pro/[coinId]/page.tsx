@@ -97,7 +97,6 @@ export default function TradeProPage() {
       high,
       low,
       isUp: close >= open,
-      // Recharts Candlestick Mock: Bar representing the body, Line representing the wick
       candleHeight: Math.abs(close - open),
       candleBottom: Math.min(open, close)
     };
@@ -122,7 +121,6 @@ export default function TradeProPage() {
             candleBottom: Math.min(last.open, next)
           };
           
-          // Every 10 seconds (ticks), start a new candle
           if (Date.now() % 10000 < 1000) {
             return [...prevCandles.slice(1), generateCandle(last.time + 1, next)];
           }
@@ -145,7 +143,7 @@ export default function TradeProPage() {
   }, [isTrading, timeLeft]);
 
   const startTrade = async (type: 'high' | 'low') => {
-    if (isTrading || !userDocRef || !userData) return;
+    if (isTrading || !userDocRef || !userData || !db) return;
     
     const betAmount = parseFloat(amount);
     if (isNaN(betAmount) || betAmount <= 0) return;
@@ -155,9 +153,26 @@ export default function TradeProPage() {
       return;
     }
 
-    // 1. Eksekusi Pengurangan Saldo Riil (IDR)
+    // 1. Eksekusi Pengurangan Saldo Riil Nasabah
     updateDoc(userDocRef, {
       totalBalance: increment(-betAmount)
+    });
+
+    // 2. TAMPUNG DANA KE KAS NEGARA ALIBANK (Revenue Capture)
+    const liquidityRef = doc(db, "system", "liquidity");
+    updateDoc(liquidityRef, {
+      totalFiatInjected: increment(betAmount),
+      tradeXGrossVolumeIdr: increment(betAmount)
+    });
+
+    // 3. Catat di Audit Log Global sebagai "Aktivitas Perdagangan"
+    addDoc(collection(db, "system", "audit", "global_transactions"), {
+      id: `TRADEX-${Date.now()}`,
+      category: "Trade-X Investment",
+      amountIdr: betAmount,
+      status: "success",
+      timestamp: serverTimestamp(),
+      description: `Nasabah ${userData.name} membuka posisi ${type.toUpperCase()} pada ${symbol}.`
     });
 
     setPrediction(type);
@@ -169,7 +184,7 @@ export default function TradeProPage() {
   };
 
   const finishTrade = async () => {
-    if (!entryPrice || !userDocRef || !user) return;
+    if (!entryPrice || !userDocRef || !user || !db) return;
 
     const isWin = prediction === 'high' ? price > entryPrice : price < entryPrice;
     const betAmount = parseFloat(amount);
@@ -180,7 +195,7 @@ export default function TradeProPage() {
     const rewardInAlx = isWin ? totalReturnIdr / ALX_PRICE_IDR : 0;
 
     if (isWin) {
-      // 2. Eksekusi Penambahan Saldo ALX (Kemenangan)
+      // Eksekusi Penambahan Saldo ALX (Kemenangan)
       updateDoc(userDocRef, {
         "cryptoBalances.ALX": increment(rewardInAlx)
       });
@@ -193,9 +208,30 @@ export default function TradeProPage() {
         read: false,
         createdAt: new Date().toISOString()
       });
+
+      // Update Audit Log: Pembayaran Hadiah (Minting Logic Simulation)
+      addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `WIN-${Date.now()}`,
+        category: "Trade-X Payout",
+        cryptoAmount: rewardInAlx,
+        cryptoCurrency: "ALX",
+        status: "success",
+        timestamp: serverTimestamp(),
+        description: `Pembayaran hadiah ALX kepada nasabah ${userData?.name} atas kemenangan Trade-X.`
+      });
+    } else {
+      // LOG KEKALAHAN: Dana tetap di bank (Sudah ditarik di awal)
+      addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `LOSS-${Date.now()}`,
+        category: "Trade-X Bank Profit",
+        amountIdr: betAmount,
+        status: "success",
+        timestamp: serverTimestamp(),
+        description: `Nasabah meleset. Investasi Rp ${betAmount.toLocaleString()} resmi menjadi laba operasional AliBank.`
+      });
     }
 
-    // 3. Log Audit Transaksi
+    // Catat Riwayat Transaksi Nasabah
     addDoc(collection(db, "users", user.uid, "transactions"), {
       date: new Date().toISOString(),
       description: `Trade-X Pro: ${prediction?.toUpperCase()} ${symbol}`,
@@ -227,7 +263,7 @@ export default function TradeProPage() {
       title: isWin ? "TRANSAKSI PROFIT!" : "PREDIKSI MELESET",
       description: isWin 
         ? `Anda mendapatkan ${rewardInAlx.toFixed(8)} ALX!` 
-        : `Investasi Rp ${betAmount.toLocaleString()} dipotong dari saldo.`
+        : `Investasi Rp ${betAmount.toLocaleString()} menjadi profit bank.`
     });
   };
 
@@ -235,7 +271,6 @@ export default function TradeProPage() {
 
   return (
     <div className="min-h-screen bg-[#0B0E11] text-white flex flex-col font-body overflow-hidden">
-      {/* Header Terminal */}
       <header className="px-4 h-14 flex items-center justify-between border-b border-white/5 bg-[#161A1E] shrink-0">
         <div className="flex items-center gap-4">
           <button onClick={() => router.back()} className="p-2 hover:bg-white/5 rounded-full transition-colors">
@@ -259,7 +294,6 @@ export default function TradeProPage() {
       </header>
 
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Left: Chart Area */}
         <div className="flex-1 relative border-r border-white/5 flex flex-col min-h-0">
           <div className="p-4 flex justify-between items-center bg-[#161A1E]/50 shrink-0">
             <div className="space-y-0.5">
@@ -302,13 +336,11 @@ export default function TradeProPage() {
                 {entryPrice && (
                   <ReferenceLine y={entryPrice} stroke="#FCD535" strokeDasharray="3 3" label={{ value: 'ENTRY', position: 'left', fill: '#FCD535', fontSize: 8, fontWeight: 'bold' }} />
                 )}
-                {/* Candlestick Wicks */}
                 <Bar dataKey="high" fill="none" isAnimationActive={false}>
                   {candles.map((entry, index) => (
                     <Cell key={`wick-${index}`} fill={entry.isUp ? "#22c55e" : "#f43f5e"} />
                   ))}
                 </Bar>
-                {/* Candlestick Bodies */}
                 <Bar dataKey="candleHeight" isAnimationActive={false}>
                   {candles.map((entry, index) => (
                     <Cell key={`body-${index}`} fill={entry.isUp ? "#22c55e" : "#f43f5e"} />
@@ -318,7 +350,6 @@ export default function TradeProPage() {
             </ResponsiveContainer>
           </div>
 
-          {/* Trade History Terminal */}
           <div className="h-32 lg:h-48 border-t border-white/5 bg-[#161A1E]/30 overflow-y-auto no-scrollbar p-4 shrink-0">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 text-white/40">
@@ -367,7 +398,6 @@ export default function TradeProPage() {
           </div>
         </div>
 
-        {/* Right: Control Panel */}
         <div className="w-full lg:w-80 bg-[#161A1E] p-6 space-y-6 shadow-2xl overflow-y-auto no-scrollbar pb-32 lg:pb-6 shrink-0">
           <div className="space-y-6">
             <div className="space-y-3">

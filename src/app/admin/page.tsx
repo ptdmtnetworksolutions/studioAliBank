@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -238,7 +239,6 @@ function AdminContent() {
         totalBalance: increment(type === 'add' ? amount : -amount)
       });
       
-      // Log ke Audit System
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `ADJ-${Date.now()}`,
         category: "Manual Adjustment",
@@ -271,7 +271,6 @@ function AdminContent() {
         savings: increment(type === 'add' ? amount : -amount)
       });
       
-      // Log ke Audit System
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `DEP-ADJ-${Date.now()}`,
         category: "Savings Adjustment",
@@ -306,7 +305,6 @@ function AdminContent() {
       });
       await batch.commit();
       
-      // Log ke Audit System
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `RESET-ALL-${Date.now()}`,
         category: "Global Balance Reset",
@@ -339,7 +337,6 @@ function AdminContent() {
       const tx = await vaultContract.withdraw(amountWei);
       await tx.wait();
 
-      // Log ke Audit System
       if (db) {
         await addDoc(collection(db, "system", "audit", "global_transactions"), {
           id: `WITHDRAW-${Date.now()}`,
@@ -439,7 +436,6 @@ function AdminContent() {
     setIsAddingProduct(true);
     try {
       if (editingId) {
-        // Mode Update
         await updateDoc(doc(db, "marketplace", editingId), {
           ...newProduct,
           priceIdr: parseFloat(newProduct.priceIdr),
@@ -448,7 +444,6 @@ function AdminContent() {
         });
         toast({ title: "Product Updated", description: `${newProduct.name} has been updated successfully.` });
       } else {
-        // Mode Create
         const id = `item-${Date.now()}`;
         await setDoc(doc(db, "marketplace", id), {
           ...newProduct,
@@ -621,10 +616,10 @@ function AdminContent() {
                   <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="flex items-center justify-between">
                     <ShoppingBag className="w-8 h-8 text-green-600" />
-                    <Badge className="bg-green-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">Revenue</Badge>
+                    <Badge className="bg-green-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">Bank Profit</Badge>
                   </div>
                   <div>
-                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Market Volume (IDR)</p>
+                    <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Gross Cash Reserve (IDR)</p>
                     <p className="text-4xl font-black text-green-600 italic tracking-tighter">Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString()}</p>
                   </div>
                 </Card>
@@ -635,21 +630,21 @@ function AdminContent() {
                   <div className="flex items-center gap-6">
                     <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner"><Activity className="w-8 h-8" /></div>
                     <div>
-                      <h3 className="text-2xl font-black text-foreground uppercase italic">System Heartbeat</h3>
-                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Real-time infrastructure diagnostic.</p>
+                      <h3 className="text-2xl font-black text-foreground uppercase italic">Trade-X Performance</h3>
+                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Revenue captured from high-speed prediction terminal.</p>
                     </div>
                   </div>
                   <div className="space-y-6">
-                    <div className="p-6 rounded-3xl bg-accent/5 border border-primary/10 flex justify-between items-center group hover:bg-primary/5 transition-all">
-                      <span className="text-[11px] font-black uppercase text-muted-foreground">Database Sync Status</span>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-sm font-black text-green-600 uppercase italic">Operational 100%</span>
+                    <div className="p-8 rounded-3xl bg-accent/5 border border-primary/10 flex justify-between items-center group hover:bg-primary/5 transition-all">
+                      <div>
+                        <span className="text-[11px] font-black uppercase text-muted-foreground">Total Trade-X Volume (IDR)</span>
+                        <p className="text-2xl font-black text-foreground italic mt-1">Rp {(globalLiquidity?.tradeXGrossVolumeIdr || 0).toLocaleString()}</p>
                       </div>
+                      <Gamepad2 className="w-10 h-10 text-primary opacity-20" />
                     </div>
-                    <div className="p-6 rounded-3xl bg-accent/5 border border-primary/10 flex justify-between items-center group hover:bg-primary/5 transition-all">
-                      <span className="text-[11px] font-black uppercase text-muted-foreground">Mainnet Node Cluster</span>
-                      <span className="text-sm font-black text-blue-600 uppercase italic">Active (V3 Protocol)</span>
+                    <div className="p-6 rounded-3xl bg-green-500/5 border border-green-500/10 flex justify-between items-center">
+                      <span className="text-[11px] font-black uppercase text-green-600">Net Cash Capture</span>
+                      <span className="text-sm font-black text-green-600 uppercase italic">100% Retained in Vault</span>
                     </div>
                   </div>
                 </Card>
@@ -661,10 +656,10 @@ function AdminContent() {
                     <h3 className="text-2xl font-black text-white uppercase italic">Sovereign Asset Sentinel</h3>
                   </div>
                   <p className="text-sm font-medium italic text-white/70 leading-relaxed uppercase relative z-10">
-                    Seluruh pencetakan koin ALX didukung oleh agunan likuiditas Mainnet (USDT). Mekanisme "Smart Burn" otomatis aktif berdasarkan volume marketplace AliBank V3.
+                    Setiap Rupiah dari kekalahan Trade-X nasabah secara riil menambah modal bank (IDR), sementara hadiah kemenangan dibayarkan via aset ALX yang Anda kontrol.
                   </p>
                   <Button onClick={() => router.push('/admin/about-alix')} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black uppercase italic text-xs tracking-widest relative z-10 shadow-2xl flex items-center justify-between px-8">
-                    View Vault Protocol <ChevronRight className="w-5 h-5" />
+                    View Strategic Protocols <ChevronRight className="w-5 h-5" />
                   </Button>
                 </Card>
               </div>
@@ -702,7 +697,7 @@ function AdminContent() {
                     </div>
                     <div className="p-6 rounded-3xl bg-blue-50 border border-blue-100">
                       <p className="text-[9px] font-black text-blue-600 uppercase leading-relaxed italic">
-                        STRATEGI: Tingkatkan utilitas koin ALX pada marketplace untuk mempercepat sirkulasi dan mencapai target volume Mainnet.
+                        STRATEGI: Tingkatkan utilitas koin ALX pada marketplace dan Trade-X Pro untuk mempercepat sirkulasi.
                       </p>
                     </div>
                   </div>
@@ -847,7 +842,6 @@ function AdminContent() {
 
             <TabsContent value="alix" className="space-y-10 animate-in slide-in-from-bottom-8 duration-500">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                {/* Sovereign Minting Hub */}
                 <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-10 shadow-2xl border-t-[6px] border-orange-500/30">
                   <div className="flex items-center gap-6">
                     <div className="w-20 h-20 rounded-[2rem] bg-orange-500/10 flex items-center justify-center text-orange-600 shadow-inner"><Pickaxe className="w-10 h-10" /></div>
@@ -880,7 +874,6 @@ function AdminContent() {
                   </div>
                 </Card>
 
-                {/* Auto-Burn Protocol */}
                 <Card className="liquid-glass border-none rounded-[3.5rem] p-12 space-y-10 shadow-2xl border-t-[6px] border-destructive/30">
                   <div className="flex items-center gap-6">
                     <div className="w-20 h-20 rounded-[2rem] bg-destructive/10 flex items-center justify-center text-destructive shadow-inner"><Flame className="w-10 h-10" /></div>
@@ -930,7 +923,6 @@ function AdminContent() {
                     <Badge className="bg-green-600 text-white font-black text-sm px-6 py-2 rounded-2xl shadow-xl animate-pulse">NODE ACTIVE</Badge>
                   </div>
 
-                  {/* VAULT ADDRESS DISPLAY */}
                   <div className="p-8 rounded-[2.5rem] bg-primary/5 border border-primary/10 flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
@@ -978,7 +970,6 @@ function AdminContent() {
                   </div>
                 </Card>
 
-                {/* DISBURSEMENT TERMINAL */}
                 <Card className="lg:col-span-4 liquid-glass-dark border-none rounded-[3.5rem] p-10 space-y-8 shadow-2xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-6 opacity-10"><ArrowDownLeft className="w-32 h-32 text-primary" /></div>
                   <div className="relative z-10 space-y-8">
@@ -1024,7 +1015,6 @@ function AdminContent() {
             </TabsContent>
 
             <TabsContent value="users" className="space-y-8 animate-in fade-in duration-500">
-              {/* MONITORING LIQUIDITY SUMMARY */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <Card className="liquid-glass border-none rounded-[3rem] p-10 bg-primary/5 shadow-2xl flex items-center gap-8 group">
                   <div className="w-20 h-20 rounded-[2rem] bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
@@ -1221,7 +1211,7 @@ function AdminContent() {
                         <tr key={log.id} className="hover:bg-primary/5 transition-colors">
                           <td className="px-12 py-8 font-mono text-[10px] text-muted-foreground">{log.id}</td>
                           <td className="px-12 py-8">
-                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") || log.category?.includes("Vault") || log.category?.includes("Manual") || log.category?.includes("Global") || log.category?.includes("Savings") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
+                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") || log.category?.includes("Vault") || log.category?.includes("Manual") || log.category?.includes("Global") || log.category?.includes("Savings") || log.category?.includes("Trade-X") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
                               {log.category}
                             </Badge>
                           </td>
