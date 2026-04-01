@@ -61,7 +61,8 @@ import {
   ArrowDownLeft,
   Copy,
   Link as LinkIcon,
-  Eraser
+  Eraser,
+  RotateCcw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -240,6 +241,38 @@ function AdminContent() {
       setAdjustAmounts(prev => ({ ...prev, [uid]: "" }));
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal Update", description: err.message });
+    }
+  };
+
+  const handleResetAllBalances = async () => {
+    if (!db || !allUsers || allUsers.length === 0) {
+      toast({ title: "Tidak Ada User", description: "Belum ada nasabah terdaftar." });
+      return;
+    }
+    
+    const confirmReset = window.confirm("PERINGATAN KRUSIAL: Anda akan mereset saldo SELURUH nasabah menjadi Rp 0. Tindakan ini tidak dapat dibatalkan. Lanjutkan?");
+    if (!confirmReset) return;
+
+    try {
+      const batch = writeBatch(db);
+      allUsers.forEach((u) => {
+        const userRef = doc(db, "users", u.id);
+        batch.update(userRef, { totalBalance: 0 });
+      });
+      await batch.commit();
+      
+      // Log ke Audit System
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `RESET-ALL-${Date.now()}`,
+        category: "Global Balance Reset",
+        status: "success",
+        timestamp: serverTimestamp(),
+        description: "Admin executed a global reset of all user liquidity balances to zero."
+      });
+
+      toast({ title: "Reset Berhasil", description: "Seluruh saldo nasabah telah dikosongkan ke Rp 0." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Reset", description: err.message });
     }
   };
 
@@ -951,7 +984,16 @@ function AdminContent() {
                   <h3 className="text-3xl font-black italic uppercase text-foreground flex items-center gap-6">
                     <UserCheck className="w-10 h-10 text-primary" /> Verified Client Registry
                   </h3>
-                  <Badge className="bg-primary text-white font-black px-6 py-2 rounded-full shadow-lg">{allUsers?.length || 0} Accounts Enrolled</Badge>
+                  <div className="flex items-center gap-4">
+                    <Button 
+                      onClick={handleResetAllBalances}
+                      variant="ghost" 
+                      className="h-12 px-6 rounded-xl border border-destructive/20 text-destructive hover:bg-destructive/10 font-black uppercase text-[10px] italic gap-2"
+                    >
+                      <RotateCcw className="w-4 h-4" /> Reset All Balances
+                    </Button>
+                    <Badge className="bg-primary text-white font-black px-6 py-2 rounded-full shadow-lg">{allUsers?.length || 0} Accounts Enrolled</Badge>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
@@ -1069,7 +1111,7 @@ function AdminContent() {
                         <tr key={log.id} className="hover:bg-primary/5 transition-colors">
                           <td className="px-12 py-8 font-mono text-[10px] text-muted-foreground">{log.id}</td>
                           <td className="px-12 py-8">
-                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") || log.category?.includes("Vault") || log.category?.includes("Manual") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
+                            <Badge className={cn("border-none font-black text-[8px] uppercase px-4 py-1.5 rounded-md", log.category?.includes("ALX") || log.category?.includes("Vault") || log.category?.includes("Manual") || log.category?.includes("Global") ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600")}>
                               {log.category}
                             </Badge>
                           </td>
