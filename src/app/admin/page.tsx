@@ -68,7 +68,9 @@ import {
   Save,
   AlertCircle,
   Gamepad2,
-  Trophy
+  Trophy,
+  RotateCw,
+  Smartphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -133,6 +135,7 @@ const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
 const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const ETHERSCAN_API_KEY = "M1S7MDTBQSG1A3URQKYNVF31PSPE48UA8R";
+const ALX_PRICE_IDR = 194004;
 
 // Simulasi Data Candle untuk Revenue Dynamics
 const generateMockCandles = () => {
