@@ -72,6 +72,9 @@ import {
   query,
   orderBy,
   limit,
+  deleteDoc,
+  getDocs,
+  writeBatch
 } from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { JsonRpcProvider, formatEther } from "ethers";
@@ -123,13 +126,14 @@ function AdminContent() {
   const [disburseAmount, setDisburseAmount] = useState("");
   const [alixMintAmount, setAlixMintAmount] = useState("");
   const [isMinting, setIsMinting] = useState(false);
+  const [isPurging, setIsPurging] = useState(false);
 
   // Data Listeners
   const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
   const { data: globalLiquidity } = useDoc(liquidityDocRef);
   const usersQuery = useMemo(() => (db ? query(collection(db, "users"), limit(100)) : null), [db]);
   const { data: allUsers } = useCollection(usersQuery);
-  const auditQuery = useMemo(() => (db ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(50)) : null), [db]);
+  const auditQuery = useMemo(() => (db ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(100)) : null), [db]);
   const { data: auditLogs } = useCollection(auditQuery);
   const marketplaceQuery = useMemo(() => (db ? query(collection(db, "marketplace"), limit(50)) : null), [db]);
   const { data: inventoryItems } = useCollection(marketplaceQuery);
@@ -174,6 +178,39 @@ function AdminContent() {
       toast({ title: "Minted" });
       setAlixMintAmount("");
     } catch (e) {} finally { setIsMinting(false); }
+  };
+
+  const handleDeleteAuditLog = async (logId: string) => {
+    if (!db) return;
+    try {
+      await deleteDoc(doc(db, "system", "audit", "global_transactions", logId));
+      toast({ title: "Log Dihapus", description: "Satu entri audit telah dibersihkan." });
+    } catch (err) {
+      toast({ variant: "destructive", title: "Gagal Menghapus" });
+    }
+  };
+
+  const handlePurgeAuditLogs = async () => {
+    if (!db || isPurging) return;
+    if (!confirm("Peringatan: Seluruh riwayat transaksi sistem akan dihapus secara permanen. Lanjutkan?")) return;
+
+    setIsPurging(true);
+    try {
+      const q = query(collection(db, "system", "audit", "global_transactions"));
+      const snapshot = await getDocs(q);
+      const batch = writeBatch(db);
+      
+      snapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+      toast({ title: "Audit Ledger Dibersihkan", description: "Semua log transaksi uji coba telah dihapus." });
+    } catch (err) {
+      toast({ variant: "destructive", title: "Gagal Membersihkan Audit" });
+    } finally {
+      setIsPurging(false);
+    }
   };
 
   if (userLoading || !isAuthorized) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
@@ -428,7 +465,7 @@ function AdminContent() {
                   <QuickActionCard icon={PlusCircle} label="Mint ALX" sub="Expand supply" onClick={() => setActiveTab('tokenomics')} />
                   <QuickActionCard icon={Pickaxe} label="Burn ALX" sub="Scarcity control" onClick={() => setActiveTab('tokenomics')} />
                   <QuickActionCard icon={Database} label="Sync Vault" sub="Mainnet data" onClick={syncOnChainData} />
-                  <QuickActionCard icon={Eraser} label="Purge Audit" sub="Clean ledger" onClick={() => setActiveTab('audit')} />
+                  <QuickActionCard icon={Eraser} label="Purge Audit" sub="Clean ledger" onClick={handlePurgeAuditLogs} />
                 </section>
 
                 {/* RECENT TRANSACTIONS TABLE */}
@@ -690,11 +727,11 @@ function AdminContent() {
                       <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Irreversible Transaction History</p>
                     </div>
                     <div className="flex gap-3">
-                      <Button variant="outline" className="rounded-xl border-border font-black uppercase text-[10px] h-10 px-6 italic text-foreground transition-colors">
-                        <ExternalLink className="w-4 h-4 mr-2" /> Export CSV
+                      <Button onClick={handlePurgeAuditLogs} disabled={isPurging} variant="outline" className="rounded-xl border-rose-200 text-rose-600 font-black uppercase text-[10px] h-10 px-6 italic hover:bg-rose-50 transition-colors">
+                        {isPurging ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Eraser className="w-4 h-4 mr-2" />} Purge All Logs
                       </Button>
                       <Button onClick={() => syncOnChainData()} className="rounded-xl gold-gradient text-white font-black uppercase text-[10px] h-10 px-6 italic border-none shadow-lg">
-                        <RefreshCw className={cn("w-4 h-4 mr-2", syncingVault && "animate-spin")} /> Refresh Logs
+                        <RefreshCw className={cn("w-4 h-4 mr-2", syncingVault && "animate-spin")} /> Refresh Ledger
                       </Button>
                     </div>
                   </div>
@@ -706,12 +743,12 @@ function AdminContent() {
                           <th className="px-10 py-8">Operation Type</th>
                           <th className="px-10 py-8">Entity</th>
                           <th className="px-10 py-8 text-right">Settlement Value</th>
-                          <th className="px-10 py-8 text-right">Status</th>
+                          <th className="px-10 py-8 text-center">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
                         {auditLogs?.map((log) => (
-                          <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+                          <tr key={log.id} className="hover:bg-muted/30 transition-colors group">
                             <td className="px-10 py-6">
                               <div className="flex items-center gap-2">
                                 <Clock className="w-3.5 h-3.5 text-muted-foreground" />
@@ -732,8 +769,10 @@ function AdminContent() {
                                 {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : log.cryptoAmount ? `${log.cryptoAmount} ${log.cryptoCurrency}` : '---'}
                               </p>
                             </td>
-                            <td className="px-10 py-6 text-right">
-                              <Badge className="bg-green-500/10 text-green-600 border-none text-[8px] font-black px-3 h-5 uppercase italic">Verified</Badge>
+                            <td className="px-10 py-6 text-center">
+                              <button onClick={() => handleDeleteAuditLog(log.id)} className="p-2 text-muted-foreground hover:text-rose-500 transition-colors">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </td>
                           </tr>
                         ))}
