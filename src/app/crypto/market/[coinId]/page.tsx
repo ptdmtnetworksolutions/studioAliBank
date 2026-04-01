@@ -514,7 +514,10 @@ export default function MarketDetailPage() {
               </div>
             </section>
 
-            <Button className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase text-xs tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-transform">
+            <Button 
+              onClick={() => router.push(`/crypto/trade-pro/${coinId}`)}
+              className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase text-xs tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-transform"
+            >
               Buka Terminal Trade-X Pro <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
