@@ -181,15 +181,40 @@ function AdminContent() {
       const balance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
       setOnChainEth(formatEther(balance));
 
-      const mockHistory = [
-        { hash: "0x7a...bc1", from: "0xBinance", to: ALX_CONTRACT, value: "0.05", type: "IN", time: "2 min ago" },
-        { hash: "0x2d...ff4", from: ALX_CONTRACT, to: "0xInternal", value: "0.01", type: "OUT", time: "1 hour ago" },
-        { hash: "0x9e...aa2", from: "0xMetaMask", to: ALX_CONTRACT, value: "0.12", type: "IN", time: "5 hours ago" },
-      ];
-      setOnChainHistory(mockHistory);
+      // FETCH REAL TRANSACTION DATA FROM ETHERSCAN
+      try {
+        const response = await fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=10&sort=desc`);
+        const data = await response.json();
+        
+        if (data.status === "1" && data.result) {
+          const realHistory = data.result.map((tx: any) => {
+            const isOut = tx.from.toLowerCase() === ALX_CONTRACT.toLowerCase();
+            const timeAgo = (ts: string) => {
+              const seconds = Math.floor((Date.now() - parseInt(ts) * 1000) / 1000);
+              if (seconds < 60) return `${seconds}s ago`;
+              if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+              if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+              return `${Math.floor(seconds / 86400)} days ago`;
+            };
+
+            return {
+              hash: tx.hash.slice(0, 10) + "...",
+              fullHash: tx.hash,
+              from: tx.from,
+              to: tx.to,
+              value: parseFloat(formatEther(tx.value)).toFixed(4),
+              type: isOut ? "OUT" : "IN",
+              time: timeAgo(tx.timeStamp)
+            };
+          });
+          setOnChainHistory(realHistory);
+        }
+      } catch (apiErr) {
+        console.warn("Etherscan API fetch failed", apiErr);
+      }
       
       if (manual) {
-        toast({ title: "Vault Synced", description: "Ethereum Mainnet node data has been updated." });
+        toast({ title: "Vault Synced", description: "Ethereum Mainnet node data has been updated with real Etherscan records." });
       }
     } catch (err) {
       console.error("Sync error:", err);
@@ -1024,10 +1049,15 @@ function AdminContent() {
                           {onChainHistory.map((tx, i) => (
                             <tr key={i} className="hover:bg-muted/30 transition-colors group">
                               <td className="px-10 py-5">
-                                <div className="flex items-center gap-2">
-                                  <p className="font-mono text-[10px] font-bold text-blue-600 transition-colors cursor-pointer hover:underline">{tx.hash}</p>
-                                  <ExternalLink className="w-3 h-3 text-muted-foreground/40" />
-                                </div>
+                                <a 
+                                  href={`https://etherscan.io/tx/${tx.fullHash || tx.hash}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 group/link"
+                                >
+                                  <p className="font-mono text-[10px] font-bold text-blue-600 transition-colors hover:underline">{tx.hash}</p>
+                                  <ExternalLink className="w-3 h-3 text-muted-foreground/40 group-hover/link:text-blue-600" />
+                                </a>
                               </td>
                               <td className="px-10 py-5">
                                 <Badge className={cn(
@@ -1045,11 +1075,19 @@ function AdminContent() {
                               </td>
                             </tr>
                           ))}
+                          {onChainHistory.length === 0 && !syncingVault && (
+                            <tr>
+                              <td colSpan={4} className="py-10 text-center opacity-30 italic text-[10px] font-bold uppercase">No Mainnet Transactions Found</td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
                     <div className="p-6 bg-muted/20 text-center border-t border-border transition-colors">
-                      <button className="text-[10px] font-black uppercase text-blue-600 hover:underline flex items-center justify-center gap-2 mx-auto">
+                      <button 
+                        onClick={() => window.open(`https://etherscan.io/address/${ALX_CONTRACT}`, '_blank')}
+                        className="text-[10px] font-black uppercase text-blue-600 hover:underline flex items-center justify-center gap-2 mx-auto"
+                      >
                         VIEW ALL ON ETHERSCAN <ArrowUpRight className="w-3 h-3" />
                       </button>
                     </div>
