@@ -27,12 +27,20 @@ import {
   LayoutGrid,
   HelpCircle,
   ShoppingBag,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Bitcoin,
+  Cpu
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { 
   XAxis, 
@@ -51,7 +59,17 @@ import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 
-const ALX_PRICE_IDR = 194004;
+const ALX_PRICE_USD = 12.24;
+const USDT_IDR_RATE = 15850;
+const ALX_PRICE_IDR = ALX_PRICE_USD * USDT_IDR_RATE; // Rp 194,004
+
+const ASSET_PRICES: Record<string, number> = {
+  IDR: 1,
+  ALX: ALX_PRICE_IDR,
+  USDT: 15850,
+  ETH: 1987.12 * 15850,
+  BTC: 66262.29 * 15850
+};
 
 export default function TradeProPage() {
   const { coinId } = useParams();
@@ -66,7 +84,8 @@ export default function TradeProPage() {
   const [mounted, setMounted] = useState(false);
   const [price, setPrice] = useState(isAlix ? 12.24 : 66450.00);
   const [candles, setCandles] = useState<any[]>([]);
-  const [zoomLevel, setZoomLevel] = useState(40); // Default number of visible candles
+  const [zoomLevel, setZoomLevel] = useState(40);
+  const [stakeCurrency, setStakeCurrency] = useState<'IDR' | 'ALX' | 'USDT' | 'ETH' | 'BTC'>('IDR');
   const [amount, setAmount] = useState(100000);
   const [duration, setDuration] = useState(60);
   const [isTrading, setIsTrading] = useState(false);
@@ -77,14 +96,12 @@ export default function TradeProPage() {
   const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  // Derive visible candles based on zoom level
   const visibleCandles = useMemo(() => {
     return candles.slice(-zoomLevel);
   }, [candles, zoomLevel]);
 
   useEffect(() => {
     setMounted(true);
-    // Initialize with a larger pool of data to support zoom out
     const initial = Array.from({ length: 150 }, (_, i) => generateCandle(i, price, 150));
     setCandles(initial);
   }, []);
@@ -92,22 +109,11 @@ export default function TradeProPage() {
   function generateCandle(index: number, basePrice: number, total: number) {
     const time = new Date(Date.now() - (total - index) * 5000);
     const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
     const open = basePrice + (Math.random() * 0.4 - 0.2);
     const close = open + (Math.random() * 0.6 - 0.3);
     const high = Math.max(open, close) + Math.random() * 0.15;
     const low = Math.min(open, close) - Math.random() * 0.15;
-    
-    return {
-      time: timeStr,
-      open,
-      close,
-      high,
-      low,
-      isUp: close >= open,
-      body: [open, close],
-      wick: [low, high]
-    };
+    return { time: timeStr, open, close, high, low, isUp: close >= open, body: [open, close], wick: [low, high] };
   }
 
   useEffect(() => {
@@ -127,10 +133,7 @@ export default function TradeProPage() {
             body: [last.open, next],
             wick: [Math.min(last.low, next), Math.max(last.high, next)]
           };
-          
-          // Create new candle every 5 seconds
           if (Date.now() % 5000 < 1000) {
-            // Keep the pool at 150 candles
             return [...prevCandles.slice(1), generateCandle(150, next, 150)];
           }
           return [...prevCandles.slice(0, -1), updatedLast];
@@ -159,26 +162,41 @@ export default function TradeProPage() {
 
   const startTrade = async (type: 'high' | 'low') => {
     if (isTrading || !userDocRef || !userData || !db) return;
-    if (userData.totalBalance < amount) {
-      toast({ variant: "destructive", title: "Saldo Tidak Cukup" });
+
+    let balance = 0;
+    if (stakeCurrency === 'IDR') balance = userData.totalBalance || 0;
+    else balance = userData.cryptoBalances?.[stakeCurrency] || 0;
+
+    if (balance < amount) {
+      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo ${stakeCurrency} Anda tidak mencukupi.` });
       return;
     }
 
-    updateDoc(userDocRef, { totalBalance: increment(-amount) });
+    // Eksekusi Pemotongan Saldo Riil
+    const balanceKey = stakeCurrency === 'IDR' ? "totalBalance" : `cryptoBalances.${stakeCurrency}`;
+    updateDoc(userDocRef, { [balanceKey]: increment(-amount) });
+
     const liquidityRef = doc(db, "system", "liquidity");
-    updateDoc(liquidityRef, { totalFiatInjected: increment(amount), tradeXGrossVolumeIdr: increment(amount) });
+    const amountInIdr = amount * ASSET_PRICES[stakeCurrency];
+    updateDoc(liquidityRef, { 
+      totalFiatInjected: increment(stakeCurrency === 'IDR' ? amount : 0),
+      tradeXGrossVolumeIdr: increment(amountInIdr) 
+    });
 
     setPrediction(type);
     setEntryPrice(price);
     setIsTrading(true);
     setTimeLeft(duration);
-    toast({ title: "Order Berhasil", description: `Prediksi ${type.toUpperCase()} sebesar Rp ${amount.toLocaleString()}` });
+    toast({ title: "Order Berhasil", description: `Prediksi ${type.toUpperCase()} sebesar ${amount} ${stakeCurrency}` });
   };
 
   const finishTrade = async () => {
     if (!entryPrice || !userDocRef || !user || !db) return;
     const isWin = prediction === 'high' ? price > entryPrice : price < entryPrice;
-    const rewardInAlx = isWin ? (amount * 1.9) / ALX_PRICE_IDR : 0;
+    
+    // Hitung Nilai Kemenangan dalam IDR lalu konversi ke ALX
+    const amountInIdr = amount * ASSET_PRICES[stakeCurrency];
+    const rewardInAlx = isWin ? (amountInIdr * 1.9) / ALX_PRICE_IDR : 0;
 
     if (isWin) {
       updateDoc(userDocRef, { "cryptoBalances.ALX": increment(rewardInAlx) });
@@ -193,9 +211,10 @@ export default function TradeProPage() {
 
     addDoc(collection(db, "users", user.uid, "transactions"), {
       date: new Date().toISOString(),
-      description: `Trade-X: ${prediction?.toUpperCase()} ${symbol}`,
+      description: `Trade-X: ${prediction?.toUpperCase()} ${symbol} (Stake ${stakeCurrency})`,
       category: "Trade-X",
-      amount: amount,
+      stakeAmount: amount,
+      stakeCurrency: stakeCurrency,
       rewardAlx: rewardInAlx,
       status: isWin ? "WIN" : "LOSS",
       type: "expense",
@@ -218,7 +237,7 @@ export default function TradeProPage() {
 
   return (
     <div className="h-screen bg-[#0F1113] text-white flex flex-col font-body overflow-hidden selection:bg-primary/20">
-      {/* PROFESSIONAL TOP HEADER */}
+      {/* HEADER */}
       <header className="px-4 h-16 flex items-center justify-between bg-[#171A1D] border-b border-white/5 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center relative cursor-pointer active:scale-95 transition-transform" onClick={() => router.push('/profile')}>
@@ -227,10 +246,12 @@ export default function TradeProPage() {
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5 cursor-pointer group" onClick={() => router.push('/')}>
-              <span className="text-sm font-black italic tracking-tighter uppercase text-white">IDR {(userData?.totalBalance ?? 0).toLocaleString()}</span>
+              <span className="text-sm font-black italic tracking-tighter uppercase text-white">
+                {stakeCurrency === 'IDR' ? `Rp ${(userData?.totalBalance ?? 0).toLocaleString()}` : `${(userData?.cryptoBalances?.[stakeCurrency] ?? 0).toFixed(6)} ${stakeCurrency}`}
+              </span>
               <ChevronDown className="w-3 h-3 text-white/40 group-hover:text-primary transition-colors" />
             </div>
-            <span className="text-[8px] font-bold text-white/30 uppercase tracking-widest leading-none">IDR Akun Anda</span>
+            <span className="text-[8px] font-bold text-white/30 uppercase tracking-widest leading-none">{stakeCurrency} Akun Anda</span>
           </div>
         </div>
         <button onClick={() => router.push('/topup')} className="w-10 h-10 bg-[#26A69A] rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20 active:scale-95 transition-transform">
@@ -238,7 +259,7 @@ export default function TradeProPage() {
         </button>
       </header>
 
-      {/* ASSET SELECTOR BAR */}
+      {/* ASSET SELECTOR */}
       <div className="px-4 h-12 flex items-center justify-between bg-[#1C2024] shrink-0 border-b border-white/5">
         <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5 cursor-pointer active:bg-white/10 transition-colors">
           <div className="w-5 h-5 rounded bg-primary flex items-center justify-center p-1">
@@ -254,98 +275,53 @@ export default function TradeProPage() {
         </div>
       </div>
 
-      {/* CHART AREA */}
+      {/* CHART */}
       <main className="flex-1 relative overflow-hidden flex flex-col bg-[#0F1113]">
         <div className="flex-1 relative">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={visibleCandles} margin={{ top: 20, right: 0, bottom: 20, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={true} horizontal={true} stroke="rgba(255,255,255,0.03)" />
-              <XAxis 
-                dataKey="time" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{fontSize: 9, fill: 'rgba(255,255,255,0.3)'}} 
-                minTickGap={30}
-              />
-              <YAxis 
-                domain={['auto', 'auto']} 
-                orientation="right" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{fontSize: 9, fill: 'rgba(255,255,255,0.3)'}} 
-              />
+              <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{fontSize: 9, fill: 'rgba(255,255,255,0.3)'}} minTickGap={30} />
+              <YAxis domain={['auto', 'auto']} orientation="right" axisLine={false} tickLine={false} tick={{fontSize: 9, fill: 'rgba(255,255,255,0.3)'}} />
               <Tooltip content={() => null} />
-              
-              {/* CURRENT PRICE LINE & LABEL */}
               <ReferenceLine y={price} stroke="rgba(255,255,255,0.2)" strokeDasharray="2 2" isFront />
-
-              {/* CANDLE BODY */}
               <Bar dataKey="body" isAnimationActive={false} barSize={zoomLevel > 60 ? 4 : 8}>
                 {visibleCandles.map((entry, index) => (
                   <Cell key={`body-${index}`} fill={entry.isUp ? "#26A69A" : "#EF5350"} />
                 ))}
               </Bar>
-
-              {/* CANDLE WICK */}
               <Bar dataKey="wick" isAnimationActive={false} barSize={1}>
                 {visibleCandles.map((entry, index) => (
                   <Cell key={`wick-${index}`} fill={entry.isUp ? "#26A69A" : "#EF5350"} />
                 ))}
               </Bar>
-
               {entryPrice && visibleCandles.some(c => c.time === visibleCandles[visibleCandles.length-1].time) && (
                 <ReferenceLine y={entryPrice} stroke="#FCD535" strokeDasharray="3 3" label={{ position: 'left', value: 'ENTRY', fill: '#FCD535', fontSize: 8, fontWeight: 'bold' }} />
               )}
             </ComposedChart>
           </ResponsiveContainer>
 
-          {/* DYNAMIC PRICE TAG OVERLAY */}
           <div className="absolute right-0 top-0 bottom-0 pointer-events-none flex flex-col justify-center pr-1">
-             <div 
-               className="bg-white text-black px-2 py-1 rounded-l-md font-black text-[10px] shadow-xl transition-all duration-300 z-30"
-               style={{ transform: `translateY(${(1 - (price - Math.min(...visibleCandles.map(c => c.low))) / (Math.max(...visibleCandles.map(c => c.high)) - Math.min(...visibleCandles.map(c => c.low)))) * 100}%)` }}
-             >
-               {currentFormattedPrice}
-             </div>
+             <div className="bg-white text-black px-2 py-1 rounded-l-md font-black text-[10px] shadow-xl z-30">{currentFormattedPrice}</div>
           </div>
 
-          {/* COUNTDOWN TIMER NEAR PRICE */}
-          <div className="absolute left-1/2 -translate-x-1/2 top-1/2 z-20 pointer-events-none">
-             <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                <span className="text-[10px] font-black italic tracking-widest text-white/80">00:0{Math.floor(Math.random()*9)}</span>
-             </div>
-          </div>
-
-          {/* ZOOM CONTROLS */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1 bg-[#1C2024]/80 backdrop-blur p-1 rounded-lg border border-white/5 z-20">
-            <button 
-              onClick={() => handleZoom('out')} 
-              className="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded active:scale-90 transition-transform"
-            >
-              <Minus className="w-4 h-4 text-white/60" />
-            </button>
+            <button onClick={() => handleZoom('out')} className="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded active:scale-90 transition-transform"><Minus className="w-4 h-4 text-white/60" /></button>
             <div className="w-px h-4 bg-white/10 self-center" />
-            <button 
-              onClick={() => handleZoom('in')} 
-              className="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded active:scale-90 transition-transform"
-            >
-              <Plus className="w-4 h-4 text-white/60" />
-            </button>
+            <button onClick={() => handleZoom('in')} className="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded active:scale-90 transition-transform"><Plus className="w-4 h-4 text-white/60" /></button>
           </div>
         </div>
 
-        {/* STATUS FOOTER BAR */}
         <div className="h-8 bg-[#171A1D] border-t border-white/5 px-4 flex items-center justify-between shrink-0">
            <span className="text-[9px] font-black uppercase tracking-widest text-white/30 italic">Fixed Time mode</span>
            <div className="flex items-center gap-1">
               <span className="text-[9px] font-bold text-white/30 uppercase italic">Profit:</span>
-              <span className="text-[10px] font-black text-green-500 italic">+Rp {(amount * 0.9).toLocaleString()}</span>
+              <span className="text-[10px] font-black text-green-500 italic">Yield 90% (Reward ALX)</span>
               <HelpCircle className="w-3 h-3 text-white/10" />
            </div>
         </div>
 
-        {/* TRADING TERMINAL PANEL */}
+        {/* TERMINAL PANEL */}
         <div className="bg-[#171A1D] p-4 space-y-4 pb-8 shrink-0">
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-[#1C2024] rounded-xl p-1 flex items-center justify-between border border-white/5 h-14">
@@ -356,13 +332,29 @@ export default function TradeProPage() {
               <button onClick={() => setDuration(duration + 15)} className="w-10 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Plus className="w-4 h-4 text-white/40" /></button>
             </div>
 
-            <div className="bg-[#1C2024] rounded-xl p-1 flex items-center justify-between border border-white/5 h-14">
-              <button onClick={() => setAmount(Math.max(10000, amount - 50000))} className="w-10 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Minus className="w-4 h-4 text-white/40" /></button>
-              <div className="flex-1 text-center">
-                <p className="text-[8px] font-black italic uppercase leading-none mt-1 text-white/40">Rp</p>
-                <p className="text-sm font-black italic">{amount.toLocaleString()}</p>
+            {/* CURRENCY & AMOUNT SELECTOR */}
+            <div className="bg-[#1C2024] rounded-xl p-1 flex items-center justify-between border border-white/5 h-14 relative">
+              <button onClick={() => setAmount(prev => Math.max(0, prev - (stakeCurrency === 'IDR' ? 50000 : 0.001)))} className="w-8 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Minus className="w-3 h-3 text-white/40" /></button>
+              
+              <div className="flex-1 text-center flex flex-col items-center justify-center">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-1 text-[8px] font-black italic uppercase leading-none text-primary hover:text-primary/80 transition-colors">
+                      {stakeCurrency} <ChevronDown className="w-2 h-2" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="bg-[#1C2024] border-white/10 text-white rounded-xl">
+                    {(['IDR', 'ALX', 'USDT', 'ETH', 'BTC'] as const).map((curr) => (
+                      <DropdownMenuItem key={curr} onClick={() => { setStakeCurrency(curr); setAmount(curr === 'IDR' ? 100000 : 0.01); }} className="font-black text-[10px] uppercase italic focus:bg-primary/20">
+                        {curr}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <p className="text-sm font-black italic">{stakeCurrency === 'IDR' ? amount.toLocaleString() : amount.toFixed(stakeCurrency === 'ALX' || stakeCurrency === 'USDT' ? 2 : 6)}</p>
               </div>
-              <button onClick={() => setAmount(amount + 50000)} className="w-10 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Plus className="w-4 h-4 text-white/40" /></button>
+
+              <button onClick={() => setAmount(prev => prev + (stakeCurrency === 'IDR' ? 50000 : 0.001))} className="w-8 h-full flex items-center justify-center hover:bg-white/5 rounded-lg transition-colors"><Plus className="w-3 h-3 text-white/40" /></button>
             </div>
           </div>
 
@@ -410,11 +402,11 @@ export default function TradeProPage() {
       </main>
 
       <footer className="h-16 bg-[#171A1D] border-t border-white/5 flex items-center justify-around shrink-0 px-2 pb-safe">
-        <button className="flex flex-col items-center gap-1 group w-full">
+        <button className="flex flex-col items-center gap-1 group w-full" onClick={() => router.push('/')}>
           <LineChart className="w-5 h-5 text-primary" />
           <span className="text-[8px] font-black uppercase italic text-primary">Beranda</span>
         </button>
-        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity w-full">
+        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity w-full" onClick={() => router.push('/crypto')}>
           <ArrowRightLeft className="w-5 h-5" />
           <span className="text-[8px] font-black uppercase italic">Pasar</span>
         </button>
