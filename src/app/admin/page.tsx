@@ -105,7 +105,7 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { JsonRpcProvider, formatEther } from "ethers";
+import { JsonRpcProvider, formatEther, ethers } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -129,13 +129,13 @@ const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const ETHERSCAN_API_KEY = "M1S7MDTBQSG1A3URQKYNVF31PSPE48UA8R";
 
 const mockPerformanceData = [
-  { name: 'Jan', revenue: 4000, volume: 2400 },
-  { name: 'Feb', revenue: 3000, volume: 1398 },
-  { name: 'Mar', revenue: 2000, volume: 9800 },
-  { name: 'Apr', revenue: 2780, volume: 3908 },
-  { name: 'May', revenue: 1890, volume: 4800 },
-  { name: 'Jun', revenue: 2390, volume: 3800 },
-  { name: 'Jul', revenue: 3490, volume: 4300 },
+  { name: 'Jan', revenue: 4000 },
+  { name: 'Feb', revenue: 3000 },
+  { name: 'Mar', revenue: 2000 },
+  { name: 'Apr', revenue: 2780 },
+  { name: 'May', revenue: 1890 },
+  { name: 'Jun', revenue: 2390 },
+  { name: 'Jul', revenue: 3490 },
 ];
 
 function AdminContent() {
@@ -184,7 +184,6 @@ function AdminContent() {
       const balance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
       setOnChainEth(formatEther(balance));
 
-      // FETCH REAL TRANSACTION DATA FROM ETHERSCAN USING WEB3 PROVIDER LOGIC
       try {
         const [resNormal, resInternal] = await Promise.all([
           fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${ETHERSCAN_API_KEY}`),
@@ -197,7 +196,6 @@ function AdminContent() {
         const normalResults = dataNormal.status === "1" ? dataNormal.result : [];
         const internalResults = dataInternal.status === "1" ? dataInternal.result : [];
 
-        // Gabungkan transaksi normal dan internal (seperti penarikan/deposit kontrak)
         const combinedResults = [...normalResults, ...internalResults].sort((a, b) => parseInt(b.timeStamp) - parseInt(a.timeStamp));
 
         if (combinedResults.length > 0) {
@@ -258,7 +256,6 @@ function AdminContent() {
     if (!vaultRecipient || !vaultAmount || isExecutingVaultTx) return;
     setIsExecutingVaultTx(true);
     try {
-      // Simulasi Broadcast Web3 (Real broadcast butuh Private Key Vault)
       await new Promise(resolve => setTimeout(resolve, 3000));
       
       if (db) {
@@ -532,16 +529,6 @@ function AdminContent() {
                         </div>
                         <div className="flex items-center gap-2">
                           <h3 className="text-lg font-black italic uppercase tracking-tight text-foreground transition-colors">AliBank Global Liquidity</h3>
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent className="bg-foreground text-background border-none p-4 rounded-2xl max-w-xs shadow-2xl">
-                                <p className="text-[10px] font-bold leading-relaxed uppercase italic">Total Net Capital adalah seluruh akumulasi modal riil yang berhasil diamankan dari Gateway (PayPal/Kartu) dan Stake Capture dari ekosistem AliBank.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
                         </div>
                       </div>
                       <Button 
@@ -616,6 +603,65 @@ function AdminContent() {
                         <span className="text-[#1A1D1F] dark:text-foreground transition-colors">{allUsers?.length || 0}</span>
                       </div>
                       <Progress value={Math.min(100, (allUsers?.length || 0) * 2)} className="h-1 bg-muted transition-colors" />
+                    </div>
+                  </Card>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  {/* REVENUE DYNAMICS CHART */}
+                  <Card className="lg:col-span-8 border-none shadow-none bg-card rounded-[2.5rem] p-10 space-y-8 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-black italic uppercase tracking-widest text-foreground">Revenue Dynamics</h3>
+                      <div className="flex bg-muted p-1 rounded-lg">
+                        <button className="px-4 py-1.5 text-[9px] font-black rounded-md bg-background shadow-sm uppercase italic">Monthly</button>
+                        <button className="px-4 py-1.5 text-[9px] font-black rounded-md text-muted-foreground uppercase italic">Yearly</button>
+                      </div>
+                    </div>
+                    <div className="h-64 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={mockPerformanceData}>
+                          <defs>
+                            <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
+                          <XAxis dataKey="name" hide />
+                          <YAxis hide />
+                          <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
+                          <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex justify-around pt-2">
+                      {['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'].map(m => (
+                        <span key={m} className="text-[10px] font-bold text-muted-foreground uppercase">{m}</span>
+                      ))}
+                    </div>
+                  </Card>
+
+                  {/* SOVEREIGN ASSET CARD */}
+                  <Card className="lg:col-span-4 border-none shadow-none bg-[#1A1D1F] dark:bg-card rounded-[2.5rem] p-10 flex flex-col justify-between text-white relative overflow-hidden transition-colors">
+                    <div className="absolute top-0 right-0 p-8 opacity-10"><LogoIcon className="w-32 h-32 text-primary" /></div>
+                    <div className="relative z-10">
+                      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-2">Sovereign Asset</p>
+                      <h3 className="text-2xl font-black italic uppercase tracking-tighter">Alix Token (ALX)</h3>
+                    </div>
+                    
+                    <div className="relative z-10 space-y-1">
+                      <p className="text-xl font-black italic uppercase tracking-widest">ALX V3 PROTOCOL</p>
+                    </div>
+
+                    <div className="relative z-10 flex justify-between items-end">
+                      <div>
+                        <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Vault Inventory</p>
+                        <p className="text-lg font-black italic">{displayVal(globalLiquidity?.alixVaultBalance).toLocaleString('id-ID')} ALX</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Anchor Price</p>
+                        <p className="text-lg font-black italic text-primary">$ 12.24</p>
+                      </div>
                     </div>
                   </Card>
                 </div>
