@@ -577,11 +577,14 @@ function AdminContent() {
 
           <TabsContent value="overview" className="space-y-10 animate-in fade-in zoom-in-95 duration-500">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-primary/5 shadow-2xl relative overflow-hidden group">
+              <Card 
+                onClick={() => setActiveTab('users')}
+                className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-primary/5 shadow-2xl relative overflow-hidden group cursor-pointer hover:scale-[1.03] transition-all"
+              >
                 <div className="absolute inset-0 gold-gradient opacity-0 group-hover:opacity-5 transition-opacity" />
                 <div className="flex items-center justify-between">
                   <Users className="w-8 h-8 text-primary" />
-                  <Badge className="bg-primary text-white uppercase text-[9px] font-black border-none px-3 py-1">Active</Badge>
+                  <Badge className="bg-primary text-white uppercase text-[9px] font-black border-none px-3 py-1">ACTIVE</Badge>
                 </div>
                 <div>
                   <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Global Accounts</p>
@@ -589,11 +592,14 @@ function AdminContent() {
                 </div>
               </Card>
 
-              <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-blue-500/5 shadow-2xl relative overflow-hidden group">
+              <Card 
+                onClick={() => setActiveTab('vault')}
+                className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-blue-500/5 shadow-2xl relative overflow-hidden group cursor-pointer hover:scale-[1.03] transition-all"
+              >
                 <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="flex items-center justify-between">
                   <DollarSign className="w-8 h-8 text-blue-600" />
-                  <Badge className="bg-blue-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">Mainnet</Badge>
+                  <Badge className="bg-blue-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">MAINNET</Badge>
                 </div>
                 <div>
                   <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Vault Reserve (USD)</p>
@@ -601,7 +607,10 @@ function AdminContent() {
                 </div>
               </Card>
 
-              <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-orange-500/5 shadow-2xl relative overflow-hidden group">
+              <Card 
+                onClick={() => setActiveTab('alix')}
+                className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-orange-500/5 shadow-2xl relative overflow-hidden group cursor-pointer hover:scale-[1.03] transition-all"
+              >
                 <div className="absolute inset-0 bg-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="flex items-center justify-between">
                   <LogoIcon className="w-8 h-8 text-orange-600" />
@@ -613,21 +622,31 @@ function AdminContent() {
                 </div>
               </Card>
 
-              <Card className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-green-500/5 shadow-2xl relative overflow-hidden group">
+              <Card 
+                onClick={() => setActiveTab('audit')}
+                className="liquid-glass border-none rounded-[3rem] p-10 space-y-6 bg-green-500/5 shadow-2xl relative overflow-hidden group cursor-pointer hover:scale-[1.03] transition-all"
+              >
                 <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="flex items-center justify-between">
                   <ShoppingBag className="w-8 h-8 text-green-600" />
-                  <Badge className="bg-green-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">Bank Profit</Badge>
+                  <Badge className="bg-green-600 text-white uppercase text-[9px] font-black border-none px-3 py-1">BANK PROFIT</Badge>
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-[11px] font-black uppercase text-muted-foreground tracking-widest">Gross Cash Reserve (IDR)</p>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/40 cursor-help" />
+                        <div className="p-1 cursor-help hover:bg-muted rounded-full transition-colors">
+                          <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/60" />
+                        </div>
                       </TooltipTrigger>
-                      <TooltipContent className="bg-accent text-white border-none p-3 rounded-xl max-w-xs">
-                        <p className="text-[10px] font-bold">Total Rupiah nyata dari injeksi PayPal/Kartu Kredit serta akumulasi modal dari kekalahan taruhan nasabah di ekosistem game.</p>
+                      <TooltipContent className="bg-accent text-white border-none p-4 rounded-2xl max-w-xs shadow-2xl">
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-black uppercase text-primary tracking-widest">Financial Origin</p>
+                          <p className="text-[10px] font-bold leading-relaxed">
+                            Total Rupiah riil yang dikumpulkan oleh Bank. Sumber dana ini mencakup injeksi PayPal/Kartu Kredit nasabah, serta akumulasi modal dari kekalahan taruhan di game (Trade-X & Ali-Spin) yang diserap sebagai laba bersih bank.
+                          </p>
+                        </div>
                       </TooltipContent>
                     </Tooltip>
                   </div>
@@ -646,7 +665,7 @@ function AdminContent() {
                   </div>
                 </div>
                 <div className="space-y-6">
-                  <div className="p-8 rounded-3xl bg-accent/5 border border-primary/10 flex justify-between items-center group hover:bg-primary/5 transition-all">
+                  <div className="p-8 rounded-3xl bg-accent/5 border border-primary/10 flex justify-between items-center group hover:bg-primary/5 transition-all cursor-pointer" onClick={() => setActiveTab('audit')}>
                     <div>
                       <span className="text-[11px] font-black uppercase text-muted-foreground">Total Trade-X Volume (IDR)</span>
                       <p className="text-2xl font-black text-foreground italic mt-1">Rp {(globalLiquidity?.tradeXGrossVolumeIdr || 0).toLocaleString()}</p>
@@ -654,7 +673,7 @@ function AdminContent() {
                     <Zap className="w-10 h-10 text-primary opacity-20" />
                   </div>
 
-                  <div className="p-8 rounded-3xl bg-accent/5 border border-primary/10 flex justify-between items-center group hover:bg-primary/5 transition-all">
+                  <div className="p-8 rounded-3xl bg-accent/5 border border-primary/10 flex justify-between items-center group hover:bg-primary/5 transition-all cursor-pointer" onClick={() => setActiveTab('audit')}>
                     <div>
                       <span className="text-[11px] font-black uppercase text-muted-foreground">Total Ali-Spin Pro (IDR)</span>
                       <p className="text-2xl font-black text-foreground italic mt-1">Rp {(globalLiquidity?.spinGrossVolumeIdr || 0).toLocaleString()}</p>
@@ -1034,7 +1053,7 @@ function AdminContent() {
             </div>
           </TabsContent>
 
-          <TabsContent value="users" className="space-y-8 animate-in fade-in duration-500">
+          <TabsContent value="users" className="space-y-8 animate-in dream-in duration-500">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               <Card className="liquid-glass border-none rounded-[3rem] p-10 bg-primary/5 shadow-2xl flex items-center gap-8 group">
                 <div className="w-20 h-20 rounded-[2rem] bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
