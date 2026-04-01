@@ -36,7 +36,8 @@ import {
   MessageSquareText,
   Send,
   Gamepad2,
-  Dice5
+  Dice5,
+  RotateCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -594,7 +595,7 @@ function DashboardContent() {
                     { id: 'tradex', name: "Trade-X Pro", desc: "Prediksi Kecepatan Tinggi", icon: Zap, href: "/crypto/trade-pro/alx", badge: "POPULER", color: "text-primary" },
                     { id: 'reward', name: "Hub Reward", desc: "Selesaikan Tugas, Dapat ALX", icon: Award, href: "/profile", badge: "NEW", color: "text-blue-500" },
                     { id: 'earn', name: "AliBank Earn", desc: "Staking & Deposito Elit", icon: TrendingUp, href: "/deposits", badge: "HIGH APY", color: "text-green-500" },
-                    { id: 'tradex-btc', name: "Trade-X BTC", desc: "Main dengan Indeks Bitcoin", icon: Dice5, href: "/crypto/trade-pro/btc", badge: "ELIT", color: "text-orange-500" },
+                    { id: 'alispin', name: "Ali-Spin Pro", desc: "Angka Acak Keberuntungan", icon: RotateCw, href: "/games/spin", badge: "BARU", color: "text-orange-500" },
                   ].map((game) => (
                     <div 
                       key={game.id} 
