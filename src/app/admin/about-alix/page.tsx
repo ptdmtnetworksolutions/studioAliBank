@@ -50,9 +50,6 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const VAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
-const ALX_TOKEN_CONTRACT = "0x... (Menunggu Deployment)";
-
 const ALX_TOKEN_CODE = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
@@ -157,7 +154,7 @@ export default function AboutAlixPage() {
                 <div className="p-6 rounded-2xl bg-background border border-primary/10 space-y-3">
                   <div className="flex justify-between items-center text-[10px] font-black uppercase">
                     <span>Target Internal</span>
-                    <span className="text-primary">Rp 194.000 / ALX</span>
+                    <span className="text-primary">Rp 194.004 / ALX</span>
                   </div>
                   <div className="flex justify-between items-center text-[10px] font-black uppercase">
                     <span>Upfront Cost</span>
@@ -172,7 +169,7 @@ export default function AboutAlixPage() {
                 </div>
                 <h3 className="text-2xl font-black uppercase italic italic tracking-tight">Phase 2: Global Listing</h3>
                 <p className="text-xs font-medium text-muted-foreground leading-relaxed uppercase italic">
-                  Setelah kas internal terkumpul (misal Rp 20 Juta), gunakan dana tersebut untuk mengisi likuiditas di Uniswap. ALX resmi memiliki harga publik global.
+                  Setelah kas internal terkumpul, gunakan dana tersebut untuk mengisi likuiditas di Uniswap. ALX resmi memiliki harga publik global.
                 </p>
                 <div className="p-6 rounded-2xl bg-background border border-accent/10 space-y-3">
                   <div className="flex justify-between items-center text-[10px] font-black uppercase">
@@ -196,8 +193,8 @@ export default function AboutAlixPage() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
                 {[
                   { step: "01", title: "Deploy Token", desc: "Luncurkan kontrak ALX di Mainnet (Hanya butuh Gas Fee)." },
-                  { step: "02", title: "Internal Sale", desc: "Aktifkan menu 'Convert' di aplikasi. Nasabah mulai beli ALX." },
-                  { step: "03", title: "Capital Swap", desc: "Konversi IDR hasil penjualan menjadi USDT modal Pool." }
+                  { step: "02", title: "Internal Sale", desc: "Nasabah beli ALX di menu 'Convert'. Uang IDR terkumpul di Bank." },
+                  { step: "03", title: "Capital Swap", desc: "Konversi IDR hasil penjualan menjadi USDT modal Pool Uniswap." }
                 ].map((item, i) => (
                   <div key={i} className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-3">
                     <span className="text-primary font-black italic">{item.step}</span>
