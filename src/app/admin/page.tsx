@@ -1,3 +1,4 @@
+
 "use client";
 
 import { 
@@ -74,7 +75,9 @@ import {
   limit,
   deleteDoc,
   getDocs,
-  writeBatch
+  writeBatch,
+  getDoc,
+  setDoc
 } from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { JsonRpcProvider, formatEther } from "ethers";
@@ -183,8 +186,37 @@ function AdminContent() {
   const handleDeleteAuditLog = async (logId: string) => {
     if (!db) return;
     try {
-      await deleteDoc(doc(db, "system", "audit", "global_transactions", logId));
-      toast({ title: "Log Dihapus", description: "Satu entri audit telah dibersihkan." });
+      // 1. Ambil data log sebelum dihapus untuk sinkronisasi Dashboard
+      const logRef = doc(db, "system", "audit", "global_transactions", logId);
+      const logSnap = await getDoc(logRef);
+      
+      if (logSnap.exists()) {
+        const logData = logSnap.data();
+        const liquidityRef = doc(db, "system", "liquidity");
+        
+        // 2. Kurangi saldo dashboard berdasarkan data log
+        const updates: any = {};
+        if (logData.amountIdr) {
+          updates.totalFiatInjected = increment(-logData.amountIdr);
+          
+          if (logData.category === "Trade-X Capture") {
+            updates.tradeXGrossVolumeIdr = increment(-logData.amountIdr);
+          } else if (logData.category === "Ali-Spin Capture") {
+            updates.spinGrossVolumeIdr = increment(-logData.amountIdr);
+          }
+        }
+        if (logData.amountUsd) {
+          updates.totalUsdInjected = increment(-logData.amountUsd);
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await updateDoc(liquidityRef, updates);
+        }
+      }
+
+      // 3. Hapus Log
+      await deleteDoc(logRef);
+      toast({ title: "Log Dihapus", description: "Dashboard telah diperbarui secara otomatis." });
     } catch (err) {
       toast({ variant: "destructive", title: "Gagal Menghapus" });
     }
@@ -192,7 +224,7 @@ function AdminContent() {
 
   const handlePurgeAuditLogs = async () => {
     if (!db || isPurging) return;
-    if (!confirm("Peringatan: Seluruh riwayat transaksi sistem akan dihapus secara permanen. Lanjutkan?")) return;
+    if (!confirm("Peringatan: Seluruh riwayat transaksi sistem akan dihapus secara permanen dan dashboard akan direset ke nol. Lanjutkan?")) return;
 
     setIsPurging(true);
     try {
@@ -204,8 +236,19 @@ function AdminContent() {
         batch.delete(doc.ref);
       });
 
+      // Reset metrik likuiditas dashboard ke nol (Fresh State)
+      const liquidityRef = doc(db, "system", "liquidity");
+      batch.set(liquidityRef, {
+        totalFiatInjected: 0,
+        totalUsdInjected: 0,
+        tradeXGrossVolumeIdr: 0,
+        spinGrossVolumeIdr: 0,
+        totalInternalAumIdr: 0,
+        totalAlixSoldInternally: 0
+      }, { merge: true });
+
       await batch.commit();
-      toast({ title: "Audit Ledger Dibersihkan", description: "Semua log transaksi uji coba telah dihapus." });
+      toast({ title: "Sistem Direset", description: "Seluruh log dibersihkan dan dashboard kembali ke nol." });
     } catch (err) {
       toast({ variant: "destructive", title: "Gagal Membersihkan Audit" });
     } finally {
@@ -339,7 +382,7 @@ function AdminContent() {
                         <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Total Net Capital (IDR)</p>
                         <Badge className="bg-green-500/10 text-green-600 border-none text-[10px] font-black px-2">+12.01%</Badge>
                       </div>
-                      <h2 className="text-6xl font-black tracking-tighter italic text-foreground transition-colors">Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString()}</h2>
+                      <h2 className="text-6xl font-black tracking-tighter italic text-[#1A1D1F] dark:text-foreground transition-colors">Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString()}</h2>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
@@ -348,7 +391,7 @@ function AdminContent() {
                           <Globe className="w-4 h-4" />
                           <span className="text-[10px] font-bold uppercase">Vault Reserve (USD)</span>
                         </div>
-                        <p className="text-xl font-black italic text-foreground">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
+                        <p className="text-xl font-black italic text-[#1A1D1F] dark:text-foreground">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
                       </div>
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-muted-foreground">
@@ -395,7 +438,7 @@ function AdminContent() {
                     <div className="mt-auto pt-6 border-t border-border space-y-2">
                       <div className="flex justify-between items-center text-[10px] font-black uppercase text-muted-foreground">
                         <span>Total Accounts</span>
-                        <span className="text-foreground">{allUsers?.length || 0}</span>
+                        <span className="text-[#1A1D1F] dark:text-foreground">{allUsers?.length || 0}</span>
                       </div>
                       <Progress value={Math.min(100, (allUsers?.length || 0) * 2)} className="h-1 bg-muted" />
                     </div>
@@ -433,7 +476,7 @@ function AdminContent() {
 
                   {/* TOKENOMICS SUMMARY CARD */}
                   <Card 
-                    className="lg:col-span-4 border-none shadow-none bg-foreground dark:bg-card rounded-[2.5rem] p-10 flex flex-col justify-between text-background dark:text-foreground relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-all"
+                    className="lg:col-span-4 border-none shadow-none bg-[#1A1D1F] dark:bg-card rounded-[2.5rem] p-10 flex flex-col justify-between text-background dark:text-foreground relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-all"
                     onClick={() => setActiveTab('tokenomics')}
                   >
                     <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform duration-1000"><LogoIcon className="w-40 h-40 text-primary" /></div>
@@ -472,7 +515,7 @@ function AdminContent() {
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
                   <div className="p-10 border-b border-border flex items-center justify-between">
                     <h3 className="text-lg font-black italic uppercase tracking-tight text-foreground">Recent Transactions</h3>
-                    <Button onClick={() => setActiveTab('audit')} variant="ghost" className="rounded-xl text-muted-foreground font-black uppercase text-[10px] h-10 italic">View Ledger <ArrowDownRight className="w-4 h-4 ml-2" /></Button>
+                    <button onClick={() => setActiveTab('audit')} className="rounded-xl text-muted-foreground font-black uppercase text-[10px] h-10 italic flex items-center gap-2 hover:text-primary transition-colors">View Ledger <ArrowDownRight className="w-4 h-4" /></button>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
@@ -494,12 +537,12 @@ function AdminContent() {
                               <Badge className="bg-muted text-foreground border-none text-[8px] font-black px-3 h-5 uppercase">{log.category}</Badge>
                             </td>
                             <td className="px-10 py-6">
-                              <p className="text-sm font-black italic text-foreground">
+                              <p className="text-sm font-black italic text-[#1A1D1F] dark:text-foreground">
                                 {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : log.cryptoAmount ? `${log.cryptoAmount} ${log.cryptoCurrency}` : '---'}
                               </p>
                             </td>
                             <td className="px-10 py-6 text-right">
-                              <p className="text-[10px] font-bold text-muted-foreground italic">{log.timestamp?.toDate().toLocaleString() || '---'}</p>
+                              <p className="text-[10px] font-bold text-muted-foreground italic">{log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString() : '---'}</p>
                             </td>
                           </tr>
                         ))}
@@ -552,7 +595,7 @@ function AdminContent() {
                             <td className="px-10 py-6 font-mono text-[11px] text-muted-foreground">{u.accountNumber}</td>
                             <td className="px-10 py-6 text-right">
                               <div className="flex flex-col items-end gap-2">
-                                <p className="text-base font-black italic tracking-tighter text-foreground">Rp {u.totalBalance?.toLocaleString()}</p>
+                                <p className="text-base font-black italic tracking-tighter text-[#1A1D1F] dark:text-foreground">Rp {u.totalBalance?.toLocaleString()}</p>
                                 <div className="flex items-center gap-2">
                                   <Input type="number" placeholder="Amt" className="h-8 w-20 text-[10px] font-black bg-muted border-none shadow-none rounded-lg text-foreground transition-colors" value={adjustAmounts[u.uid] || ""} onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [u.uid]: e.target.value }))} />
                                   <div className="flex gap-1">
@@ -592,7 +635,7 @@ function AdminContent() {
                   <div className="space-y-6">
                     <div className="bg-muted p-8 rounded-[2rem] space-y-2 transition-colors">
                       <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Global Anchor Reserve (USD)</p>
-                      <p className="text-3xl font-black italic text-foreground">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
+                      <p className="text-3xl font-black italic text-[#1A1D1F] dark:text-foreground">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p>
                     </div>
                     <div className="space-y-3">
                       <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Amount to Authorize (ALX)</label>
@@ -604,7 +647,7 @@ function AdminContent() {
                   </div>
                 </Card>
 
-                <Card className="border-none shadow-none bg-foreground dark:bg-card rounded-[3rem] p-12 space-y-10 text-background dark:text-foreground transition-colors">
+                <Card className="border-none shadow-none bg-[#1A1D1F] dark:bg-card rounded-[3rem] p-12 space-y-10 text-background dark:text-foreground transition-colors">
                   <div className="flex items-center gap-6">
                     <div className="w-16 h-16 rounded-[1.5rem] bg-rose-500/10 flex items-center justify-center text-rose-500">
                       <Flame className="w-8 h-8" />
@@ -659,7 +702,7 @@ function AdminContent() {
                       <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em]">External Disbursement</p>
                       <div className="space-y-4">
                         <Input type="number" placeholder="0.00 ETH" value={disburseAmount} onChange={(e) => setDisburseAmount(e.target.value)} className="h-14 bg-muted border-none font-black italic rounded-xl px-6 shadow-none text-foreground transition-colors" />
-                        <Button className="w-full h-12 bg-foreground dark:bg-muted text-background dark:text-foreground hover:opacity-90 rounded-xl font-black uppercase italic text-[10px] tracking-widest shadow-xl transition-all border-none">Execute Withdrawal</Button>
+                        <Button className="w-full h-12 bg-[#1A1D1F] dark:bg-muted text-background dark:text-foreground hover:opacity-90 rounded-xl font-black uppercase italic text-[10px] tracking-widest shadow-xl transition-all border-none">Execute Withdrawal</Button>
                       </div>
                     </div>
                     <div className="p-8 rounded-[2.5rem] border border-border space-y-4 flex flex-col justify-center bg-blue-500/5 transition-colors">
@@ -702,7 +745,7 @@ function AdminContent() {
                         </div>
                         <div className="flex gap-2 pt-2">
                           <Button variant="outline" size="sm" className="flex-1 rounded-lg border-border font-black uppercase text-[9px] h-8">Edit</Button>
-                          <Button variant="ghost" size="sm" className="w-8 h-8 rounded-lg text-rose-500 hover:bg-rose-500/10 p-0"><Trash2 className="w-4 h-4" /></Button>
+                          <button onClick={() => handleDeleteAuditLog(item.id)} className="w-8 h-8 rounded-lg text-rose-500 hover:bg-rose-500/10 flex items-center justify-center transition-colors"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </Card>
                     ))}
@@ -761,11 +804,11 @@ function AdminContent() {
                               <Badge className="bg-muted text-foreground border-none text-[8px] font-black px-3 h-5 uppercase">{log.category}</Badge>
                             </td>
                             <td className="px-10 py-6">
-                              <p className="text-[10px] font-black italic text-foreground uppercase">{log.gateway || log.description || 'System Node'}</p>
+                              <p className="text-[10px] font-black italic text-[#1A1D1F] dark:text-foreground uppercase">{log.gateway || log.description || 'System Node'}</p>
                               <p className="text-[8px] font-mono text-muted-foreground mt-1">{log.id}</p>
                             </td>
                             <td className="px-10 py-6 text-right">
-                              <p className="text-sm font-black italic text-foreground">
+                              <p className="text-sm font-black italic text-[#1A1D1F] dark:text-foreground">
                                 {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : log.cryptoAmount ? `${log.cryptoAmount} ${log.cryptoCurrency}` : '---'}
                               </p>
                             </td>
