@@ -50,7 +50,12 @@ import {
   Sun,
   Moon,
   Clock,
-  ShoppingCart
+  ShoppingCart,
+  User as UserIcon,
+  Phone,
+  Mail,
+  MapPin,
+  CreditCard as CardIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -63,6 +68,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
 import { useUser, useDoc, useCollection, useFirestore, useAuth } from "@/firebase";
 import { 
@@ -126,10 +140,15 @@ function AdminContent() {
   const [syncingVault, setSyncingVault] = useState(false);
   
   const [adjustAmounts, setAdjustAmounts] = useState<Record<string, string>>({});
-  const [disburseAmount, setDisburseAmount] = useState("");
   const [alixMintAmount, setAlixMintAmount] = useState("");
   const [isMinting, setIsMinting] = useState(false);
   const [isPurging, setIsPurging] = useState(false);
+
+  // States for User Detail
+  const [viewingUser, setViewingUser] = useState<any>(null);
+  const [viewingUserDeposits, setViewingUserDeposits] = useState<any[]>([]);
+  const [viewingUserWallets, setViewingUserWallets] = useState<any[]>([]);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
 
   // Data Listeners
   const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
@@ -233,8 +252,6 @@ function AdminContent() {
         batch.delete(doc.ref);
       });
 
-      // Reset metrik likuiditas dashboard ke nol (Fresh State) - Paksa overwrite
-      // Menghapus seluruh akumulasi pendapatan game dan cadangan vault
       const liquidityRef = doc(db, "system", "liquidity");
       batch.set(liquidityRef, {
         totalFiatInjected: 0,
@@ -257,9 +274,25 @@ function AdminContent() {
     }
   };
 
+  const fetchUserSubCollections = async (userId: string) => {
+    if (!db) return;
+    setIsDetailLoading(true);
+    try {
+      const depositsSnap = await getDocs(collection(db, "users", userId, "deposits"));
+      const walletsSnap = await getDocs(collection(db, "users", userId, "wallets"));
+      
+      setViewingUserDeposits(depositsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setViewingUserWallets(walletsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      console.error("Error fetching user detail:", err);
+    } finally {
+      setIsDetailLoading(false);
+    }
+  };
+
   const displayVal = (val: number) => Math.max(0, val || 0);
 
-  if (userLoading || !isAuthorized) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
+  if (userLoading || !isAuthorized) return <div className="min-h-screen flex items-center justify-center bg-background transition-colors duration-300"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -313,7 +346,7 @@ function AdminContent() {
           {/* TOP BAR */}
           <header className="h-20 bg-card border-b border-border flex items-center justify-between px-10 sticky top-0 z-40 transition-colors">
             <div className="flex items-center gap-4 flex-1 max-w-xl">
-              <h1 className="text-2xl font-black tracking-tight capitalize text-foreground">{activeTab === 'dashboard' ? 'Overview' : activeTab}</h1>
+              <h1 className="text-2xl font-black tracking-tight capitalize text-foreground transition-colors">{activeTab === 'dashboard' ? 'Overview' : activeTab}</h1>
               <div className="relative flex-1 hidden md:block">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input placeholder="Search everything..." className="h-11 pl-12 bg-muted border-none rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-primary/20 shadow-none text-foreground transition-colors" />
@@ -328,7 +361,7 @@ function AdminContent() {
               <div className="h-8 w-px bg-border" />
               <div className="flex items-center gap-3 cursor-pointer group">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-black leading-none text-foreground">Super Admin</p>
+                  <p className="text-sm font-black leading-none text-foreground transition-colors">Super Admin</p>
                   <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">AliBank Controller</p>
                 </div>
                 <div className="w-10 h-10 rounded-full gold-gradient p-[2px]">
@@ -358,7 +391,7 @@ function AdminContent() {
                           <Database className="w-6 h-6" />
                         </div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-black italic uppercase tracking-tight text-foreground">AliBank Global Liquidity</h3>
+                          <h3 className="text-lg font-black italic uppercase tracking-tight text-foreground transition-colors">AliBank Global Liquidity</h3>
                           <div onClick={(e) => e.stopPropagation()}>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -394,12 +427,12 @@ function AdminContent() {
                           <Globe className="w-4 h-4" />
                           <span className="text-[10px] font-bold uppercase">Vault Reserve (USD)</span>
                         </div>
-                        <p className="text-xl font-black italic text-[#1A1D1F] dark:text-foreground">$ {displayVal(globalLiquidity?.totalUsdInjected).toLocaleString('id-ID', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-xl font-black italic text-[#1A1D1F] dark:text-foreground transition-colors">$ {displayVal(globalLiquidity?.totalUsdInjected).toLocaleString('id-ID', { minimumFractionDigits: 2 })}</p>
                       </div>
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <TrendingUp className="w-4 h-4 text-green-600" />
-                          <span className="text-[10px] font-bold uppercase">Gaming Profit (IDR)</span>
+                          <span className="text-[10px] font-bold uppercase transition-colors">Gaming Profit (IDR)</span>
                         </div>
                         <p className="text-xl font-black italic text-green-600 transition-colors">Rp {displayVal((globalLiquidity?.tradeXGrossVolumeIdr || 0) + (globalLiquidity?.spinGrossVolumeIdr || 0)).toLocaleString('id-ID')}</p>
                       </div>
@@ -419,7 +452,7 @@ function AdminContent() {
                     onClick={() => setActiveTab('users')}
                   >
                     <div className="flex items-center justify-between mb-8">
-                      <h3 className="text-base font-black italic uppercase tracking-tight text-foreground">Active Clients</h3>
+                      <h3 className="text-base font-black italic uppercase tracking-tight text-foreground transition-colors">Active Clients</h3>
                       <button className="text-[10px] font-black text-primary uppercase hover:underline">See All</button>
                     </div>
                     <div className="flex -space-x-3 overflow-hidden mb-10">
@@ -439,11 +472,11 @@ function AdminContent() {
                       ))}
                     </div>
                     <div className="mt-auto pt-6 border-t border-border space-y-2">
-                      <div className="flex justify-between items-center text-[10px] font-black uppercase text-muted-foreground">
+                      <div className="flex justify-between items-center text-[10px] font-black uppercase text-muted-foreground transition-colors">
                         <span>Total Accounts</span>
-                        <span className="text-[#1A1D1F] dark:text-foreground">{allUsers?.length || 0}</span>
+                        <span className="text-[#1A1D1F] dark:text-foreground transition-colors">{allUsers?.length || 0}</span>
                       </div>
-                      <Progress value={Math.min(100, (allUsers?.length || 0) * 2)} className="h-1 bg-muted" />
+                      <Progress value={Math.min(100, (allUsers?.length || 0) * 2)} className="h-1 bg-muted transition-colors" />
                     </div>
                   </Card>
                 </div>
@@ -452,8 +485,8 @@ function AdminContent() {
                   {/* PERFORMANCE CHART */}
                   <Card className="lg:col-span-8 border-none shadow-none bg-card rounded-[2.5rem] p-10 space-y-10 transition-colors">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-base font-black italic uppercase tracking-tight text-foreground">Revenue Dynamics</h3>
-                      <div className="flex bg-muted p-1 rounded-xl">
+                      <h3 className="text-base font-black italic uppercase tracking-tight text-foreground transition-colors">Revenue Dynamics</h3>
+                      <div className="flex bg-muted p-1 rounded-xl transition-colors">
                         <button className="px-4 py-1.5 text-[10px] font-black uppercase rounded-lg bg-background shadow-sm text-foreground transition-all">Monthly</button>
                         <button className="px-4 py-1.5 text-[10px] font-black uppercase rounded-lg text-muted-foreground hover:text-foreground transition-colors">Yearly</button>
                       </div>
@@ -482,7 +515,7 @@ function AdminContent() {
                     className="lg:col-span-4 border-none shadow-none bg-[#1A1D1F] dark:bg-card rounded-[2.5rem] p-10 flex flex-col justify-between text-background dark:text-foreground relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-all"
                     onClick={() => setActiveTab('tokenomics')}
                   >
-                    <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform duration-1000"><LogoIcon className="w-40 h-40 text-primary" /></div>
+                    <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform duration-1000 pointer-events-none"><LogoIcon className="w-40 h-40 text-primary" /></div>
                     <div className="relative z-10 flex justify-between items-start">
                       <div className="space-y-1">
                         <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Sovereign Asset</p>
@@ -516,13 +549,13 @@ function AdminContent() {
 
                 {/* RECENT TRANSACTIONS TABLE */}
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
-                  <div className="p-10 border-b border-border flex items-center justify-between">
-                    <h3 className="text-lg font-black italic uppercase tracking-tight text-foreground">Recent Transactions</h3>
+                  <div className="p-10 border-b border-border flex items-center justify-between transition-colors">
+                    <h3 className="text-lg font-black italic uppercase tracking-tight text-foreground transition-colors">Recent Transactions</h3>
                     <button onClick={() => setActiveTab('audit')} className="rounded-xl text-muted-foreground font-black uppercase text-[10px] h-10 italic flex items-center gap-2 hover:text-primary transition-colors">View Ledger <ArrowDownRight className="w-4 h-4" /></button>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                      <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest">
+                      <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest transition-colors">
                         <tr>
                           <th className="px-10 py-6">Reference ID</th>
                           <th className="px-10 py-6">Operation</th>
@@ -530,22 +563,22 @@ function AdminContent() {
                           <th className="px-10 py-6 text-right">Synchronization</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border">
+                      <tbody className="divide-y divide-border transition-colors">
                         {auditLogs?.slice(0, 5).map((log) => (
                           <tr key={log.id} className="hover:bg-muted/30 transition-colors cursor-default group">
                             <td className="px-10 py-6">
-                              <p className="font-mono text-xs font-bold text-foreground">{log.id}</p>
+                              <p className="font-mono text-xs font-bold text-foreground transition-colors">{log.id}</p>
                             </td>
                             <td className="px-10 py-6">
-                              <Badge className="bg-muted text-foreground border-none text-[8px] font-black px-3 h-5 uppercase">{log.category}</Badge>
+                              <Badge className="bg-muted text-foreground border-none text-[8px] font-black px-3 h-5 uppercase transition-colors">{log.category}</Badge>
                             </td>
                             <td className="px-10 py-6">
-                              <p className="text-sm font-black italic text-[#1A1D1F] dark:text-foreground">
+                              <p className="text-sm font-black italic text-[#1A1D1F] dark:text-foreground transition-colors">
                                 {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString('id-ID')}` : log.cryptoAmount ? `${log.cryptoAmount} ${log.cryptoCurrency}` : '---'}
                               </p>
                             </td>
                             <td className="px-10 py-6 text-right">
-                              <p className="text-[10px] font-bold text-muted-foreground italic">{log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString('id-ID') : '---'}</p>
+                              <p className="text-[10px] font-bold text-muted-foreground italic transition-colors">{log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString('id-ID') : '---'}</p>
                             </td>
                           </tr>
                         ))}
@@ -562,8 +595,8 @@ function AdminContent() {
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
                   <div className="p-10 border-b border-border bg-green-500/5 flex items-center justify-between transition-colors">
                     <div>
-                      <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground">Verified Client Base</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Consolidated global account control</p>
+                      <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground transition-colors">Verified Client Base</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 transition-colors">Consolidated global account control</p>
                     </div>
                     <Badge className="bg-green-600 text-white font-black px-4 py-1.5 rounded-full shadow-lg shadow-green-500/20">
                       {allUsers?.length || 0} Accounts
@@ -571,15 +604,15 @@ function AdminContent() {
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                      <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
+                      <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border transition-colors">
                         <tr>
                           <th className="px-10 py-8">Client Profile</th>
                           <th className="px-10 py-8">Institutional UID</th>
                           <th className="px-10 py-8 text-right">Liquidity Control</th>
-                          <th className="px-10 py-8 text-right">Security</th>
+                          <th className="px-10 py-8 text-right">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border">
+                      <tbody className="divide-y divide-border transition-colors">
                         {allUsers?.map((u) => (
                           <tr key={u.id} className="hover:bg-muted/30 transition-colors">
                             <td className="px-10 py-6">
@@ -590,15 +623,15 @@ function AdminContent() {
                                   </div>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-black italic uppercase leading-none text-foreground">{u.name}</p>
-                                  <p className="text-[10px] font-bold text-muted-foreground mt-1">{u.email}</p>
+                                  <p className="text-sm font-black italic uppercase leading-none text-foreground transition-colors">{u.name}</p>
+                                  <p className="text-[10px] font-bold text-muted-foreground mt-1 transition-colors">{u.email}</p>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-10 py-6 font-mono text-[11px] text-muted-foreground">{u.accountNumber}</td>
+                            <td className="px-10 py-6 font-mono text-[11px] text-muted-foreground transition-colors">{u.accountNumber}</td>
                             <td className="px-10 py-6 text-right">
                               <div className="flex flex-col items-end gap-2">
-                                <p className="text-base font-black italic tracking-tighter text-[#1A1D1F] dark:text-foreground">Rp {u.totalBalance?.toLocaleString('id-ID')}</p>
+                                <p className="text-base font-black italic tracking-tighter text-[#1A1D1F] dark:text-foreground transition-colors">Rp {u.totalBalance?.toLocaleString('id-ID')}</p>
                                 <div className="flex items-center gap-2">
                                   <Input type="number" placeholder="Amt" className="h-8 w-20 text-[10px] font-black bg-muted border-none shadow-none rounded-lg text-foreground transition-colors" value={adjustAmounts[u.uid] || ""} onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [u.uid]: e.target.value }))} />
                                   <div className="flex gap-1">
@@ -609,9 +642,115 @@ function AdminContent() {
                               </div>
                             </td>
                             <td className="px-10 py-6 text-right">
-                              <Button variant="outline" size="sm" className="h-9 rounded-xl border-border text-primary font-black uppercase text-[9px] italic hover:bg-primary/10 transition-colors" onClick={() => sendPasswordResetEmail(auth!, u.email)}>
-                                <Key className="w-3 h-3 mr-2" /> Reset
-                              </Button>
+                              <div className="flex justify-end gap-2">
+                                <Dialog onOpenChange={(open) => {
+                                  if (open) {
+                                    setViewingUser(u);
+                                    fetchUserSubCollections(u.uid);
+                                  } else {
+                                    setViewingUser(null);
+                                  }
+                                }}>
+                                  <DialogTrigger asChild>
+                                    <Button variant="outline" size="sm" className="h-9 rounded-xl border-border text-foreground font-black uppercase text-[9px] italic hover:bg-muted transition-colors">
+                                      <Search className="w-3 h-3 mr-2" /> Detail
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-2xl bg-background rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
+                                    <DialogHeader className="p-8 bg-muted/30 border-b border-border transition-colors">
+                                      <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter text-foreground transition-colors">Client Intelligence Profile</DialogTitle>
+                                    </DialogHeader>
+                                    <ScrollArea className="max-h-[70vh]">
+                                      <div className="p-8 space-y-10">
+                                        {/* Identity Section */}
+                                        <section className="flex flex-col md:flex-row gap-8 items-start">
+                                          <div className="w-32 h-32 rounded-[2.5rem] gold-gradient p-1 shrink-0">
+                                            <div className="w-full h-full rounded-[2.4rem] bg-background flex items-center justify-center overflow-hidden border-4 border-background">
+                                              <Image src={`https://picsum.photos/seed/${viewingUser?.uid}/200/200`} alt="p" width={128} height={128} className="object-cover" />
+                                            </div>
+                                          </div>
+                                          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                                            <InfoItem icon={UserIcon} label="Legal Name" value={viewingUser?.name} />
+                                            <InfoItem icon={Mail} label="Email Address" value={viewingUser?.email} />
+                                            <InfoItem icon={Phone} label="Contact Phone" value={viewingUser?.phone || "Not Set"} />
+                                            <InfoItem icon={Lock} label="Access Key" value="********" action={<Button variant="link" className="h-auto p-0 text-[10px] font-black text-primary uppercase" onClick={() => sendPasswordResetEmail(auth!, viewingUser?.email)}>Send Reset</Button>} />
+                                            <InfoItem icon={MapPin} label="Home Base" value={viewingUser?.address || "No primary address linked"} />
+                                            <InfoItem icon={Database} label="Institutional UID" value={viewingUser?.accountNumber} className="font-mono" />
+                                          </div>
+                                        </section>
+
+                                        {/* Asset Allocation Section */}
+                                        <section className="space-y-6">
+                                          <div className="flex items-center gap-2">
+                                            <TrendingUp className="w-4 h-4 text-green-600" />
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground transition-colors">Asset Allocation</h4>
+                                          </div>
+                                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                            <AssetMiniCard label="IDR Balance" value={`Rp ${viewingUser?.totalBalance?.toLocaleString('id-ID')}`} color="text-foreground" />
+                                            <AssetMiniCard label="Savings (IDR)" value={`Rp ${viewingUser?.savings?.toLocaleString('id-ID') || 0}`} color="text-green-600" />
+                                            <AssetMiniCard label="ALX Holder" value={`${viewingUser?.cryptoBalances?.ALX || 0} ALX`} color="text-primary" />
+                                            <AssetMiniCard label="BTC Wallet" value={`${viewingUser?.cryptoBalances?.BTC || 0} BTC`} color="text-orange-500" />
+                                            <AssetMiniCard label="ETH Wallet" value={`${viewingUser?.cryptoBalances?.ETH || 0} ETH`} color="text-blue-500" />
+                                            <AssetMiniCard label="USDT Vault" value={`${viewingUser?.cryptoBalances?.USDT || 0} USDT`} color="text-teal-500" />
+                                          </div>
+                                        </section>
+
+                                        {/* Sync Accounts Section */}
+                                        <section className="space-y-6">
+                                          <div className="flex items-center gap-2">
+                                            <RefreshCw className="w-4 h-4 text-primary" />
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground transition-colors">Synchronized Entities</h4>
+                                          </div>
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <SyncStatusItem label="MetaMask (Web3)" value={viewingUser?.walletAddress} />
+                                            <SyncStatusItem label="DANA Wallet" value={viewingUserWallets.find(w => w.name === 'DANA')?.balance ? "LINKED" : null} />
+                                            <SyncStatusItem label="OVO Wallet" value={viewingUserWallets.find(w => w.name === 'OVO')?.balance ? "LINKED" : null} />
+                                            <SyncStatusItem label="GoPay Account" value={viewingUserWallets.find(w => w.name === 'GoPay')?.balance ? "LINKED" : null} />
+                                            <SyncStatusItem label="ShopeePay" value={viewingUserWallets.find(w => w.name === 'ShopeePay')?.balance ? "LINKED" : null} />
+                                            <SyncStatusItem label="Global Card" value={viewingUser?.cardDetails ? "VISA / MASTERCARD" : null} />
+                                          </div>
+                                        </section>
+
+                                        {/* Active Deposits Section */}
+                                        <section className="space-y-6">
+                                          <div className="flex items-center gap-2">
+                                            <PiggyBank className="w-4 h-4 text-primary" />
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground transition-colors">Wealth Management (Deposits)</h4>
+                                          </div>
+                                          {viewingUserDeposits.length > 0 ? (
+                                            <div className="space-y-3">
+                                              {viewingUserDeposits.map((dep, i) => (
+                                                <div key={i} className="p-4 rounded-2xl bg-muted/30 border border-border flex justify-between items-center transition-colors">
+                                                  <div>
+                                                    <p className="text-[10px] font-black uppercase text-foreground transition-colors">{dep.type}</p>
+                                                    <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Maturity: {dep.maturityDate ? new Date(dep.maturityDate).toLocaleDateString() : '---'}</p>
+                                                  </div>
+                                                  <div className="text-right">
+                                                    <p className="text-sm font-black italic text-primary">Rp {dep.amount?.toLocaleString('id-ID')}</p>
+                                                    <Badge className="bg-primary/10 text-primary text-[7px] font-black uppercase border-none h-4 px-1">{dep.rate} APY</Badge>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          ) : (
+                                            <div className="p-10 rounded-3xl border-2 border-dashed border-border flex flex-col items-center justify-center transition-colors">
+                                              <PiggyBank className="w-8 h-8 text-muted-foreground opacity-20 mb-2" />
+                                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">No active wealth certificates</p>
+                                            </div>
+                                          )}
+                                        </section>
+                                      </div>
+                                    </ScrollArea>
+                                    <div className="p-8 bg-muted/30 border-t border-border flex justify-end gap-3 transition-colors">
+                                      <Button variant="ghost" className="rounded-xl font-black uppercase text-[10px] px-6 h-12" onClick={() => setViewingUser(null)}>Close Intelligence</Button>
+                                      <Button className="gold-gradient text-white rounded-xl font-black uppercase text-[10px] px-8 h-12 shadow-lg">Save Adjustments</Button>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                                <Button variant="outline" size="sm" className="h-9 rounded-xl border-border text-primary font-black uppercase text-[9px] italic hover:bg-primary/10 transition-colors" onClick={() => sendPasswordResetEmail(auth!, u.email)}>
+                                  <Key className="w-3 h-3 mr-2" /> Reset
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -631,14 +770,14 @@ function AdminContent() {
                       <Pickaxe className="w-8 h-8" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-black italic uppercase tracking-tight text-foreground">Sovereign Mint</h3>
+                      <h3 className="text-2xl font-black italic uppercase tracking-tight text-foreground transition-colors">Sovereign Mint</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Authorized Supply Expansion</p>
                     </div>
                   </div>
                   <div className="space-y-6">
                     <div className="bg-muted p-8 rounded-[2rem] space-y-2 transition-colors">
                       <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Global Anchor Reserve (USD)</p>
-                      <p className="text-3xl font-black italic text-[#1A1D1F] dark:text-foreground">$ {displayVal(globalLiquidity?.totalUsdInjected).toLocaleString('id-ID', { minimumFractionDigits: 2 })}</p>
+                      <p className="text-3xl font-black italic text-[#1A1D1F] dark:text-foreground transition-colors">$ {displayVal(globalLiquidity?.totalUsdInjected).toLocaleString('id-ID', { minimumFractionDigits: 2 })}</p>
                     </div>
                     <div className="space-y-3">
                       <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Amount to Authorize (ALX)</label>
@@ -685,8 +824,8 @@ function AdminContent() {
                         <Database className="w-8 h-8" />
                       </div>
                       <div>
-                        <h3 className="text-2xl font-black italic uppercase tracking-tight text-foreground">Mainnet Vault Reserve</h3>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Multi-Asset Custody System</p>
+                        <h3 className="text-2xl font-black italic uppercase tracking-tight text-foreground transition-colors">Mainnet Vault Reserve</h3>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 transition-colors">Multi-Asset Custody System</p>
                       </div>
                     </div>
                     <Badge className="bg-green-500/10 text-green-600 border-none font-black text-[10px] px-4 py-1.5 rounded-full uppercase">Node Active</Badge>
@@ -694,7 +833,7 @@ function AdminContent() {
                   
                   <div className="p-8 rounded-[2rem] bg-muted flex flex-col md:flex-row items-center justify-between gap-6 transition-colors">
                     <div className="space-y-1 text-center md:text-left">
-                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">On-Chain Ethereum Balance</p>
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest transition-colors">On-Chain Ethereum Balance</p>
                       <p className="text-5xl font-black italic tracking-tighter text-blue-600 transition-colors">{parseFloat(onChainEth).toFixed(4)} <span className="text-2xl text-muted-foreground/40 italic">ETH</span></p>
                     </div>
                     <Button onClick={syncOnChainData} className="h-14 px-10 rounded-2xl gold-gradient text-white font-black uppercase italic tracking-widest shadow-lg border-none">Refresh Chain</Button>
@@ -702,16 +841,16 @@ function AdminContent() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
                     <div className="p-8 rounded-[2.5rem] border border-border space-y-4 transition-colors">
-                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em]">External Disbursement</p>
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] transition-colors">External Disbursement</p>
                       <div className="space-y-4">
-                        <Input type="number" placeholder="0.00 ETH" value={disburseAmount} onChange={(e) => setDisburseAmount(e.target.value)} className="h-14 bg-muted border-none font-black italic rounded-xl px-6 shadow-none text-foreground transition-colors" />
+                        <Input type="number" placeholder="0.00 ETH" className="h-14 bg-muted border-none font-black italic rounded-xl px-6 shadow-none text-foreground transition-colors" />
                         <Button className="w-full h-12 bg-[#1A1D1F] dark:bg-muted text-background dark:text-foreground hover:opacity-90 rounded-xl font-black uppercase italic text-[10px] tracking-widest shadow-xl transition-all border-none">Execute Withdrawal</Button>
                       </div>
                     </div>
                     <div className="p-8 rounded-[2.5rem] border border-border space-y-4 flex flex-col justify-center bg-blue-500/5 transition-colors">
                       <div className="flex gap-4">
                         <HelpCircle className="w-6 h-6 text-blue-600 shrink-0" />
-                        <p className="text-[10px] font-bold text-muted-foreground leading-relaxed uppercase italic">Every external settlement is verified by AliBank V3 Protocol to ensure 100% solvency.</p>
+                        <p className="text-[10px] font-bold text-muted-foreground leading-relaxed uppercase italic transition-colors">Every external settlement is verified by AliBank V3 Protocol to ensure 100% solvency.</p>
                       </div>
                     </div>
                   </div>
@@ -725,8 +864,8 @@ function AdminContent() {
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
                   <div className="p-10 border-b border-border bg-blue-500/5 flex items-center justify-between transition-colors">
                     <div>
-                      <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground">Marketplace Inventory</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Managing Digital & Physical Goods</p>
+                      <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground transition-colors">Marketplace Inventory</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 transition-colors">Managing Digital & Physical Goods</p>
                     </div>
                     <Button className="rounded-xl gold-gradient text-white font-black uppercase text-[10px] h-10 px-6 italic border-none shadow-lg">
                       <PackagePlus className="w-4 h-4 mr-2" /> Add Item
@@ -734,26 +873,26 @@ function AdminContent() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-10">
                     {inventoryItems?.map((item) => (
-                      <Card key={item.id} className="bg-muted/30 border border-border rounded-2xl p-6 space-y-4 relative group overflow-hidden transition-all hover:shadow-xl">
-                        <div className="w-full h-32 rounded-xl bg-muted border border-border flex items-center justify-center mb-4 relative overflow-hidden">
+                      <Card key={item.id} className="bg-muted/30 border border-border rounded-2xl p-6 space-y-4 relative group overflow-hidden transition-all hover:shadow-xl transition-colors">
+                        <div className="w-full h-32 rounded-xl bg-muted border border-border flex items-center justify-center mb-4 relative overflow-hidden transition-colors">
                           <Image src={item.image || `https://picsum.photos/seed/${item.id}/200/200`} alt={item.name} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
                         </div>
                         <div>
-                          <Badge className="bg-primary/10 text-primary border-none font-black text-[8px] uppercase px-2 mb-2">{item.category}</Badge>
-                          <h4 className="text-sm font-black italic uppercase text-foreground">{item.name}</h4>
+                          <Badge className="bg-primary/10 text-primary border-none font-black text-[8px] uppercase px-2 mb-2 transition-colors">{item.category}</Badge>
+                          <h4 className="text-sm font-black italic uppercase text-foreground transition-colors">{item.name}</h4>
                           <div className="flex justify-between items-center mt-2">
-                            <p className="text-xs font-black text-foreground">Rp {item.priceIdr?.toLocaleString('id-ID')}</p>
-                            <p className="text-[10px] font-bold text-muted-foreground">Stock: {item.stock || 0}</p>
+                            <p className="text-xs font-black text-foreground transition-colors">Rp {item.priceIdr?.toLocaleString('id-ID')}</p>
+                            <p className="text-[10px] font-bold text-muted-foreground transition-colors">Stock: {item.stock || 0}</p>
                           </div>
                         </div>
                         <div className="flex gap-2 pt-2">
-                          <Button variant="outline" size="sm" className="flex-1 rounded-lg border-border font-black uppercase text-[9px] h-8">Edit</Button>
+                          <Button variant="outline" size="sm" className="flex-1 rounded-lg border-border font-black uppercase text-[9px] h-8 transition-colors">Edit</Button>
                           <button onClick={() => handleDeleteAuditLog(item.id)} className="w-8 h-8 rounded-lg text-rose-500 hover:bg-rose-500/10 flex items-center justify-center transition-colors"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </Card>
                     ))}
                     {(!inventoryItems || inventoryItems.length === 0) && (
-                      <div className="col-span-full py-20 text-center opacity-20">
+                      <div className="col-span-full py-20 text-center opacity-20 transition-opacity">
                         <ShoppingCart className="w-12 h-12 mx-auto mb-4" />
                         <p className="text-xs font-black uppercase tracking-widest">No Inventory Items Found</p>
                       </div>
@@ -769,8 +908,8 @@ function AdminContent() {
                 <Card className="border-none shadow-none bg-card rounded-[2.5rem] overflow-hidden transition-colors">
                   <div className="p-10 border-b border-border bg-amber-500/5 flex items-center justify-between transition-colors">
                     <div>
-                      <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground">System Audit Ledger</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Irreversible Transaction History</p>
+                      <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground transition-colors">System Audit Ledger</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 transition-colors">Irreversible Transaction History</p>
                     </div>
                     <div className="flex gap-3">
                       <Button onClick={handlePurgeAuditLogs} disabled={isPurging} variant="outline" className="rounded-xl border-rose-200 text-rose-600 font-black uppercase text-[10px] h-10 px-6 italic hover:bg-rose-50 transition-colors">
@@ -783,7 +922,7 @@ function AdminContent() {
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                      <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
+                      <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border transition-colors">
                         <tr>
                           <th className="px-10 py-8">Timestamp</th>
                           <th className="px-10 py-8">Operation Type</th>
@@ -792,26 +931,26 @@ function AdminContent() {
                           <th className="px-10 py-8 text-center">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border">
+                      <tbody className="divide-y divide-border transition-colors">
                         {auditLogs?.map((log) => (
                           <tr key={log.id} className="hover:bg-muted/30 transition-colors group">
                             <td className="px-10 py-6">
                               <div className="flex items-center gap-2">
                                 <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                                <span className="text-[10px] font-bold text-muted-foreground italic">
+                                <span className="text-[10px] font-bold text-muted-foreground italic transition-colors">
                                   {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString('id-ID') : '---'}
                                 </span>
                               </div>
                             </td>
                             <td className="px-10 py-6">
-                              <Badge className="bg-muted text-foreground border-none text-[8px] font-black px-3 h-5 uppercase">{log.category}</Badge>
+                              <Badge className="bg-muted text-foreground border-none text-[8px] font-black px-3 h-5 uppercase transition-colors">{log.category}</Badge>
                             </td>
                             <td className="px-10 py-6">
-                              <p className="text-[10px] font-black italic text-[#1A1D1F] dark:text-foreground uppercase">{log.gateway || log.description || 'System Node'}</p>
-                              <p className="text-[8px] font-mono text-muted-foreground mt-1">{log.id}</p>
+                              <p className="text-[10px] font-black italic text-[#1A1D1F] dark:text-foreground uppercase transition-colors">{log.gateway || log.description || 'System Node'}</p>
+                              <p className="text-[8px] font-mono text-muted-foreground mt-1 transition-colors">{log.id}</p>
                             </td>
                             <td className="px-10 py-6 text-right">
-                              <p className="text-sm font-black italic text-[#1A1D1F] dark:text-foreground">
+                              <p className="text-sm font-black italic text-[#1A1D1F] dark:text-foreground transition-colors">
                                 {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString('id-ID')}` : log.cryptoAmount ? `${log.cryptoAmount} ${log.cryptoCurrency}` : '---'}
                               </p>
                             </td>
@@ -844,6 +983,44 @@ function AdminContent() {
   );
 }
 
+function InfoItem({ icon: Icon, label, value, action, className }: any) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Icon className="w-3.5 h-3.5" />
+        <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <p className={cn("text-sm font-bold text-foreground transition-colors truncate", className)}>{value || "---"}</p>
+        {action}
+      </div>
+    </div>
+  );
+}
+
+function AssetMiniCard({ label, value, color }: any) {
+  return (
+    <div className="p-4 rounded-2xl bg-muted/30 border border-border flex flex-col justify-center transition-colors">
+      <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest mb-1 transition-colors">{label}</p>
+      <p className={cn("text-xs font-black italic truncate transition-colors", color)}>{value}</p>
+    </div>
+  );
+}
+
+function SyncStatusItem({ label, value }: any) {
+  return (
+    <div className="flex items-center justify-between p-4 rounded-2xl bg-muted/30 border border-border transition-colors">
+      <span className="text-[10px] font-black uppercase text-muted-foreground transition-colors">{label}</span>
+      <Badge className={cn(
+        "text-[8px] font-black uppercase border-none h-5 px-3",
+        value ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground/40"
+      )}>
+        {value || "NOT LINKED"}
+      </Badge>
+    </div>
+  );
+}
+
 function SidebarItem({ icon: Icon, label, active, onClick, className }: any) {
   return (
     <button 
@@ -867,13 +1044,13 @@ function SidebarItem({ icon: Icon, label, active, onClick, className }: any) {
 
 function QuickActionCard({ icon: Icon, label, sub, onClick }: any) {
   return (
-    <Card className="border-none shadow-none bg-card rounded-[2rem] p-6 flex flex-col items-center justify-center gap-3 cursor-pointer hover:scale-[1.05] active:scale-95 transition-all group" onClick={onClick}>
+    <Card className="border-none shadow-none bg-card rounded-[2rem] p-6 flex flex-col items-center justify-center gap-3 cursor-pointer hover:scale-[1.05] active:scale-95 transition-all group transition-colors" onClick={onClick}>
       <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-foreground group-hover:gold-gradient group-hover:text-white transition-all duration-500 shadow-inner">
         <Icon className="w-6 h-6" />
       </div>
       <div className="text-center">
         <p className="text-xs font-black italic uppercase leading-none mb-1 text-foreground transition-colors">{label}</p>
-        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{sub}</p>
+        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest transition-colors">{sub}</p>
       </div>
     </Card>
   );
@@ -881,7 +1058,7 @@ function QuickActionCard({ icon: Icon, label, sub, onClick }: any) {
 
 export default function AdminControlPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background transition-colors duration-300"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>}>
       <AdminContent />
     </Suspense>
   );

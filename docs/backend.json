@@ -10,17 +10,20 @@
         "name": { "type": "string" },
         "email": { "type": "string" },
         "phone": { "type": "string" },
+        "address": { "type": "string", "description": "Alamat fisik nasabah." },
         "accountNumber": { "type": "string" },
         "totalBalance": { "type": "number" },
         "savings": { "type": "number" },
         "tier": { "type": "string" },
         "walletAddress": { "type": "string", "description": "Alamat dompet MetaMask yang terhubung secara persisten." },
+        "cardDetails": { "type": "object", "description": "Informasi kartu debit/kredit yang disinkronkan." },
         "cryptoBalances": {
           "type": "object",
           "properties": {
             "BTC": { "type": "number" },
             "ETH": { "type": "number" },
-            "USDT": { "type": "number" }
+            "USDT": { "type": "number" },
+            "ALX": { "type": "number" }
           }
         }
       },
@@ -120,6 +123,14 @@
     "/users/{userId}/notifications/{notificationId}": {
       "schema": "Notification",
       "description": "Daftar notifikasi pengguna."
+    },
+    "/users/{userId}/deposits/{depositId}": {
+      "schema": "object",
+      "description": "Daftar produk deposito yang aktif milik pengguna."
+    },
+    "/users/{userId}/wallets/{walletId}": {
+      "schema": "object",
+      "description": "Akun e-wallet yang disinkronkan."
     },
     "/merchants/{merchantId}": {
       "schema": "MerchantProfile",
