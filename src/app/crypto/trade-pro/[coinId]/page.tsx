@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -42,7 +43,8 @@ import {
   ReferenceLine,
   ComposedChart,
   Bar,
-  Line
+  Line,
+  CartesianGrid
 } from "recharts";
 import { useUser, useDoc, useFirestore } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
@@ -76,31 +78,36 @@ export default function TradeProPage() {
 
   useEffect(() => {
     setMounted(true);
-    const initial = Array.from({ length: 30 }, (_, i) => generateCandle(i, price));
+    const initial = Array.from({ length: 40 }, (_, i) => generateCandle(i, price));
     setCandles(initial);
   }, []);
 
-  function generateCandle(time: number, basePrice: number) {
+  function generateCandle(timeIndex: number, basePrice: number) {
+    const time = new Date(Date.now() - (40 - timeIndex) * 5000);
+    const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
     const open = basePrice + (Math.random() * 0.4 - 0.2);
     const close = open + (Math.random() * 0.6 - 0.3);
-    const high = Math.max(open, close) + Math.random() * 0.1;
-    const low = Math.min(open, close) - Math.random() * 0.1;
+    const high = Math.max(open, close) + Math.random() * 0.15;
+    const low = Math.min(open, close) - Math.random() * 0.15;
+    
     return {
-      time,
+      time: timeStr,
       open,
       close,
       high,
       low,
       isUp: close >= open,
-      candleHeight: Math.max(0.01, Math.abs(close - open)),
-      candleBottom: Math.min(open, close)
+      // For Recharts manipulation
+      body: [open, close],
+      wick: [low, high]
     };
   }
 
   useEffect(() => {
     if (!mounted) return;
     const interval = setInterval(() => {
-      const move = Math.random() * 0.04 - 0.02;
+      const move = Math.random() * 0.06 - 0.03;
       setPrice(prev => {
         const next = prev + move;
         setCandles(prevCandles => {
@@ -111,12 +118,13 @@ export default function TradeProPage() {
             high: Math.max(last.high, next),
             low: Math.min(last.low, next),
             isUp: next >= last.open,
-            candleHeight: Math.max(0.01, Math.abs(next - last.open)),
-            candleBottom: Math.min(last.open, next)
+            body: [last.open, next],
+            wick: [Math.min(last.low, next), Math.max(last.high, next)]
           };
           
+          // Create new candle every 5 seconds
           if (Date.now() % 5000 < 1000) {
-            return [...prevCandles.slice(1), generateCandle(last.time + 1, next)];
+            return [...prevCandles.slice(1), generateCandle(40, next)];
           }
           return [...prevCandles.slice(0, -1), updatedLast];
         });
@@ -142,7 +150,6 @@ export default function TradeProPage() {
       return;
     }
 
-    // Eksekusi Riil: Potong Saldo IDR
     updateDoc(userDocRef, { totalBalance: increment(-amount) });
     const liquidityRef = doc(db, "system", "liquidity");
     updateDoc(liquidityRef, { totalFiatInjected: increment(amount), tradeXGrossVolumeIdr: increment(amount) });
@@ -191,10 +198,12 @@ export default function TradeProPage() {
     });
   };
 
+  const currentFormattedPrice = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   if (!mounted) return null;
 
   return (
-    <div className="h-screen bg-[#0F1113] text-white flex flex-col font-body overflow-hidden">
+    <div className="h-screen bg-[#0F1113] text-white flex flex-col font-body overflow-hidden selection:bg-primary/20">
       {/* PROFESSIONAL TOP HEADER */}
       <header className="px-4 h-16 flex items-center justify-between bg-[#171A1D] border-b border-white/5 shrink-0">
         <div className="flex items-center gap-3">
@@ -216,7 +225,7 @@ export default function TradeProPage() {
       </header>
 
       {/* ASSET SELECTOR BAR */}
-      <div className="px-4 h-12 flex items-center justify-between bg-[#1C2024] shrink-0">
+      <div className="px-4 h-12 flex items-center justify-between bg-[#1C2024] shrink-0 border-b border-white/5">
         <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5 cursor-pointer active:bg-white/10 transition-colors">
           <div className="w-5 h-5 rounded bg-primary flex items-center justify-center p-1">
             <LogoIcon className="text-black" />
@@ -232,49 +241,90 @@ export default function TradeProPage() {
       </div>
 
       {/* CHART AREA */}
-      <main className="flex-1 relative overflow-hidden flex flex-col">
-        <div className="flex-1 relative pt-4">
+      <main className="flex-1 relative overflow-hidden flex flex-col bg-[#0F1113]">
+        <div className="flex-1 relative">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={candles} margin={{ top: 20, right: 0, bottom: 20, left: 0 }}>
-              <YAxis domain={['auto', 'auto']} orientation="right" axisLine={false} tickLine={false} tick={{fontSize: 9, fill: 'rgba(255,255,255,0.3)'}} />
+              <CartesianGrid strokeDasharray="3 3" vertical={true} horizontal={true} stroke="rgba(255,255,255,0.03)" />
+              <XAxis 
+                dataKey="time" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{fontSize: 9, fill: 'rgba(255,255,255,0.3)'}} 
+                minTickGap={30}
+              />
+              <YAxis 
+                domain={['auto', 'auto']} 
+                orientation="right" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{fontSize: 9, fill: 'rgba(255,255,255,0.3)'}} 
+              />
               <Tooltip content={() => null} />
               
-              {/* CURRENT PRICE LINE */}
-              <ReferenceLine y={price} stroke="rgba(255,255,255,0.2)" strokeDasharray="2 2">
-                <label value={price.toFixed(2)} position="right" fill="#fff" fontSize={10} fontWeight="bold" className="bg-white text-black" />
+              {/* CURRENT PRICE LINE & LABEL */}
+              <ReferenceLine y={price} stroke="rgba(255,255,255,0.2)" strokeDasharray="2 2" isFront>
+                <rect x="0" y={0} width="100%" height="1" fill="rgba(255,255,255,0.1)" />
               </ReferenceLine>
 
-              {entryPrice && (
-                <ReferenceLine y={entryPrice} stroke="#FCD535" strokeDasharray="3 3" />
-              )}
-
-              <Bar dataKey="candleHeight" isAnimationActive={false}>
+              {/* CANDLE BODY */}
+              <Bar dataKey="body" isAnimationActive={false} barSize={8}>
                 {candles.map((entry, index) => (
                   <Cell key={`body-${index}`} fill={entry.isUp ? "#26A69A" : "#EF5350"} />
                 ))}
               </Bar>
+
+              {/* CANDLE WICK (Rendered as a thin bar) */}
+              <Bar dataKey="wick" isAnimationActive={false} barSize={1}>
+                {candles.map((entry, index) => (
+                  <Cell key={`wick-${index}`} fill={entry.isUp ? "#26A69A" : "#EF5350"} />
+                ))}
+              </Bar>
+
+              {entryPrice && (
+                <ReferenceLine y={entryPrice} stroke="#FCD535" strokeDasharray="3 3" label={{ position: 'left', value: 'ENTRY', fill: '#FCD535', fontSize: 8, fontWeight: 'bold' }} />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
 
+          {/* DYNAMIC PRICE TAG OVERLAY */}
+          <div className="absolute right-0 top-0 bottom-0 pointer-events-none flex flex-col justify-center pr-1">
+             <div 
+               className="bg-white text-black px-2 py-1 rounded-l-md font-black text-[10px] shadow-xl transition-all duration-300 z-30"
+               style={{ transform: `translateY(${(1 - (price - Math.min(...candles.map(c => c.low))) / (Math.max(...candles.map(c => c.high)) - Math.min(...candles.map(c => c.low)))) * 100}%)` }}
+             >
+               {currentFormattedPrice}
+             </div>
+          </div>
+
+          {/* COUNTDOWN TIMER NEAR PRICE */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-1/2 z-20 pointer-events-none">
+             <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <span className="text-[10px] font-black italic tracking-widest text-white/80">00:0{Math.floor(Math.random()*9)}</span>
+             </div>
+          </div>
+
           {/* ZOOM CONTROLS Overlay */}
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1 bg-[#1C2024]/80 backdrop-blur p-1 rounded-lg border border-white/5 z-20">
-            <button className="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded"><Minus className="w-4 h-4 text-white/60" /></button>
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1 bg-[#1C2024]/80 backdrop-blur p-1 rounded-lg border border-white/5 z-20">
+            <button className="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded active:scale-90 transition-transform"><Minus className="w-4 h-4 text-white/60" /></button>
             <div className="w-px h-4 bg-white/10 self-center" />
-            <button className="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded"><Plus className="w-4 h-4 text-white/60" /></button>
+            <button className="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded active:scale-90 transition-transform"><Plus className="w-4 h-4 text-white/60" /></button>
           </div>
         </div>
 
-        {/* TRADING TERMINAL PANEL */}
-        <div className="bg-[#171A1D] border-t border-white/5 p-4 space-y-4 pb-8 shrink-0">
-          <div className="flex justify-between items-center px-1">
-            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest italic">Fixed Time mode</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-white/40 uppercase italic">Profit:</span>
-              <span className="text-xs font-black text-green-500 italic">+Rp {(amount * 0.9).toLocaleString()}</span>
-              <HelpCircle className="w-3.5 h-3.5 text-white/20" />
-            </div>
-          </div>
+        {/* STATUS FOOTER BAR */}
+        <div className="h-8 bg-[#171A1D] border-t border-white/5 px-4 flex items-center justify-between shrink-0">
+           <span className="text-[9px] font-black uppercase tracking-widest text-white/30 italic">Fixed Time mode</span>
+           <div className="flex items-center gap-1">
+              <span className="text-[9px] font-bold text-white/30 uppercase italic">Profit:</span>
+              <span className="text-[10px] font-black text-green-500 italic">+Rp {(amount * 0.9).toLocaleString()}</span>
+              <HelpCircle className="w-3 h-3 text-white/10" />
+           </div>
+        </div>
 
+        {/* TRADING TERMINAL PANEL */}
+        <div className="bg-[#171A1D] p-4 space-y-4 pb-8 shrink-0">
           <div className="grid grid-cols-2 gap-3">
             {/* DURATION SELECTOR */}
             <div className="bg-[#1C2024] rounded-xl p-1 flex items-center justify-between border border-white/5 h-14">
