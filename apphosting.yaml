@@ -5,3 +5,6 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+
+# Menetapkan runtime ke Node.js 20 yang direkomendasikan untuk Next.js 15.
+runtime: nodejs20
