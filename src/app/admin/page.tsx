@@ -80,7 +80,8 @@ import {
   PieChart as PieIcon,
   Timer,
   Info,
-  ShoppingBag
+  ShoppingBag,
+  Layers
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -203,6 +204,11 @@ function AdminContent() {
   const [productPriceUsd, setProductPriceUsd] = useState("");
   const [productCategory, setProductCategory] = useState("Kartu Hadiah");
   const [isAddingProduct, setIsAddingProduct] = useState(false);
+  
+  // States for Editing Product
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [isEditProductDialogOpen, setIsEditProductDialogOpen] = useState(false);
+  const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
 
   // Detailed User States
   const [selectedUserWallets, setSelectedUserWallets] = useState<any[]>([]);
@@ -442,6 +448,41 @@ function AdminContent() {
       toast({ variant: "destructive", title: "Failed to Add Product", description: err.message });
     } finally {
       setIsAddingProduct(false);
+    }
+  };
+
+  const handleUpdateProduct = async () => {
+    if (!db || !isAuthorized || !editingProduct) return;
+    setIsUpdatingProduct(true);
+    try {
+      const prodRef = doc(db, "marketplace", editingProduct.id);
+      const updateData = {
+        name: editingProduct.name,
+        description: editingProduct.description,
+        priceIdr: parseFloat(editingProduct.priceIdr),
+        priceUsd: parseFloat(editingProduct.priceUsd) || 0,
+        category: editingProduct.category,
+        updatedAt: serverTimestamp()
+      };
+      
+      await updateDoc(prodRef, updateData);
+      
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `PROD-EDIT-${Date.now()}`,
+        category: "Catalog Maintenance",
+        gateway: "Super Admin",
+        description: `Updated product ${editingProduct.name}`,
+        timestamp: serverTimestamp(),
+        status: "success"
+      });
+
+      toast({ title: "Product Updated" });
+      setIsEditProductDialogOpen(false);
+      setEditingProduct(null);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Update Failed", description: err.message });
+    } finally {
+      setIsUpdatingProduct(false);
     }
   };
 
@@ -1038,6 +1079,7 @@ function AdminContent() {
                           <option value="Layanan Seluler">Layanan Seluler</option>
                           <option value="Kartu Hadiah">Kartu Hadiah</option>
                           <option value="Game">Game</option>
+                          <option value="Infrastructure">Infrastructure</option>
                         </select>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
@@ -1093,21 +1135,31 @@ function AdminContent() {
                           <div key={item.id} className="p-6 flex items-center justify-between hover:bg-muted/30 transition-colors">
                             <div className="flex items-center gap-4">
                               <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center border border-border shadow-inner">
-                                <ShoppingBag className="w-6 h-6 text-muted-foreground" />
+                                {item.category === "Infrastructure" ? <Layers className="w-6 h-6 text-muted-foreground" /> : <ShoppingBag className="w-6 h-6 text-muted-foreground" />}
                               </div>
                               <div>
                                 <p className="text-sm font-black italic uppercase">{item.name}</p>
                                 <p className="text-[9px] font-bold text-muted-foreground uppercase">{item.category} • Rp {item.priceIdr?.toLocaleString()}</p>
                               </div>
                             </div>
-                            <Button 
-                              onClick={() => handleDeleteProduct(item.id)}
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-10 w-10 rounded-xl hover:bg-rose-100 hover:text-rose-600"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button 
+                                onClick={() => { setEditingProduct(item); setIsEditProductDialogOpen(true); }}
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-10 w-10 rounded-xl hover:bg-primary/10 hover:text-primary"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                onClick={() => handleDeleteProduct(item.id)}
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-10 w-10 rounded-xl hover:bg-rose-100 hover:text-rose-600"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
                         ))}
                         {(!marketplaceProducts || marketplaceProducts.length === 0) && (
@@ -1449,6 +1501,79 @@ function AdminContent() {
                 <span className="text-[8px] font-black uppercase tracking-widest italic">Encrypted Admin Terminal V3</span>
               </div>
               <Button onClick={() => setIsUserDialogOpen(false)} variant="ghost" className="h-12 px-10 rounded-xl font-black uppercase italic text-xs ml-auto">Close Console</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Product Edit Dialog */}
+        <Dialog open={isEditProductDialogOpen} onOpenChange={setIsEditProductDialogOpen}>
+          <DialogContent className="max-w-md rounded-[2.5rem] bg-card border-border p-8 shadow-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black uppercase italic tracking-tight">Edit Global Product</DialogTitle>
+              <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Modify product specifications</DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Product Name</label>
+                <Input 
+                  value={editingProduct?.name || ""} 
+                  onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
+                  className="h-12 rounded-xl bg-muted border-none font-bold"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Category</label>
+                <select 
+                  value={editingProduct?.category || ""} 
+                  onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value})}
+                  className="w-full h-12 rounded-xl bg-muted border-none px-4 text-sm font-bold outline-none"
+                >
+                  <option value="Layanan Seluler">Layanan Seluler</option>
+                  <option value="Kartu Hadiah">Kartu Hadiah</option>
+                  <option value="Game">Game</option>
+                  <option value="Infrastructure">Infrastructure</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Price (IDR)</label>
+                  <Input 
+                    type="number" 
+                    value={editingProduct?.priceIdr || ""} 
+                    onChange={(e) => setEditingProduct({...editingProduct, priceIdr: e.target.value})}
+                    className="h-12 rounded-xl bg-muted border-none font-bold"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Price (USD)</label>
+                  <Input 
+                    type="number" 
+                    value={editingProduct?.priceUsd || ""} 
+                    onChange={(e) => setEditingProduct({...editingProduct, priceUsd: e.target.value})}
+                    className="h-12 rounded-xl bg-muted border-none font-bold"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Description</label>
+                <textarea 
+                  value={editingProduct?.description || ""}
+                  onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})}
+                  className="w-full h-24 rounded-xl bg-muted border-none p-4 text-xs font-bold outline-none resize-none"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setIsEditProductDialogOpen(false)} className="rounded-xl font-bold">Cancel</Button>
+              <Button 
+                onClick={handleUpdateProduct} 
+                disabled={isUpdatingProduct}
+                className="gold-gradient text-white rounded-xl font-black uppercase italic flex-1"
+              >
+                {isUpdatingProduct ? <Loader2 className="animate-spin" /> : "Save Changes"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

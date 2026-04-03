@@ -16,10 +16,11 @@ import {
   Sparkles,
   ArrowLeft,
   Home,
-  Loader2
+  Loader2,
+  Layers
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
-import { useUser, useFirestore, useCollection } from "@/firebase";
+import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
@@ -30,6 +31,7 @@ const CATEGORIES = [
   { id: "Layanan Seluler", name: "Layanan Seluler", icon: Smartphone },
   { id: "Kartu Hadiah", name: "Kartu Hadiah", icon: Gift },
   { id: "Game", name: "Game", icon: Gamepad2 },
+  { id: "Infrastructure", name: "Infrastructure", icon: Layers },
 ];
 
 export default function MarketplacePage() {
@@ -43,7 +45,7 @@ export default function MarketplacePage() {
     setMounted(true);
   }, []);
 
-  const itemsQuery = useMemo(() => {
+  const itemsQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, "marketplace"), orderBy("createdAt", "desc"));
   }, [db]);
@@ -164,7 +166,7 @@ export default function MarketplacePage() {
                 className="flex items-center gap-4 py-4 px-1 hover:bg-muted rounded-xl transition-colors cursor-pointer group"
               >
                 <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0 border border-border">
-                  <ShoppingBag className="w-5 h-5 text-muted-foreground" />
+                  {p.category === "Infrastructure" ? <Layers className="w-5 h-5 text-muted-foreground" /> : <ShoppingBag className="w-5 h-5 text-muted-foreground" />}
                 </div>
                 <div className="flex-1 flex items-center justify-between border-b border-border pb-4 group-last:border-none">
                   <div>
