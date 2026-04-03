@@ -14,14 +14,12 @@ Jalankan perintah ini di Google Cloud Shell:
 gcloud services enable firebaseapphosting.googleapis.com cloudbuild.googleapis.com run.googleapis.com artifactregistry.googleapis.com logging.googleapis.com secretmanager.googleapis.com --project darmedia-pos
 ```
 
-### 3. Solusi Error Billing (UREQ_PROJECT_BILLING_NOT_OPEN)
-Meskipun kartu sudah didaftarkan, project harus **dihubungkan** ke akun penagihan yang **AKTIF**:
-1. Buka [Google Cloud Billing](https://console.cloud.google.com/billing).
-2. Di sidebar kiri, pilih **Account Management**.
-3. Jika muncul banner merah **"This billing account is closed"**, klik tombol **"Reopen billing account"** di bagian atas.
-4. Pastikan project **darmedia-pos** (852996332274) terdaftar di tabel bawah.
-5. Jika statusnya "Billing disabled", klik titik tiga di baris project tersebut, pilih **Change billing**, dan pilih akun penagihan yang aktif.
-6. Ulangi perintah di Cloud Shell.
+### 3. Solusi Error Billing (Not in Good Standing)
+Jika tombol "Reopen" tidak bisa diklik, lakukan hal berikut:
+1. **Cek Transaksi**: Buka [Transactions](https://console.cloud.google.com/billing/0188A8-644BFB-EE82F5/transactions) dan lunasi tagihan yang gagal.
+2. **Verifikasi Kartu**: Pastikan kartu Mastercard aktif untuk transaksi internasional.
+3. **Cek Email**: Periksa email `dzulfikaraliridlo@gmail.com` untuk instruksi verifikasi identitas dari Google.
+4. **Support**: Gunakan ikon [?] Support di pojok kanan atas jika masalah berlanjut.
 
 ### 4. Setup Secure Vault (Secret Manager)
 Setelah billing terbuka dan terhubung, jalankan ini di Cloud Shell:

@@ -37,7 +37,7 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 ### Keamanan & Infrastruktur
 - [x] **Secure Vault Node:** Integrasi GCP Secret Manager (Logic implemented, awaiting GCP activation).
 - [x] **Server-Side Execution:** Penarikan dana diproses di server via Server Actions.
-- [x] **Billing Integration:** Paid Account detected (Ready for Re-opening).
+- [x] **Billing Integration:** Paid Account detected (Status: Recovery Required).
 
 ### On-Chain & Web3
 - [x] **AliBank Native Wallet:** Sistem pembuatan kunci privat mandiri saat registrasi.
@@ -60,9 +60,9 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 ---
 
 ## 5. CATATAN PENTING & TROUBLESHOOTING
-- **Blocker:** Akun penagihan (Billing Account) dalam status **CLOSED**.
-- **Solution:** Klik tombol **"Reopen billing account"** di Dashboard Billing Google Cloud untuk mengaktifkan kembali layanan Secret Manager.
-- **Verified Project ID:** Menggunakan `darmedia-pos`.
+- **BLOCKER UTAMA**: Akun penagihan dalam status **"Not in good standing"**.
+- **Solusi**: Periksa menu **"Transactions"** untuk invoice gagal dan cek email verifikasi identitas dari Google Payments.
+- **Verified Project ID**: Menggunakan `darmedia-pos`.
 
 ---
 *Terakhir Diperbarui: Mei 2026*
