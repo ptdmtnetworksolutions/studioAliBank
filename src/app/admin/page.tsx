@@ -81,7 +81,9 @@ import {
   Timer,
   Info,
   ShoppingBag,
-  Layers
+  Layers,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -193,6 +195,17 @@ function AdminContent() {
   const [isEditProductDialogOpen, setIsEditProductDialogOpen] = useState(false);
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
 
+  // States for API Keys
+  const [isSavingKeys, setIsSavingKeys] = useState(false);
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [keys, setKeys] = useState({
+    paypalClientId: "",
+    etherscanApiKey: "",
+    ethereumRpcUrl: "",
+    geminiApiKey: "",
+    alxContractAddress: "0x56268032A3B3E64CFeF1916d591087CF8dF40945"
+  });
+
   // Detailed User States
   const [selectedUserWallets, setSelectedUserWallets] = useState<any[]>([]);
   const [selectedUserDeposits, setSelectedUserDeposits] = useState<any[]>([]);
@@ -220,6 +233,21 @@ function AdminContent() {
   const userProfileRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: userData } = useDoc(userProfileRef);
 
+  const apiKeysRef = useMemoFirebase(() => (db && isAuthorized ? doc(db, "system", "api_keys") : null), [db, isAuthorized]);
+  const { data: storedKeys } = useDoc(apiKeysRef);
+
+  useEffect(() => {
+    if (storedKeys) {
+      setKeys({
+        paypalClientId: storedKeys.paypalClientId || "",
+        etherscanApiKey: storedKeys.etherscanApiKey || "",
+        ethereumRpcUrl: storedKeys.ethereumRpcUrl || "",
+        geminiApiKey: storedKeys.geminiApiKey || "",
+        alxContractAddress: storedKeys.alxContractAddress || "0x56268032A3B3E64CFeF1916d591087CF8dF40945"
+      });
+    }
+  }, [storedKeys]);
+
   // AGGREGATE REAL REVENUE DATA FROM AUDIT LOGS
   const candleData = useMemo(() => {
     if (!auditLogs) return Array.from({ length: 24 }, (_, i) => ({ time: `${i}:00`, close: 0, isUp: true }));
@@ -237,7 +265,6 @@ function AdminContent() {
       }
     });
 
-    // Determine isUp based on previous hour
     for (let i = 1; i < hours.length; i++) {
       hours[i].isUp = hours[i].close >= hours[i-1].close;
     }
@@ -245,7 +272,6 @@ function AdminContent() {
     return hours;
   }, [auditLogs]);
 
-  // Fetch detailed user data for dialog
   useEffect(() => {
     async function fetchSubData() {
       if (!selectedUser || !db || !isUserDialogOpen || !isAuthorized) return;
@@ -278,7 +304,7 @@ function AdminContent() {
     if (!isAuthorized) return;
     setSyncingVault(true);
     try {
-      const provider = new JsonRpcProvider(GLOBAL_RPC);
+      const provider = new JsonRpcProvider(keys.ethereumRpcUrl || GLOBAL_RPC);
       const vaultBalance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
       setOnChainEth(formatEther(vaultBalance));
 
@@ -289,8 +315,8 @@ function AdminContent() {
 
       try {
         const [resNormal, resInternal] = await Promise.all([
-          fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${ETHERSCAN_API_KEY}`),
-          fetch(`https://api.etherscan.io/api?module=account&action=txlistinternal&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${ETHERSCAN_API_KEY}`)
+          fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${keys.etherscanApiKey || ETHERSCAN_API_KEY}`),
+          fetch(`https://api.etherscan.io/api?module=account&action=txlistinternal&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${keys.etherscanApiKey || ETHERSCAN_API_KEY}`)
         ]);
 
         const dataNormal = await resNormal.json();
@@ -338,7 +364,7 @@ function AdminContent() {
     } finally { 
       setSyncingVault(false); 
     }
-  }, [toast, userData?.walletAddress, isAuthorized]);
+  }, [toast, userData?.walletAddress, isAuthorized, keys.ethereumRpcUrl, keys.etherscanApiKey]);
 
   useEffect(() => {
     if (userLoading) return;
@@ -348,7 +374,6 @@ function AdminContent() {
     }
     setIsAuthorized(true);
 
-    // AUTO-DETECTION: Redirect to Mobile UI if on small screen
     if (typeof window !== "undefined" && window.innerWidth < 768) {
       router.push('/admin/mobile');
     }
@@ -508,6 +533,32 @@ function AdminContent() {
     }
   };
 
+  const handleSaveAPIKeys = async () => {
+    if (!db || !isAuthorized || isSavingKeys) return;
+    setIsSavingKeys(true);
+
+    const docRef = doc(db, "system", "api_keys");
+    setDoc(docRef, {
+      ...keys,
+      updatedAt: serverTimestamp(),
+      updatedBy: user?.email
+    }, { merge: true })
+      .then(() => {
+        toast({ title: "Konfigurasi Disimpan", description: "API Key sistem telah diperbarui dan disinkronkan." });
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'update',
+          requestResourceData: keys,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsSavingKeys(false);
+      });
+  };
+
   const handleResetPassword = async () => {
     if (!auth || !selectedUser?.email || !isAuthorized) return;
     try {
@@ -544,7 +595,7 @@ function AdminContent() {
     
     setIsExecutingVaultTx(true);
     try {
-      const provider = new JsonRpcProvider(GLOBAL_RPC);
+      const provider = new JsonRpcProvider(keys.ethereumRpcUrl || GLOBAL_RPC);
       const wallet = new ethers.Wallet(userData.privateKey, provider);
       const tx = await wallet.sendTransaction({
         to: vaultRecipient,
@@ -591,7 +642,6 @@ function AdminContent() {
 
   const [isPurging, setIsPurging] = useState(false);
 
-  // Statistics Calculation
   const totalGamingEarnings = useMemo(() => {
     return selectedUserTransactions
       .filter(tx => tx.category === "Game" || tx.category === "Trade-X")
@@ -630,7 +680,7 @@ function AdminContent() {
             <SidebarItem icon={Users} label="Clients" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
             <SidebarItem icon={Wallet} label="Vault Control" active={activeTab === 'vault'} onClick={() => setActiveTab('vault')} />
             <SidebarItem icon={Coins} label="Tokenomics" active={activeTab === 'tokenomics'} onClick={() => setActiveTab('tokenomics')} />
-            <SidebarItem icon={Key} label="API Management" active={activeTab === 'api'} onClick={() => router.push('/admin/api-keys')} />
+            <SidebarItem icon={Key} label="API Management" active={activeTab === 'api'} onClick={() => setActiveTab('api')} />
             <SidebarItem icon={Box} label="Inventory" active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} />
             <SidebarItem icon={FileText} label="Audit Logs" active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} />
           </nav>
@@ -657,9 +707,9 @@ function AdminContent() {
 
         <main className="flex-1 flex flex-col min-w-0 bg-background transition-colors">
           <header className="h-20 bg-card border-b border-border flex items-center justify-between px-6 md:px-10 sticky top-0 z-40">
-            <div className="relative w-full max-w-sm">
+            <div className="relative w-full max-sm hidden sm:block">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Search global data..." className="h-11 pl-12 bg-muted border-none rounded-xl text-xs font-bold w-full" />
+              <Input placeholder="Search global data..." className="h-11 pl-12 bg-muted border-none rounded-xl text-xs font-bold w-full max-w-sm" />
             </div>
             <div className="flex gap-4">
                <button onClick={() => syncOnChainData(true)} className="p-2 hover:bg-muted rounded-full transition-colors hidden sm:block">
@@ -924,6 +974,93 @@ function AdminContent() {
               </div>
             )}
 
+            {activeTab === 'api' && (
+              <div className="animate-in fade-in duration-700 space-y-10">
+                <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 rounded-[2rem] gold-gradient flex items-center justify-center shadow-xl p-4 shrink-0">
+                      <Key className="text-white w-full h-full" />
+                    </div>
+                    <div>
+                      <h3 className="text-3xl font-black italic uppercase tracking-tighter">Credential Vault</h3>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">External service integration management</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg">ENCRYPTED NODE</Badge>
+                </header>
+
+                <Card className="border-none bg-card rounded-[3rem] p-10 space-y-10 shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none"><LogoIcon className="w-64 h-64 text-primary" /></div>
+                  
+                  <div className="space-y-8 relative z-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-6">
+                        <h4 className="text-lg font-black italic uppercase tracking-tight flex items-center gap-3">
+                          <Globe className="w-5 h-5 text-primary" /> Gateway Configs
+                        </h4>
+                        <KeyInput 
+                          label="PayPal Client ID" 
+                          icon={Globe} 
+                          value={keys.paypalClientId} 
+                          onChange={(v) => setKeys({...keys, paypalClientId: v})}
+                          show={showKeys['paypal']}
+                          onToggle={() => setShowKeys(p => ({...p, paypal: !p.paypal}))}
+                        />
+                        <KeyInput 
+                          label="Etherscan API Key" 
+                          icon={Cpu} 
+                          value={keys.etherscanApiKey} 
+                          onChange={(v) => setKeys({...keys, etherscanApiKey: v})}
+                          show={showKeys['etherscan']}
+                          onToggle={() => setShowKeys(p => ({...p, etherscan: !p.etherscan}))}
+                        />
+                      </div>
+
+                      <div className="space-y-6">
+                        <h4 className="text-lg font-black italic uppercase tracking-tight flex items-center gap-3">
+                          <Database className="w-5 h-5 text-primary" /> Node Endpoints
+                        </h4>
+                        <KeyInput 
+                          label="Ethereum RPC Node" 
+                          icon={RefreshCw} 
+                          value={keys.ethereumRpcUrl} 
+                          onChange={(v) => setKeys({...keys, ethereumRpcUrl: v})}
+                          show={true}
+                        />
+                        <KeyInput 
+                          label="Gemini API Key (AI)" 
+                          icon={Sparkles} 
+                          value={keys.geminiApiKey} 
+                          onChange={(v) => setKeys({...keys, geminiApiKey: v})}
+                          show={showKeys['gemini']}
+                          onToggle={() => setShowKeys(p => ({...p, gemini: !p.gemini}))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex gap-4">
+                      <AlertCircle className="w-6 h-6 text-amber-500 shrink-0" />
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+                        Perhatian: Perubahan pada kunci API akan segera diterapkan ke seluruh sistem kliring dan asisten AI AliBank. Pastikan kredensial valid sebelum menyimpan.
+                      </p>
+                    </div>
+
+                    <Button 
+                      onClick={handleSaveAPIKeys} 
+                      disabled={isSavingKeys}
+                      className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none text-base"
+                    >
+                      {isSavingKeys ? <Loader2 className="animate-spin" /> : (
+                        <span className="flex items-center gap-3">
+                          <Save className="w-5 h-5" /> SIMPAN PERUBAHAN SISTEM
+                        </span>
+                      )}
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            )}
+
             {activeTab === 'tokenomics' && (
               <div className="animate-in slide-in-from-bottom-10 duration-700 space-y-10">
                 <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -1076,7 +1213,6 @@ function AdminContent() {
                 </header>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                  {/* Add Product Form */}
                   <Card className="lg:col-span-5 border-none bg-card rounded-[3rem] p-10 space-y-8 shadow-sm">
                     <h4 className="text-xl font-black italic uppercase tracking-tight">Add New Global Product</h4>
                     <div className="space-y-4">
@@ -1143,7 +1279,6 @@ function AdminContent() {
                     </div>
                   </Card>
 
-                  {/* Product List */}
                   <Card className="lg:col-span-7 border-none bg-card rounded-[3rem] overflow-hidden shadow-sm">
                     <div className="p-8 border-b border-border flex items-center justify-between bg-muted/30">
                       <h4 className="text-xl font-black italic uppercase tracking-tight">Active Catalog</h4>
@@ -1671,6 +1806,33 @@ function DistributionItem({ label, value, color }: any) {
         <span className="text-[10px] font-bold text-muted-foreground uppercase">{label}</span>
       </div>
       <span className="text-[10px] font-black italic">{value?.toLocaleString()} ALX</span>
+    </div>
+  );
+}
+
+function KeyInput({ label, icon: Icon, value, onChange, show, onToggle }: any) {
+  return (
+    <div className="space-y-2">
+      <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{label}</label>
+      <div className="relative group">
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
+          <Icon className="w-4 h-4" />
+        </div>
+        <Input 
+          type={show ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-14 pl-12 pr-12 rounded-xl bg-muted/50 border-none font-bold text-xs focus:ring-2 focus:ring-primary/20 transition-all"
+        />
+        {onToggle && (
+          <button 
+            onClick={onToggle}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
