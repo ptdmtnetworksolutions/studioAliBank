@@ -1,39 +1,26 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, initializeFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import { firebaseConfig } from './config';
-import { FirebaseProvider } from './provider';
+import React, { useMemo, type ReactNode } from 'react';
+import { FirebaseProvider } from '@/firebase/provider';
+import { initializeFirebase } from '@/firebase';
 
-export const FirebaseClientProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const firebase = useMemo(() => {
-    // Inisialisasi Firebase App (pastikan hanya sekali)
-    const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-    
-    /**
-     * Stabilisasi Koneksi Firestore:
-     * Menggunakan experimentalForceLongPolling untuk mengatasi masalah konektivitas 
-     * di lingkungan jaringan yang membatasi gRPC atau HTTP2 stream.
-     */
-    let db;
-    try {
-      db = initializeFirestore(app, {
-        experimentalForceLongPolling: true,
-      });
-    } catch (e) {
-      // Jika sudah diinisialisasi (misal saat hot reload), ambil instance yang ada
-      db = getFirestore(app);
-    }
-    
-    const auth = getAuth(app);
-    return { app, db, auth };
-  }, []);
+interface FirebaseClientProviderProps {
+  children: ReactNode;
+}
+
+export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
+  const firebaseServices = useMemo(() => {
+    // Initialize Firebase on the client side, once per component mount.
+    return initializeFirebase();
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   return (
-    <FirebaseProvider app={firebase.app} db={firebase.db} auth={firebase.auth}>
+    <FirebaseProvider
+      firebaseApp={firebaseServices.firebaseApp}
+      auth={firebaseServices.auth}
+      firestore={firebaseServices.firestore}
+    >
       {children}
     </FirebaseProvider>
   );
-};
+}

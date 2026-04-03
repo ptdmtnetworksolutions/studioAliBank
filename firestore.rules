@@ -1,0 +1,167 @@
+/**
+ * FinWave Firestore Security Rules (Version 2)
+ *
+ * CORE PHILOSOPHY:
+ * This ruleset implements a strict User-Ownership model combined with Role-Based Access Control (RBAC). 
+ * The primary goal is to ensure that sensitive financial data (Bank Accounts, Transactions, Deposits) 
+ * is accessible only to the authenticated owner, while global configuration data (Deposit Products) 
+ * remains available for authenticated users to view but restricted for modification.
+ *
+ * DATA STRUCTURE:
+ * The database is organized into two primary segments:
+ * 1. User-Centric: Data nested under `/users/{userId}` and its subcollections.
+ * 2. Global: Top-level collections like `/depositProducts` for shared application data.
+ *
+ * KEY SECURITY DECISIONS:
+ * - Authorization Independence: Every document in a user subcollection contains a denormalized `userId`. 
+ *   Rules verify that both the path wildcard and the document's internal `userId` match the authenticated user.
+ * - Structural Segregation: Administrative privileges are determined by the existence of a document 
+ *   in the `/roles_admin` collection, enabling "Existence over Content" checks.
+ * - Prototyping Flexibility: While authorization and relational integrity (matching UIDs) are strictly 
+ *   enforced, the internal schema of content fields is not validated to allow for rapid iteration.
+ * - Denormalization for Performance: By including `userId` on all subcollection documents, 
+ *   we avoid costly `get()` calls to parent documents during authorization checks.
+ */
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- HELPER FUNCTIONS ---
+
+    /** @description Checks if the request is from an authenticated user. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the user's UID matches the provided ID. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** @description Checks if the user has an admin record in the database. */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /** @description Ensures a document exists and the user is the owner (for updates/deletes). */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    /** @description Validates that critical relational fields match the owner's ID. */
+    function isValidOwnerLink(userId) {
+      return request.resource.data.userId == userId;
+    }
+
+    // --- COLLECTION RULES ---
+
+    /**
+     * @description Rules for the root User profile document.
+     * @path /users/{userId}
+     * @allow get, list, create, update: if request.auth.uid == userId
+     * @deny delete: (Implicitly handled by granular rule)
+     * @principle Self-creation and owner-only access.
+     */
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if false; // User profiles cannot be deleted by clients for integrity.
+
+      /**
+       * @description Rules for BankAccounts subcollection.
+       * @path /users/{userId}/bankAccounts/{bankAccountId}
+       * @allow create: if owner matches path and data.userId matches path.
+       * @deny write: if userId in data does not match the authenticated user.
+       * @principle Denormalized owner validation for subcollections.
+       */
+      match /bankAccounts/{bankAccountId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidOwnerLink(userId);
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Rules for Deposits subcollection.
+       * @path /users/{userId}/deposits/{depositId}
+       * @allow list: if current user is the path owner.
+       * @deny update: if attempting to change the ownership (userId field).
+       * @principle Path-based ownership with immutability for foreign keys.
+       */
+      match /deposits/{depositId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidOwnerLink(userId);
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Rules for Transactions subcollection.
+       * @path /users/{userId}/transactions/{transactionId}
+       * @allow create: if isOwner(userId) and userId is set correctly in body.
+       * @deny update: Transactions are often immutable; here we allow owner update but restrict UID change.
+       * @principle Transactional integrity through path-auth binding.
+       */
+      match /transactions/{transactionId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidOwnerLink(userId);
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Rules for Beneficiaries subcollection.
+       * @path /users/{userId}/beneficiaries/{beneficiaryId}
+       * @allow list: if request.auth.uid matches {userId}.
+       * @deny create: if userId in data is spoofed.
+       * @principle Restricts address book/beneficiary access to the account holder.
+       */
+      match /beneficiaries/{beneficiaryId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidOwnerLink(userId);
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Rules for EWallets subcollection.
+       * @path /users/{userId}/eWallets/{eWalletId}
+       * @allow get: if authenticated owner.
+       * @deny delete: if not the owner of the user path.
+       * @principle Secure linking of external wallet identifiers.
+       */
+      match /eWallets/{eWalletId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidOwnerLink(userId);
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+      }
+    }
+
+    /**
+     * @description Rules for global Deposit Products.
+     * @path /depositProducts/{depositProductId}
+     * @allow get, list: if isSignedIn() (Public to all users).
+     * @deny create, update, delete: if not an administrator.
+     * @principle Structural segregation: public read, admin-only write.
+     */
+    match /depositProducts/{depositProductId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Rules for Admin Roles (DBAC).
+     * @path /roles_admin/{userId}
+     * @allow get: if isSignedIn() (To check own or others' roles).
+     * @deny create, update, delete: To all client requests.
+     * @principle Admin status is managed via server-side processes or super-admins.
+     */
+    match /roles_admin/{userId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin(); // Only existing admins can promote others in this prototype.
+    }
+  }
+}
