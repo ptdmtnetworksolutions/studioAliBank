@@ -22,7 +22,10 @@ import {
   Target,
   Smile,
   ShieldAlert,
-  LogOut
+  LogOut,
+  Trophy,
+  Crown,
+  Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +59,14 @@ export default function ProfilePage() {
   const isAdmin = useMemo(() => {
     return user && (user.email === OWNER_EMAIL || user.uid === OWNER_UID);
   }, [user]);
+
+  // LOGIKA TIER MEMBERSHIP BERDASARKAN SALDO ALX
+  const tierInfo = useMemo(() => {
+    const alxBalance = userData?.cryptoBalances?.ALX || 0;
+    if (alxBalance >= 10000) return { name: "Platinum VIP", color: "text-primary", bg: "bg-primary/10", icon: Crown, discount: "Zero Fee" };
+    if (alxBalance >= 1000) return { name: "Gold Member", color: "text-amber-500", bg: "bg-amber-500/10", icon: Star, discount: "15% Discount" };
+    return { name: "Regular", color: "text-muted-foreground", bg: "bg-muted", icon: User, discount: "No Discount" };
+  }, [userData]);
 
   const copyUid = () => {
     if (userData?.accountNumber) {
@@ -110,10 +121,14 @@ export default function ProfilePage() {
                 <Copy className="w-3 h-3 cursor-pointer active:scale-90 transition-transform" />
               </div>
               <div className="flex items-center gap-2 pt-1">
-                <Badge className="bg-green-500/10 text-green-500 text-[10px] font-black h-5 border-none px-2 rounded-md">Terverifikasi</Badge>
-                <div className="flex items-center gap-1 bg-muted px-2 py-0.5 rounded-md cursor-pointer hover:bg-muted/80">
-                  <span className="text-[10px] font-black text-muted-foreground">Reguler</span>
-                  <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                <Badge className="bg-green-500/10 text-green-500 text-[10px] font-black h-5 border-none px-2 rounded-md italic">Terverifikasi</Badge>
+                <div 
+                  className={cn("flex items-center gap-1 px-2 py-0.5 rounded-md cursor-pointer hover:opacity-80 transition-opacity", tierInfo.bg)}
+                  onClick={() => router.push('/crypto/market/alx')}
+                >
+                  <tierInfo.icon className={cn("w-3 h-3", tierInfo.color)} />
+                  <span className={cn("text-[10px] font-black uppercase italic", tierInfo.color)}>{tierInfo.name}</span>
+                  <ChevronRight className={cn("w-3 h-3", tierInfo.color)} />
                 </div>
               </div>
             </div>
@@ -142,46 +157,22 @@ export default function ProfilePage() {
           </section>
         )}
 
-        {/* Promo Cards Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card className="bg-muted/40 border-none p-5 rounded-2xl flex flex-col justify-between h-44 cursor-pointer hover:bg-muted/60 transition-colors">
-            <div className="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-              <div className="flex flex-col items-center">
-                <DollarSign className="w-4 h-4 text-yellow-600" />
-                <div className="w-3 h-0.5 bg-yellow-600 rounded-full -mt-0.5" />
-              </div>
+        {/* ALX Utility Banner */}
+        <section className="animate-in slide-in-from-bottom-4 duration-500">
+          <Card className="liquid-glass border-primary/20 p-6 rounded-[2rem] flex items-center justify-between shadow-lg relative overflow-hidden group cursor-pointer" onClick={() => router.push('/crypto/market/alx')}>
+            <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform">
+              <LogoIcon className="w-32 h-32" />
             </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">Hasilkan Bersama</p>
-              <h3 className="text-sm font-black text-foreground mt-1 leading-tight">Dapatkan Reward Putaran Anda Sekarang!</h3>
+            <div className="relative z-10 space-y-1">
+              <Badge className="bg-primary text-black font-black text-[8px] uppercase px-2 mb-2">ALX BENEFITS</Badge>
+              <h3 className="text-base font-black italic uppercase tracking-tight">Membership Tier</h3>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase italic">{tierInfo.discount} on all trades</p>
             </div>
-          </Card>
-
-          <Card className="bg-muted/40 border-none p-5 rounded-2xl flex flex-col justify-between h-44 cursor-pointer hover:bg-muted/60 transition-colors relative overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-              <CircleUserRound className="w-5 h-5 text-yellow-600" />
-            </div>
-            <div className="space-y-2">
-              <div>
-                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">Untuk Anda</p>
-                <h3 className="text-sm font-black text-foreground mt-1 leading-tight">Kompetisi Trading Alpha BLUAI Pertama: Pool Hadi...</h3>
-              </div>
-              <div className="flex gap-1">
-                <div className="w-3 h-1 bg-foreground rounded-full" />
-                <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
-                <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
-              </div>
+            <div className="w-12 h-12 rounded-2xl gold-gradient flex items-center justify-center shadow-xl relative z-10">
+              <tierInfo.icon className="text-white w-6 h-6" />
             </div>
           </Card>
-        </div>
-
-        {/* List Menu Section */}
-        <div className="bg-muted/20 rounded-2xl overflow-hidden">
-          <button className="w-full flex items-center justify-between p-5 hover:bg-muted/40 transition-colors border-b border-border/10">
-            <span className="text-sm font-bold text-foreground">Voucher Saya</span>
-            <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
-          </button>
-        </div>
+        </section>
 
         {/* Recommended Grid Section */}
         <section className="space-y-6">
@@ -220,20 +211,7 @@ export default function ProfilePage() {
               </div>
             ))}
           </div>
-          
-          <div className="flex justify-center gap-1.5 pt-2">
-            <div className="w-4 h-1 bg-foreground rounded-full" />
-            <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
-          </div>
         </section>
-
-        {/* Task Center Section */}
-        <div className="bg-muted/20 rounded-2xl overflow-hidden mt-4">
-          <button className="w-full flex items-center justify-between p-5 hover:bg-muted/40 transition-colors">
-            <span className="text-sm font-bold text-foreground">Pusat Tugas</span>
-            <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
-          </button>
-        </div>
 
         {/* Footer Mode Switcher */}
         <footer className="pt-6 space-y-4">

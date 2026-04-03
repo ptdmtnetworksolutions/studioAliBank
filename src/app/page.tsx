@@ -83,7 +83,7 @@ function HandCoinIcon({ className }: { className?: string }) {
   );
 }
 
-// KONFIGURASI HARGA RIIL ALX
+// KONFIGURASI HARGA RIIL ALX (Anchor Price V3)
 const ALX_PRICE_USD = 12.24;
 const USDT_IDR_RATE = 15850;
 const ALX_PRICE_IDR = ALX_PRICE_USD * USDT_IDR_RATE; // Rp 194,004
@@ -128,12 +128,16 @@ function DashboardContent() {
 
   const { data: userData } = useDoc(userDocRef);
 
-  // HITUNG TOTAL ESTIMASI NILAI (IDR Balance + ALX Value)
+  // HITUNG TOTAL ESTIMASI NILAI (IDR Balance + ALX Value + USDT Value)
   const totalValueCalculated = useMemo(() => {
     const idrBalance = userData?.totalBalance ?? 0;
     const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
+    const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
+    
     const alxValueIdr = alxHoldings * ALX_PRICE_IDR;
-    return idrBalance + alxValueIdr;
+    const usdtValueIdr = usdtHoldings * USDT_IDR_RATE;
+    
+    return idrBalance + alxValueIdr + usdtValueIdr;
   }, [userData]);
 
   const unreadQuery = useMemoFirebase(() => {
@@ -176,10 +180,9 @@ function DashboardContent() {
     if (!mounted) return;
     const interval = setInterval(() => {
       setMarketCoins(prev => prev.map(coin => {
-        // ALX tetap stabil di harga target, koin lain berfluktuasi
         if (coin.symbol === "ALX") return coin; 
         
-        const move = (Math.random() * 0.002 - 0.001); // 0.2% max move
+        const move = (Math.random() * 0.002 - 0.001); 
         const newPrice = coin.price * (1 + move);
         const newChange = coin.change + (Math.random() * 0.1 - 0.05);
         return {
@@ -456,7 +459,7 @@ function DashboardContent() {
                 </div>
                 <div>
                   <h4 className="text-sm font-black text-foreground leading-tight italic">Aset ALX</h4>
-                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-tight italic">Kedaulatan Digital</p>
+                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-tight italic">Utilitas & Membership</p>
                 </div>
               </div>
 
