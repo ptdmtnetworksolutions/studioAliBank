@@ -27,7 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { useUser, useDoc, useFirestore, useAuth } from "@/firebase";
+import { useUser, useDoc, useFirestore, useAuth, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { useMemo, useEffect, useState } from "react";
@@ -36,6 +36,7 @@ import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
+const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -49,10 +50,12 @@ export default function ProfilePage() {
     setMounted(true);
   }, []);
 
-  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  const isAdmin = user?.email === OWNER_EMAIL;
+  const isAdmin = useMemo(() => {
+    return user && (user.email === OWNER_EMAIL || user.uid === OWNER_UID);
+  }, [user]);
 
   const copyUid = () => {
     if (userData?.accountNumber) {
@@ -103,7 +106,7 @@ export default function ProfilePage() {
                 <Share2 className="w-4 h-4 text-muted-foreground/60 cursor-pointer" />
               </div>
               <div className="flex items-center gap-1.5 text-muted-foreground" onClick={copyUid}>
-                <span className="text-[11px] font-bold">UID: {userData?.accountNumber || "369470107"}</span>
+                <span className="text-[11px] font-bold">UID: {userData?.accountNumber || "--- --- ---"}</span>
                 <Copy className="w-3 h-3 cursor-pointer active:scale-90 transition-transform" />
               </div>
               <div className="flex items-center gap-2 pt-1">

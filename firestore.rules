@@ -4,7 +4,7 @@
  * 
  * PROTEKSI MUTLAK:
  * 1. Menghapus Test Mode (Tidak ada masa kedaluwarsa).
- * 2. Otorisasi Super Admin berdasarkan Email: alidzulfikar075@gmail.com
+ * 2. Otorisasi Super Admin berdasarkan Email & UID Eksklusif.
  * 3. Pemisahan Jalur: User-Private vs System-Admin.
  */
 
@@ -19,8 +19,11 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // Otorisasi berbasis Email Eksklusif untuk Super Admin
-      return isSignedIn() && request.auth.token.email == "alidzulfikar075@gmail.com";
+      // Otorisasi berbasis Email & UID Eksklusif untuk Super Admin (Dzulfikar A Ridlo)
+      return isSignedIn() && (
+        request.auth.token.email == "alidzulfikar075@gmail.com" || 
+        request.auth.uid == "IJOuQpjEOMgvlYfzvQ1yfp976Oa2"
+      );
     }
 
     function isOwner(userId) {
@@ -37,6 +40,11 @@ service cloud.firestore {
 
     // Audit Ledger: Hanya Super Admin yang bisa baca/tulis riwayat operasi global.
     match /system/audit/{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // Bridge & System Node: Hanya Admin yang bisa akses antrean kliring.
+    match /system/bridge/{document=**} {
       allow read, write: if isAdmin();
     }
 

@@ -1,7 +1,7 @@
 
 /**
  * CRITICAL: AliBank Admin Control V3.2
- * Pembaruan Izin Akses Super Admin: alidzulfikar075@gmail.com
+ * Pembaruan Izin Akses Super Admin: alidzulfikar075@gmail.com / IJOuQpjEOMgvlYfzvQ1yfp976Oa2
  * Memicu penyebaran Security Rules untuk jalur /system dan /users.
  */
 
@@ -100,7 +100,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
-import { useUser, useDoc, useCollection, useFirestore, useAuth } from "@/firebase";
+import { useUser, useDoc, useCollection, useFirestore, useAuth, useMemoFirebase } from "@/firebase";
 import { 
   collection, 
   doc, 
@@ -136,12 +136,13 @@ import {
   Cell
 } from "recharts";
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 // KONSTANTA GLOBAL ADMIN - ALIBANK VAULT V3
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
 const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
+const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
 const ETHERSCAN_API_KEY = "M1S7MDTBQSG1A3URQKYNVF31PSPE48UA8R";
 const ALX_PRICE_IDR = 194004;
 
@@ -196,16 +197,16 @@ function AdminContent() {
   const [onChainHistory, setOnChainHistory] = useState<any[]>([]);
 
   // SHIELDING QUERIES: Hanya jalankan query JIKA status otorisasi Super Admin telah dikonfirmasi.
-  const liquidityDocRef = useMemo(() => (db && isAuthorized ? doc(db, "system", "liquidity") : null), [db, isAuthorized]);
+  const liquidityDocRef = useMemoFirebase(() => (db && isAuthorized ? doc(db, "system", "liquidity") : null), [db, isAuthorized]);
   const { data: globalLiquidity } = useDoc(liquidityDocRef);
   
-  const usersQuery = useMemo(() => (db && isAuthorized ? query(collection(db, "users"), limit(100)) : null), [db, isAuthorized]);
+  const usersQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "users"), limit(100)) : null), [db, isAuthorized]);
   const { data: allUsers } = useCollection(usersQuery);
   
-  const auditQuery = useMemo(() => (db && isAuthorized ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(100)) : null), [db, isAuthorized]);
+  const auditQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(100)) : null), [db, isAuthorized]);
   const { data: auditLogs } = useCollection(auditQuery);
 
-  const userProfileRef = useMemo(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
+  const userProfileRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: userData } = useDoc(userProfileRef);
 
   // Fetch detailed user data for dialog
@@ -307,7 +308,7 @@ function AdminContent() {
 
   useEffect(() => {
     if (userLoading) return;
-    if (!user || user.email !== OWNER_EMAIL) {
+    if (!user || (user.email !== OWNER_EMAIL && user.uid !== OWNER_UID)) {
       router.push('/login');
       return;
     }
@@ -354,7 +355,7 @@ function AdminContent() {
           path: userRef.path,
           operation: 'update',
           requestResourceData: updateData,
-        });
+        } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
       })
       .finally(() => {
@@ -385,7 +386,7 @@ function AdminContent() {
         const permissionError = new FirestorePermissionError({
           path: userRef.path,
           operation: 'delete',
-        });
+        } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
       });
   };
