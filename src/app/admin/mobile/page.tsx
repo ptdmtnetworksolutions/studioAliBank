@@ -571,4 +571,5 @@ function QuickOpButton({ icon: Icon, label, sub, color, onClick, syncing }: any)
         <p className="text-[7px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">{sub}</p>
       </div>
     </button>
+  );
 }
