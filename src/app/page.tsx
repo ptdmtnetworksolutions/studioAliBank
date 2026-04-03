@@ -37,7 +37,10 @@ import {
   Send,
   Gamepad2,
   Dice5,
-  RotateCw
+  RotateCw,
+  Info,
+  TrendingDown,
+  ArrowUpDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -113,6 +116,7 @@ function DashboardContent() {
   const [marketFilter, setMarketFilter] = useState("Populer");
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isPnlOpen, setIsPnlOpen] = useState(false);
   
   // LIVE MARKET STATE
   const [marketCoins, setMarketCoins] = useState(INITIAL_COINS);
@@ -140,6 +144,32 @@ function DashboardContent() {
     
     return idrBalance + alxValueIdr + usdtValueIdr;
   }, [userData]);
+
+  // HITUNG PNL HARI INI BERDASARKAN PERUBAHAN PASAR
+  const pnlData = useMemo(() => {
+    const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
+    const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
+    
+    // Cari coin dari market state untuk mendapatkan persentase perubahan terbaru
+    const alxMarket = marketCoins.find(c => c.symbol === "ALX");
+    const usdtMarket = marketCoins.find(c => c.symbol === "USDT") || { change: 0.01 }; // USDT stabil tapi tetap fluktuatif kecil
+
+    const alxPnl = (alxHoldings * ALX_PRICE_IDR * (alxMarket?.change ?? 0)) / 100;
+    const usdtPnl = (usdtHoldings * USDT_IDR_RATE * (usdtMarket.change ?? 0)) / 100;
+    
+    const totalPnl = alxPnl + usdtPnl;
+    const pnlPercent = totalValueCalculated > 0 ? (totalPnl / totalValueCalculated) * 100 : 0;
+
+    return {
+      total: totalPnl,
+      percent: pnlPercent,
+      isUp: totalPnl >= 0,
+      breakdown: {
+        alx: alxPnl,
+        usdt: usdtPnl
+      }
+    };
+  }, [userData, marketCoins, totalValueCalculated]);
 
   const unreadQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -181,7 +211,11 @@ function DashboardContent() {
     if (!mounted) return;
     const interval = setInterval(() => {
       setMarketCoins(prev => prev.map(coin => {
-        if (coin.symbol === "ALX") return coin; 
+        if (coin.symbol === "ALX") {
+          // ALX bergerak sangat stabil tapi tetap naik karena utility
+          const move = (Math.random() * 0.0002 - 0.00005); 
+          return { ...coin, change: coin.change + move };
+        }
         
         const move = (Math.random() * 0.002 - 0.001); 
         const newPrice = coin.price * (1 + move);
@@ -399,24 +433,82 @@ function DashboardContent() {
                   >
                     <span className="text-xs font-bold">Estimasi Total Nilai(IDR)</span>
                     {isDetailsOpen ? (
-                      <ChevronDown className="w-3 h-3 text-primary transition-transform" />
+                      <ChevronUp className="w-3 h-3 text-primary transition-transform" />
                     ) : (
-                      <ChevronUp className="w-3 h-3 transition-transform" />
+                      <ChevronDown className="w-3 h-3 transition-transform" />
                     )}
                   </div>
                   <h1 className="text-4xl font-black tracking-tight text-foreground">
                     Rp{totalValueCalculated.toLocaleString('id-ID')}
                   </h1>
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                  
+                  <div 
+                    className="flex items-center gap-1.5 text-[10px] font-bold cursor-pointer hover:bg-muted/50 w-fit px-1 rounded transition-colors"
+                    onClick={() => setIsPnlOpen(!isPnlOpen)}
+                  >
                     <span className="text-muted-foreground">PNL hari ini</span>
-                    <span className="text-green-500">+Rp1.240 (+0.01%)</span>
-                    <ChevronDown className="w-3 h-3 text-green-500" />
+                    <span className={cn(
+                      "font-black italic",
+                      pnlData.isUp ? "text-green-500" : "text-rose-500"
+                    )}>
+                      {pnlData.isUp ? '+' : '-'}Rp{Math.abs(pnlData.total).toLocaleString('id-ID')} ({pnlData.percent.toFixed(2)}%)
+                    </span>
+                    {isPnlOpen ? (
+                      <ChevronUp className={cn("w-3 h-3", pnlData.isUp ? "text-green-500" : "text-rose-500")} />
+                    ) : (
+                      <ChevronDown className={cn("w-3 h-3", pnlData.isUp ? "text-green-500" : "text-rose-500")} />
+                    )}
                   </div>
                 </div>
                 <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-black px-4 h-10 rounded-lg shadow-none text-xs" onClick={openAddFunds}>
                   Tambah Dana
                 </Button>
               </div>
+
+              {/* PNL Analysis Breakdown Detail Area */}
+              {isPnlOpen && (
+                <div className="animate-in slide-in-from-top-2 fade-in duration-300 space-y-3 pt-2">
+                  <div className="p-5 rounded-2xl bg-accent/5 border border-primary/10 space-y-4 shadow-xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><LogoIcon className="w-24 h-24 text-primary" /></div>
+                    
+                    <div className="flex justify-between items-center relative z-10">
+                      <div className="flex items-center gap-3">
+                        <TrendingUp className="w-4 h-4 text-primary" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-accent">Analisis Profitabilitas</span>
+                      </div>
+                      <Badge className="bg-green-500/10 text-green-600 border-none text-[7px] font-black h-4 uppercase">Real-Time</Badge>
+                    </div>
+
+                    <div className="space-y-3 relative z-10">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 rounded-lg gold-gradient p-1 flex items-center justify-center"><LogoIcon className="text-white" /></div>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">ALX Growth</span>
+                        </div>
+                        <span className={cn("text-[11px] font-black italic", pnlData.breakdown.alx >= 0 ? "text-green-500" : "text-rose-500")}>
+                          {pnlData.breakdown.alx >= 0 ? '+' : '-'}Rp{Math.abs(pnlData.breakdown.alx).toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 rounded-lg bg-[#0D9488] flex items-center justify-center p-1 text-white"><ArrowUpDown className="w-3 h-3" /></div>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">USDT Market</span>
+                        </div>
+                        <span className={cn("text-[11px] font-black italic", pnlData.breakdown.usdt >= 0 ? "text-green-500" : "text-rose-500")}>
+                          {pnlData.breakdown.usdt >= 0 ? '+' : '-'}Rp{Math.abs(pnlData.breakdown.usdt).toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-primary/10 relative z-10">
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase italic leading-tight">
+                        Nilai PNL dikalkulasikan dari kenaikan harga koin ALX dan saldo USDT Anda terhadap kurs IDR saat ini.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Asset Breakdown Detail Area */}
               {isDetailsOpen && (
