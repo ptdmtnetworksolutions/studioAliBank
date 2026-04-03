@@ -35,9 +35,9 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 ## 3. FITUR YANG SUDAH SELESAI ✅
 
 ### Keamanan & Infrastruktur
-- [x] **Secure Vault Node:** Integrasi GCP Secret Manager untuk kunci privat (Selesai).
-- [x] **Server-Side Execution:** Penarikan dana diproses di server, bukan di browser.
-- [x] **Billing Integration:** Google Cloud Billing aktif (Paid Account).
+- [x] **Secure Vault Node:** Integrasi GCP Secret Manager (Logic implemented, awaiting GCP linking).
+- [x] **Server-Side Execution:** Penarikan dana diproses di server via Server Actions.
+- [x] **Billing Integration:** Paid Account detected (In linking process).
 
 ### On-Chain & Web3
 - [x] **AliBank Native Wallet:** Sistem pembuatan kunci privat mandiri saat registrasi.
@@ -59,10 +59,10 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 
 ---
 
-## 5. CATATAN PENTING & KEPUTUSAN ARSITEKTUR
-- **Verified Project ID:** Menggunakan `darmedia-pos` untuk semua layanan cloud.
-- **Secure Disbursement:** Kunci privat tidak akan pernah muncul di kode frontend.
-- **Hybrid System:** Kecepatan database dipadukan dengan transparansi blockchain.
+## 5. CATATAN PENTING & TROUBLESHOOTING
+- **Blocker:** Billing Account aktif tetapi Project `darmedia-pos` belum terhubung (Linked).
+- **Solution:** User perlu masuk ke Billing > Account Management dan menghubungkan project ke akun penagihan.
+- **Verified Project ID:** Menggunakan `darmedia-pos`.
 
 ---
 *Terakhir Diperbarui: Mei 2026*
