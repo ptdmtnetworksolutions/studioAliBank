@@ -1,7 +1,7 @@
 
 /**
- * CRITICAL: AliBank Admin Control V3.5 - TOKENOMICS TERMINAL
- * Pusat Kendali Suplai & Kebijakan Moneter ALX.
+ * CRITICAL: AliBank Admin Control V3.5 - TOKENOMICS & INVENTORY TERMINAL
+ * Pusat Kendali Suplai, Kebijakan Moneter ALX, dan Manajemen Katalog Marketplace.
  * Otorisasi Eksklusif: alidzulfikar075@gmail.com / IJOuQpjEOMgvlYfzvQ1yfp976Oa2
  */
 
@@ -79,7 +79,8 @@ import {
   Smartphone,
   PieChart as PieIcon,
   Timer,
-  Info
+  Info,
+  ShoppingBag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -195,6 +196,14 @@ function AdminContent() {
   const [burnAmount, setBurnAmount] = useState("");
   const [isProcessingToken, setIsProcessingToken] = useState(false);
 
+  // States for Inventory
+  const [productName, setProductName] = useState("");
+  const [productDesc, setProductDesc] = useState("");
+  const [productPriceIdr, setProductPriceIdr] = useState("");
+  const [productPriceUsd, setProductPriceUsd] = useState("");
+  const [productCategory, setProductCategory] = useState("Kartu Hadiah");
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+
   // Detailed User States
   const [selectedUserWallets, setSelectedUserWallets] = useState<any[]>([]);
   const [selectedUserDeposits, setSelectedUserDeposits] = useState<any[]>([]);
@@ -215,6 +224,9 @@ function AdminContent() {
   
   const auditQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(100)) : null), [db, isAuthorized]);
   const { data: auditLogs } = useCollection(auditQuery);
+
+  const marketplaceQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "marketplace"), orderBy("createdAt", "desc")) : null), [db, isAuthorized]);
+  const { data: marketplaceProducts } = useCollection(marketplaceQuery);
 
   const userProfileRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: userData } = useDoc(userProfileRef);
@@ -406,6 +418,41 @@ function AdminContent() {
       toast({ variant: "destructive", title: "Operation Failed", description: err.message });
     } finally {
       setIsProcessingToken(false);
+    }
+  };
+
+  const handleAddProduct = async () => {
+    if (!db || !isAuthorized || !productName || !productPriceIdr) return;
+    setIsAddingProduct(true);
+    try {
+      const id = `PROD-${Date.now()}`;
+      await setDoc(doc(db, "marketplace", id), {
+        id,
+        name: productName,
+        description: productDesc,
+        priceIdr: parseFloat(productPriceIdr),
+        priceUsd: parseFloat(productPriceUsd) || 0,
+        category: productCategory,
+        createdAt: new Date().toISOString()
+      });
+      
+      toast({ title: "Product Deployed", description: `${productName} is now live in marketplace.` });
+      setProductName(""); setProductDesc(""); setProductPriceIdr(""); setProductPriceUsd("");
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Failed to Add Product", description: err.message });
+    } finally {
+      setIsAddingProduct(false);
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (!db || !isAuthorized) return;
+    if (!confirm("Remove this product from catalog?")) return;
+    try {
+      await deleteDoc(doc(db, "marketplace", id));
+      toast({ title: "Product Removed" });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error", description: err.message });
     }
   };
 
@@ -952,6 +999,130 @@ function AdminContent() {
               </div>
             )}
 
+            {activeTab === 'inventory' && (
+              <div className="animate-in slide-in-from-left-10 duration-700 space-y-10">
+                <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 rounded-[2rem] gold-gradient flex items-center justify-center shadow-xl p-4 shrink-0">
+                      <PackagePlus className="text-white w-full h-full" />
+                    </div>
+                    <div>
+                      <h3 className="text-3xl font-black italic uppercase tracking-tighter">Marketplace Inventory</h3>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Manage global product catalog & supply chain</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg">V3 CATALOG ACTIVE</Badge>
+                </header>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  {/* Add Product Form */}
+                  <Card className="lg:col-span-5 border-none bg-card rounded-[3rem] p-10 space-y-8 shadow-sm">
+                    <h4 className="text-xl font-black italic uppercase tracking-tight">Add New Global Product</h4>
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Product Name</label>
+                        <Input 
+                          placeholder="e.g. Google Play Card $50" 
+                          value={productName} 
+                          onChange={(e) => setProductName(e.target.value)}
+                          className="h-12 rounded-xl bg-muted border-none font-bold"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Category</label>
+                        <select 
+                          value={productCategory} 
+                          onChange={(e) => setProductCategory(e.target.value)}
+                          className="w-full h-12 rounded-xl bg-muted border-none px-4 text-sm font-bold outline-none"
+                        >
+                          <option value="Layanan Seluler">Layanan Seluler</option>
+                          <option value="Kartu Hadiah">Kartu Hadiah</option>
+                          <option value="Game">Game</option>
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Price (IDR)</label>
+                          <Input 
+                            type="number" 
+                            placeholder="750000" 
+                            value={productPriceIdr} 
+                            onChange={(e) => setProductPriceIdr(e.target.value)}
+                            className="h-12 rounded-xl bg-muted border-none font-bold"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Price (USD)</label>
+                          <Input 
+                            type="number" 
+                            placeholder="50" 
+                            value={productPriceUsd} 
+                            onChange={(e) => setProductPriceUsd(e.target.value)}
+                            className="h-12 rounded-xl bg-muted border-none font-bold"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Description</label>
+                        <textarea 
+                          placeholder="Product details..." 
+                          value={productDesc}
+                          onChange={(e) => setProductDesc(e.target.value)}
+                          className="w-full h-24 rounded-xl bg-muted border-none p-4 text-xs font-bold outline-none resize-none"
+                        />
+                      </div>
+                      <Button 
+                        onClick={handleAddProduct}
+                        disabled={isAddingProduct || !productName || !productPriceIdr}
+                        className="w-full h-14 gold-gradient text-white rounded-2xl font-black uppercase italic tracking-widest shadow-lg border-none"
+                      >
+                        {isAddingProduct ? <Loader2 className="animate-spin" /> : "DEPLOY TO MARKETPLACE"}
+                      </Button>
+                    </div>
+                  </Card>
+
+                  {/* Product List */}
+                  <Card className="lg:col-span-7 border-none bg-card rounded-[3rem] overflow-hidden shadow-sm">
+                    <div className="p-8 border-b border-border flex items-center justify-between bg-muted/30">
+                      <h4 className="text-xl font-black italic uppercase tracking-tight">Active Catalog</h4>
+                      <Badge className="bg-primary text-primary-foreground font-black text-[8px] uppercase px-3 h-6">{marketplaceProducts?.length || 0} ITEMS</Badge>
+                    </div>
+                    <ScrollArea className="h-[600px]">
+                      <div className="divide-y divide-border">
+                        {marketplaceProducts?.map((item) => (
+                          <div key={item.id} className="p-6 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center border border-border shadow-inner">
+                                <ShoppingBag className="w-6 h-6 text-muted-foreground" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-black italic uppercase">{item.name}</p>
+                                <p className="text-[9px] font-bold text-muted-foreground uppercase">{item.category} • Rp {item.priceIdr?.toLocaleString()}</p>
+                              </div>
+                            </div>
+                            <Button 
+                              onClick={() => handleDeleteProduct(item.id)}
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-10 w-10 rounded-xl hover:bg-rose-100 hover:text-rose-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        {(!marketplaceProducts || marketplaceProducts.length === 0) && (
+                          <div className="py-20 text-center opacity-20">
+                            <ShoppingBag className="w-12 h-12 mx-auto mb-2" />
+                            <p className="text-[10px] font-black uppercase">No Products in Catalog</p>
+                          </div>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </Card>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'vault' && (
               <div className="animate-in zoom-in-95 duration-700 space-y-10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -1111,14 +1282,6 @@ function AdminContent() {
                     </table>
                   </div>
                 </Card>
-              </div>
-            )}
-
-            {activeTab === 'inventory' && (
-              <div className="flex flex-col items-center justify-center py-40 opacity-20">
-                <Database className="w-20 h-20 mb-4" />
-                <h3 className="text-xl font-black uppercase italic italic tracking-widest">Protocol Staging</h3>
-                <p className="text-xs font-bold uppercase mt-2">Section reserved for V3.5 Deployment</p>
               </div>
             )}
           </div>
