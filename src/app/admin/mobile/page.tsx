@@ -346,7 +346,6 @@ function AdminMobileContent() {
             <div className="absolute -bottom-8 left-6 w-16 h-16 rounded-2xl bg-background border-4 border-background flex items-center justify-center overflow-hidden shadow-xl">
               <img src={`https://picsum.photos/seed/${selectedUser?.uid}/100/100`} alt="client" className="object-cover" />
             </div>
-            <button onClick={() => setIsUserDialogOpen(false)} className="absolute top-4 right-4 p-2 bg-white/20 rounded-full text-white"><X className="w-4 h-4" /></button>
           </div>
 
           <div className="pt-10 px-6 pb-8 space-y-6">

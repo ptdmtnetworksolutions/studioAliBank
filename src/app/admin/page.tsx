@@ -1369,7 +1369,6 @@ function AdminContent() {
               <div className="absolute -bottom-12 left-10 w-24 h-24 rounded-[2rem] bg-background border-4 border-card flex items-center justify-center overflow-hidden shadow-xl">
                 <Image src={`https://picsum.photos/seed/${selectedUser?.uid}/200/200`} alt="client" width={100} height={100} className="object-cover" />
               </div>
-              <button onClick={() => setIsUserDialogOpen(false)} className="absolute top-6 right-6 p-2 bg-white/20 rounded-full text-white hover:bg-white/30 transition-colors z-50"><X className="w-5 h-5" /></button>
             </div>
 
             <div className="pt-16 px-10 pb-10 space-y-8">
