@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -421,148 +422,48 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores individual user profiles. The document ID (`userId`) must match `request.auth.uid`. Access is restricted to the owning user only for reads and writes.",
+          "description": "Stores individual user profiles. Access is restricted to the owning user or Admin.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique ID of the user, matching request.auth.uid."
+              "description": "The unique ID of the user."
             }
           ]
         }
       },
       {
-        "path": "/users/{userId}/bankAccounts/{bankAccountId}",
+        "path": "/system/liquidity",
         "definition": {
-          "entityName": "BankAccount",
+          "entityName": "System",
           "schema": {
-            "$ref": "#/backend/entities/BankAccount"
-          },
-          "description": "Stores bank accounts owned by a specific user. The document ID (`bankAccountId`) is unique within the user's scope. Includes denormalized 'userId' (resource.data.userId) which must match the path's 'userId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique ID of the owning user, matching request.auth.uid."
-            },
-            {
-              "name": "bankAccountId",
-              "description": "The unique ID of the bank account."
+            "type": "object",
+            "properties": {
+              "totalFiatInjected": { "type": "number" },
+              "totalUsdInjected": { "type": "number" }
             }
-          ]
+          },
+          "description": "Global liquidity tracking. Read by all auth users, written by Admin.",
+          "params": []
         }
       },
       {
-        "path": "/users/{userId}/deposits/{depositId}",
+        "path": "/system/audit/global_transactions/{logId}",
         "definition": {
-          "entityName": "Deposit",
+          "entityName": "AuditLog",
           "schema": {
-            "$ref": "#/backend/entities/Deposit"
-          },
-          "description": "Stores fixed deposits created by a user. The document ID (`depositId`) is unique within the user's scope. Includes denormalized 'userId' (resource.data.userId) which must match the path's 'userId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique ID of the owning user, matching request.auth.uid."
-            },
-            {
-              "name": "depositId",
-              "description": "The unique ID of the deposit."
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "category": { "type": "string" },
+              "amountIdr": { "type": "number" }
             }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/transactions/{transactionId}",
-        "definition": {
-          "entityName": "Transaction",
-          "schema": {
-            "$ref": "#/backend/entities/Transaction"
           },
-          "description": "Stores all financial transactions associated with a user. The document ID (`transactionId`) is unique within the user's scope. Includes denormalized 'userId' (resource.data.userId) which must match the path's 'userId' for authorization independence.",
+          "description": "System audit logs. Restricted to Admin only.",
           "params": [
-            {
-              "name": "userId",
-              "description": "The unique ID of the owning user, matching request.auth.uid."
-            },
-            {
-              "name": "transactionId",
-              "description": "The unique ID of the transaction."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/beneficiaries/{beneficiaryId}",
-        "definition": {
-          "entityName": "Beneficiary",
-          "schema": {
-            "$ref": "#/backend/entities/Beneficiary"
-          },
-          "description": "Stores registered beneficiaries for a user. The document ID (`beneficiaryId`) is unique within the user's scope. Includes denormalized 'userId' (resource.data.userId) which must match the path's 'userId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique ID of the owning user, matching request.auth.uid."
-            },
-            {
-              "name": "beneficiaryId",
-              "description": "The unique ID of the beneficiary."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/eWallets/{eWalletId}",
-        "definition": {
-          "entityName": "EWallet",
-          "schema": {
-            "$ref": "#/backend/entities/EWallet"
-          },
-          "description": "Stores details of e-wallets linked by a user. The document ID (`eWalletId`) is unique within the user's scope. Includes denormalized 'userId' (resource.data.userId) which must match the path's 'userId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique ID of the owning user, matching request.auth.uid."
-            },
-            {
-              "name": "eWalletId",
-              "description": "The unique ID of the e-wallet link."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/depositProducts/{depositProductId}",
-        "definition": {
-          "entityName": "DepositProduct",
-          "schema": {
-            "$ref": "#/backend/entities/DepositProduct"
-          },
-          "description": "Stores definitions of deposit products offered by the bank. Read-only for all authenticated users; write access is restricted to administrators only, enforcing structural segregation.",
-          "params": [
-            {
-              "name": "depositProductId",
-              "description": "The unique ID of the deposit product."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/roles_admin/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "A collection used for Database Access Control (DBAC) to designate users as administrators. The existence of a document where the document ID matches a user's ID grants admin privileges to that user. This enables 'Existence over Content' for role-based authorization.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique ID of the user who is an administrator. This ID must match the document ID."
-            }
+            { "name": "logId", "description": "Unique log entry ID." }
           ]
         }
       }
-    ],
-    "reasoning": "The Firestore data structure for FinWave is designed to be highly secure, scalable, and debuggable by rigorously adhering to the core design principles of Authorization Independence, Structural Segregation, and consistent Access Modeling. The primary strategy focuses on creating a robust foundation for security rules, making them simple, explicit, and efficient. All user-specific data is organized under a top-level `/users/{userId}` collection, while global application data has its own dedicated collection.\n\n**Authorization Independence via Denormalization (CRITICAL):** For all user-owned subcollections (e.g., `bankAccounts`, `deposits`, `transactions`, `beneficiaries`, `eWallets`), each document will contain a denormalized `userId` field. This `userId` field in the document (e.g., `resource.data.userId`) MUST match the `{userId}` wildcard in the path (`request.auth.uid`). This critical denormalization strategy completely eliminates the need for `get()` calls in security rules to check parent document ownership. Rules can directly compare `request.auth.uid` with both the path wildcard and the document's `userId` field, ensuring atomic operations and simplifying debugging considerably. This prevents security rule complexity from scaling with data hierarchy.\n\n**Structural Segregation (Homogeneous Security Posture):** Collections are designed such that all documents within a given collection share the same security requirements. For example, all documents under `/users/{userId}/bankAccounts` are owned by that specific user. Conversely, the `/depositProducts` collection has a distinct security posture: public read access for all authenticated users, but restricted write access for administrators only. This separation simplifies security rules significantly by avoiding conditional logic within rules based on document content for different access levels.\n\n**Access Modeling and QAPs (Rules are not Filters):**\n\n1.  **Private User Data:** For entities like `BankAccount`, `Deposit`, `Transaction`, `Beneficiary`, and `EWallet`, a hierarchical path-based ownership model is employed: `/users/{userId}/<collectionName>/{documentId}`. This naturally ties data to its owner. Queries (`list` operations) for these collections will inherently be scoped to a specific user's subcollection (e.g., `/users/MY_UID/bankAccounts`). Security rules can then simply verify that `request.auth.uid` matches the `{userId}` wildcard in the path and the `resource.data.userId` field. This structure intrinsically supports Query Against Public Data (QAPs) by ensuring that any list query initiated by a client is implicitly filtered by the path and explicitly verified by the security rule, preventing clients from inadvertently requesting data they don't own.\n\n2.  **Global Data (`DepositProduct`):** The `/depositProducts/{depositProductId}` collection is designed for read-only access by all authenticated users, allowing them to browse available financial products. Write access is reserved for a separate `admin` role. This clear segregation simplifies rules for global data, enabling secure `list` operations without complex filtering.\n\n3.  **DBAC (Database Access Control):** Global roles, such as 'admin', are managed using a dedicated collection, `/roles_admin/{userId}`. The mere existence of a document with a user's ID in this collection grants the associated role. This approach, "
+    ]
   }
 }
