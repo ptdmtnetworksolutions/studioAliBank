@@ -6,35 +6,36 @@ This is a Next.js application built for AliBank, featuring real-time financial t
 ## Deployment to Firebase App Hosting
 
 ### 1. Verifikasi Project ID
-Pastikan Anda menggunakan **Project ID** yang benar (bukan Nama Proyek). Cek di Firebase Console > Project Settings. Contoh: `darmedia-pos`.
+Gunakan **Project ID** resmi: `darmedia-pos`.
 
 ### 2. Aktifkan API yang Diperlukan
 Jalankan perintah ini di Google Cloud Shell:
 ```bash
-gcloud services enable firebaseapphosting.googleapis.com cloudbuild.googleapis.com run.googleapis.com artifactregistry.googleapis.com logging.googleapis.com secretmanager.googleapis.com --project [PROJECT_ID_ANDA]
+gcloud services enable firebaseapphosting.googleapis.com cloudbuild.googleapis.com run.googleapis.com artifactregistry.googleapis.com logging.googleapis.com secretmanager.googleapis.com --project darmedia-pos
 ```
 
 ### 3. Setup Secure Vault (Secret Manager)
 Simpan Kunci Privat MetaMask Anda ke dalam brankas Google Cloud yang aman:
 ```bash
-# Buat wadah secret (Ganti [PROJECT_ID_ANDA] dengan ID asli Anda)
-gcloud secrets create ALIBANK_VAULT_PRIVATE_KEY --replication-policy="automatic" --project [PROJECT_ID_ANDA]
+# 1. Masuk ke project yang benar
+gcloud config set project darmedia-pos
 
-# Masukkan Private Key MetaMask (Ganti YOUR_KEY dengan kode 0x... Anda)
-echo -n "YOUR_KEY" | gcloud secrets versions add ALIBANK_VAULT_PRIVATE_KEY --data-file=- --project [PROJECT_ID_ANDA]
+# 2. Buat wadah secret
+gcloud secrets create ALIBANK_VAULT_PRIVATE_KEY --replication-policy="automatic"
 
-# Berikan izin akses ke Service Account aplikasi
-PROJECT_NUMBER=$(gcloud projects describe [PROJECT_ID_ANDA] --format='value(projectNumber)')
+# 3. Masukkan Private Key MetaMask (Ganti YOUR_KEY dengan kode 0x... Anda dari MetaMask)
+echo -n "YOUR_KEY" | gcloud secrets versions add ALIBANK_VAULT_PRIVATE_KEY --data-file=-
+
+# 4. Berikan izin akses ke Service Account aplikasi (Project Number: 852996332274)
 gcloud secrets add-iam-policy-binding ALIBANK_VAULT_PRIVATE_KEY \
-    --member="serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
-    --role="roles/secretmanager.secretAccessor" \
-    --project [PROJECT_ID_ANDA]
+    --member="serviceAccount:852996332274-compute@developer.gserviceaccount.com" \
+    --role="roles/secretmanager.secretAccessor"
 ```
 
 ### 4. Konfigurasi Environment Variable
 Di Firebase Console > App Hosting > Settings, tambahkan:
 - **Key:** `GCP_PROJECT_ID`
-- **Value:** `[PROJECT_ID_ANDA]`
+- **Value:** `darmedia-pos`
 
 ## Features
 - **Real-time Balance**: Sinkronisasi otomatis dengan Firestore.

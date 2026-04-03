@@ -13,8 +13,7 @@ const client = new SecretManagerServiceClient();
  * @returns {Promise<string>} Kunci privat dalam format string hex.
  */
 export async function getVaultPrivateKey(): Promise<string> {
-  // Gunakan ID Proyek dari environment variable (paling aman)
-  // Jika tidak ada, gunakan fallback 'darmedia-pos' (sesuai yang terdaftar di firebaseConfig)
+  // Gunakan ID Proyek darmedia-pos yang sudah terverifikasi dari screenshot settings
   const projectId = process.env.GCP_PROJECT_ID || 'darmedia-pos';
   
   try {
@@ -31,7 +30,6 @@ export async function getVaultPrivateKey(): Promise<string> {
     return payload;
   } catch (error: any) {
     console.error('Gagal mengakses Secret Manager:', error);
-    // Memberikan instruksi spesifik jika Project ID salah
-    throw new Error(`Vault key tidak ditemukan di project '${projectId}'. Pastikan Project ID di Google Cloud sama dengan yang ada di Firebase Console.`);
+    throw new Error(`Vault key tidak ditemukan di project '${projectId}'. Pastikan Secret 'ALIBANK_VAULT_PRIVATE_KEY' sudah dibuat di Google Cloud Console.`);
   }
 }
