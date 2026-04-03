@@ -1080,10 +1080,11 @@ function AdminContent() {
                   <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg">V3 PROTOCOL ACTIVE</Badge>
                 </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                   <TokenStatCard label="Total Supply" value={`${displayVal(globalLiquidity?.totalAlixSupply).toLocaleString()} ALX`} sub="Maximum Cap" icon={Zap} />
-                  <TokenStatCard label="Circulating Supply" value={`${circulatingSupply.toLocaleString()} ALX`} sub="Held by Users" icon={Globe} color="text-green-600" />
+                  <TokenStatCard label="Circulating" value={`${circulatingSupply.toLocaleString()} ALX`} sub="Held by Users" icon={Globe} color="text-green-600" />
                   <TokenStatCard label="Vault Balance" value={`${displayVal(globalLiquidity?.alixVaultBalance).toLocaleString()} ALX`} sub="System Reserve" icon={Database} color="text-primary" />
+                  <TokenStatCard label="Buyback Pool" value={`Rp ${displayVal(globalLiquidity?.buybackReserveIdr).toLocaleString()}`} sub="20% Revenue Share" icon={Flame} color="text-orange-500" />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -1168,7 +1169,7 @@ function AdminContent() {
                       <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 shadow-inner">
                         <Pickaxe className="w-6 h-6" />
                       </div>
-                      <h4 className="text-xl font-black italic uppercase tracking-tight">Deflationary Protocol (Burn Hub)</h4>
+                      <h4 className="text-xl font-black italic uppercase tracking-tight">Buyback & Burn Protocol</h4>
                     </div>
                     <Badge className="bg-rose-100 text-rose-600 font-black text-[8px] uppercase px-3 h-6">Deflation Active</Badge>
                   </div>
@@ -1352,7 +1353,7 @@ function AdminContent() {
                     <div className="bg-muted p-10 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-8 border border-border shadow-inner">
                       <div className="space-y-2 text-center md:text-left">
                         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.3em] flex items-center gap-2">
-                          <Globe className="w-3 h-3" /> On-Chain Ethereum Balance
+                          <Globe className="w-3 x-3" /> On-Chain Ethereum Balance
                         </p>
                         <p className="text-4xl md:text-6xl font-black italic tracking-tighter text-blue-600">
                           {parseFloat(onChainEth).toFixed(6)} <span className="text-3xl text-muted-foreground/40 italic">ETH</span>

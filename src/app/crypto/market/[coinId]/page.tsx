@@ -29,7 +29,9 @@ import {
   Target,
   LineChart as LineChartIcon,
   Search,
-  ShoppingBag
+  ShoppingBag,
+  Flame,
+  Trophy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -169,7 +171,7 @@ export default function MarketDetailPage() {
 
       {/* Secondary Tabs */}
       <div className="flex items-center gap-8 px-6 border-b border-border/50 overflow-x-auto no-scrollbar">
-        {["Harga", "Info", "Info Institusi", "Trade-X"].map((tab) => (
+        {["Harga", "Info", "Utilitas", "Trade-X"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -179,8 +181,8 @@ export default function MarketDetailPage() {
             )}
           >
             {tab}
-            {tab === "Info Institusi" && isAlix && (
-              <Badge className="ml-1 bg-green-500 text-white text-[7px] font-black px-1 h-3 border-none uppercase">Safe</Badge>
+            {tab === "Utilitas" && isAlix && (
+              <Badge className="ml-1 bg-green-500 text-white text-[7px] font-black px-1 h-3 border-none uppercase">Core</Badge>
             )}
           </button>
         ))}
@@ -206,8 +208,8 @@ export default function MarketDetailPage() {
                 </div>
                 {isAlix && (
                   <div className="flex gap-2 pt-2">
-                    <span className="text-[8px] font-black uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">Asset-Backed</span>
-                    <span className="text-[8px] font-black uppercase text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded">Stable V3</span>
+                    <span className="text-[8px] font-black uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">Utility-Driven</span>
+                    <span className="text-[8px] font-black uppercase text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded">Listing Price</span>
                   </div>
                 )}
               </div>
@@ -336,7 +338,7 @@ export default function MarketDetailPage() {
               <h3 className="text-xl font-black italic uppercase text-foreground">Tentang {symbol}</h3>
               <p className="text-xs font-medium text-muted-foreground leading-relaxed italic uppercase">
                 {isAlix 
-                  ? "Alix Coin (ALX) adalah aset kripto berdaulat yang dikembangkan oleh AliBank sebagai instrumen utilitas utama dalam ekosistem perbankan V3. ALX dirancang untuk memberikan efisiensi transaksi, tata kelola desentralisasi, dan akses eksklusif ke layanan finansial premium."
+                  ? "Alix Coin (ALX) adalah aset kripto utilitas utama dalam ekosistem AliBank. Dirancang dengan mekanisme deflasi melalui buyback 20% revenue bursa, ALX memberikan nilai nyata bagi pemegangnya melalui diskon biaya, bagi hasil staking, dan tata kelola platform."
                   : `Informasi mendetail mengenai ${symbol} dapat ditemukan melalui portal data global.`
                 }
               </p>
@@ -346,9 +348,9 @@ export default function MarketDetailPage() {
               <h4 className="text-sm font-black text-muted-foreground uppercase tracking-widest">Utilitas Utama</h4>
               <div className="grid grid-cols-1 gap-4">
                 {[
-                  { title: "Governance", icon: ShieldCheck, desc: "Pemegang ALX memiliki hak suara dalam protokol pengembangan AliBank." },
-                  { title: "Gas Efficiency", icon: Zap, desc: "Gunakan ALX untuk membayar biaya transaksi dengan diskon signifikan." },
-                  { title: "Marketplace Access", icon: ShoppingBag, desc: "Akses produk eksklusif dan penawaran terbatas di Ali-Marketplace." },
+                  { title: "Fee Discount", icon: Zap, desc: "Gunakan ALX untuk membayar biaya transaksi bursa dengan diskon eksklusif." },
+                  { title: "Revenue Share", icon: Trophy, desc: "Stake ALX Anda untuk mendapatkan persentase dari kolam biaya harian platform." },
+                  { title: "Project Listing", icon: Rocket, desc: "ALX digunakan sebagai mata uang wajib untuk biaya listing proyek baru di bursa." },
                 ].map((item, i) => (
                   <div key={i} className="p-5 rounded-2xl bg-muted/30 border border-border flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
@@ -369,9 +371,8 @@ export default function MarketDetailPage() {
                 <div className="divide-y divide-border/10">
                   {[
                     { label: "Situs Web", value: "alibank.io", icon: Globe },
-                    { label: "Whitepaper", value: "V3 Protocol Doc", icon: FileText },
-                    { label: "Komunitas", value: "Telegram / Square", icon: MessageSquare },
-                    { label: "Audit", value: "CertiK Verified", icon: ShieldCheck },
+                    { label: "Tokenomics", value: "Deflationary V3", icon: Flame },
+                    { label: "Price Support", icon: ShieldCheck, value: "20% Rev Buyback" },
                   ].map((link, i) => (
                     <div key={i} className="flex justify-between items-center p-4 hover:bg-muted/50 transition-colors cursor-pointer group">
                       <div className="flex items-center gap-3">
@@ -388,48 +389,48 @@ export default function MarketDetailPage() {
               </Card>
             </section>
           </div>
-        ) : activeTab === "Info Institusi" && isAlix ? (
+        ) : activeTab === "Utilitas" && isAlix ? (
           <div className="px-6 py-8 space-y-10 animate-in fade-in zoom-in-95 duration-500">
             <header className="space-y-2">
-              <Badge className="gold-gradient text-white font-black uppercase text-[10px] px-4 py-1 rounded-full">Institutional Grade V3.0</Badge>
-              <h3 className="text-3xl font-black italic uppercase text-foreground">Alix Coin (ALX)</h3>
+              <Badge className="gold-gradient text-white font-black uppercase text-[10px] px-4 py-1 rounded-full">Utility Token V3.0</Badge>
+              <h3 className="text-3xl font-black italic uppercase text-foreground">Tokenomics ALX</h3>
               <p className="text-xs font-medium text-muted-foreground uppercase leading-relaxed italic">
-                Koin utilitas resmi AliBank yang didukung oleh aset riil di Central Vault AliBank.
+                Strategi deflasi dan dukungan harga riil berbasis volume bursa.
               </p>
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card className="p-6 liquid-glass border-none rounded-[2rem] space-y-4">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-                  <ShieldCheck className="w-6 h-6" />
+                <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shadow-inner">
+                  <Flame className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="font-black uppercase italic text-sm">Security Standard</h4>
-                  <p className="text-[10px] text-muted-foreground font-bold mt-1">ERC-20 + Permit + Pausable (Circuit Breaker)</p>
+                  <h4 className="font-black uppercase italic text-sm">Buyback & Burn</h4>
+                  <p className="text-[10px] text-muted-foreground font-bold mt-1">20% dari seluruh biaya transaksi AliBank digunakan untuk membeli kembali ALX dan memusnahkannya.</p>
                 </div>
               </Card>
               <Card className="p-6 liquid-glass border-none rounded-[2rem] space-y-4">
                 <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-green-600 shadow-inner">
-                  <Zap className="w-6 h-6" />
+                  <Activity className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="font-black uppercase italic text-sm">Supply Status</h4>
-                  <p className="text-[10px] text-muted-foreground font-bold mt-1">1,000,000 ALX (Fixed Supply Staging)</p>
+                  <h4 className="font-black uppercase italic text-sm">Organic Demand</h4>
+                  <p className="text-[10px] text-muted-foreground font-bold mt-1">Semakin tinggi volume bursa AliBank, semakin besar tekanan beli otomatis terhadap harga ALX.</p>
                 </div>
               </Card>
             </div>
 
             <section className="space-y-6">
               <div className="flex items-center gap-3">
-                <Rocket className="w-6 h-6 text-primary" />
-                <h4 className="text-xl font-black italic uppercase">Migration Roadmap</h4>
+                <ShieldCheck className="w-6 h-6 text-primary" />
+                <h4 className="text-xl font-black italic uppercase">Tier Membership Benefits</h4>
               </div>
               
               <div className="space-y-4">
                 {[
-                  { step: "Phase 1", title: "Internal Accumulation", status: "Active", desc: "Penjualan koin di aplikasi AliBank untuk membangun modal IDR dasar.", icon: Lock },
-                  { step: "Phase 2", title: "Global Listing (Uniswap)", status: "Pending", desc: "Pembukaan kolam likuiditas ALX/USDT di bursa global dengan harga jangkar $12.24.", icon: Globe },
-                  { step: "Phase 3", title: "Sovereign Mainnet", status: "Future", desc: "Migrasi dari Token ERC-20 menjadi Koin Native AliChain berdaulat.", icon: Zap },
+                  { step: "Bronze", title: "Hold 100 ALX", status: "Basic", desc: "Potongan biaya transaksi 5% dan akses ke kampanye reward dasar.", icon: Lock },
+                  { step: "Gold", title: "Hold 1,000 ALX", status: "Active", desc: "Potongan biaya 15%, prioritas staking yield, dan akses Trade-X Pro.", icon: Trophy },
+                  { step: "Platinum", title: "Hold 10,000 ALX", status: "Premium", desc: "Zero fee trading, profit-sharing pool eksklusif, dan VIP Personal Assistant.", icon: Sparkles },
                 ].map((item, i) => (
                   <div key={i} className="p-6 rounded-[2rem] bg-muted/30 border border-border flex items-start gap-5 relative overflow-hidden group">
                     <div className={cn(
@@ -443,7 +444,7 @@ export default function MarketDetailPage() {
                         <span className="text-[10px] font-black uppercase text-muted-foreground">{item.step}</span>
                         <Badge className={cn(
                           "text-[7px] font-black uppercase border-none px-2 h-4",
-                          item.status === 'Active' ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"
+                          item.status === 'Premium' ? "bg-primary text-black" : "bg-muted text-muted-foreground"
                         )}>{item.status}</Badge>
                       </div>
                       <h5 className="font-black uppercase italic text-sm">{item.title}</h5>

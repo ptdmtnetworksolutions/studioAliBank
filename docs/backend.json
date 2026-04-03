@@ -35,7 +35,9 @@
       "properties": {
         "totalFiatInjected": { "type": "number" },
         "totalUsdInjected": { "type": "number" },
-        "alixVaultBalance": { "type": "number" }
+        "alixVaultBalance": { "type": "number" },
+        "buybackReserveIdr": { "type": "number", "description": "20% of revenue reserved for ALX buyback" },
+        "totalAlixBurned": { "type": "number" }
       }
     },
     "SystemAPIKeys": {
