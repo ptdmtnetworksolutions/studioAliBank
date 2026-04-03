@@ -337,6 +337,11 @@ function AdminMobileContent() {
       {/* USER MANAGEMENT DIALOG MOBILE */}
       <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
         <DialogContent className="max-w-[95vw] rounded-[2rem] p-0 bg-background border-none shadow-2xl overflow-hidden overflow-y-auto max-h-[90vh] no-scrollbar">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Manajemen Nasabah: {selectedUser?.name}</DialogTitle>
+            <DialogDescription>Terminal kontrol penuh untuk profil, finansial, dan dompet nasabah AliBank.</DialogDescription>
+          </DialogHeader>
+          
           <div className="gold-gradient h-24 w-full relative">
             <div className="absolute -bottom-8 left-6 w-16 h-16 rounded-2xl bg-background border-4 border-background flex items-center justify-center overflow-hidden shadow-xl">
               <img src={`https://picsum.photos/seed/${selectedUser?.uid}/100/100`} alt="client" className="object-cover" />
