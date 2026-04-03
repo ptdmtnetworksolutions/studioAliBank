@@ -1,4 +1,10 @@
 
+/**
+ * CRITICAL: AliBank Admin Control V3.2
+ * Pembaruan Izin Akses Super Admin: alidzulfikar075@gmail.com
+ * Memicu penyebaran Security Rules untuk jalur /system dan /users.
+ */
+
 "use client";
 
 import { 
@@ -129,6 +135,8 @@ import {
   ResponsiveContainer,
   Cell
 } from "recharts";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 // KONSTANTA GLOBAL ADMIN - ALIBANK VAULT V3
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
@@ -187,7 +195,7 @@ function AdminContent() {
   const [isExecutingVaultTx, setIsExecutingVaultTx] = useState(false);
   const [onChainHistory, setOnChainHistory] = useState<any[]>([]);
 
-  // SHIELDING QUERIES: Only query if user is authorized to prevent permission errors
+  // SHIELDING QUERIES: Hanya jalankan query JIKA status otorisasi Super Admin telah dikonfirmasi.
   const liquidityDocRef = useMemo(() => (db && isAuthorized ? doc(db, "system", "liquidity") : null), [db, isAuthorized]);
   const { data: globalLiquidity } = useDoc(liquidityDocRef);
   
@@ -214,8 +222,14 @@ function AdminContent() {
 
         const txsSnap = await getDocs(query(collection(db, "users", selectedUser.id, "transactions"), orderBy("timestamp", "desc"), limit(50)));
         setSelectedUserTransactions(txsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (err) {
-        console.error("Error fetching user detail data:", err);
+      } catch (err: any) {
+        if (err.code === 'permission-denied') {
+          const permissionError = new FirestorePermissionError({
+            path: `users/${selectedUser.id}`,
+            operation: 'list',
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        }
       } finally {
         setLoadingSubData(false);
       }
@@ -312,34 +326,40 @@ function AdminContent() {
     if (isNaN(num)) return;
 
     setIsUpdatingUser(true);
-    try {
-      const userRef = doc(db, "users", selectedUser.id);
-      const val = operation === 'add' ? num : -num;
-      
-      const updateData: any = {};
-      if (type === 'idr') updateData.totalBalance = increment(val);
-      else updateData["cryptoBalances.ALX"] = increment(val);
+    const userRef = doc(db, "users", selectedUser.id);
+    const val = operation === 'add' ? num : -num;
+    
+    const updateData: any = {};
+    if (type === 'idr') updateData.totalBalance = increment(val);
+    else updateData["cryptoBalances.ALX"] = increment(val);
 
-      await updateDoc(userRef, updateData);
-      
-      await addDoc(collection(db, "system", "audit", "global_transactions"), {
-        id: `MANUAL-ADJ-${Date.now()}`,
-        category: "Manual Adjustment",
-        gateway: "Super Admin",
-        amountIdr: type === 'idr' ? val : 0,
-        description: `Manual ${operation} ${num} ${type.toUpperCase()} for ${selectedUser.name}`,
-        timestamp: serverTimestamp(),
-        status: "success"
+    updateDoc(userRef, updateData)
+      .then(async () => {
+        await addDoc(collection(db, "system", "audit", "global_transactions"), {
+          id: `MANUAL-ADJ-${Date.now()}`,
+          category: "Manual Adjustment",
+          gateway: "Super Admin",
+          amountIdr: type === 'idr' ? val : 0,
+          description: `Manual ${operation} ${num} ${type.toUpperCase()} for ${selectedUser.name}`,
+          timestamp: serverTimestamp(),
+          status: "success"
+        });
+
+        toast({ title: "Update Berhasil", description: `Saldo ${type.toUpperCase()} telah disesuaikan.` });
+        setBalanceAdjustment("");
+        setAlxAdjustment("");
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsUpdatingUser(false);
       });
-
-      toast({ title: "Update Berhasil", description: `Saldo ${type.toUpperCase()} telah disesuaikan.` });
-      setBalanceAdjustment("");
-      setAlxAdjustment("");
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Update Gagal", description: err.message });
-    } finally {
-      setIsUpdatingUser(false);
-    }
   };
 
   const handleResetPassword = async () => {
@@ -355,10 +375,19 @@ function AdminContent() {
   const handleDeleteUser = async (userId: string) => {
     if (!db || !isAuthorized) return;
     if (!confirm("Hapus data nasabah secara permanen? Tindakan ini tidak dapat dibatalkan.")) return;
-    try {
-      await deleteDoc(doc(db, "users", userId));
-      toast({ title: "User Deleted", description: "Data nasabah telah dihapus dari sistem." });
-    } catch (err) {}
+    
+    const userRef = doc(db, "users", userId);
+    deleteDoc(userRef)
+      .then(() => {
+        toast({ title: "User Deleted", description: "Data nasabah telah dihapus dari sistem." });
+      })
+      .catch(async () => {
+        const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
 
   const handleExecuteVaultWithdrawal = async () => {

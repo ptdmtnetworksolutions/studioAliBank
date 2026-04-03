@@ -143,6 +143,14 @@
     "/marketplace/{itemId}": {
       "schema": "MarketplaceItem",
       "description": "Koleksi produk marketplace publik."
+    },
+    "/system/liquidity": {
+      "schema": "object",
+      "description": "Data likuiditas global sistem AliBank."
+    },
+    "/system/audit/global_transactions/{logId}": {
+      "schema": "Transaction",
+      "description": "Log audit transaksi global untuk transparansi Admin."
     }
   }
 }
