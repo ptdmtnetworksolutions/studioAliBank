@@ -81,20 +81,6 @@ const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
 const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
 
-// Simulasi Data untuk Revenue Chart
-const generateMockCandles = () => {
-  return Array.from({ length: 24 }, (_, i) => {
-    const open = 3000 + Math.random() * 2000;
-    const close = open + (Math.random() * 1000 - 500);
-    return {
-      time: `${i}:00`,
-      open,
-      close,
-      isUp: close >= open
-    };
-  });
-};
-
 export default function AdminMobilePage() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>}>
@@ -114,7 +100,6 @@ function AdminMobileContent() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [vaultEth, setVaultEth] = useState("0");
-  const [candleData, setCandleData] = useState(generateMockCandles());
 
   // Queries
   const liquidityRef = useMemoFirebase(() => (db && isAuthorized ? doc(db, "system", "liquidity") : null), [db, isAuthorized]);
@@ -123,11 +108,35 @@ function AdminMobileContent() {
   const usersQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "users"), limit(50)) : null), [db, isAuthorized]);
   const { data: allUsers } = useCollection(usersQuery);
 
-  const auditQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(20)) : null), [db, isAuthorized]);
+  const auditQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(100)) : null), [db, isAuthorized]);
   const { data: auditLogs } = useCollection(auditQuery);
 
   const marketplaceQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "marketplace"), orderBy("createdAt", "desc")) : null), [db, isAuthorized]);
   const { data: products } = useCollection(marketplaceQuery);
+
+  // AGGREGATE REAL REVENUE DATA
+  const candleData = useMemo(() => {
+    if (!auditLogs) return Array.from({ length: 24 }, (_, i) => ({ time: `${i}:00`, close: 0, isUp: true }));
+
+    const hours = Array.from({ length: 24 }, (_, i) => {
+      const h = i.toString().padStart(2, '0');
+      return { time: `${h}:00`, close: 0, isUp: true };
+    });
+
+    auditLogs.forEach(log => {
+      if (log.timestamp && log.amountIdr) {
+        const date = log.timestamp.toDate();
+        const hour = date.getHours();
+        hours[hour].close += log.amountIdr;
+      }
+    });
+
+    for (let i = 1; i < hours.length; i++) {
+      hours[i].isUp = hours[i].close >= hours[i-1].close;
+    }
+
+    return hours;
+  }, [auditLogs]);
 
   // Sync On-Chain
   const syncVault = useCallback(async () => {
@@ -137,7 +146,6 @@ function AdminMobileContent() {
       const provider = new JsonRpcProvider(GLOBAL_RPC);
       const bal = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
       setVaultEth(formatEther(bal));
-      setCandleData(generateMockCandles());
       toast({ title: "Vault Synced", description: "Data On-Chain diperbarui." });
     } catch (e) {} finally { setSyncing(false); }
   }, [isAuthorized, toast]);
@@ -246,7 +254,7 @@ function DashboardView({ liquidity, usersCount, candleData, auditLogs, onTabChan
           <h3 className="text-xs font-black italic uppercase tracking-widest flex items-center gap-2">
             <CandlestickChart className="w-4 h-4 text-primary" /> Revenue Dynamics Pro
           </h3>
-          <Badge className="bg-muted text-muted-foreground text-[8px] font-black uppercase px-2">Hourly</Badge>
+          <Badge className="bg-muted text-muted-foreground text-[8px] font-black uppercase px-2">Real Activity</Badge>
         </div>
         <div className="h-40 w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -571,5 +579,45 @@ function QuickOpButton({ icon: Icon, label, sub, color, onClick, syncing }: any)
         <p className="text-[7px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">{sub}</p>
       </div>
     </button>
+  );
+}
+
+function VaultView({ eth, address, logs }: any) {
+  return (
+    <div className="animate-in fade-in zoom-in-95 duration-500 space-y-8">
+      <h2 className="text-2xl font-black italic uppercase tracking-tighter">Mainnet Node</h2>
+      
+      <Card className="p-8 rounded-[2.5rem] border-none bg-[#1A1D1F] text-white space-y-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-5"><LogoIcon className="w-32 h-32" /></div>
+        <div className="relative z-10 flex flex-col items-center text-center space-y-4">
+          <Badge className="bg-green-500 text-white border-none font-black text-[8px] uppercase tracking-widest px-4 py-1 animate-pulse">Live Chain</Badge>
+          <div className="space-y-1">
+            <p className="text-4xl font-black italic tracking-tighter text-blue-400">{parseFloat(eth).toFixed(6)} <span className="text-xl text-white/30">ETH</span></p>
+            <p className="text-[10px] font-bold text-white/40 uppercase">Total Vault Balance</p>
+          </div>
+          <div className="w-full bg-white/5 p-3 rounded-xl border border-white/10">
+            <p className="text-[8px] font-mono font-bold break-all opacity-60">{address}</p>
+          </div>
+        </div>
+      </Card>
+
+      <div className="space-y-4">
+        <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest ml-1">Audit Ledger</h3>
+        <div className="space-y-3">
+          {logs?.slice(0, 10).map((log: any) => (
+            <div key={log.id} className="p-4 rounded-2xl bg-muted/30 border border-border flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-green-500" /></div>
+                <div>
+                  <p className="text-[10px] font-black italic uppercase">{log.category}</p>
+                  <p className="text-[8px] font-bold text-muted-foreground uppercase">{log.timestamp?.toDate?.().toLocaleTimeString()}</p>
+                </div>
+              </div>
+              <p className="text-xs font-black italic">Rp {log.amountIdr?.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,4 +1,3 @@
-
 /**
  * CRITICAL: AliBank Admin Control V3.5 - TOKENOMICS & INVENTORY TERMINAL
  * Pusat Kendali Suplai, Kebijakan Moneter ALX, dan Manajemen Katalog Marketplace.
@@ -153,22 +152,6 @@ const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
 const ETHERSCAN_API_KEY = "M1S7MDTBQSG1A3URQKYNVF31PSPE48UA8R";
 const ALX_PRICE_IDR = 194004;
 
-// Simulasi Data Candle untuk Revenue Dynamics
-const generateMockCandles = () => {
-  return Array.from({ length: 24 }, (_, i) => {
-    const open = 3000 + Math.random() * 2000;
-    const close = open + (Math.random() * 1000 - 500);
-    return {
-      time: `${i}:00`,
-      open,
-      close,
-      high: Math.max(open, close) + Math.random() * 200,
-      low: Math.min(open, close) - Math.random() * 200,
-      isUp: close >= open
-    };
-  });
-};
-
 function AdminContent() {
   const { user, loading: userLoading } = useUser();
   const auth = useAuth();
@@ -183,7 +166,6 @@ function AdminContent() {
   const [onChainEth, setOnChainEth] = useState<string>("0");
   const [adminWalletEth, setAdminWalletEth] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
-  const [candleData, setCandleData] = useState(generateMockCandles());
   
   // States for User Management
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -236,6 +218,31 @@ function AdminContent() {
 
   const userProfileRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: userData } = useDoc(userProfileRef);
+
+  // AGGREGATE REAL REVENUE DATA FROM AUDIT LOGS
+  const candleData = useMemo(() => {
+    if (!auditLogs) return Array.from({ length: 24 }, (_, i) => ({ time: `${i}:00`, close: 0, isUp: true }));
+
+    const hours = Array.from({ length: 24 }, (_, i) => {
+      const h = i.toString().padStart(2, '0');
+      return { time: `${h}:00`, close: 0, isUp: true };
+    });
+
+    auditLogs.forEach(log => {
+      if (log.timestamp && log.amountIdr) {
+        const date = log.timestamp.toDate();
+        const hour = date.getHours();
+        hours[hour].close += log.amountIdr;
+      }
+    });
+
+    // Determine isUp based on previous hour
+    for (let i = 1; i < hours.length; i++) {
+      hours[i].isUp = hours[i].close >= hours[i-1].close;
+    }
+
+    return hours;
+  }, [auditLogs]);
 
   // Fetch detailed user data for dialog
   useEffect(() => {
@@ -322,8 +329,6 @@ function AdminContent() {
         console.warn("Etherscan API failed", apiErr);
       }
       
-      setCandleData(generateMockCandles());
-
       if (manual) {
         toast({ title: "Vault Synced", description: "Node Mainnet telah diperbarui." });
       }
@@ -732,8 +737,7 @@ function AdminContent() {
                         <CandlestickChart className="w-4 h-4 text-primary" /> Revenue Dynamics Pro
                       </h3>
                       <div className="flex bg-muted p-1 rounded-lg">
-                        <button className="px-4 py-1.5 bg-background text-[9px] font-black uppercase rounded shadow-sm">Monthly</button>
-                        <button className="px-4 py-1.5 text-[9px] font-black uppercase text-muted-foreground">Yearly</button>
+                        <button className="px-4 py-1.5 bg-background text-[9px] font-black uppercase rounded shadow-sm">24H Activity</button>
                       </div>
                     </div>
                     <div className="h-64 w-full">
@@ -743,10 +747,19 @@ function AdminContent() {
                           <XAxis dataKey="time" hide />
                           <YAxis domain={['auto', 'auto']} hide />
                           <RechartsTooltip 
-                            contentStyle={{ background: '#1A1D1F', border: 'none', borderRadius: '12px' }} 
-                            itemStyle={{ color: '#FCD535', fontSize: '10px' }}
+                            content={({ active, payload }) => {
+                              if (active && payload && payload.length) {
+                                return (
+                                  <div className="bg-[#1A1D1F] p-3 rounded-xl border border-white/10 shadow-2xl">
+                                    <p className="text-[10px] font-black text-primary uppercase mb-1">{payload[0].payload.time}</p>
+                                    <p className="text-xs font-black text-white italic">Rp {payload[0].value?.toLocaleString()}</p>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
                           />
-                          <Bar dataKey="close" barSize={8}>
+                          <Bar dataKey="close" barSize={12}>
                             {candleData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={entry.isUp ? "#10b981" : "#ef4444"} />
                             ))}
