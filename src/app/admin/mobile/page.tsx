@@ -1,4 +1,3 @@
-
 "use client";
 
 /**
@@ -8,7 +7,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { 
   LayoutGrid, 
   Users, 
@@ -37,7 +36,12 @@ import {
   Layers,
   ArrowUpRight,
   CheckCircle2,
-  ArrowLeft
+  ArrowLeft,
+  CandlestickChart,
+  PlusCircle,
+  Pickaxe,
+  Activity,
+  Info
 } from "lucide-react";
 import { useUser, useDoc, useCollection, useFirestore, useAuth, useMemoFirebase } from "@/firebase";
 import { 
@@ -49,7 +53,6 @@ import {
   orderBy, 
   limit, 
   deleteDoc, 
-  getDocs, 
   setDoc, 
   addDoc, 
   serverTimestamp 
@@ -62,11 +65,35 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 import { JsonRpcProvider, formatEther } from "ethers";
+import { 
+  ComposedChart,
+  Bar,
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as RechartsTooltip, 
+  ResponsiveContainer,
+  Cell
+} from "recharts";
 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
 const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
+
+// Simulasi Data untuk Revenue Chart
+const generateMockCandles = () => {
+  return Array.from({ length: 24 }, (_, i) => {
+    const open = 3000 + Math.random() * 2000;
+    const close = open + (Math.random() * 1000 - 500);
+    return {
+      time: `${i}:00`,
+      open,
+      close,
+      isUp: close >= open
+    };
+  });
+};
 
 export default function AdminMobilePage() {
   return (
@@ -87,6 +114,7 @@ function AdminMobileContent() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [vaultEth, setVaultEth] = useState("0");
+  const [candleData, setCandleData] = useState(generateMockCandles());
 
   // Queries
   const liquidityRef = useMemoFirebase(() => (db && isAuthorized ? doc(db, "system", "liquidity") : null), [db, isAuthorized]);
@@ -109,6 +137,7 @@ function AdminMobileContent() {
       const provider = new JsonRpcProvider(GLOBAL_RPC);
       const bal = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
       setVaultEth(formatEther(bal));
+      setCandleData(generateMockCandles());
       toast({ title: "Vault Synced", description: "Data On-Chain diperbarui." });
     } catch (e) {} finally { setSyncing(false); }
   }, [isAuthorized, toast]);
@@ -122,7 +151,6 @@ function AdminMobileContent() {
     setIsAuthorized(true);
     syncVault();
 
-    // AUTO-DETECTION: Redirect back to Desktop UI if on large screen
     if (typeof window !== "undefined" && window.innerWidth >= 768) {
       router.push('/admin');
     }
@@ -131,7 +159,7 @@ function AdminMobileContent() {
   if (userLoading || !isAuthorized) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col font-body transition-colors duration-300">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-body">
       {/* Header Mobile */}
       <header className="h-16 px-6 flex items-center justify-between sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="flex items-center gap-3">
@@ -153,8 +181,18 @@ function AdminMobileContent() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto px-6 pt-6 pb-24 space-y-8 no-scrollbar">
-        {activeTab === "dashboard" && <DashboardView liquidity={globalLiquidity} usersCount={allUsers?.length || 0} />}
+      <main className="flex-1 overflow-y-auto px-6 pt-6 pb-24 space-y-10 no-scrollbar">
+        {activeTab === "dashboard" && (
+          <DashboardView 
+            liquidity={globalLiquidity} 
+            usersCount={allUsers?.length || 0} 
+            candleData={candleData} 
+            auditLogs={auditLogs}
+            onTabChange={setActiveTab}
+            onSync={syncVault}
+            syncing={syncing}
+          />
+        )}
         {activeTab === "users" && <UsersView users={allUsers} />}
         {activeTab === "vault" && <VaultView eth={vaultEth} address={ALX_CONTRACT} logs={auditLogs} />}
         {activeTab === "more" && <MoreView products={products} liquidity={globalLiquidity} />}
@@ -172,12 +210,14 @@ function AdminMobileContent() {
 }
 
 // VIEW COMPONENTS
-function DashboardView({ liquidity, usersCount }: any) {
+function DashboardView({ liquidity, usersCount, candleData, auditLogs, onTabChange, onSync, syncing }: any) {
   const display = (val: number) => (val || 0).toLocaleString('id-ID');
+  
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-10">
       <h2 className="text-2xl font-black italic uppercase tracking-tighter">System Health</h2>
       
+      {/* 1. Global Net Capital Card */}
       <Card className="p-8 rounded-[2.5rem] border-none bg-primary/5 space-y-6 shadow-sm">
         <div className="flex items-center gap-3">
           <Database className="text-primary w-5 h-5" />
@@ -200,16 +240,81 @@ function DashboardView({ liquidity, usersCount }: any) {
         </div>
       </Card>
 
+      {/* 2. Chart: Revenue Dynamics */}
+      <Card className="p-8 rounded-[2.5rem] border-none bg-card shadow-sm space-y-6 overflow-hidden">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-black italic uppercase tracking-widest flex items-center gap-2">
+            <CandlestickChart className="w-4 h-4 text-primary" /> Revenue Dynamics Pro
+          </h3>
+          <Badge className="bg-muted text-muted-foreground text-[8px] font-black uppercase px-2">Hourly</Badge>
+        </div>
+        <div className="h-40 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={candleData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+              <XAxis dataKey="time" hide />
+              <YAxis domain={['auto', 'auto']} hide />
+              <Bar dataKey="close" barSize={6}>
+                {candleData.map((entry: any, index: number) => (
+                  <Cell key={`cell-${index}`} fill={entry.isUp ? "#10b981" : "#ef4444"} />
+                ))}
+              </Bar>
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      {/* 3. ALIX Token Card */}
+      <Card className="p-8 rounded-[2.5rem] border-none bg-[#1A1D1F] text-white flex flex-col justify-between h-48 relative overflow-hidden shadow-sm">
+        <div className="absolute top-0 right-0 p-6 opacity-10"><LogoIcon className="w-32 h-32 text-primary" /></div>
+        <div className="relative z-10">
+          <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/40 mb-1">Sovereign Asset</p>
+          <h3 className="text-2xl font-black italic uppercase tracking-tighter">ALIX TOKEN (ALX)</h3>
+        </div>
+        <div className="relative z-10 flex justify-between items-end">
+          <div>
+            <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Vault Inventory</p>
+            <p className="text-xl font-black italic">{(liquidity?.alixVaultBalance || 0).toLocaleString()} ALX</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Anchor Price</p>
+            <p className="text-xl font-black italic text-primary">$ 12.24</p>
+          </div>
+        </div>
+      </Card>
+
+      {/* 4. Quick Op Buttons */}
       <div className="grid grid-cols-2 gap-4">
-        <Card className="p-6 rounded-[2rem] border-none bg-card shadow-sm space-y-2">
-          <Users className="w-5 h-5 text-muted-foreground opacity-40" />
-          <p className="text-xl font-black italic">{usersCount}</p>
-          <p className="text-[8px] font-bold text-muted-foreground uppercase">Active Clients</p>
-        </Card>
-        <Card className="p-6 rounded-[2rem] border-none bg-[#1A1D1F] text-white shadow-sm space-y-2">
-          <Coins className="w-5 h-5 text-primary opacity-60" />
-          <p className="text-xl font-black italic">{display(liquidity?.alixVaultBalance)}</p>
-          <p className="text-[8px] font-bold text-white/40 uppercase">ALX in Vault</p>
+        <QuickOpButton icon={Skull} label="Reset Clients" sub="Wipe Data" color="text-rose-500" onClick={() => onTabChange('users')} />
+        <QuickOpButton icon={PlusCircle} label="Mint ALX" sub="Authorized" color="text-green-500" onClick={() => onTabChange('more')} />
+        <QuickOpButton icon={Pickaxe} label="Burn ALX" sub="Deflation" color="text-orange-500" onClick={() => onTabChange('more')} />
+        <QuickOpButton icon={RefreshCw} label="Sync Vault" sub="Mainnet" color="text-blue-500" onClick={onSync} syncing={syncing} />
+      </div>
+
+      {/* 5. Recent Activity Ledger */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-center px-1">
+          <h3 className="text-xs font-black italic uppercase tracking-widest">Recent Activity Ledger</h3>
+          <ArrowUpRight className="w-4 h-4 text-primary" onClick={() => onTabChange('vault')} />
+        </div>
+        <Card className="rounded-[2rem] border-none bg-card overflow-hidden shadow-sm">
+          <div className="divide-y divide-border">
+            {auditLogs?.slice(0, 5).map((log: any) => (
+              <div key={log.id} className="p-5 flex justify-between items-center active:bg-muted/30 transition-colors">
+                <div className="space-y-1">
+                  <Badge className="bg-muted text-foreground text-[7px] font-black uppercase h-4 px-1.5">{log.category}</Badge>
+                  <p className="text-[10px] font-bold text-muted-foreground truncate max-w-[150px]">{log.description || log.gateway}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-black italic">Rp {log.amountIdr?.toLocaleString()}</p>
+                  <p className="text-[8px] font-bold text-muted-foreground uppercase italic">{log.timestamp?.toDate?.().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
+                </div>
+              </div>
+            ))}
+            {(!auditLogs || auditLogs.length === 0) && (
+              <div className="py-10 text-center text-[10px] font-bold text-muted-foreground uppercase italic opacity-20">No logs recorded</div>
+            )}
+          </div>
         </Card>
       </div>
     </div>
@@ -230,7 +335,7 @@ function UsersView({ users }: any) {
           <Card 
             key={u.id} 
             className="p-5 rounded-[1.5rem] border-none bg-card shadow-sm flex items-center justify-between active:scale-[0.98] transition-all"
-            onClick={() => router.push(`/admin?tab=users&id=${u.id}`)} // Redirect ke modal di desktop/full page
+            onClick={() => router.push(`/admin?tab=users&id=${u.id}`)}
           >
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full overflow-hidden border border-border">
@@ -272,9 +377,9 @@ function VaultView({ eth, address, logs }: any) {
       </Card>
 
       <div className="space-y-4">
-        <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest ml-1">Live Audit Feed</h3>
+        <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest ml-1">Audit Ledger</h3>
         <div className="space-y-3">
-          {logs?.slice(0, 5).map((log: any) => (
+          {logs?.slice(0, 10).map((log: any) => (
             <div key={log.id} className="p-4 rounded-2xl bg-muted/30 border border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-green-500" /></div>
@@ -294,11 +399,48 @@ function VaultView({ eth, address, logs }: any) {
 
 function MoreView({ products, liquidity }: any) {
   const [view, setView] = useState<'menu' | 'inventory' | 'tokenomics'>('menu');
+  const [mintAmount, setMintAmount] = useState("");
+  const [burnAmount, setBurnAmount] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const db = useFirestore();
+  const { toast } = useToast();
+
+  const handleTokenOp = async (type: 'mint' | 'burn') => {
+    if (!db || processing) return;
+    const amt = type === 'mint' ? parseFloat(mintAmount) : parseFloat(burnAmount);
+    if (isNaN(amt) || amt <= 0) return;
+
+    setProcessing(true);
+    try {
+      const sysRef = doc(db, "system", "liquidity");
+      const change = type === 'mint' ? amt : -amt;
+
+      await updateDoc(sysRef, {
+        alixVaultBalance: increment(change),
+        totalAlixSupply: increment(change)
+      });
+
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `${type.toUpperCase()}-${Date.now()}`,
+        category: "Tokenomics",
+        gateway: "Mobile Node",
+        amountIdr: 0,
+        description: `Mobile authorized ${type}: ${amt} ALX`,
+        timestamp: serverTimestamp(),
+        status: "success"
+      });
+
+      toast({ title: "Success", description: `${amt} ALX has been updated.` });
+      setMintAmount(""); setBurnAmount("");
+    } catch (e) {
+      toast({ variant: "destructive", title: "Error" });
+    } finally { setProcessing(false); }
+  };
 
   if (view === 'inventory') return (
     <div className="animate-in slide-in-from-right-4 duration-500 space-y-6">
       <button onClick={() => setView('menu')} className="flex items-center gap-2 text-[10px] font-black uppercase text-muted-foreground mb-4"><ArrowLeft className="w-4 h-4" /> Back to Tools</button>
-      <h2 className="text-2xl font-black italic uppercase tracking-tighter">Market Inventory</h2>
+      <h2 className="text-2xl font-black italic uppercase tracking-tighter">Inventory</h2>
       <div className="space-y-3">
         {products?.map((p: any) => (
           <div key={p.id} className="p-4 rounded-2xl bg-card border border-border flex items-center justify-between shadow-sm">
@@ -326,8 +468,8 @@ function MoreView({ products, liquidity }: any) {
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Authorized Supply</p>
           <div className="flex justify-between items-end">
             <div>
-              <p className="text-3xl font-black italic">{liquidity?.totalAlixSupply?.toLocaleString()} <span className="text-lg">ALX</span></p>
-              <p className="text-[8px] font-bold text-muted-foreground uppercase">Global Maximum Cap</p>
+              <p className="text-3xl font-black italic">{(liquidity?.totalAlixSupply || 0).toLocaleString()} <span className="text-lg">ALX</span></p>
+              <p className="text-[8px] font-bold text-muted-foreground uppercase">Maximum Cap</p>
             </div>
             <div className="text-right">
               <p className="text-xl font-black italic text-primary">$ 12.24</p>
@@ -336,9 +478,27 @@ function MoreView({ products, liquidity }: any) {
           </div>
         </Card>
 
-        <div className="grid grid-cols-2 gap-4">
-          <Button className="h-16 rounded-2xl bg-green-600 text-white font-black italic uppercase text-[10px] tracking-widest border-none">MINT NEW ALX</Button>
-          <Button className="h-16 rounded-2xl bg-rose-600 text-white font-black italic uppercase text-[10px] tracking-widest border-none">BURN ALX</Button>
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <Input 
+              type="number" 
+              placeholder="Mint Amount..." 
+              value={mintAmount} 
+              onChange={(e) => setMintAmount(e.target.value)} 
+              className="h-14 rounded-xl bg-muted border-none font-bold"
+            />
+            <Button onClick={() => handleTokenOp('mint')} disabled={processing || !mintAmount} className="h-14 px-6 bg-green-600 rounded-xl font-black uppercase italic text-[10px]">{processing ? "..." : "MINT"}</Button>
+          </div>
+          <div className="flex gap-2">
+            <Input 
+              type="number" 
+              placeholder="Burn Amount..." 
+              value={burnAmount} 
+              onChange={(e) => setBurnAmount(e.target.value)} 
+              className="h-14 rounded-xl bg-muted border-none font-bold"
+            />
+            <Button onClick={() => handleTokenOp('burn')} disabled={processing || !burnAmount} className="h-14 px-6 bg-rose-600 rounded-xl font-black uppercase italic text-[10px]">{processing ? "..." : "BURN"}</Button>
+          </div>
         </div>
       </div>
     </div>
@@ -394,4 +554,21 @@ function MenuToolItem({ icon: Icon, label, sub, color, onClick }: any) {
       <ChevronRight className="w-5 h-5 text-muted-foreground/30 group-hover:text-primary transition-colors" />
     </button>
   );
+}
+
+function QuickOpButton({ icon: Icon, label, sub, color, onClick, syncing }: any) {
+  return (
+    <button onClick={onClick} className="flex flex-col items-center gap-3 p-6 rounded-[2rem] bg-card border border-border/50 hover:bg-muted/50 transition-all group shadow-sm active:scale-95 text-center w-full">
+      <div className={cn(
+        "w-12 h-12 rounded-full bg-muted flex items-center justify-center border border-border group-hover:scale-110 transition-transform shadow-inner", 
+        color,
+        syncing && "animate-spin"
+      )}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div>
+        <p className="text-[10px] font-black uppercase italic">{label}</p>
+        <p className="text-[7px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">{sub}</p>
+      </div>
+    </button>
 }
