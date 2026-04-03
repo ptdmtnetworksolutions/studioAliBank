@@ -464,10 +464,10 @@ function AdminContent() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="min-h-screen bg-background text-foreground flex font-body transition-colors duration-300">
+      <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row font-body transition-colors duration-300">
         
         {/* SIDEBAR NAVIGATION */}
-        <aside className="w-72 bg-card border-r border-border flex flex-col sticky top-0 h-screen z-50">
+        <aside className="w-full md:w-72 bg-card border-r border-border flex flex-col sticky top-0 md:h-screen z-50">
           <div className="p-8 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg">
               <LogoIcon className="text-white" />
@@ -475,7 +475,7 @@ function AdminContent() {
             <span className="font-black text-xl tracking-tighter italic uppercase">AliBank</span>
           </div>
 
-          <nav className="flex-1 px-4 space-y-2 pt-4">
+          <nav className="flex-1 px-4 space-y-2 pt-4 overflow-y-auto no-scrollbar">
             <SidebarItem icon={LayoutGrid} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
             <SidebarItem icon={Users} label="Clients" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
             <SidebarItem icon={Wallet} label="Vault Control" active={activeTab === 'vault'} onClick={() => setActiveTab('vault')} />
@@ -484,7 +484,7 @@ function AdminContent() {
             <SidebarItem icon={FileText} label="Audit Logs" active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} />
           </nav>
 
-          <div className="p-6 mt-auto space-y-6">
+          <div className="p-6 mt-auto space-y-6 hidden md:block">
             <div className="bg-muted/50 rounded-2xl p-4 border border-border">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-[10px] font-black uppercase text-muted-foreground">Interface Theme</span>
@@ -505,13 +505,13 @@ function AdminContent() {
         </aside>
 
         <main className="flex-1 flex flex-col min-w-0 bg-background transition-colors">
-          <header className="h-20 bg-card border-b border-border flex items-center justify-between px-10 sticky top-0 z-40">
-            <div className="relative w-96">
+          <header className="h-20 bg-card border-b border-border flex items-center justify-between px-6 md:px-10 sticky top-0 z-40">
+            <div className="relative w-full max-w-sm">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Search global data..." className="h-11 pl-12 bg-muted border-none rounded-xl text-xs font-bold" />
+              <Input placeholder="Search global data..." className="h-11 pl-12 bg-muted border-none rounded-xl text-xs font-bold w-full" />
             </div>
             <div className="flex gap-4">
-               <button onClick={() => syncOnChainData(true)} className="p-2 hover:bg-muted rounded-full transition-colors">
+               <button onClick={() => syncOnChainData(true)} className="p-2 hover:bg-muted rounded-full transition-colors hidden sm:block">
                   <RefreshCw className={cn("w-5 h-5", syncingVault && "animate-spin")} />
                </button>
                <div className="flex items-center gap-3">
@@ -528,7 +528,7 @@ function AdminContent() {
             </div>
           </header>
 
-          <div className="p-10 space-y-10 overflow-y-auto no-scrollbar pb-20">
+          <div className="p-6 md:p-10 space-y-10 overflow-y-auto no-scrollbar pb-20">
             {activeTab === 'dashboard' && (
               <div className="animate-in fade-in duration-700 space-y-10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -544,7 +544,7 @@ function AdminContent() {
                     </div>
                     <div className="space-y-2">
                       <p className="text-sm font-bold text-muted-foreground uppercase">Total Net Capital (IDR)</p>
-                      <h2 className="text-6xl font-black tracking-tighter italic">Rp {displayVal(globalLiquidity?.totalFiatInjected).toLocaleString('id-ID')}</h2>
+                      <h2 className="text-4xl md:text-6xl font-black tracking-tighter italic">Rp {displayVal(globalLiquidity?.totalFiatInjected).toLocaleString('id-ID')}</h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
                       <div className="space-y-3">
@@ -632,7 +632,7 @@ function AdminContent() {
                   </Card>
                 </div>
 
-                <div className="grid grid-cols-4 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                   <QuickOpButton icon={Skull} label="Reset All Clients" sub="Production Wipe" color="text-rose-500" onClick={() => setActiveTab('users')} />
                   <QuickOpButton icon={PlusCircle} label="Mint ALX" sub="Authorized Supply" color="text-green-500" onClick={() => setActiveTab('tokenomics')} />
                   <QuickOpButton icon={Pickaxe} label="Burn ALX" sub="Deflation Protocol" color="text-orange-500" onClick={() => setActiveTab('tokenomics')} />
@@ -645,31 +645,33 @@ function AdminContent() {
                     <button onClick={() => setActiveTab('audit')} className="text-[10px] font-black text-primary uppercase flex items-center gap-1 hover:underline">View All Logs <ArrowUpRight className="w-3 h-3" /></button>
                   </div>
                   <Card className="border-none bg-card rounded-[2rem] overflow-hidden shadow-sm">
-                    <table className="w-full text-left">
-                      <thead className="bg-muted/50 text-[9px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
-                        <tr>
-                          <th className="px-8 py-5">Operation ID</th>
-                          <th className="px-8 py-5">Context</th>
-                          <th className="px-8 py-5">Value</th>
-                          <th className="px-8 py-5 text-right">Synchronization</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {auditLogs?.slice(0, 5).map((log) => (
-                          <tr key={log.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="px-8 py-4 text-[10px] font-mono font-bold text-accent">{log.id.slice(0, 15)}...</td>
-                            <td className="px-8 py-4"><Badge className="bg-muted text-foreground border-none text-[8px] font-black h-5 uppercase px-2">{log.category}</Badge></td>
-                            <td className="px-8 py-4 text-[10px] font-black italic">{log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : '---'}</td>
-                            <td className="px-8 py-4 text-right text-[9px] font-bold text-muted-foreground italic">{log.timestamp?.toDate?.().toLocaleString() || '---'}</td>
-                          </tr>
-                        ))}
-                        {(!auditLogs || auditLogs.length === 0) && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left min-w-[600px]">
+                        <thead className="bg-muted/50 text-[9px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
                           <tr>
-                            <td colSpan={4} className="px-8 py-10 text-center text-[10px] font-black text-muted-foreground uppercase opacity-20 italic">No activity recorded</td>
+                            <th className="px-8 py-5">Operation ID</th>
+                            <th className="px-8 py-5">Context</th>
+                            <th className="px-8 py-5">Value</th>
+                            <th className="px-8 py-5 text-right">Synchronization</th>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {auditLogs?.slice(0, 5).map((log) => (
+                            <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+                              <td className="px-8 py-4 text-[10px] font-mono font-bold text-accent">{log.id.slice(0, 15)}...</td>
+                              <td className="px-8 py-4"><Badge className="bg-muted text-foreground border-none text-[8px] font-black h-5 uppercase px-2">{log.category}</Badge></td>
+                              <td className="px-8 py-4 text-[10px] font-black italic">{log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : '---'}</td>
+                              <td className="px-8 py-4 text-right text-[9px] font-bold text-muted-foreground italic">{log.timestamp?.toDate?.().toLocaleString() || '---'}</td>
+                            </tr>
+                          ))}
+                          {(!auditLogs || auditLogs.length === 0) && (
+                            <tr>
+                              <td colSpan={4} className="px-8 py-10 text-center text-[10px] font-black text-muted-foreground uppercase opacity-20 italic">No activity recorded</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </Card>
                 </div>
               </div>
@@ -686,7 +688,7 @@ function AdminContent() {
 
                 <Card className="border-none bg-card rounded-[2.5rem] overflow-hidden shadow-sm">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                    <table className="w-full text-left min-w-[800px]">
                       <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
                         <tr>
                           <th className="px-8 py-6">Client / Identity</th>
@@ -783,7 +785,7 @@ function AdminContent() {
                         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.3em] flex items-center gap-2">
                           <Globe className="w-3 h-3" /> On-Chain Ethereum Balance
                         </p>
-                        <p className="text-6xl font-black italic tracking-tighter text-blue-600">
+                        <p className="text-4xl md:text-6xl font-black italic tracking-tighter text-blue-600">
                           {parseFloat(onChainEth).toFixed(6)} <span className="text-3xl text-muted-foreground/40 italic">ETH</span>
                         </p>
                         <p className="text-xs font-bold text-muted-foreground mt-2 uppercase italic">≈ Rp {(parseFloat(onChainEth) * 33000000).toLocaleString('id-ID')} Total Vault Assets</p>
@@ -852,7 +854,7 @@ function AdminContent() {
                       <Badge className="bg-blue-100 text-blue-600 font-black text-[8px] uppercase px-3 h-6">LIVE ETHERSCAN</Badge>
                     </div>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left">
+                      <table className="w-full text-left min-w-[500px]">
                         <thead className="bg-muted/50 text-[9px] font-black uppercase text-muted-foreground tracking-widest">
                           <tr>
                             <th className="px-10 py-6">Tx Hash</th>
@@ -898,7 +900,7 @@ function AdminContent() {
                     </div>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                    <table className="w-full text-left min-w-[800px]">
                       <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
                         <tr>
                           <th className="px-10 py-8">Timestamp</th>
@@ -938,15 +940,20 @@ function AdminContent() {
         {/* User Management Dialog - PROFESSIONAL CONSOLE */}
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
           <DialogContent className="max-w-4xl rounded-[3rem] p-0 bg-card border-border shadow-2xl overflow-hidden">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Manajemen Nasabah: {selectedUser?.name}</DialogTitle>
+              <DialogDescription>Terminal kontrol penuh untuk profil, finansial, dan dompet nasabah AliBank.</DialogDescription>
+            </DialogHeader>
+            
             <div className="gold-gradient h-32 w-full relative">
               <div className="absolute -bottom-12 left-10 w-24 h-24 rounded-[2rem] bg-background border-4 border-card flex items-center justify-center overflow-hidden shadow-xl">
                 <Image src={`https://picsum.photos/seed/${selectedUser?.uid}/200/200`} alt="client" width={100} height={100} className="object-cover" />
               </div>
-              <button onClick={() => setIsUserDialogOpen(false)} className="absolute top-6 right-6 p-2 bg-white/20 rounded-full text-white hover:bg-white/30 transition-colors"><X className="w-5 h-5" /></button>
+              <button onClick={() => setIsUserDialogOpen(false)} className="absolute top-6 right-6 p-2 bg-white/20 rounded-full text-white hover:bg-white/30 transition-colors z-50"><X className="w-5 h-5" /></button>
             </div>
 
             <div className="pt-16 px-10 pb-10 space-y-8">
-              <header className="flex justify-between items-start">
+              <header className="flex flex-col md:flex-row justify-between items-start gap-4">
                 <div className="space-y-1">
                   <h2 className="text-3xl font-black italic uppercase tracking-tighter">{selectedUser?.name}</h2>
                   <div className="flex items-center gap-3">
@@ -961,33 +968,33 @@ function AdminContent() {
               </header>
 
               <Tabs defaultValue="profile" className="space-y-8">
-                <TabsList className="bg-muted/50 p-1 rounded-2xl h-14 w-full justify-start gap-2 border border-border">
-                  <TabsTrigger value="profile" className="rounded-xl px-8 font-black uppercase text-[10px] italic data-[state=active]:gold-gradient data-[state=active]:text-white">Profile</TabsTrigger>
-                  <TabsTrigger value="financials" className="rounded-xl px-8 font-black uppercase text-[10px] italic data-[state=active]:gold-gradient data-[state=active]:text-white">Financials</TabsTrigger>
-                  <TabsTrigger value="wallets" className="rounded-xl px-8 font-black uppercase text-[10px] italic data-[state=active]:gold-gradient data-[state=active]:text-white">Wallets</TabsTrigger>
-                  <TabsTrigger value="earnings" className="rounded-xl px-8 font-black uppercase text-[10px] italic data-[state=active]:gold-gradient data-[state=active]:text-white">Earnings</TabsTrigger>
+                <TabsList className="bg-muted/50 p-1 rounded-2xl h-14 w-full justify-start gap-2 border border-border overflow-x-auto no-scrollbar">
+                  <TabsTrigger value="profile" className="rounded-xl px-8 font-black uppercase text-[10px] italic data-[state=active]:gold-gradient data-[state=active]:text-white shrink-0">Profile</TabsTrigger>
+                  <TabsTrigger value="financials" className="rounded-xl px-8 font-black uppercase text-[10px] italic data-[state=active]:gold-gradient data-[state=active]:text-white shrink-0">Financials</TabsTrigger>
+                  <TabsTrigger value="wallets" className="rounded-xl px-8 font-black uppercase text-[10px] italic data-[state=active]:gold-gradient data-[state=active]:text-white shrink-0">Wallets</TabsTrigger>
+                  <TabsTrigger value="earnings" className="rounded-xl px-8 font-black uppercase text-[10px] italic data-[state=active]:gold-gradient data-[state=active]:text-white shrink-0">Earnings</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="profile" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <ProfileField icon={UserIcon} label="Full Name" value={selectedUser?.name} />
                     <ProfileField icon={Mail} label="Email Address" value={selectedUser?.email} />
                     <ProfileField icon={Phone} label="Phone Number" value={selectedUser?.phone || "Not Set"} />
                     <ProfileField icon={ShieldCheck} label="Account Tier" value={selectedUser?.tier || "Regular"} />
-                    <div className="col-span-2">
+                    <div className="md:col-span-2">
                       <ProfileField icon={Key} label="Web3 Native Address" value={selectedUser?.walletAddress} isMono />
                     </div>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="financials" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
-                  <div className="grid grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-4">
                       <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">IDR Liquidity Pool</label>
                       <div className="p-6 rounded-[2rem] bg-muted/50 border border-border flex items-center justify-between">
-                        <p className="text-3xl font-black italic text-foreground">Rp {selectedUser?.totalBalance?.toLocaleString() || '0'}</p>
-                        <div className="flex gap-2">
-                          <Input placeholder="Amount" type="number" value={balanceAdjustment} onChange={(e) => setBalanceAdjustment(e.target.value)} className="w-24 h-10 bg-background border-none text-xs font-black italic" />
+                        <p className="text-2xl md:text-3xl font-black italic text-foreground truncate mr-2">Rp {selectedUser?.totalBalance?.toLocaleString() || '0'}</p>
+                        <div className="flex gap-2 shrink-0">
+                          <Input placeholder="Amt" type="number" value={balanceAdjustment} onChange={(e) => setBalanceAdjustment(e.target.value)} className="w-20 h-10 bg-background border-none text-xs font-black italic" />
                           <button onClick={() => handleUpdateUserBalance('idr', balanceAdjustment, 'add')} className="w-8 h-8 rounded-lg bg-green-600 text-white flex items-center justify-center"><Plus className="w-4 h-4" /></button>
                           <button onClick={() => handleUpdateUserBalance('idr', balanceAdjustment, 'sub')} className="w-8 h-8 rounded-lg bg-rose-600 text-white flex items-center justify-center"><Minus className="w-4 h-4" /></button>
                         </div>
@@ -997,9 +1004,9 @@ function AdminContent() {
                     <div className="space-y-4">
                       <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">ALX Asset Holdings</label>
                       <div className="p-6 rounded-[2rem] bg-muted/50 border border-border flex items-center justify-between">
-                        <p className="text-3xl font-black italic text-primary">{selectedUser?.cryptoBalances?.ALX?.toFixed(4) || '0.0000'} ALX</p>
-                        <div className="flex gap-2">
-                          <Input placeholder="ALX" type="number" value={alxAdjustment} onChange={(e) => setAlxAdjustment(e.target.value)} className="w-24 h-10 bg-background border-none text-xs font-black italic" />
+                        <p className="text-2xl md:text-3xl font-black italic text-primary truncate mr-2">{selectedUser?.cryptoBalances?.ALX?.toFixed(4) || '0.0000'} ALX</p>
+                        <div className="flex gap-2 shrink-0">
+                          <Input placeholder="ALX" type="number" value={alxAdjustment} onChange={(e) => setAlxAdjustment(e.target.value)} className="w-20 h-10 bg-background border-none text-xs font-black italic" />
                           <button onClick={() => handleUpdateUserBalance('alx', alxAdjustment, 'add')} className="w-8 h-8 rounded-lg gold-gradient text-white flex items-center justify-center"><Plus className="w-4 h-4" /></button>
                           <button onClick={() => handleUpdateUserBalance('alx', alxAdjustment, 'sub')} className="w-8 h-8 rounded-lg bg-slate-800 text-white flex items-center justify-center"><Minus className="w-4 h-4" /></button>
                         </div>
@@ -1015,12 +1022,12 @@ function AdminContent() {
                         <p className="text-xl font-black italic">Rp {totalDepositsValue.toLocaleString()}</p>
                       </div>
                     </div>
-                    <Badge className="bg-primary text-white font-black italic">{selectedUserDeposits.length} ACTIVE DEPOSITS</Badge>
+                    <Badge className="bg-primary text-white font-black italic">{selectedUserDeposits.length} ACTIVE</Badge>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="wallets" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {selectedUserWallets.length > 0 ? selectedUserWallets.map((w, i) => (
                       <div key={i} className="p-5 rounded-2xl bg-muted/30 border border-border flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -1033,7 +1040,7 @@ function AdminContent() {
                         <p className="text-sm font-black italic text-green-600">Rp {w.balance?.toLocaleString()}</p>
                       </div>
                     )) : (
-                      <div className="col-span-2 py-10 text-center opacity-20">
+                      <div className="col-span-full py-10 text-center opacity-20">
                         <Wallet className="w-12 h-12 mx-auto mb-2" />
                         <p className="text-[10px] font-black uppercase">No External Wallets Linked</p>
                       </div>
@@ -1042,7 +1049,7 @@ function AdminContent() {
                 </TabsContent>
 
                 <TabsContent value="earnings" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Card className="p-6 rounded-[2rem] bg-orange-500/5 border-none text-center space-y-3">
                       <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 mx-auto shadow-inner"><RotateCw className="w-6 h-6" /></div>
                       <div>
