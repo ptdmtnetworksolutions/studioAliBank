@@ -1,8 +1,8 @@
 
 /**
- * CRITICAL: AliBank Admin Control V3.2
- * Pembaruan Izin Akses Super Admin: alidzulfikar075@gmail.com / IJOuQpjEOMgvlYfzvQ1yfp976Oa2
- * Memicu penyebaran Security Rules untuk jalur /system dan /users.
+ * CRITICAL: AliBank Admin Control V3.5 - TOKENOMICS TERMINAL
+ * Pusat Kendali Suplai & Kebijakan Moneter ALX.
+ * Otorisasi Eksklusif: alidzulfikar075@gmail.com / IJOuQpjEOMgvlYfzvQ1yfp976Oa2
  */
 
 "use client";
@@ -76,7 +76,9 @@ import {
   Gamepad2,
   Trophy,
   RotateCw,
-  Smartphone
+  Smartphone,
+  PieChart as PieIcon,
+  Timer
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -133,7 +135,9 @@ import {
   CartesianGrid, 
   Tooltip as RechartsTooltip, 
   ResponsiveContainer,
-  Cell
+  Cell,
+  PieChart,
+  Pie
 } from "recharts";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -184,6 +188,11 @@ function AdminContent() {
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
   const [balanceAdjustment, setBalanceAdjustment] = useState("");
   const [alxAdjustment, setAlxAdjustment] = useState("");
+
+  // States for Tokenomics
+  const [mintAmount, setMintAmount] = useState("");
+  const [burnAmount, setBurnAmount] = useState("");
+  const [isProcessingToken, setIsProcessingToken] = useState(false);
 
   // Detailed User States
   const [selectedUserWallets, setSelectedUserWallets] = useState<any[]>([]);
@@ -363,6 +372,42 @@ function AdminContent() {
       });
   };
 
+  const handleTokenOperation = async (type: 'mint' | 'burn') => {
+    if (!db || !isAuthorized || isProcessingToken) return;
+    const amountStr = type === 'mint' ? mintAmount : burnAmount;
+    const num = parseFloat(amountStr);
+    if (isNaN(num) || num <= 0) return;
+
+    setIsProcessingToken(true);
+    try {
+      const sysRef = doc(db, "system", "liquidity");
+      const change = type === 'mint' ? num : -num;
+
+      await updateDoc(sysRef, {
+        alixVaultBalance: increment(change),
+        totalAlixSupply: increment(change),
+        ...(type === 'mint' ? { totalAlixMinted: increment(num) } : { totalAlixBurned: increment(num) })
+      });
+
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `${type.toUpperCase()}-${Date.now()}`,
+        category: "Tokenomics",
+        gateway: "Super Admin Node",
+        amountIdr: 0,
+        description: `Authorized ALX ${type}: ${num} tokens`,
+        timestamp: serverTimestamp(),
+        status: "success"
+      });
+
+      toast({ title: `ALX ${type === 'mint' ? 'Minted' : 'Burned'}`, description: `${num} ALX has been updated in Vault.` });
+      setMintAmount(""); setBurnAmount("");
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Operation Failed", description: err.message });
+    } finally {
+      setIsProcessingToken(false);
+    }
+  };
+
   const handleResetPassword = async () => {
     if (!auth || !selectedUser?.email || !isAuthorized) return;
     try {
@@ -456,6 +501,11 @@ function AdminContent() {
   const totalDepositsValue = useMemo(() => {
     return selectedUserDeposits.reduce((acc, dep) => acc + (dep.amount || 0), 0);
   }, [selectedUserDeposits]);
+
+  const circulatingSupply = useMemo(() => {
+    if (!allUsers) return 0;
+    return allUsers.reduce((acc, u) => acc + (u.cryptoBalances?.ALX || 0), 0);
+  }, [allUsers]);
 
   const displayVal = (val: number) => Math.max(0, val || 0);
 
@@ -765,6 +815,142 @@ function AdminContent() {
               </div>
             )}
 
+            {activeTab === 'tokenomics' && (
+              <div className="animate-in slide-in-from-bottom-10 duration-700 space-y-10">
+                <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 rounded-[2rem] gold-gradient flex items-center justify-center shadow-xl p-4 shrink-0">
+                      <Coins className="text-white w-full h-full" />
+                    </div>
+                    <div>
+                      <h3 className="text-3xl font-black italic uppercase tracking-tighter">ALX Tokenomics Terminal</h3>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Authorized supply management & monetary policy</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg">V3 PROTOCOL ACTIVE</Badge>
+                </header>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <TokenStatCard label="Total Supply" value={`${displayVal(globalLiquidity?.totalAlixSupply).toLocaleString()} ALX`} sub="Maximum Cap" icon={Zap} />
+                  <TokenStatCard label="Circulating Supply" value={`${circulatingSupply.toLocaleString()} ALX`} sub="Held by Users" icon={Globe} color="text-green-600" />
+                  <TokenStatCard label="Vault Balance" value={`${displayVal(globalLiquidity?.alixVaultBalance).toLocaleString()} ALX`} sub="System Reserve" icon={Database} color="text-primary" />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  <Card className="lg:col-span-7 border-none bg-card rounded-[3rem] p-10 space-y-10 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-5"><LogoIcon className="w-48 h-48 text-primary" /></div>
+                    <div className="relative z-10 flex items-center justify-between">
+                      <h4 className="text-xl font-black italic uppercase tracking-tight">Authorized Minting Terminal</h4>
+                      <Badge variant="outline" className="border-green-500/20 text-green-600 font-black text-[8px] px-3 h-6 uppercase">Legal Issuer</Badge>
+                    </div>
+                    <div className="relative z-10 space-y-8">
+                      <div className="p-10 rounded-[2.5rem] bg-muted/50 border border-border space-y-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase text-muted-foreground ml-2 tracking-widest">Mint Amount (ALX)</label>
+                          <div className="relative">
+                            <Input 
+                              type="number" 
+                              placeholder="0.00" 
+                              value={mintAmount} 
+                              onChange={(e) => setMintAmount(e.target.value)} 
+                              className="h-20 bg-background border-none rounded-3xl font-black italic text-4xl pl-10 pr-24 tracking-tighter" 
+                            />
+                            <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                              <span className="text-xl font-black text-primary italic">ALX</span>
+                            </div>
+                          </div>
+                        </div>
+                        <Button 
+                          onClick={() => handleTokenOperation('mint')} 
+                          disabled={!mintAmount || isProcessingToken}
+                          className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none text-base"
+                        >
+                          {isProcessingToken ? <Loader2 className="animate-spin" /> : "EXECUTE AUTHORIZED MINT"}
+                        </Button>
+                      </div>
+                      <div className="flex gap-4 p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10">
+                        <Info className="w-5 h-5 text-blue-500 shrink-0" />
+                        <p className="text-[10px] font-bold text-muted-foreground italic uppercase leading-relaxed">Pencetakan token akan menambah cadangan brankas pusat AliBank. Gunakan hanya saat dibutuhkan untuk menjaga nilai koin tetap stabil di angka $12.24.</p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card className="lg:col-span-5 border-none bg-card rounded-[3rem] p-10 space-y-10 shadow-sm relative overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xl font-black italic uppercase tracking-tight">Supply Distribution</h4>
+                      <PieIcon className="w-5 h-5 text-muted-foreground opacity-40" />
+                    </div>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { name: 'Vault', value: displayVal(globalLiquidity?.alixVaultBalance) },
+                              { name: 'Circulating', value: circulatingSupply },
+                              { name: 'Burned', value: displayVal(globalLiquidity?.totalAlixBurned) }
+                            ]}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            <Cell fill="hsl(var(--primary))" />
+                            <Cell fill="#10b981" />
+                            <Cell fill="#ef4444" />
+                          </Pie>
+                          <RechartsTooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="space-y-4">
+                      <DistributionItem label="Vault Reserve" value={displayVal(globalLiquidity?.alixVaultBalance)} color="bg-primary" />
+                      <DistributionItem label="User Holdings" value={circulatingSupply} color="bg-green-500" />
+                      <DistributionItem label="Burned Suplly" value={displayVal(globalLiquidity?.totalAlixBurned)} color="bg-rose-500" />
+                    </div>
+                  </Card>
+                </div>
+
+                <Card className="border-none bg-card rounded-[3rem] p-10 space-y-8 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 shadow-inner">
+                        <Pickaxe className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-xl font-black italic uppercase tracking-tight">Deflationary Protocol (Burn Hub)</h4>
+                    </div>
+                    <Badge className="bg-rose-100 text-rose-600 font-black text-[8px] uppercase px-3 h-6">Deflation Active</Badge>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+                    <div className="md:col-span-8">
+                      <div className="relative">
+                        <Input 
+                          type="number" 
+                          placeholder="Amount to burn permanently..." 
+                          value={burnAmount} 
+                          onChange={(e) => setBurnAmount(e.target.value)} 
+                          className="h-16 bg-muted border-none rounded-2xl font-black italic text-xl px-8" 
+                        />
+                        <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                          <Skull className="w-5 h-5 text-rose-500 opacity-40" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="md:col-span-4">
+                      <Button 
+                        onClick={() => handleTokenOperation('burn')}
+                        disabled={!burnAmount || isProcessingToken}
+                        className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase italic tracking-widest shadow-lg border-none"
+                      >
+                        {isProcessingToken ? <Loader2 className="animate-spin" /> : "EXECUTE BURN"}
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+
             {activeTab === 'vault' && (
               <div className="animate-in zoom-in-95 duration-700 space-y-10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -927,7 +1113,7 @@ function AdminContent() {
               </div>
             )}
 
-            {(activeTab === 'tokenomics' || activeTab === 'inventory') && (
+            {activeTab === 'inventory' && (
               <div className="flex flex-col items-center justify-center py-40 opacity-20">
                 <Database className="w-20 h-20 mb-4" />
                 <h3 className="text-xl font-black uppercase italic italic tracking-widest">Protocol Staging</h3>
@@ -1152,6 +1338,31 @@ function ProfileField({ icon: Icon, label, value, isMono = false }: any) {
       <div className="p-4 rounded-2xl bg-muted/50 border border-border">
         <p className={cn("text-xs font-bold truncate italic uppercase", isMono && "font-mono text-[10px]")}>{value || "---"}</p>
       </div>
+    </div>
+  );
+}
+
+function TokenStatCard({ label, value, sub, icon: Icon, color = "text-accent" }: any) {
+  return (
+    <Card className="border-none bg-card rounded-[2.5rem] p-8 space-y-4 shadow-sm">
+      <div className="flex justify-between items-start">
+        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{label}</p>
+        <Icon className={cn("w-4 h-4 opacity-20", color)} />
+      </div>
+      <p className={cn("text-3xl font-black italic tracking-tighter", color)}>{value}</p>
+      <p className="text-[9px] font-bold text-muted-foreground uppercase">{sub}</p>
+    </Card>
+  );
+}
+
+function DistributionItem({ label, value, color }: any) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <div className={cn("w-2 h-2 rounded-full", color)} />
+        <span className="text-[10px] font-bold text-muted-foreground uppercase">{label}</span>
+      </div>
+      <span className="text-[10px] font-black italic">{value?.toLocaleString()} ALX</span>
     </div>
   );
 }
