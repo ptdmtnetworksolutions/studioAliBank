@@ -112,6 +112,7 @@ function DashboardContent() {
   const [activeTab, setActiveTab] = useState<'bursa' | 'dompet'>('bursa');
   const [marketFilter, setMarketFilter] = useState("Populer");
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   
   // LIVE MARKET STATE
   const [marketCoins, setMarketCoins] = useState(INITIAL_COINS);
@@ -389,24 +390,78 @@ function DashboardContent() {
               </span>
             </div>
 
-            <div className="flex justify-between items-start mb-2 px-1">
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <span className="text-xs font-bold">Estimasi Total Nilai(IDR)</span>
-                  <ChevronDown className="w-3 h-3" />
+            <div className="space-y-4 mb-2 px-1">
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <div 
+                    className="flex items-center gap-1.5 text-muted-foreground cursor-pointer group"
+                    onClick={() => setIsDetailsOpen(!isDetailsOpen)}
+                  >
+                    <span className="text-xs font-bold">Estimasi Total Nilai(IDR)</span>
+                    {isDetailsOpen ? (
+                      <ChevronDown className="w-3 h-3 text-primary transition-transform" />
+                    ) : (
+                      <ChevronUp className="w-3 h-3 transition-transform" />
+                    )}
+                  </div>
+                  <h1 className="text-4xl font-black tracking-tight text-foreground">
+                    Rp{totalValueCalculated.toLocaleString('id-ID')}
+                  </h1>
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                    <span className="text-muted-foreground">PNL hari ini</span>
+                    <span className="text-green-500">+Rp1.240 (+0.01%)</span>
+                    <ChevronDown className="w-3 h-3 text-green-500" />
+                  </div>
                 </div>
-                <h1 className="text-4xl font-black tracking-tight text-foreground">
-                  Rp{totalValueCalculated.toLocaleString('id-ID')}
-                </h1>
-                <div className="flex items-center gap-1.5 text-[10px] font-bold">
-                  <span className="text-muted-foreground">PNL hari ini</span>
-                  <span className="text-green-500">+Rp1.240 (+0.01%)</span>
-                  <ChevronDown className="w-3 h-3 text-green-500" />
-                </div>
+                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-black px-4 h-10 rounded-lg shadow-none text-xs" onClick={openAddFunds}>
+                  Tambah Dana
+                </Button>
               </div>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-black px-4 h-10 rounded-lg shadow-none text-xs" onClick={openAddFunds}>
-                Tambah Dana
-              </Button>
+
+              {/* Asset Breakdown Detail Area */}
+              {isDetailsOpen && (
+                <div className="animate-in slide-in-from-top-2 fade-in duration-300 space-y-3 pt-2">
+                  <div className="p-5 rounded-2xl bg-muted/30 border border-border space-y-4 shadow-inner">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full bg-rose-600 flex items-center justify-center text-[10px] font-black text-white shadow-sm">Rp</div>
+                        <span className="text-xs font-black uppercase italic text-foreground">Likuiditas IDR</span>
+                      </div>
+                      <span className="text-sm font-black italic">Rp {(userData?.totalBalance ?? 0).toLocaleString('id-ID')}</span>
+                    </div>
+                    
+                    <div className="h-px bg-border/50" />
+
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full gold-gradient p-1.5 flex items-center justify-center shadow-md">
+                          <LogoIcon className="text-white" />
+                        </div>
+                        <span className="text-xs font-black uppercase italic text-foreground">Aset ALX</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-black italic text-primary">{(userData?.cryptoBalances?.ALX ?? 0).toFixed(4)} ALX</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase italic">≈ Rp {((userData?.cryptoBalances?.ALX ?? 0) * ALX_PRICE_IDR).toLocaleString('id-ID')}</p>
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-border/50" />
+
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full bg-[#0D9488] flex items-center justify-center p-1.5 shadow-md">
+                          <svg viewBox="0 0 24 24" fill="white" className="w-full h-full"><path d="M12 2L2 12l10 10 10-10L12 2zm0 16.5L5.5 12 12 5.5 18.5 12 12 18.5z"/></svg>
+                        </div>
+                        <span className="text-xs font-black uppercase italic text-foreground">Saldo USDT</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-black italic text-foreground">{(userData?.cryptoBalances?.USDT ?? 0).toFixed(2)} USDT</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase italic">≈ Rp {((userData?.cryptoBalances?.USDT ?? 0) * USDT_IDR_RATE).toLocaleString('id-ID')}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="relative group">
