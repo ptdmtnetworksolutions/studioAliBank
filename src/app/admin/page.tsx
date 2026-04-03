@@ -221,7 +221,7 @@ function AdminContent() {
   const [isExecutingVaultTx, setIsExecutingVaultTx] = useState(false);
   const [onChainHistory, setOnChainHistory] = useState<any[]>([]);
 
-  // SHIELDING QUERIES: Hanya jalankan query JIKA status otorisasi Super Admin telah dikonfirmasi.
+  // SHIELDING QUERIES
   const liquidityDocRef = useMemoFirebase(() => (db && isAuthorized ? doc(db, "system", "liquidity") : null), [db, isAuthorized]);
   const { data: globalLiquidity } = useDoc(liquidityDocRef);
   
@@ -341,6 +341,11 @@ function AdminContent() {
       return;
     }
     setIsAuthorized(true);
+
+    // AUTO-DETECTION: Redirect to Mobile UI if on small screen
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      router.push('/admin/mobile');
+    }
   }, [user, userLoading, router]);
 
   useEffect(() => {

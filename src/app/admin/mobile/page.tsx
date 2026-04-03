@@ -121,6 +121,11 @@ function AdminMobileContent() {
     }
     setIsAuthorized(true);
     syncVault();
+
+    // AUTO-DETECTION: Redirect back to Desktop UI if on large screen
+    if (typeof window !== "undefined" && window.innerWidth >= 768) {
+      router.push('/admin');
+    }
   }, [user, userLoading, router, syncVault]);
 
   if (userLoading || !isAuthorized) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
