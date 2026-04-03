@@ -15,16 +15,16 @@ gcloud services enable firebaseapphosting.googleapis.com cloudbuild.googleapis.c
 ```
 
 ### 3. Solusi Error Billing (UREQ_PROJECT_BILLING_NOT_OPEN)
-Meskipun kartu sudah didaftarkan, project harus **dihubungkan** ke akun penagihan:
+Meskipun kartu sudah didaftarkan, project harus **dihubungkan** ke akun penagihan yang **AKTIF**:
 1. Buka [Google Cloud Billing](https://console.cloud.google.com/billing).
 2. Di sidebar kiri, pilih **Account Management**.
-3. Cari project **darmedia-pos**.
-4. Klik ikon titik tiga di sebelah project tersebut.
-5. Pilih **Change billing** dan pilih akun "Firebase Payment".
+3. Jika muncul banner merah **"This billing account is closed"**, klik tombol **"Reopen billing account"** di bagian atas.
+4. Pastikan project **darmedia-pos** (852996332274) terdaftar di tabel bawah.
+5. Jika statusnya "Billing disabled", klik titik tiga di baris project tersebut, pilih **Change billing**, dan pilih akun penagihan yang aktif.
 6. Ulangi perintah di Cloud Shell.
 
 ### 4. Setup Secure Vault (Secret Manager)
-Setelah billing terhubung, jalankan ini di Cloud Shell:
+Setelah billing terbuka dan terhubung, jalankan ini di Cloud Shell:
 ```bash
 # 1. Masuk ke project yang benar
 gcloud config set project darmedia-pos
@@ -35,7 +35,7 @@ gcloud secrets create ALIBANK_VAULT_PRIVATE_KEY --replication-policy="automatic"
 # 3. Masukkan Private Key MetaMask (Ganti YOUR_KEY dengan kode 0x... Anda dari MetaMask)
 echo -n "YOUR_KEY" | gcloud secrets versions add ALIBANK_VAULT_PRIVATE_KEY --data-file=-
 
-# 4. Berikan izin akses ke Service Account aplikasi (Project Number: 852996332274)
+# 4. Berikan izin akses ke Service Account aplikasi
 gcloud secrets add-iam-policy-binding ALIBANK_VAULT_PRIVATE_KEY \
     --member="serviceAccount:852996332274-compute@developer.gserviceaccount.com" \
     --role="roles/secretmanager.secretAccessor"
