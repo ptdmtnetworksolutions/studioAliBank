@@ -1,391 +1,45 @@
 {
   "entities": {
     "UserProfile": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserProfile",
+      "description": "Stores user profile and core identity.",
       "type": "object",
-      "description": "Stores profile information for a user within the FinWave application, linking all financial activities to a specific individual.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the UserProfile entity."
-        },
-        "firstName": {
-          "type": "string",
-          "description": "The first name of the user."
-        },
-        "lastName": {
-          "type": "string",
-          "description": "The last name of the user."
-        },
-        "email": {
-          "type": "string",
-          "description": "The email address of the user.",
-          "format": "email"
-        },
-        "phoneNumber": {
-          "type": "string",
-          "description": "The contact phone number of the user."
-        },
-        "address": {
-          "type": "string",
-          "description": "The physical address of the user."
-        },
-        "dateJoined": {
-          "type": "string",
-          "description": "Timestamp when the user profile was created.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "firstName",
-        "lastName",
-        "email",
-        "dateJoined"
-      ]
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "accountNumber": { "type": "string" },
+        "totalBalance": { "type": "number" },
+        "savings": { "type": "number" },
+        "walletAddress": { "type": "string" },
+        "tier": { "type": "string" }
+      }
     },
-    "Account": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Account",
+    "Notification": {
+      "title": "Notification",
+      "description": "System alerts and transaction notices.",
       "type": "object",
-      "description": "Represents a financial account held by a user, such as a checking or savings account, displaying balances and overall status.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Account entity."
-        },
-        "userProfileId": {
-          "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N Account)"
-        },
-        "accountNumber": {
-          "type": "string",
-          "description": "The unique account number for this financial account."
-        },
-        "accountName": {
-          "type": "string",
-          "description": "A user-friendly name or alias for the account."
-        },
-        "accountType": {
-          "type": "string",
-          "description": "The type of account, e.g., 'Checking', 'Savings', 'Current'."
-        },
-        "balance": {
-          "type": "number",
-          "description": "The current monetary balance of the account."
-        },
-        "currency": {
-          "type": "string",
-          "description": "The currency code of the account's balance (e.g., 'USD', 'IDR')."
-        },
-        "isOpen": {
-          "type": "boolean",
-          "description": "Indicates whether the account is currently active."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the account was created.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "userProfileId",
-        "accountNumber",
-        "accountName",
-        "accountType",
-        "balance",
-        "currency",
-        "isOpen",
-        "createdAt"
-      ]
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "success", "alert"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     },
-    "Transaction": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Transaction",
+    "SystemLiquidity": {
+      "title": "SystemLiquidity",
+      "description": "Global bank reserves and stats.",
       "type": "object",
-      "description": "Records a single financial movement, including transfers, deposits, and withdrawals, associated with a specific account.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Transaction entity."
-        },
-        "accountId": {
-          "type": "string",
-          "description": "Reference to Account. (Relationship: Account 1:N Transaction)"
-        },
-        "type": {
-          "type": "string",
-          "description": "The type of transaction (e.g., 'Transfer Out', 'Transfer In', 'Deposit', 'Withdrawal', 'Bill Payment')."
-        },
-        "amount": {
-          "type": "number",
-          "description": "The monetary amount of the transaction."
-        },
-        "currency": {
-          "type": "string",
-          "description": "The currency code of the transaction amount."
-        },
-        "transactionDate": {
-          "type": "string",
-          "description": "The date and time when the transaction occurred.",
-          "format": "date-time"
-        },
-        "description": {
-          "type": "string",
-          "description": "A brief description or memo for the transaction."
-        },
-        "recipientName": {
-          "type": "string",
-          "description": "The name of the recipient for outgoing transfers or payments."
-        },
-        "recipientAccountNumber": {
-          "type": "string",
-          "description": "The account number of the recipient for outgoing transfers or payments."
-        },
-        "status": {
-          "type": "string",
-          "description": "The current status of the transaction (e.g., 'Completed', 'Pending', 'Failed', 'Cancelled')."
-        }
-      },
-      "required": [
-        "id",
-        "accountId",
-        "type",
-        "amount",
-        "currency",
-        "transactionDate",
-        "description",
-        "status"
-      ]
-    },
-    "Beneficiary": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Beneficiary",
-      "type": "object",
-      "description": "Stores details of individuals or entities registered as recipients for fund transfers.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Beneficiary entity."
-        },
-        "userProfileId": {
-          "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N Beneficiary)"
-        },
-        "beneficiaryName": {
-          "type": "string",
-          "description": "The full name or entity name of the beneficiary."
-        },
-        "accountNumber": {
-          "type": "string",
-          "description": "The account number of the beneficiary."
-        },
-        "bankName": {
-          "type": "string",
-          "description": "The name of the bank where the beneficiary's account is held."
-        },
-        "bankCode": {
-          "type": "string",
-          "description": "The SWIFT/BIC code or local bank code of the beneficiary's bank."
-        },
-        "isVerified": {
-          "type": "boolean",
-          "description": "Indicates if the beneficiary's details have been verified."
-        },
-        "addedAt": {
-          "type": "string",
-          "description": "Timestamp when the beneficiary was added by the user.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "userProfileId",
-        "beneficiaryName",
-        "accountNumber",
-        "bankName",
-        "addedAt"
-      ]
-    },
-    "EWallet": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "EWallet",
-      "type": "object",
-      "description": "Represents an external electronic wallet linked to the user's FinWave profile.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the EWallet entity."
-        },
-        "userProfileId": {
-          "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N EWallet)"
-        },
-        "walletProvider": {
-          "type": "string",
-          "description": "The name of the e-wallet service provider (e.g., 'Gopay', 'OVO')."
-        },
-        "walletIdentifier": {
-          "type": "string",
-          "description": "The unique identifier for the user's e-wallet account (e.g., phone number, email)."
-        },
-        "balance": {
-          "type": "number",
-          "description": "The current balance in the linked e-wallet, synchronized periodically."
-        },
-        "currency": {
-          "type": "string",
-          "description": "The currency code of the e-wallet balance."
-        },
-        "linkedAt": {
-          "type": "string",
-          "description": "Timestamp when the e-wallet was linked to the user's profile.",
-          "format": "date-time"
-        },
-        "isLinked": {
-          "type": "boolean",
-          "description": "Indicates if the e-wallet link is currently active."
-        }
-      },
-      "required": [
-        "id",
-        "userProfileId",
-        "walletProvider",
-        "walletIdentifier",
-        "currency",
-        "linkedAt",
-        "isLinked"
-      ]
-    },
-    "DepositProduct": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "DepositProduct",
-      "type": "object",
-      "description": "Defines the various deposit offerings or savings products available to users, such as fixed deposits or special savings plans.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the DepositProduct entity."
-        },
-        "productName": {
-          "type": "string",
-          "description": "The official name of the deposit product offering."
-        },
-        "description": {
-          "type": "string",
-          "description": "A detailed description of the deposit product's features and terms."
-        },
-        "interestRate": {
-          "type": "number",
-          "description": "The annual interest rate offered by this deposit product (as a decimal, e.g., 0.05 for 5%)."
-        },
-        "minimumDepositAmount": {
-          "type": "number",
-          "description": "The minimum principal amount required to open this deposit product."
-        },
-        "currency": {
-          "type": "string",
-          "description": "The currency code for the minimum deposit and interest calculations."
-        },
-        "termLengthMonths": {
-          "type": "number",
-          "description": "The fixed term length of the deposit product in months (if applicable)."
-        },
-        "isActive": {
-          "type": "boolean",
-          "description": "Indicates if the deposit product is currently available for new deposits."
-        },
-        "availableFrom": {
-          "type": "string",
-          "description": "The date from which this product is available.",
-          "format": "date-time"
-        },
-        "availableTo": {
-          "type": "string",
-          "description": "The date until which this product is available (optional).",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "productName",
-        "description",
-        "interestRate",
-        "minimumDepositAmount",
-        "currency",
-        "isActive",
-        "availableFrom"
-      ]
-    },
-    "Deposit": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Deposit",
-      "type": "object",
-      "description": "Represents a specific deposit made by a user into one of the available deposit products.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Deposit entity."
-        },
-        "userProfileId": {
-          "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N Deposit)"
-        },
-        "depositProductId": {
-          "type": "string",
-          "description": "Reference to DepositProduct. (Relationship: DepositProduct 1:N Deposit)"
-        },
-        "accountId": {
-          "type": "string",
-          "description": "Reference to Account. (Relationship: Account 1:N Deposit) The account from which funds were taken or to which earnings are paid."
-        },
-        "amount": {
-          "type": "number",
-          "description": "The principal amount initially deposited."
-        },
-        "currency": {
-          "type": "string",
-          "description": "The currency code of the deposit amount."
-        },
-        "startDate": {
-          "type": "string",
-          "description": "The date when the deposit was initiated.",
-          "format": "date-time"
-        },
-        "maturityDate": {
-          "type": "string",
-          "description": "The date when the deposit matures (if fixed-term).",
-          "format": "date-time"
-        },
-        "currentValue": {
-          "type": "number",
-          "description": "The current value of the deposit, including accrued interest."
-        },
-        "status": {
-          "type": "string",
-          "description": "The current status of the deposit (e.g., 'Active', 'Matured', 'Early Withdrawal', 'Closed')."
-        }
-      },
-      "required": [
-        "id",
-        "userProfileId",
-        "depositProductId",
-        "accountId",
-        "amount",
-        "currency",
-        "startDate",
-        "maturityDate",
-        "status"
-      ]
+        "totalFiatInjected": { "type": "number" },
+        "totalUsdInjected": { "type": "number" },
+        "alixVaultBalance": { "type": "number" }
+      }
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password"]
   },
   "firestore": {
     "structure": [
@@ -393,139 +47,23 @@
         "path": "/users/{userId}",
         "definition": {
           "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Stores individual user profile information. The document ID (`userId`) will be the user's Firebase Authentication UID. Authorization relies on `request.auth.uid == userId`.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique Firebase Authentication UID of the user."
-            }
-          ]
+          "description": "User profile data."
         }
       },
       {
-        "path": "/users/{userId}/accounts/{accountId}",
+        "path": "/users/{userId}/notifications/{notificationId}",
         "definition": {
-          "entityName": "Account",
-          "schema": {
-            "$ref": "#/backend/entities/Account"
-          },
-          "description": "Stores financial accounts associated with a specific user. Includes denormalized 'userProfileId' for authorization independence, ensuring `resource.data.userProfileId == userId` and `request.auth.uid == userId`.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique Firebase Authentication UID of the owning user."
-            },
-            {
-              "name": "accountId",
-              "description": "The unique identifier for the financial account."
-            }
-          ]
+          "entityName": "Notification",
+          "description": "User notifications."
         }
       },
       {
-        "path": "/users/{userId}/accounts/{accountId}/transactions/{transactionId}",
+        "path": "/system/liquidity",
         "definition": {
-          "entityName": "Transaction",
-          "schema": {
-            "$ref": "#/backend/entities/Transaction"
-          },
-          "description": "Records individual financial transactions for a specific account belonging to a user. Authorization is handled by the parent path; `request.auth.uid == userId` is enforced by rules.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique Firebase Authentication UID of the owning user."
-            },
-            {
-              "name": "accountId",
-              "description": "The unique identifier for the parent financial account."
-            },
-            {
-              "name": "transactionId",
-              "description": "The unique identifier for the transaction."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/beneficiaries/{beneficiaryId}",
-        "definition": {
-          "entityName": "Beneficiary",
-          "schema": {
-            "$ref": "#/backend/entities/Beneficiary"
-          },
-          "description": "Stores registered beneficiaries for fund transfers, specific to each user. Includes denormalized 'userProfileId' for authorization independence, ensuring `resource.data.userProfileId == userId` and `request.auth.uid == userId`.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique Firebase Authentication UID of the owning user."
-            },
-            {
-              "name": "beneficiaryId",
-              "description": "The unique identifier for the beneficiary."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/ewallets/{ewalletId}",
-        "definition": {
-          "entityName": "EWallet",
-          "schema": {
-            "$ref": "#/backend/entities/EWallet"
-          },
-          "description": "Represents external e-wallets linked to a user's profile. Includes denormalized 'userProfileId' for authorization independence, ensuring `resource.data.userProfileId == userId` and `request.auth.uid == userId`.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique Firebase Authentication UID of the owning user."
-            },
-            {
-              "name": "ewalletId",
-              "description": "The unique identifier for the linked e-wallet."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/depositProducts/{productId}",
-        "definition": {
-          "entityName": "DepositProduct",
-          "schema": {
-            "$ref": "#/backend/entities/DepositProduct"
-          },
-          "description": "Defines global deposit offerings available to all users. This collection has a homogeneous security posture, allowing authenticated users to read and potentially administrative roles to manage.",
-          "params": [
-            {
-              "name": "productId",
-              "description": "The unique identifier for the deposit product."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/deposits/{depositId}",
-        "definition": {
-          "entityName": "Deposit",
-          "schema": {
-            "$ref": "#/backend/entities/Deposit"
-          },
-          "description": "Represents a specific deposit made by a user into a DepositProduct. Includes denormalized 'userProfileId' for authorization independence, ensuring `resource.data.userProfileId == userId` and `request.auth.uid == userId`.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique Firebase Authentication UID of the owning user."
-            },
-            {
-              "name": "depositId",
-              "description": "The unique identifier for the user's specific deposit."
-            }
-          ]
+          "entityName": "SystemLiquidity",
+          "description": "Central bank liquidity tracking."
         }
       }
-    ],
-    "reasoning": "The FinWave Firestore structure is designed with a strong emphasis on Authorization Independence and adherence to Query As Authorization Predicates (QAPs), ensuring simple, robust, and easily debuggable security rules. All user-specific data is organized under a top-level `/users/{userId}` collection, making `request.auth.uid` the primary and most efficient authorization predicate.\n\n**Authorization Independence:**\n\n1.  **Path-Based Ownership:** For `UserProfile`, `Account`, `Beneficiary`, `EWallet`, and `Deposit` entities, the data is stored hierarchically under `/users/{userId}/...`. This directly embeds the user's unique ID (`userId`) into the document path. Consequently, security rules can evaluate `request.auth.uid == userId` immediately, without needing to perform any `get()` operations on parent documents. This completely eliminates hierarchical authorization dependencies, enabling atomic operations (transactions/batches) and significantly simplifying rule logic.\n2.  **Denormalized User IDs:** For `Account`, `Beneficiary`, `EWallet`, and `Deposit` documents, the `userProfileId` field (referencing the owning user) is explicitly stored within each document. While the path itself provides the primary authorization context, this denormalization serves as a critical invariant and a robust secondary check within security rules (e.g., `resource.data.userProfileId == request.auth.uid`). This provides an additional layer of data integrity and self-contained authorization context for each document, reinforcing Authorization Independence.\n3.  **Global Data Segregation:** `DepositProduct` entities are global, application-wide offerings. They are placed in a top-level `/depositProducts/{productId}` collection, completely separated from user-specific data. This structural segregation ensures that their access rules are homogeneous (e.g., all authenticated users can read, only admins can write) and do not depend on any user-specific context, further promoting Authorization Independence.\n\n**Query As Authorization Predicates (QAPs):**\n\n1.  **Implicit Scope for User Data:** By nesting all user-owned data under `/users/{userId}/`, any `list` operation initiated by an authenticated user (`request.auth.uid`) will naturally be scoped to their own data (e.g., `db.collection('users').doc(request.auth.uid).collection('accounts').get()`). Firestore security rules can then easily enforce that the `userId` in the path matches `request.auth.uid` for any read/write operation, guaranteeing that users can only query and access their own specific resources.\n2.  **Explicit Public Scope:** The `/depositProducts` collection is designed for read-only access by all authenticated users. Security rules for this collection can simply allow `read` operations for `if request.auth != null`, ensuring that queries against this collection are secure and return only publicly available data, fulfilling QAPs for global datasets.\n\nThis design minimizes rule complexity, prevents common security pitfalls related to `get()` calls, and provides a highly predictable and debuggable authorization model suitable for a scalable financial application like FinWave."
+    ]
   }
 }

@@ -3,34 +3,9 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * FINWAVE SECURITY RULES DOCUMENTATION
-     *
-     * Core Philosophy:
-     * This ruleset enforces a strict "Authorization Independence" model. Every piece of user data is 
-     * nested under a path starting with /users/{userId}/, where {userId} is the Firebase 
-     * Authentication UID. This allows for rapid, O(1) authorization checks without 
-     * cross-document lookups (get() calls).
-     *
-     * Data Structure:
-     * - /users/{userId}: Root profile.
-     * - /users/{userId}/accounts/...: Financial accounts.
-     * - /users/{userId}/accounts/{accId}/transactions/...: Account-specific ledger.
-     * - /users/{userId}/beneficiaries/...: Saved transfer contacts.
-     * - /users/{userId}/ewallets/...: Linked external wallets.
-     * - /users/{userId}/deposits/...: User-specific deposit instances.
-     * - /depositProducts: Global, read-only catalog of available financial products.
-     *
-     * Key Security Decisions:
-     * 1. Path-Based Ownership: The path segment {userId} is the primary source of truth for ownership.
-     * 2. Denormalization for Integrity: Relational fields (like userProfileId) are checked 
-     *    against the path segment during creation and enforced as immutable during updates.
-     * 3. Prototyping Flexibility: Rules do not enforce strict data types or optional/required 
-     *    fields for content, focusing entirely on "Who can access what."
-     * 4. Administrative Data: The /depositProducts collection is readable by all authenticated 
-     *    users but writable by none (placeholder for admin management).
+     * FINWAVE SECURITY RULES V3.5 - PRODUCTION GRADE
+     * Otorisasi Berlapis: Berbasis Kepemilikan (isOwner) dan Peran (isAdmin)
      */
-
-    // --- Helper Functions ---
 
     function isSignedIn() {
       return request.auth != null;
@@ -40,102 +15,80 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'alidzulfikar075@gmail.com' || 
+        request.auth.uid == 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2'
+      );
     }
 
-    // --- Rules ---
-
-    /**
-     * @description Rules for the user's root profile document.
-     * @path /users/{userId}
-     * @allow (create) if auth.uid matches userId.
-     * @deny (read) if user is not the profile owner.
-     * @principle Self-Creation and Ownership.
-     */
+    // --- Aturan Koleksi Nasabah ---
     match /users/{userId} {
-      allow get, list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      allow get, list: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
 
-      /**
-       * @description Financial accounts owned by the user.
-       * @path /users/{userId}/accounts/{accountId}
-       * @allow (list) if user is the parent owner.
-       * @deny (update) if user attempts to change the userProfileId link.
-       * @principle Relational integrity and hierarchical ownership.
-       */
+      // Sub-koleksi Finansial & Utilitas
       match /accounts/{accountId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userProfileId == resource.data.userProfileId;
-        allow delete: if isExistingOwner(userId);
-
-        /**
-         * @description Ledger of transactions for a specific account.
-         * @path /users/{userId}/accounts/{accountId}/transactions/{transactionId}
-         * @allow (create) if accountId in path matches accountId in data.
-         * @principle Deeply nested ownership verification.
-         */
+        allow read, write: if isOwner(userId) || isAdmin();
         match /transactions/{transactionId} {
-          allow get, list: if isOwner(userId);
-          allow create: if isOwner(userId) && request.resource.data.accountId == accountId;
-          allow update: if isExistingOwner(userId) && request.resource.data.accountId == resource.data.accountId;
-          allow delete: if isExistingOwner(userId);
+          allow read, write: if isOwner(userId) || isAdmin();
         }
       }
 
-      /**
-       * @description User's list of saved transfer recipients.
-       * @path /users/{userId}/beneficiaries/{beneficiaryId}
-       * @allow (create) if data.userProfileId matches the authenticated owner.
-       * @principle Data-to-path consistency check.
-       */
       match /beneficiaries/{beneficiaryId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userProfileId == resource.data.userProfileId;
-        allow delete: if isExistingOwner(userId);
+        allow read, write: if isOwner(userId) || isAdmin();
       }
 
-      /**
-       * @description External e-wallets linked to the FinWave profile.
-       * @path /users/{userId}/ewallets/{ewalletId}
-       * @allow (delete) only if the document exists and is owned by the user.
-       * @principle Resource existence check on state-changing operations.
-       */
       match /ewallets/{ewalletId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userProfileId == resource.data.userProfileId;
-        allow delete: if isExistingOwner(userId);
+        allow read, write: if isOwner(userId) || isAdmin();
       }
 
-      /**
-       * @description User's specific subscriptions to deposit products.
-       * @path /users/{userId}/deposits/{depositId}
-       * @allow (read) by the authenticated owner.
-       * @principle Hierarchical isolation of financial assets.
-       */
       match /deposits/{depositId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userProfileId == resource.data.userProfileId;
-        allow delete: if isExistingOwner(userId);
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+
+      match /notifications/{notificationId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+      
+      match /transactions/{txId} {
+        allow read, write: if isOwner(userId) || isAdmin();
       }
     }
 
-    /**
-     * @description Global catalog of available deposit products.
-     * @path /depositProducts/{productId}
-     * @allow (read) by any signed-in user.
-     * @deny (write) as this is managed by administrative processes.
-     * @principle Authenticated Public Read with restricted writes.
-     */
+    // --- Aturan Koleksi Bisnis (Merchant) ---
+    match /merchants/{merchantId} {
+      allow read, write: if isOwner(merchantId) || isAdmin();
+      match /invoices/{invoiceId} {
+        allow read, write: if isOwner(merchantId) || isAdmin();
+      }
+    }
+
+    // --- Aturan Katalog Global ---
+    match /marketplace/{productId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     match /depositProducts/{productId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if false; // TODO: Implement admin roles for product management.
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // --- Aturan Inti Sistem (Vault & Audit) ---
+    match /system/{document=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    // --- Aturan Pencarian Global (Collection Group) ---
+    match /{path=**}/invoices/{invoiceId} {
+      allow read: if isSignedIn();
+    }
+    
+    match /{path=**}/transactions/{txId} {
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
     }
   }
 }
