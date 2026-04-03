@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -6,41 +5,16 @@ import {
   ChevronLeft, 
   ShieldCheck, 
   Globe, 
-  Network,
-  Scale,
-  Sparkles,
-  ExternalLink,
-  SearchCheck,
-  Award,
-  History,
-  FileCode,
-  Zap,
-  Pickaxe,
   Coins,
-  ArrowRightLeft,
-  Building2,
-  TrendingUp,
-  Lock,
-  Wallet,
-  AlertTriangle,
-  Lightbulb,
-  DollarSign,
-  Gavel,
-  CheckCircle2,
+  Zap,
   Calculator,
-  ArrowRight,
   Copy,
   Code2,
-  QrCode,
-  Info,
-  Flame,
-  Cpu,
-  Target,
-  BarChart3,
   Rocket,
-  Users,
-  Layers,
-  TrendingDown
+  Cpu,
+  Lock,
+  TrendingUp,
+  Database
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +59,44 @@ contract AlixCoin is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ERC20Permit {
     }
 }`;
 
+const ALIBANK_VAULT_CODE = `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+/**
+ * @title AliBankVault - Institutional Grade V3
+ * @dev Brankas Terpusat AliBank untuk mengelola cadangan likuiditas ETH dan ERC20.
+ * Mendukung setoran publik dan penarikan administratif dengan keamanan tinggi.
+ */
+contract AliBankVault is Ownable, ReentrancyGuard {
+    event Deposit(address indexed sender, uint256 amount);
+    event Withdrawal(address indexed to, uint256 amount);
+    event ERC20Withdrawal(address indexed token, address indexed to, uint256 amount);
+
+    constructor(address initialOwner) Ownable(initialOwner) {}
+
+    receive() external payable {
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    function withdraw(uint256 amount) external onlyOwner nonReentrant {
+        require(address(this).balance >= amount, "Saldo tidak mencukupi");
+        (bool success, ) = owner().call{value: amount}("");
+        require(success, "Gagal mengirim ETH");
+        emit Withdrawal(owner(), amount);
+    }
+
+    function withdrawERC20(address token, uint256 amount) external onlyOwner nonReentrant {
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        require(balance >= amount, "Saldo token tidak mencukupi");
+        require(IERC20(token).transfer(owner(), amount), "Gagal transfer token");
+        emit ERC20Withdrawal(token, owner(), amount);
+    }
+}`;
+
 export default function AboutAlixPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -114,13 +126,13 @@ export default function AboutAlixPage() {
             </div>
             <div className="text-center md:text-left flex-1">
               <Badge className="bg-green-600 text-white border-none px-4 py-1 mb-4 rounded-full font-black uppercase tracking-widest text-[10px] animate-pulse">
-                ZERO UPFRONT STRATEGY ACTIVE
+                MAINNET V3 PROTOCOL ACTIVE
               </Badge>
               <h1 className="text-5xl font-black text-accent uppercase italic tracking-tighter leading-tight dark:text-white">
-                Capital <span className="text-primary">Generation Hub</span>
+                AliBank <span className="text-primary">Capital Hub</span>
               </h1>
               <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest flex items-center gap-2 italic mt-4 justify-center md:justify-start">
-                <ShieldCheck className="w-4 h-4 text-primary" /> Internal Sale Protocol V3.2
+                <ShieldCheck className="w-4 h-4 text-primary" /> Multi-Contract Ecosystem V3.5
               </p>
             </div>
           </div>
@@ -133,7 +145,10 @@ export default function AboutAlixPage() {
                 <Rocket className="w-4 h-4 mr-2" /> Launch Strategy
               </TabsTrigger>
               <TabsTrigger value="token" className="rounded-xl px-10 font-black uppercase text-[11px] italic data-[state=active]:gold-gradient data-[state=active]:text-white">
-                <Coins className="w-4 h-4 mr-2" /> Source Code
+                <Coins className="w-4 h-4 mr-2" /> Token Contract
+              </TabsTrigger>
+              <TabsTrigger value="vault" className="rounded-xl px-10 font-black uppercase text-[11px] italic data-[state=active]:gold-gradient data-[state=active]:text-white">
+                <Database className="w-4 h-4 mr-2" /> Vault Contract
               </TabsTrigger>
               <TabsTrigger value="pricing" className="rounded-xl px-10 font-black uppercase text-[11px] italic data-[state=active]:gold-gradient data-[state=active]:text-white">
                 <Calculator className="w-4 h-4 mr-2" /> Pricing Logic
@@ -147,18 +162,18 @@ export default function AboutAlixPage() {
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
                   <TrendingUp className="w-8 h-8" />
                 </div>
-                <h3 className="text-2xl font-black uppercase italic italic tracking-tight">Phase 1: Internal Accumulation</h3>
+                <h3 className="text-2xl font-black uppercase italic tracking-tight">Phase 1: Accumulation</h3>
                 <p className="text-xs font-medium text-muted-foreground leading-relaxed uppercase italic">
-                  Jual ALX langsung di aplikasi AliBank kepada nasabah. Dana IDR yang terkumpul dari nasabah adalah modal nyata Anda untuk membeli USDT di masa depan.
+                  Akumulasi dana IDR melalui penjualan internal ALX kepada nasabah AliBank guna membangun cadangan likuiditas USDT dasar.
                 </p>
                 <div className="p-6 rounded-2xl bg-background border border-primary/10 space-y-3">
                   <div className="flex justify-between items-center text-[10px] font-black uppercase">
-                    <span>Target Internal</span>
+                    <span>Anchor Price</span>
                     <span className="text-primary">Rp 194.004 / ALX</span>
                   </div>
                   <div className="flex justify-between items-center text-[10px] font-black uppercase">
-                    <span>Upfront Cost</span>
-                    <span className="text-green-600">ZERO (Rp 0)</span>
+                    <span>Status</span>
+                    <span className="text-green-600 font-black">ACTIVE</span>
                   </div>
                 </div>
               </Card>
@@ -167,42 +182,21 @@ export default function AboutAlixPage() {
                 <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center text-accent shadow-inner">
                   <Globe className="w-8 h-8" />
                 </div>
-                <h3 className="text-2xl font-black uppercase italic italic tracking-tight">Phase 2: Global Listing</h3>
+                <h3 className="text-2xl font-black uppercase italic tracking-tight">Phase 2: Global Listing</h3>
                 <p className="text-xs font-medium text-muted-foreground leading-relaxed uppercase italic">
-                  Setelah kas internal terkumpul, gunakan dana tersebut untuk mengisi likuiditas di Uniswap. ALX resmi memiliki harga publik global.
+                  Deployment kolam likuiditas publik pada Uniswap V3. ALX resmi diperdagangkan secara bebas di pasar kripto global.
                 </p>
                 <div className="p-6 rounded-2xl bg-background border border-accent/10 space-y-3">
                   <div className="flex justify-between items-center text-[10px] font-black uppercase">
-                    <span>Platform</span>
-                    <span className="text-accent">Uniswap V3</span>
+                    <span>Target Pool</span>
+                    <span className="text-accent">ALX / USDT</span>
                   </div>
                   <div className="flex justify-between items-center text-[10px] font-black uppercase">
-                    <span>Pairing</span>
-                    <span className="text-accent">ALX / USDT</span>
+                    <span>Anchor USD</span>
+                    <span className="text-accent">$ 12.24</span>
                   </div>
                 </div>
               </Card>
-            </div>
-
-            <div className="liquid-glass-dark rounded-[3.5rem] p-12 text-white space-y-8 relative overflow-hidden shadow-2xl">
-              <div className="absolute inset-0 gold-gradient opacity-5" />
-              <div className="relative z-10 flex items-center gap-6">
-                <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center text-primary shadow-lg"><Zap className="w-8 h-8" /></div>
-                <h3 className="text-2xl font-black text-white uppercase italic tracking-tight leading-none">The Master Plan</h3>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
-                {[
-                  { step: "01", title: "Deploy Token", desc: "Luncurkan kontrak ALX di Mainnet (Hanya butuh Gas Fee)." },
-                  { step: "02", title: "Internal Sale", desc: "Nasabah beli ALX di menu 'Convert'. Uang IDR terkumpul di Bank." },
-                  { step: "03", title: "Capital Swap", desc: "Konversi IDR hasil penjualan menjadi USDT modal Pool Uniswap." }
-                ].map((item, i) => (
-                  <div key={i} className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-3">
-                    <span className="text-primary font-black italic">{item.step}</span>
-                    <h4 className="font-black uppercase text-sm italic">{item.title}</h4>
-                    <p className="text-[10px] text-white/50 uppercase leading-relaxed italic">{item.desc}</p>
-                  </div>
-                ))}
-              </div>
             </div>
           </TabsContent>
 
@@ -212,7 +206,7 @@ export default function AboutAlixPage() {
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px] mb-2">Protocol ALX V3.0 (Institutional)</Badge>
+                    <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px] mb-2">ERC-20 Protocol V3.0</Badge>
                     <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">ALX Smart Contract</h2>
                   </div>
                   <Button 
@@ -225,6 +219,31 @@ export default function AboutAlixPage() {
                 <div className="bg-black/40 rounded-2xl border border-white/5 p-6 overflow-hidden">
                   <pre className="text-[10px] font-mono text-primary/80 leading-relaxed overflow-x-auto no-scrollbar">
                     {ALX_TOKEN_CODE}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="vault" className="space-y-8 animate-in fade-in duration-500">
+            <div className="liquid-glass-dark rounded-[3rem] p-12 border-none shadow-2xl space-y-8 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-10"><Database className="w-32 h-32 text-primary" /></div>
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px] mb-2">Liquidity Vault V1.2</Badge>
+                    <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">AliBank Vault</h2>
+                  </div>
+                  <Button 
+                    onClick={() => copyCode(ALIBANK_VAULT_CODE, "AliBank Vault")}
+                    className="h-12 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl font-bold gap-2 px-6"
+                  >
+                    <Copy className="w-4 h-4" /> Copy Code
+                  </Button>
+                </div>
+                <div className="bg-black/40 rounded-2xl border border-white/5 p-6 overflow-hidden">
+                  <pre className="text-[10px] font-mono text-primary/80 leading-relaxed overflow-x-auto no-scrollbar">
+                    {ALIBANK_VAULT_CODE}
                   </pre>
                 </div>
               </div>
@@ -262,7 +281,7 @@ export default function AboutAlixPage() {
             <div className="w-10 h-10 p-2 rounded-xl gold-gradient flex items-center justify-center shadow-2xl">
               <LogoIcon className="text-white" />
             </div>
-            <p className="text-base font-black text-accent italic uppercase tracking-tighter dark:text-white">AliBank V3 • Zero Upfront Capital Protocol</p>
+            <p className="text-base font-black text-accent italic uppercase tracking-tighter dark:text-white">AliBank V3 • Multi-Contract Protocol</p>
           </div>
         </footer>
       </main>

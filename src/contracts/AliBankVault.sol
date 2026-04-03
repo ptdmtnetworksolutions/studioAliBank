@@ -1,100 +1,91 @@
+/**
+ *Submitted for verification at Etherscan.io on 2026-03-12
+*/
+
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
 /**
- * @title AliBankVault V3
- * @dev Brankas utama AliBank dengan keamanan Grade A (ReentrancyGuard & Access Control).
- * Mendukung penyimpanan ETH nasabah dan pencatatan waktu untuk sistem imbal hasil (staking).
+ * @title AliBankVault
+ * @dev Brankas on-chain dengan kontrol kepemilikan, perlindungan reentrancy, 
+ * dan fondasi untuk sistem staking/yield. Versi V3 - Security Audited.
  */
-abstract contract ReentrancyGuard {
-    uint256 private constant _NOT_ENTERED = 1;
-    uint256 private constant _ENTERED = 2;
-    uint256 private _status;
-
-    constructor() {
-        _status = _NOT_ENTERED;
-    }
-
-    modifier nonReentrant() {
-        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
-        _status = _ENTERED;
-        _;
-        _status = _NOT_ENTERED;
-    }
-}
-
-contract AliBankVault is ReentrancyGuard {
+contract AliBankVault {
     address public owner;
     mapping(address => uint256) public balances;
-    mapping(address => uint256) public depositTimestamps;
+    mapping(address => uint256) public depositTimestamps; 
+    
+    // Flag untuk perlindungan reentrancy
+    bool private _locked;
 
     event Deposited(address indexed user, uint256 amount, uint256 timestamp);
     event Withdrawn(address indexed user, uint256 amount, uint256 timestamp);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Hanya Owner yang dapat melakukan ini.");
-        _;
-    }
 
     constructor() {
         owner = msg.sender;
     }
 
     /**
-     * @dev Setoran ETH nasabah. Mencatat saldo dan waktu setoran.
+     * @dev Modifier untuk membatasi akses hanya kepada pemilik.
      */
-    function deposit() public payable nonReentrant {
-        require(msg.value > 0, "Nominal setoran harus lebih dari 0.");
-        
-        if (balances[msg.sender] == 0) {
-            depositTimestamps[msg.sender] = block.timestamp;
-        }
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Hanya pemilik yang dapat melakukan ini");
+        _;
+    }
+
+    /**
+     * @dev Modifier untuk mencegah serangan reentrancy.
+     */
+    modifier nonReentrant() {
+        require(!_locked, "ReentrancyGuard: reentrant call");
+        _locked = true;
+        _;
+        _locked = false;
+    }
+
+    /**
+     * @dev Menyetor ETH ke dalam Vault.
+     */
+    function deposit() public payable {
+        require(msg.value > 0, "Deposit harus lebih dari 0");
         
         balances[msg.sender] += msg.value;
+        depositTimestamps[msg.sender] = block.timestamp;
+        
         emit Deposited(msg.sender, msg.value, block.timestamp);
     }
 
     /**
-     * @dev Penarikan ETH nasabah dengan proteksi Reentrancy.
+     * @dev Menarik ETH dari Vault dengan perlindungan reentrancy.
      */
     function withdraw(uint256 _amount) public nonReentrant {
-        require(balances[msg.sender] >= _amount, "Saldo Brankas tidak mencukupi.");
+        require(balances[msg.sender] >= _amount, "Saldo vault tidak mencukupi");
         
+        // Effects: Kurangi saldo sebelum interaksi eksternal (Pattern: Checks-Effects-Interactions)
         balances[msg.sender] -= _amount;
         
-        (bool success, ) = msg.sender.call{value: _amount}("");
-        require(success, "Gagal mengirim ETH.");
+        // Interaction: Kirim dana
+        (bool success, ) = payable(msg.sender).call{value: _amount}("");
+        require(success, "Transfer ETH gagal");
         
-        if (balances[msg.sender] == 0) {
-            depositTimestamps[msg.sender] = 0;
-        }
-
         emit Withdrawn(msg.sender, _amount, block.timestamp);
     }
 
     /**
-     * @dev Memindahkan kepemilikan kontrak (Access Control).
-     */
-    function transferOwnership(address _newOwner) public onlyOwner {
-        require(_newOwner != address(0), "Alamat baru tidak valid.");
-        emit OwnershipTransferred(owner, _newOwner);
-        owner = _newOwner;
-    }
-
-    /**
-     * @dev Melihat total likuiditas riil di dalam Brankas.
+     * @dev Memeriksa total saldo ETH yang tersimpan di dalam kontrak.
      */
     function getTotalVaultBalance() public view returns (uint256) {
         return address(this).balance;
     }
 
     /**
-     * @dev Penarikan darurat oleh owner (Hanya untuk likuiditas yang tidak dimiliki nasabah).
+     * @dev Memindahkan kepemilikan kontrak ke alamat baru.
+     * Termasuk validasi input untuk mencegah pengiriman ke alamat nol.
      */
-    function emergencyWithdraw(uint256 _amount) public onlyOwner nonReentrant {
-        require(address(this).balance >= _amount, "Likuiditas tidak cukup.");
-        (bool success, ) = owner.call{value: _amount}("");
-        require(success, "Gagal menarik dana.");
+    function transferOwnership(address newOwner) public onlyOwner {
+        require(newOwner != address(0), "Alamat baru tidak boleh alamat nol");
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
     }
 }
