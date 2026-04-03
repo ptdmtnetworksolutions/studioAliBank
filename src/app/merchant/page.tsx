@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useUser, useFirestore, useCollection, useDoc } from "@/firebase";
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, doc, setDoc, increment } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import {
@@ -41,10 +41,10 @@ export default function MerchantDashboard() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  const merchantDocRef = useMemo(() => (!db || !user) ? null : doc(db, "merchants", user.uid), [db, user]);
+  const merchantDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "merchants", user.uid), [db, user]);
   const { data: merchantData, loading: merchantLoading } = useDoc(merchantDocRef);
 
-  const invoicesQuery = useMemo(() => (!db || !user) ? null : query(
+  const invoicesQuery = useMemoFirebase(() => (!db || !user) ? null : query(
     collection(db, "merchants", user.uid, "invoices"),
     orderBy("createdAt", "desc"),
     limit(10)

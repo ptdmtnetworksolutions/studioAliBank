@@ -37,7 +37,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useUser, useDoc, useFirestore } from "@/firebase";
+import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
@@ -62,7 +62,7 @@ export default function AliSpinPage() {
 
   const audioCtx = useRef<AudioContext | null>(null);
 
-  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
   useEffect(() => { 
@@ -264,7 +264,7 @@ export default function AliSpinPage() {
 
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shadow-lg shadow-primary/5">
-              <LogoIcon className="w-4 h-4 text-primary" />
+              <LogoIcon className="text-primary w-4 h-4" />
             </div>
             <div className="flex flex-col">
               <span className="text-[10px] font-black italic uppercase text-primary leading-none">

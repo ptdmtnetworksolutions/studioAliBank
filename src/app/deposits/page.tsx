@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useEffect, useMemo } from "react";
-import { useUser, useFirestore, useDoc, useCollection } from "@/firebase";
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import { doc, collection, query, addDoc, updateDoc, increment, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -53,10 +53,10 @@ export default function DepositsPage() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  const depositsQuery = useMemo(() => (!db || !user) ? null : query(collection(db, "users", user.uid, "deposits")), [db, user]);
+  const depositsQuery = useMemoFirebase(() => (!db || !user) ? null : query(collection(db, "users", user.uid, "deposits")), [db, user]);
   const { data: userDeposits, loading } = useCollection(depositsQuery);
 
   const totalInterest = useMemo(() => {

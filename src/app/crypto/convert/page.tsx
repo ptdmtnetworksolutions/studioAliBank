@@ -26,7 +26,7 @@ import {
   YAxis
 } from "recharts";
 import { cn } from "@/lib/utils";
-import { useUser, useDoc, useFirestore } from "@/firebase";
+import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
@@ -58,7 +58,7 @@ export default function ConvertPage() {
   const [direction, setDirection] = useState<'FROM_ALX' | 'TO_ALX'>('TO_ALX');
   const [counterCurrency, setCounterCurrency] = useState<'USDT' | 'IDR'>('IDR');
 
-  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
   useEffect(() => {

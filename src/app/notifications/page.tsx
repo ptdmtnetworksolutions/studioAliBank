@@ -17,7 +17,7 @@ import {
   Smile
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
-import { useUser, useFirestore, useCollection } from "@/firebase";
+import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, limit, doc, updateDoc, writeBatch } from "firebase/firestore";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -49,7 +49,7 @@ export default function NotificationsPage() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  const notificationsQuery = useMemo(() => {
+  const notificationsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
       collection(db, "users", user.uid, "notifications"),

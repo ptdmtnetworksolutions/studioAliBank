@@ -54,7 +54,7 @@ import {
   Line,
   CartesianGrid
 } from "recharts";
-import { useUser, useDoc, useFirestore } from "@/firebase";
+import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
@@ -93,7 +93,7 @@ export default function TradeProPage() {
   const [entryPrice, setEntryPrice] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
 
-  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
   const visibleCandles = useMemo(() => {

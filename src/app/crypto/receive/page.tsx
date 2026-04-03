@@ -17,7 +17,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useUser, useDoc, useFirestore } from "@/firebase";
+import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
@@ -28,7 +28,7 @@ export default function CryptoReceivePage() {
   const db = useFirestore();
   const { toast } = useToast();
   
-  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
   const walletAddress = userData?.walletAddress || "Sedang Menyiapkan Dompet...";
@@ -42,7 +42,7 @@ export default function CryptoReceivePage() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <Navbar />
-      <main className="container mx-auto px-4 max-w-lg pt-4">
+      <main className="container mx-auto px-4 max-lg pt-4">
         <header className="mb-8">
           <button onClick={() => router.back()} className="flex items-center gap-2 text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors mb-6">
             <ArrowLeft className="w-4 h-4" /> Kembali

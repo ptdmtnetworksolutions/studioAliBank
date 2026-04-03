@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useUser, useDoc, useFirestore, useCollection } from "@/firebase";
+import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Headset, 
@@ -121,7 +121,7 @@ function DashboardContent() {
   const isPulling = useRef(false);
   const threshold = 140;
 
-  const userDocRef = useMemo(() => {
+  const userDocRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, "users", user.uid);
   }, [db, user]);
@@ -136,7 +136,7 @@ function DashboardContent() {
     return idrBalance + alxValueIdr;
   }, [userData]);
 
-  const unreadQuery = useMemo(() => {
+  const unreadQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(collection(db, "users", user.uid, "notifications"), where("read", "==", false));
   }, [db, user]);

@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { LogoIcon } from "@/components/ui/logo";
-import { useUser, useFirestore, useCollection } from "@/firebase";
+import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, limit } from "firebase/firestore";
 
 type AIResult = {
@@ -38,7 +38,7 @@ export default function AIAssistantPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<AIResult | null>(null);
 
-  const transactionsQuery = useMemo(() => {
+  const transactionsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
       collection(db, "users", user.uid, "transactions"),
