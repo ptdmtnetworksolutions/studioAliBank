@@ -15,14 +15,13 @@ gcloud services enable firebaseapphosting.googleapis.com cloudbuild.googleapis.c
 ```
 
 ### 3. Solusi Error Billing (Not in Good Standing)
-Jika tombol "Reopen" tidak bisa diklik, lakukan hal berikut:
-1. **Cek Transaksi**: Buka [Transactions](https://console.cloud.google.com/billing/0188A8-644BFB-EE82F5/transactions) dan lunasi tagihan yang gagal.
-2. **Verifikasi Kartu**: Pastikan kartu Mastercard aktif untuk transaksi internasional.
-3. **Cek Email**: Periksa email `dzulfikaraliridlo@gmail.com` untuk instruksi verifikasi identitas dari Google.
-4. **Support**: Gunakan ikon [?] Support di pojok kanan atas jika masalah berlanjut.
+Jika tombol "Reopen" tidak bisa diklik dan menu Transaksi kosong, lakukan hal berikut:
+1. **Cek Email**: Periksa email `dzulfikaraliridlo@gmail.com` dari "Google Payments". Mereka biasanya meminta unggahan foto KTP/Kartu untuk verifikasi identitas.
+2. **Cek Payment Settings**: Lihat apakah ada peringatan verifikasi di dashboard Billing.
+3. **Hubungi Support**: Klik ikon [?] Support di pojok kanan atas dashboard Google Cloud, pilih "Billing", lalu chat dengan agen untuk membuka blokir "Not in good standing".
 
 ### 4. Setup Secure Vault (Secret Manager)
-Setelah billing terbuka dan terhubung, jalankan ini di Cloud Shell:
+Setelah billing pulih, jalankan ini di Cloud Shell:
 ```bash
 # 1. Masuk ke project yang benar
 gcloud config set project darmedia-pos
