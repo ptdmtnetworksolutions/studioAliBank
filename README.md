@@ -12,11 +12,21 @@ To deploy this application:
    gcloud services enable firebaseapphosting.googleapis.com cloudbuild.googleapis.com run.googleapis.com artifactregistry.googleapis.com logging.googleapis.com secretmanager.googleapis.com --project darmedia-pos
    ```
 
-2. **Troubleshooting "Billing Not Open" Error**:
-   Jika Anda melihat error `FAILED_PRECONDITION: Billing account ... is not open`, ikuti langkah ini:
-   - Buka [Google Cloud Billing](https://console.cloud.google.com/billing).
-   - Pastikan akun penagihan Anda **Aktif**.
-   - Masuk ke **Account Management** dan pastikan proyek `darmedia-pos` sudah terhubung ke akun penagihan tersebut. Jika belum, klik titik tiga dan pilih **Change billing**.
+2. **Setup Secure Vault (Secret Manager)**:
+   After enabling billing, run these commands in Cloud Shell to secure your Vault Private Key:
+   ```bash
+   # Create the secret container
+   gcloud secrets create ALIBANK_VAULT_PRIVATE_KEY --replication-policy="automatic"
+
+   # Add your MetaMask Private Key (Replace YOUR_KEY with actual key starting with 0x)
+   echo -n "YOUR_KEY" | gcloud secrets versions add ALIBANK_VAULT_PRIVATE_KEY --data-file=-
+
+   # Grant access to the app's service account
+   PROJECT_NUMBER=$(gcloud projects describe darmedia-pos --format='value(projectNumber)')
+   gcloud secrets add-iam-policy-binding ALIBANK_VAULT_PRIVATE_KEY \
+       --member="serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
+       --role="roles/secretmanager.secretAccessor"
+   ```
 
 3. **Vault Private Key**:
    - Alamat `0x5626...` adalah alamat publik.
@@ -28,6 +38,6 @@ To deploy this application:
 
 ## Features
 - **Real-time Balance**: Sinkronisasi otomatis dengan Firestore.
-- **Secure Vault**: Kunci privat aman di GCP Secret Manager.
+- **Secure Vault**: Kunci privat aman di GCP Secret Manager (Production Grade).
 - **PayPal Gateway**: Integrasi kliring kartu dan dompet digital.
 - **AI Assistant**: Sintesis DNA finansial menggunakan Genkit.

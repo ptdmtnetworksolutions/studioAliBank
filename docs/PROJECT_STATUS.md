@@ -104,7 +104,7 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 - **KYC:** Wajib dilakukan saat pendaftaran (Data tersimpan di Firestore).
 - **AML Policy:** Monitoring otomatis melalui Log Audit Global di Dashboard Admin.
 - **Key Security:** 
-  - **Vault Key:** Disimpan di **GCP Secret Manager** (Akses via Server Action).
+  - **Vault Key:** Disimpan di **GCP Secret Manager** (Status: Billing Active, Awaiting Configuration).
   - **User Key:** Self-custodial (Nasabah memegang kunci privat sendiri di dokumen user).
 - **Otorisasi Admin:** 
   - **UID:** `IJOuQpjEOMgvlYfzvQ1yfp976Oa2`
