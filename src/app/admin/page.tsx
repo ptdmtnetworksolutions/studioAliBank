@@ -187,13 +187,14 @@ function AdminContent() {
   const [isExecutingVaultTx, setIsExecutingVaultTx] = useState(false);
   const [onChainHistory, setOnChainHistory] = useState<any[]>([]);
 
-  const liquidityDocRef = useMemo(() => (db ? doc(db, "system", "liquidity") : null), [db]);
+  // SHIELDING QUERIES: Only query if user is authorized to prevent permission errors
+  const liquidityDocRef = useMemo(() => (db && isAuthorized ? doc(db, "system", "liquidity") : null), [db, isAuthorized]);
   const { data: globalLiquidity } = useDoc(liquidityDocRef);
   
-  const usersQuery = useMemo(() => (db ? query(collection(db, "users"), limit(100)) : null), [db]);
+  const usersQuery = useMemo(() => (db && isAuthorized ? query(collection(db, "users"), limit(100)) : null), [db, isAuthorized]);
   const { data: allUsers } = useCollection(usersQuery);
   
-  const auditQuery = useMemo(() => (db ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(100)) : null), [db]);
+  const auditQuery = useMemo(() => (db && isAuthorized ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(100)) : null), [db, isAuthorized]);
   const { data: auditLogs } = useCollection(auditQuery);
 
   const userProfileRef = useMemo(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
@@ -202,7 +203,7 @@ function AdminContent() {
   // Fetch detailed user data for dialog
   useEffect(() => {
     async function fetchSubData() {
-      if (!selectedUser || !db || !isUserDialogOpen) return;
+      if (!selectedUser || !db || !isUserDialogOpen || !isAuthorized) return;
       setLoadingSubData(true);
       try {
         const walletsSnap = await getDocs(collection(db, "users", selectedUser.id, "wallets"));
@@ -220,9 +221,10 @@ function AdminContent() {
       }
     }
     fetchSubData();
-  }, [selectedUser, isUserDialogOpen, db]);
+  }, [selectedUser, isUserDialogOpen, db, isAuthorized]);
 
   const syncOnChainData = useCallback(async (manual = false) => {
+    if (!isAuthorized) return;
     setSyncingVault(true);
     try {
       const provider = new JsonRpcProvider(GLOBAL_RPC);
@@ -287,7 +289,7 @@ function AdminContent() {
     } finally { 
       setSyncingVault(false); 
     }
-  }, [toast, userData?.walletAddress]);
+  }, [toast, userData?.walletAddress, isAuthorized]);
 
   useEffect(() => {
     if (userLoading) return;
@@ -305,7 +307,7 @@ function AdminContent() {
   }, [isAuthorized, syncOnChainData]);
 
   const handleUpdateUserBalance = async (type: 'idr' | 'alx', amount: string, operation: 'add' | 'sub') => {
-    if (!db || !selectedUser || !amount) return;
+    if (!db || !selectedUser || !amount || !isAuthorized) return;
     const num = parseFloat(amount);
     if (isNaN(num)) return;
 
@@ -341,7 +343,7 @@ function AdminContent() {
   };
 
   const handleResetPassword = async () => {
-    if (!auth || !selectedUser?.email) return;
+    if (!auth || !selectedUser?.email || !isAuthorized) return;
     try {
       await sendPasswordResetEmail(auth, selectedUser.email);
       toast({ title: "Email Terkirim", description: `Tautan riset sandi telah dikirim ke ${selectedUser.email}` });
@@ -351,7 +353,7 @@ function AdminContent() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!db) return;
+    if (!db || !isAuthorized) return;
     if (!confirm("Hapus data nasabah secara permanen? Tindakan ini tidak dapat dibatalkan.")) return;
     try {
       await deleteDoc(doc(db, "users", userId));
@@ -360,7 +362,7 @@ function AdminContent() {
   };
 
   const handleExecuteVaultWithdrawal = async () => {
-    if (!vaultRecipient || !vaultAmount || isExecutingVaultTx || !userData?.privateKey) {
+    if (!vaultRecipient || !vaultAmount || isExecutingVaultTx || !userData?.privateKey || !isAuthorized) {
       toast({ variant: "destructive", title: "Otoritas Ditolak", description: "Kunci Privat & Saldo Gas diperlukan." });
       return;
     }
@@ -399,7 +401,7 @@ function AdminContent() {
   };
 
   const handlePurgeAuditLogs = async () => {
-    if (!db || isPurging) return;
+    if (!db || isPurging || !isAuthorized) return;
     if (!confirm("Hapus seluruh riwayat operasi? Tindakan ini tidak dapat dibatalkan.")) return;
     setIsPurging(true);
     try {
@@ -427,7 +429,8 @@ function AdminContent() {
 
   const displayVal = (val: number) => Math.max(0, val || 0);
 
-  if (userLoading || !isAuthorized) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
+  if (userLoading) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
+  if (!isAuthorized) return null;
 
   return (
     <TooltipProvider delayDuration={0}>
