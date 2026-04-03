@@ -13,20 +13,21 @@ To deploy this application:
    ```
 
 2. **Troubleshooting "Billing Not Open" Error**:
-   If you see `FAILED_PRECONDITION: Billing account ... is not open`, follow these steps:
-   - Go to [Google Cloud Billing](https://console.cloud.google.com/billing).
-   - Ensure your billing account is **Active**.
-   - Go to **Account Management** and make sure the project `darmedia-pos` is listed under "Projects linked to this billing account".
-   - If it's not linked, click the three dots next to the project and select **Change billing**.
+   Jika Anda melihat error `FAILED_PRECONDITION: Billing account ... is not open`, ikuti langkah ini:
+   - Buka [Google Cloud Billing](https://console.cloud.google.com/billing).
+   - Pastikan akun penagihan Anda **Aktif**.
+   - Masuk ke **Account Management** dan pastikan proyek `darmedia-pos` sudah terhubung ke akun penagihan tersebut. Jika belum, klik titik tiga dan pilih **Change billing**.
 
-3. **Connect to GitHub**: 
-   Go to the [Firebase Console](https://console.firebase.google.com/project/darmedia-pos/apphosting) and connect your repository.
+3. **Vault Private Key**:
+   - Alamat `0x5626...` adalah alamat publik.
+   - **Private Key** harus diambil dari dompet tempat alamat itu dibuat (misal: MetaMask). 
+   - JANGAN PERNAH memberikan Private Key kepada siapa pun kecuali memasukkannya ke Google Secret Manager Anda sendiri.
 
-4. **Configure Environment Variables**:
-   Ensure your PayPal Client ID and Firebase configuration are set in the App Hosting dashboard if needed.
+4. **Connect to GitHub**: 
+   Buka [Firebase Console](https://console.firebase.google.com/project/darmedia-pos/apphosting) dan hubungkan repositori Anda.
 
 ## Features
-- **Real-time Balance**: Synchronized with Firestore.
-- **PayPal Gateway**: Integrated card and wallet clearing.
-- **AI Assistant**: Financial DNA synthesis via Genkit.
-- **Admin Command Center**: Supply management and audit logs.
+- **Real-time Balance**: Sinkronisasi otomatis dengan Firestore.
+- **Secure Vault**: Kunci privat aman di GCP Secret Manager.
+- **PayPal Gateway**: Integrasi kliring kartu dan dompet digital.
+- **AI Assistant**: Sintesis DNA finansial menggunakan Genkit.
