@@ -1001,6 +1001,7 @@ function AdminContent() {
                         <KeyInput 
                           label="PayPal Client ID" 
                           icon={Globe} 
+                          helpLink="https://developer.paypal.com/dashboard/applications/sandbox"
                           value={keys.paypalClientId} 
                           onChange={(v) => setKeys({...keys, paypalClientId: v})}
                           show={showKeys['paypal']}
@@ -1009,6 +1010,7 @@ function AdminContent() {
                         <KeyInput 
                           label="Etherscan API Key" 
                           icon={Cpu} 
+                          helpLink="https://etherscan.io/myapikey"
                           value={keys.etherscanApiKey} 
                           onChange={(v) => setKeys({...keys, etherscanApiKey: v})}
                           show={showKeys['etherscan']}
@@ -1023,6 +1025,7 @@ function AdminContent() {
                         <KeyInput 
                           label="Ethereum RPC Node" 
                           icon={RefreshCw} 
+                          helpLink="https://chainlist.org/"
                           value={keys.ethereumRpcUrl} 
                           onChange={(v) => setKeys({...keys, ethereumRpcUrl: v})}
                           show={true}
@@ -1030,6 +1033,7 @@ function AdminContent() {
                         <KeyInput 
                           label="Gemini API Key (AI)" 
                           icon={Sparkles} 
+                          helpLink="https://aistudio.google.com/app/apikey"
                           value={keys.geminiApiKey} 
                           onChange={(v) => setKeys({...keys, geminiApiKey: v})}
                           show={showKeys['gemini']}
@@ -1810,10 +1814,17 @@ function DistributionItem({ label, value, color }: any) {
   );
 }
 
-function KeyInput({ label, icon: Icon, value, onChange, show, onToggle }: any) {
+function KeyInput({ label, icon: Icon, value, onChange, show, onToggle, helpLink }: any) {
   return (
     <div className="space-y-2">
-      <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{label}</label>
+      <div className="flex items-center justify-between px-2">
+        <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">{label}</label>
+        {helpLink && (
+          <a href={helpLink} target="_blank" rel="noopener noreferrer" className="text-[8px] font-black text-primary uppercase flex items-center gap-1 hover:underline">
+            Get Key <ExternalLink className="w-2.5 h-2.5" />
+          </a>
+        )}
+      </div>
       <div className="relative group">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
           <Icon className="w-4 h-4" />
