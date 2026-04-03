@@ -1,3 +1,4 @@
+
 "use client";
 
 /**
@@ -192,7 +193,15 @@ function AdminMobileContent() {
         setSelectedUserWallets(walletsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
         setSelectedUserDeposits(depositsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
         setSelectedUserTransactions(txsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (err) {} finally {
+      } catch (err: any) {
+        if (err.code === 'permission-denied') {
+          const permissionError = new FirestorePermissionError({
+            path: `users/${selectedUser.id}/subcollections`,
+            operation: 'list',
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        }
+      } finally {
         setLoadingSubData(false);
       }
     }

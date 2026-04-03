@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -36,6 +37,29 @@
         "totalUsdInjected": { "type": "number" },
         "alixVaultBalance": { "type": "number" }
       }
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial transaction record.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    },
+    "ExternalWallet": {
+      "title": "ExternalWallet",
+      "description": "Linked external digital wallet.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "balance": { "type": "number" },
+        "icon": { "type": "string" }
+      }
     }
   },
   "auth": {
@@ -55,6 +79,20 @@
         "definition": {
           "entityName": "Notification",
           "description": "User notifications."
+        }
+      },
+      {
+        "path": "/users/{userId}/transactions/{txId}",
+        "definition": {
+          "entityName": "Transaction",
+          "description": "User transaction history."
+        }
+      },
+      {
+        "path": "/users/{userId}/wallets/{walletId}",
+        "definition": {
+          "entityName": "ExternalWallet",
+          "description": "User linked wallets."
         }
       },
       {

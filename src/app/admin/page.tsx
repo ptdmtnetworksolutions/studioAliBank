@@ -1,3 +1,4 @@
+
 /**
  * CRITICAL: AliBank Admin Control V3.5 - TOKENOMICS & INVENTORY TERMINAL
  * Pusat Kendali Suplai, Kebijakan Moneter ALX, dan Manajemen Katalog Marketplace.
@@ -261,7 +262,7 @@ function AdminContent() {
       } catch (err: any) {
         if (err.code === 'permission-denied') {
           const permissionError = new FirestorePermissionError({
-            path: `users/${selectedUser.id}`,
+            path: `users/${selectedUser.id}/subcollections`,
             operation: 'list',
           });
           errorEmitter.emit('permission-error', permissionError);

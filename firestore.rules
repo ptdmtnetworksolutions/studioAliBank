@@ -1,9 +1,10 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * FINWAVE SECURITY RULES V3.5 - PRODUCTION GRADE
+     * ALIBANK SECURITY RULES V3.6 - PRODUCTION GRADE
      * Otorisasi Berlapis: Berbasis Kepemilikan (isOwner) dan Peran (isAdmin)
      */
 
@@ -38,6 +39,10 @@ service cloud.firestore {
       }
 
       match /beneficiaries/{beneficiaryId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+
+      match /wallets/{walletId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
 
