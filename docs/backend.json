@@ -38,6 +38,18 @@
         "alixVaultBalance": { "type": "number" }
       }
     },
+    "SystemAPIKeys": {
+      "title": "SystemAPIKeys",
+      "description": "Sensitive external API credentials vault.",
+      "type": "object",
+      "properties": {
+        "paypalClientId": { "type": "string" },
+        "etherscanApiKey": { "type": "string" },
+        "ethereumRpcUrl": { "type": "string" },
+        "geminiApiKey": { "type": "string" },
+        "alxContractAddress": { "type": "string" }
+      }
+    },
     "Transaction": {
       "title": "Transaction",
       "description": "Financial transaction record.",
@@ -100,6 +112,13 @@
         "definition": {
           "entityName": "SystemLiquidity",
           "description": "Central bank liquidity tracking."
+        }
+      },
+      {
+        "path": "/system/api_keys",
+        "definition": {
+          "entityName": "SystemAPIKeys",
+          "description": "External service credentials."
         }
       }
     ]

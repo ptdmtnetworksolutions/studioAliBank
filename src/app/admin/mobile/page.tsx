@@ -650,6 +650,7 @@ function MoreView({ products, liquidity }: any) {
   const [burnAmount, setBurnAmount] = useState("");
   const [processing, setProcessing] = useState(false);
   const db = useFirestore();
+  const router = useRouter();
   const { toast } = useToast();
 
   const handleTokenOp = async (type: 'mint' | 'burn') => {
@@ -738,6 +739,7 @@ function MoreView({ products, liquidity }: any) {
     <div className="animate-in fade-in duration-500 space-y-6">
       <h2 className="text-2xl font-black italic uppercase tracking-tighter">Admin Tools</h2>
       <div className="grid grid-cols-1 gap-4">
+        <MenuToolItem icon={Key} label="Credential Vault" sub="Manage external API keys" color="bg-amber-500/10 text-amber-500" onClick={() => router.push('/admin/api-keys')} />
         <MenuToolItem icon={Coins} label="Tokenomics Terminal" sub="Manage ALX Supply & Policy" color="bg-primary/10 text-primary" onClick={() => setView('tokenomics')} />
         <MenuToolItem icon={Box} label="Market Inventory" sub="Deploy Global Infrastructure" color="bg-blue-500/10 text-blue-500" onClick={() => setView('inventory')} />
         <MenuToolItem icon={FileText} label="System Audit Ledger" sub="Real-Time Operation History" color="bg-accent/10 text-accent" onClick={() => {}} />

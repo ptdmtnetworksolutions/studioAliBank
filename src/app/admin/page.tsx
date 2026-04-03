@@ -630,6 +630,7 @@ function AdminContent() {
             <SidebarItem icon={Users} label="Clients" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
             <SidebarItem icon={Wallet} label="Vault Control" active={activeTab === 'vault'} onClick={() => setActiveTab('vault')} />
             <SidebarItem icon={Coins} label="Tokenomics" active={activeTab === 'tokenomics'} onClick={() => setActiveTab('tokenomics')} />
+            <SidebarItem icon={Key} label="API Management" active={activeTab === 'api'} onClick={() => router.push('/admin/api-keys')} />
             <SidebarItem icon={Box} label="Inventory" active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} />
             <SidebarItem icon={FileText} label="Audit Logs" active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} />
           </nav>
@@ -1358,7 +1359,7 @@ function AdminContent() {
           </div>
         </main>
 
-        {/* User Management Dialog - PROFESSIONAL CONSOLE */}
+        {/* User Management Dialog */}
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
           <DialogContent className="max-w-4xl rounded-[3rem] p-0 bg-card border-border shadow-2xl overflow-hidden">
             <DialogHeader className="sr-only">
