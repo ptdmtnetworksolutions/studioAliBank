@@ -20,13 +20,16 @@ Simpan Kunci Privat MetaMask Anda ke dalam brankas Google Cloud yang aman:
 # 1. Masuk ke project yang benar
 gcloud config set project darmedia-pos
 
-# 2. Buat wadah secret
+# 2. Aktifkan API Secret Manager
+gcloud services enable secretmanager.googleapis.com
+
+# 3. Buat wadah secret
 gcloud secrets create ALIBANK_VAULT_PRIVATE_KEY --replication-policy="automatic"
 
-# 3. Masukkan Private Key MetaMask (Ganti YOUR_KEY dengan kode 0x... Anda dari MetaMask)
+# 4. Masukkan Private Key MetaMask (Ganti YOUR_KEY dengan kode 0x... Anda dari MetaMask)
 echo -n "YOUR_KEY" | gcloud secrets versions add ALIBANK_VAULT_PRIVATE_KEY --data-file=-
 
-# 4. Berikan izin akses ke Service Account aplikasi (Project Number: 852996332274)
+# 5. Berikan izin akses ke Service Account aplikasi (Project Number: 852996332274)
 gcloud secrets add-iam-policy-binding ALIBANK_VAULT_PRIVATE_KEY \
     --member="serviceAccount:852996332274-compute@developer.gserviceaccount.com" \
     --role="roles/secretmanager.secretAccessor"
