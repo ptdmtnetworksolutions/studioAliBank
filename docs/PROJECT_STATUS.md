@@ -61,8 +61,12 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 
 ## 5. CATATAN PENTING & TROUBLESHOOTING
 - **BLOCKER UTAMA**: Akun penagihan dalam status **"Not in good standing"**.
-- **Penyebab**: Kemungkinan verifikasi identitas (KYC) atau keamanan kartu oleh Google.
-- **Solusi**: Periksa email `dzulfikaraliridlo@gmail.com` untuk instruksi verifikasi identitas dari Google Payments dan gunakan ikon [?] Support untuk chat langsung dengan tim Billing Google.
+- **Penyebab Terdeteksi**: "Issues with your payments account" (Peringatan Merah di Billing Overview).
+- **Solusi**: 
+    1. Klik dropdown pada banner merah di Google Cloud untuk detail.
+    2. Verifikasi identitas di **pay.google.com**.
+    3. Cek email dari Google Payments untuk instruksi verifikasi KTP/Kartu.
+    4. Hubungi Support Google melalui ikon [?] jika tombol "Reopen" tetap mati setelah verifikasi.
 - **Verified Project ID**: Menggunakan `darmedia-pos`.
 
 ---
