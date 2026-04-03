@@ -14,32 +14,23 @@ import {
   Wallet, 
   MoreHorizontal, 
   RefreshCw, 
-  Search, 
   Database, 
-  TrendingUp, 
-  Plus, 
-  Minus, 
-  Zap, 
+  CandlestickChart, 
+  PlusCircle, 
+  Pickaxe, 
+  Skull, 
+  ArrowUpRight, 
+  CheckCircle2, 
+  ArrowLeft, 
+  ChevronRight, 
   Coins, 
   Box, 
   FileText, 
   Settings, 
   LogOut, 
-  ChevronRight,
-  ShieldCheck,
-  PackagePlus,
-  Trash2,
-  Edit2,
   Loader2,
-  Skull,
-  Bell,
+  Edit2,
   Layers,
-  ArrowUpRight,
-  CheckCircle2,
-  ArrowLeft,
-  CandlestickChart,
-  PlusCircle,
-  Pickaxe,
   Activity,
   Info
 } from "lucide-react";
@@ -52,8 +43,6 @@ import {
   query, 
   orderBy, 
   limit, 
-  deleteDoc, 
-  setDoc, 
   addDoc, 
   serverTimestamp 
 } from "firebase/firestore";
@@ -579,45 +568,5 @@ function QuickOpButton({ icon: Icon, label, sub, color, onClick, syncing }: any)
         <p className="text-[7px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">{sub}</p>
       </div>
     </button>
-  );
-}
-
-function VaultView({ eth, address, logs }: any) {
-  return (
-    <div className="animate-in fade-in zoom-in-95 duration-500 space-y-8">
-      <h2 className="text-2xl font-black italic uppercase tracking-tighter">Mainnet Node</h2>
-      
-      <Card className="p-8 rounded-[2.5rem] border-none bg-[#1A1D1F] text-white space-y-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-5"><LogoIcon className="w-32 h-32" /></div>
-        <div className="relative z-10 flex flex-col items-center text-center space-y-4">
-          <Badge className="bg-green-500 text-white border-none font-black text-[8px] uppercase tracking-widest px-4 py-1 animate-pulse">Live Chain</Badge>
-          <div className="space-y-1">
-            <p className="text-4xl font-black italic tracking-tighter text-blue-400">{parseFloat(eth).toFixed(6)} <span className="text-xl text-white/30">ETH</span></p>
-            <p className="text-[10px] font-bold text-white/40 uppercase">Total Vault Balance</p>
-          </div>
-          <div className="w-full bg-white/5 p-3 rounded-xl border border-white/10">
-            <p className="text-[8px] font-mono font-bold break-all opacity-60">{address}</p>
-          </div>
-        </div>
-      </Card>
-
-      <div className="space-y-4">
-        <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest ml-1">Audit Ledger</h3>
-        <div className="space-y-3">
-          {logs?.slice(0, 10).map((log: any) => (
-            <div key={log.id} className="p-4 rounded-2xl bg-muted/30 border border-border flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-green-500" /></div>
-                <div>
-                  <p className="text-[10px] font-black italic uppercase">{log.category}</p>
-                  <p className="text-[8px] font-bold text-muted-foreground uppercase">{log.timestamp?.toDate?.().toLocaleTimeString()}</p>
-                </div>
-              </div>
-              <p className="text-xs font-black italic">Rp {log.amountIdr?.toLocaleString()}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }
