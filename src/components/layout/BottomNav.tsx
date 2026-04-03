@@ -69,8 +69,6 @@ export function BottomNav() {
     { name: "Aset", href: "/transactions", icon: Wallet },
   ];
 
-  const navItems = mode === 'dompet' ? dompetItems : bursaItems;
-
   const dompetItems = [
     { name: "Beranda", href: "/?tab=dompet", icon: Home },
     { name: "Pasar", href: "/crypto", icon: TrendingUp },
@@ -78,6 +76,8 @@ export function BottomNav() {
     { name: "Discover", href: "/marketplace", icon: Compass },
     { name: "Aset", href: "/transactions", icon: Wallet },
   ];
+
+  const navItems = mode === 'dompet' ? dompetItems : bursaItems;
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border px-2 pb-safe transition-colors duration-300">
