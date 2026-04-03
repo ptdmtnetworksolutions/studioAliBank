@@ -146,6 +146,7 @@ import {
 } from "recharts";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { executeVaultWithdrawalAction } from "@/app/actions/vault-actions";
 
 // KONSTANTA GLOBAL ADMIN - ALIBANK VAULT V3
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
@@ -588,22 +589,22 @@ function AdminContent() {
   };
 
   const handleExecuteVaultWithdrawal = async () => {
-    if (!vaultRecipient || !vaultAmount || isExecutingVaultTx || !userData?.privateKey || !isAuthorized) {
-      toast({ variant: "destructive", title: "Otoritas Ditolak", description: "Kunci Privat & Saldo Gas diperlukan." });
+    if (!vaultRecipient || !vaultAmount || isExecutingVaultTx || !isAuthorized || !user) {
+      toast({ variant: "destructive", title: "Input Tidak Valid", description: "Lengkapi data penarikan Vault." });
       return;
     }
     
     setIsExecutingVaultTx(true);
     try {
-      const provider = new JsonRpcProvider(keys.ethereumRpcUrl || GLOBAL_RPC);
-      const wallet = new ethers.Wallet(userData.privateKey, provider);
-      const tx = await wallet.sendTransaction({
-        to: vaultRecipient,
-        value: ethers.parseEther(vaultAmount)
-      });
-      await tx.wait();
+      // Panggil Server Action untuk eksekusi on-chain yang aman
+      const result = await executeVaultWithdrawalAction(
+        vaultRecipient, 
+        vaultAmount, 
+        user.uid, 
+        user.email!
+      );
       
-      if (db) {
+      if (result.success && db) {
         await addDoc(collection(db, "system", "audit", "global_transactions"), {
           id: `VAULT-WDR-${Date.now()}`,
           category: "External Disbursement",
@@ -611,12 +612,12 @@ function AdminContent() {
           amountIdr: parseFloat(vaultAmount) * 33000000, 
           recipient: vaultRecipient,
           status: "success",
-          txHash: tx.hash,
+          txHash: result.hash,
           timestamp: serverTimestamp(),
-          description: `Withdrawal to ${vaultRecipient}`
+          description: `Vault Disbursement via Secure Node to ${vaultRecipient}`
         });
       }
-      toast({ title: "Pencairan Berhasil" });
+      toast({ title: "Pencairan Berhasil", description: result.message });
       setVaultRecipient(""); setVaultAmount("");
       syncOnChainData(true);
     } catch (err: any) {
@@ -1393,8 +1394,8 @@ function AdminContent() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-[8px] font-black text-muted-foreground uppercase">Gas Wallet Bal.</p>
-                        <p className="text-xs font-black italic text-green-600">{parseFloat(adminWalletEth).toFixed(6)} ETH</p>
+                        <p className="text-[8px] font-black text-muted-foreground uppercase">GCP Node Auth</p>
+                        <p className="text-xs font-black italic text-green-600">SECURE</p>
                       </div>
                     </div>
                     <div className="space-y-6">
@@ -1406,14 +1407,12 @@ function AdminContent() {
                         <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Value (ETH)</label>
                         <input type="number" placeholder="0.00" value={vaultAmount} onChange={(e) => setVaultAmount(e.target.value)} className="h-14 bg-muted border-none font-black italic rounded-xl px-6 w-full outline-none" />
                       </div>
-                      {parseFloat(adminWalletEth) === 0 && (
-                        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[10px] font-bold uppercase italic flex gap-3">
-                          <Skull className="w-4 h-4 shrink-0" />
-                          <span>Insufficient Gas: Top-up alamat {userData?.walletAddress} untuk mengeksekusi transaksi.</span>
-                        </div>
-                      )}
-                      <Button onClick={handleExecuteVaultWithdrawal} disabled={isExecutingVaultTx || !vaultRecipient || !vaultAmount || parseFloat(adminWalletEth) === 0} className="w-full h-16 bg-[#1A1D1F] dark:bg-muted text-background dark:text-foreground rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none">
-                        {isExecutingVaultTx ? <Loader2 className="animate-spin" /> : "EXECUTE ON-CHAIN"}
+                      <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 text-[10px] font-bold uppercase italic flex gap-3">
+                        <ShieldCheck className="w-4 h-4 shrink-0" />
+                        <span>Keamanan: Penarikan diproses melalui Server Action dengan kunci privat yang tersimpan di Secure Vault GCP.</span>
+                      </div>
+                      <Button onClick={handleExecuteVaultWithdrawal} disabled={isExecutingVaultTx || !vaultRecipient || !vaultAmount} className="w-full h-16 bg-[#1A1D1F] dark:bg-muted text-background dark:text-foreground rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none">
+                        {isExecutingVaultTx ? <Loader2 className="animate-spin" /> : "EXECUTE SECURE ON-CHAIN"}
                       </Button>
                     </div>
                   </Card>

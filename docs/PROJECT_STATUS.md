@@ -1,3 +1,4 @@
+
 # Laporan Status Proyek: AliBank V3 - Financial Infrastructure
 
 ## 1. DESKRIPSI PROYEK
@@ -20,7 +21,7 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 - **AI Framework:** Genkit (Analisis Spending DNA & DNA Synthesis)
 - **Database:** Firebase Firestore (Real-time NoSQL)
 - **Auth:** Firebase Authentication (Email/Password)
-- **Storage:** Internal Antrean Kliring (Firestore Collections)
+- **Secret Management:** Google Cloud Secret Manager (Production Grade)
 
 #### Infrastruktur
 - **Cloud Provider:** Google Cloud Platform (GCP)
@@ -35,8 +36,9 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 ### On-Chain & Web3
 - [x] **AliBank Native Wallet:** Sistem pembuatan kunci privat dan alamat dompet mandiri saat registrasi.
 - [x] **On-Chain Sync:** Sinkronisasi saldo ETH Mainnet secara riil ke UI dashboard.
-- [x] **External Disbursement:** Modul pencairan dana dari brankas (Vault) pusat melalui dashboard admin.
+- [x] **External Disbursement:** Modul pencairan dana dari brankas (Vault) pusat melalui Server Actions.
 - [x] **Native Signature Activation:** Aktivasi tanda tangan digital untuk keamanan transaksi tingkat lanjut.
+- [x] **Secure Vault Node:** Integrasi GCP Secret Manager untuk penyimpanan kunci privat Vault.
 
 ### Aplikasi & Finansial
 - [x] **Dynamic Dashboard:** Tampilan saldo total yang menghitung IDR + Valuasi ALX + USDT secara otomatis.
@@ -102,7 +104,7 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 - **KYC:** Wajib dilakukan saat pendaftaran (Data tersimpan di Firestore).
 - **AML Policy:** Monitoring otomatis melalui Log Audit Global di Dashboard Admin.
 - **Key Security:** 
-  - **Vault Key:** Disimpan terenkripsi di dokumen sistem (Hanya Admin).
+  - **Vault Key:** Disimpan di **GCP Secret Manager** (Akses via Server Action).
   - **User Key:** Self-custodial (Nasabah memegang kunci privat sendiri di dokumen user).
 - **Otorisasi Admin:** 
   - **UID:** `IJOuQpjEOMgvlYfzvQ1yfp976Oa2`
@@ -112,7 +114,7 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 
 ## 9. CATATAN PENTING & KEPUTUSAN ARSITEKTUR
 - **Hybrid System:** AliBank menggabungkan database terpusat untuk kecepatan dengan blockchain untuk transparansi aset.
-- **Modular Dashboard:** Desain tab pada Admin mempermudah penambahan modul baru di masa depan tanpa merombak UI.
+- **Secure Disbursement:** Seluruh pencairan dana Vault kini menggunakan modul server terisolasi untuk mencegah kebocoran kunci di browser.
 - **Anchor Pricing:** Harga ALX dipatok pada fase akumulasi internal untuk menjamin stabilitas likuiditas sebelum listing publik.
 
 ---
