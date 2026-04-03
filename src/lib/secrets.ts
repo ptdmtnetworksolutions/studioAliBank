@@ -13,7 +13,8 @@ const client = new SecretManagerServiceClient();
  * @returns {Promise<string>} Kunci privat dalam format string hex.
  */
 export async function getVaultPrivateKey(): Promise<string> {
-  // Gunakan ID Proyek dari environment variable atau default
+  // Gunakan ID Proyek dari environment variable (paling aman)
+  // Jika tidak ada, gunakan fallback 'darmedia-pos' (sesuai yang terdaftar di firebaseConfig)
   const projectId = process.env.GCP_PROJECT_ID || 'darmedia-pos';
   
   try {
@@ -28,8 +29,9 @@ export async function getVaultPrivateKey(): Promise<string> {
     }
     
     return payload;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Gagal mengakses Secret Manager:', error);
-    throw new Error('Vault key tidak ditemukan atau otorisasi Secret Manager gagal.');
+    // Memberikan instruksi spesifik jika Project ID salah
+    throw new Error(`Vault key tidak ditemukan di project '${projectId}'. Pastikan Project ID di Google Cloud sama dengan yang ada di Firebase Console.`);
   }
 }
