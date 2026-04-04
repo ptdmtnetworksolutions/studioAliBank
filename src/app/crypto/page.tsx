@@ -38,9 +38,17 @@ import {
 } from "@/components/ui/carousel";
 import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
+import Image from "next/image";
 
 const MARKUP = 1.02; // 2% AliBank Profit Margin
 const USDT_IDR_RATE = 15850;
+
+// Mapping simbol ke ID ikon (fallback ke Github Crypto Icons)
+const getIconUrl = (symbol: string) => {
+  const s = symbol.toLowerCase();
+  if (s === 'alx') return null; // Pakai LogoIcon internal
+  return `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${s}.png`;
+};
 
 export default function CryptoMarketPage() {
   const router = useRouter();
@@ -59,14 +67,21 @@ export default function CryptoMarketPage() {
 
   const fetchMarketData = async () => {
     try {
-      const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "WLDUSDT", "POLUSDT", "USDTIDR"];
+      // Daftar koin yang lebih luas untuk bursa profesional
+      const symbols = [
+        "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", 
+        "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT", 
+        "LTCUSDT", "BCHUSDT", "SHIBUSDT", "AVAXUSDT", "NEARUSDT", 
+        "ATOMUSDT", "PEPEUSDT", "FILUSDT", "LDOUSDT", "APTUSDT", 
+        "ARBUSDT", "RNDRUSDT", "OPUSDT", "WLDUSDT", "POLUSDT", "USDTIDR"
+      ];
+      
       const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(symbols)}`);
       const data = await res.json();
       
       if (!Array.isArray(data)) return;
 
       const formatted = data.map(res => {
-        // Logika cerdas untuk mendapatkan simbol nama koin
         let symbol = res.symbol;
         if (symbol.endsWith("USDT")) {
           symbol = symbol.replace("USDT", "");
@@ -74,14 +89,11 @@ export default function CryptoMarketPage() {
           symbol = symbol.replace("IDR", "");
         }
         
-        // Jika symbol kosong (kasus USDTIDR yang diproses), kembalikan ke USDT
         if (symbol === "") symbol = "USDT";
 
         let price = parseFloat(res.lastPrice);
         
-        // Normalisasi: Jika ini adalah pasangan USDTIDR, harganya adalah IDR.
-        // Kita bagi dengan rate agar menjadi unit "USD" sehingga markup 2% dan 
-        // label sub-rupiah di UI (price * USDT_IDR_RATE) menjadi akurat.
+        // Normalisasi harga USDTIDR
         if (res.symbol === "USDTIDR") {
           price = price / USDT_IDR_RATE;
         }
@@ -93,7 +105,8 @@ export default function CryptoMarketPage() {
           price: price,
           change: parseFloat(res.priceChangePercent) || 0,
           isUp: (parseFloat(res.priceChangePercent) || 0) >= 0,
-          volume: parseFloat(res.quoteVolume) || 0
+          volume: parseFloat(res.quoteVolume) || 0,
+          icon: getIconUrl(symbol)
         };
       });
 
@@ -104,10 +117,13 @@ export default function CryptoMarketPage() {
         price: alxPrice,
         change: 1.14 + (Math.random() * 0.05),
         isUp: true,
-        isNative: true
+        isNative: true,
+        icon: null
       };
 
-      setMarketData([alxData, ...formatted]);
+      // Urutkan berdasarkan popularitas (Manual fix untuk ALX, BTC, ETH di atas)
+      const sorted = [alxData, ...formatted.filter(c => c.symbol !== "USDT"), formatted.find(c => c.symbol === "USDT")].filter(Boolean);
+      setMarketData(sorted);
     } catch (e) {
       console.error("Market Data Sync Error:", e);
     } finally {
@@ -122,29 +138,19 @@ export default function CryptoMarketPage() {
     return () => clearInterval(interval);
   }, [globalLiquidity]);
 
-  // LOGIKA TERMINAL TICKER
+  // LOGIKA TERMINAL TICKER (Fluktuasi visual setiap 3 detik)
   useEffect(() => {
     if (!mounted) return;
     const interval = setInterval(() => {
       setMarketData(prev => prev.map(coin => {
-        if (coin.symbol === "ALX") {
-          const move = (Math.random() * 0.0002 - 0.00005); 
-          const newPrice = coin.price + move;
-          return { 
-            ...coin, 
-            price: newPrice, 
-            change: (coin.change ?? 0) + (Math.random() * 0.01 - 0.005) 
-          };
-        }
-        
-        const move = (Math.random() * 0.0004 - 0.0002); 
+        const moveFactor = coin.symbol === "ALX" ? 0.0001 : 0.0003;
+        const move = (Math.random() * moveFactor * 2 - moveFactor); 
         const newPrice = coin.price * (1 + move);
-        const newChange = (coin.change ?? 0) + (Math.random() * 0.02 - 0.01);
+        
         return {
           ...coin,
           price: newPrice,
-          change: newChange,
-          isUp: newChange >= 0
+          change: (coin.change ?? 0) + (Math.random() * 0.02 - 0.01)
         };
       }));
     }, 3000);
@@ -200,37 +206,6 @@ export default function CryptoMarketPage() {
       </header>
 
       <main className="flex-1 px-4 pt-4 space-y-8 overflow-y-auto no-scrollbar pb-32">
-        {/* TAB: FAVORIT */}
-        {activeTab === "Favorit" && (
-          <div className="animate-in zoom-in-95 duration-500 py-10 flex flex-col items-center justify-center text-center space-y-6">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-              <Star className="w-10 h-10 text-muted-foreground/20" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-lg font-black italic uppercase">Daftar Pantauan</h3>
-              <p className="text-xs font-medium text-muted-foreground italic uppercase max-w-[200px] leading-relaxed">
-                Tandai koin favorit untuk memantau harga premium AliBank secara instan.
-              </p>
-            </div>
-            <div className="w-full space-y-4 pt-6">
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-left px-1">Unggulan</p>
-              <div 
-                className="p-5 rounded-2xl bg-card border border-border flex items-center justify-between cursor-pointer"
-                onClick={() => router.push('/crypto/market/alx')}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full gold-gradient p-2 flex items-center justify-center shadow-lg"><LogoIcon className="text-white" /></div>
-                  <div className="text-left">
-                    <p className="text-sm font-black italic uppercase">Alix Coin (ALX)</p>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase italic">Native Ecosystem Token</p>
-                  </div>
-                </div>
-                <Badge className="bg-primary/10 text-primary border-none font-black italic">PRO</Badge>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* TAB: PASAR */}
         {activeTab === "Pasar" && (
           <div className="animate-in slide-in-from-right-4 duration-500 space-y-6">
@@ -259,13 +234,29 @@ export default function CryptoMarketPage() {
                   className="grid grid-cols-3 items-center group cursor-pointer active:opacity-70 transition-all" 
                   onClick={() => router.push(`/crypto/market/${coin.symbol.toLowerCase()}`)}
                 >
-                  <div className="flex items-center gap-2">
-                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-1.5 shadow-sm", coin.isNative ? "gold-gradient" : "bg-muted")}>
-                      {coin.isNative ? <LogoIcon className="text-white" /> : <div className="w-full h-full bg-slate-400 rounded-full" />}
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center shadow-sm overflow-hidden border border-border bg-muted",
+                      coin.isNative && "gold-gradient"
+                    )}>
+                      {coin.isNative ? (
+                        <LogoIcon className="text-white p-2" />
+                      ) : (
+                        <Image 
+                          src={coin.icon || `https://placehold.co/100x100?text=${coin.symbol}`} 
+                          alt={coin.symbol} 
+                          width={40} 
+                          height={40}
+                          className="object-cover"
+                          onError={(e: any) => {
+                            e.target.src = `https://placehold.co/100x100/1E2329/white?text=${coin.symbol}`;
+                          }}
+                        />
+                      )}
                     </div>
                     <div>
                       <span className="text-sm font-black italic tracking-tight text-foreground uppercase">{coin.symbol}</span>
-                      {coin.isNative && <div className="text-[7px] font-black text-primary uppercase">Ali-Chain</div>}
+                      {coin.isNative && <div className="text-[7px] font-black text-primary uppercase leading-none mt-0.5">Ali-Chain</div>}
                     </div>
                   </div>
                   <div className="text-right">
@@ -290,6 +281,26 @@ export default function CryptoMarketPage() {
           </div>
         )}
 
+        {/* TAB: FAVORIT */}
+        {activeTab === "Favorit" && (
+          <div className="animate-in zoom-in-95 duration-500 space-y-6">
+            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Unggulan</p>
+            <div 
+              className="p-5 rounded-2xl bg-card border border-border flex items-center justify-between cursor-pointer"
+              onClick={() => router.push('/crypto/market/alx')}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl gold-gradient p-2 flex items-center justify-center shadow-lg"><LogoIcon className="text-white" /></div>
+                <div className="text-left">
+                  <p className="text-sm font-black italic uppercase">Alix Coin (ALX)</p>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase italic">Native Ecosystem Token</p>
+                </div>
+              </div>
+              <Badge className="bg-primary text-primary-foreground border-none font-black italic uppercase text-[8px] px-3">Priority</Badge>
+            </div>
+          </div>
+        )}
+
         {/* TAB: ALPHA */}
         {activeTab === "Alpha" && (
           <div className="animate-in fade-in duration-500 space-y-8">
@@ -305,10 +316,10 @@ export default function CryptoMarketPage() {
 
             <div className="grid grid-cols-1 gap-4">
               {[
-                { name: "BTC Momentum", score: 98, status: "Bullish", desc: "Aktivitas institusional meningkat di level premium.", icon: Activity },
-                { name: "ALX Accumulation", score: 99, status: "Strong Buy", desc: "Fase akumulasi internal mendekati ambang batas listing.", icon: Flame },
+                { name: "BTC Momentum", score: 98, status: "Bullish", desc: "Aktivitas institusional meningkat di level premium.", icon: Activity, symbol: "btc" },
+                { name: "ALX Accumulation", score: 99, status: "Strong Buy", desc: "Fase akumulasi internal mendekati ambang batas listing.", icon: Flame, symbol: "alx" },
               ].map((alpha, i) => (
-                <Card key={i} className="bg-card border-border p-6 rounded-[2rem] flex flex-col gap-4 relative overflow-hidden shadow-sm">
+                <Card key={i} className="bg-card border-border p-6 rounded-[2rem] flex flex-col gap-4 relative overflow-hidden shadow-sm" onClick={() => router.push(`/crypto/market/${alpha.symbol}`)}>
                   <div className="absolute top-0 right-0 p-4 opacity-5"><alpha.icon className="w-20 h-20" /></div>
                   <div className="flex justify-between items-start">
                     <div>
@@ -330,7 +341,6 @@ export default function CryptoMarketPage() {
         {/* TAB: GROW */}
         {activeTab === "Grow" && (
           <div className="animate-in fade-in duration-500 space-y-8">
-            {/* ALX PRIORITY CARD */}
             <section className="space-y-4">
               <div className="flex items-center justify-between px-1">
                 <h3 className="text-base font-black text-foreground italic uppercase flex items-center gap-2">
@@ -382,31 +392,6 @@ export default function CryptoMarketPage() {
               </Card>
             </section>
 
-            <div className="relative">
-              <Carousel setApi={setBannerApi} className="w-full">
-                <CarouselContent>
-                  <CarouselItem>
-                    <div className="bg-muted/50 rounded-2xl p-6 flex items-center justify-between min-h-[140px] relative overflow-hidden border border-border/50">
-                      <div className="space-y-3 max-w-[65%] relative z-10">
-                        <h2 className="text-sm font-black text-foreground leading-tight italic">
-                          Pinjam Koin untuk Berdagang guna Mendapatkan APY Tinggi
-                        </h2>
-                        <button className="text-[11px] font-black text-primary hover:underline uppercase italic">
-                          Tampilkan Selengkapnya
-                        </button>
-                      </div>
-                      <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
-                        <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl scale-125" />
-                        <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg relative z-10 border-2 border-background">
-                          <Zap className="w-6 h-6 text-primary-foreground" />
-                        </div>
-                      </div>
-                    </div>
-                  </CarouselItem>
-                </CarouselContent>
-              </Carousel>
-            </div>
-
             <section className="space-y-4">
               <div className="flex items-center justify-between px-1">
                 <h3 className="text-base font-black text-foreground italic uppercase">Aset Lainnya</h3>
@@ -417,8 +402,8 @@ export default function CryptoMarketPage() {
                 <Card className="bg-card rounded-2xl p-5 border border-border flex flex-col justify-between relative overflow-hidden group active:scale-[0.98] transition-transform shadow-sm h-44 cursor-pointer" onClick={() => router.push('/deposits')}>
                   <div className="flex justify-between items-start">
                     <span className="text-sm font-black text-foreground italic tracking-tight">USDT</span>
-                    <div className="w-6 h-6 rounded-full bg-teal-600 flex items-center justify-center text-white p-1">
-                      <LogoIcon />
+                    <div className="w-8 h-8 rounded-full bg-teal-600 flex items-center justify-center p-1.5 shadow-md">
+                      <svg viewBox="0 0 24 24" fill="white" className="w-full h-full"><path d="M12 2L2 12l10 10 10-10L12 2zm0 16.5L5.5 12 12 5.5 18.5 12 12 18.5z"/></svg>
                     </div>
                   </div>
                   <div>
@@ -434,7 +419,7 @@ export default function CryptoMarketPage() {
                       <p className="text-base font-black text-foreground italic tracking-tighter mt-1">12.81%</p>
                     </div>
                     <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-white p-1">
-                      <LogoIcon />
+                      <Image src={getIconUrl('eth')!} alt="eth" width={24} height={24} />
                     </div>
                   </Card>
                   <Card className="bg-card rounded-2xl p-4 border border-border flex justify-between items-center group active:scale-[0.98] transition-transform shadow-sm h-[84px] cursor-pointer" onClick={() => router.push('/deposits')}>
@@ -442,8 +427,8 @@ export default function CryptoMarketPage() {
                       <span className="text-xs font-black text-foreground italic">SOL</span>
                       <p className="text-base font-black text-foreground italic tracking-tighter mt-1">9.7%</p>
                     </div>
-                    <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center text-white p-1.5">
-                      <LogoIcon className="text-cyan-400" />
+                    <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center text-white p-1">
+                      <Image src={getIconUrl('sol')!} alt="sol" width={24} height={24} />
                     </div>
                   </Card>
                 </div>
@@ -473,7 +458,7 @@ export default function CryptoMarketPage() {
 
             <section className="space-y-4">
               <h3 className="text-base font-black italic uppercase px-1">Dominasi Aset</h3>
-              <Card className="space-y-4 p-6 rounded-[2rem] bg-card border border-border shadow-sm">
+              <Card className="space-y-4 p-6 rounded-[2.5rem] bg-card border border-border shadow-sm">
                 {[
                   { name: "BTC", value: 52.4, color: "bg-orange-500" },
                   { name: "ETH", value: 18.2, color: "bg-indigo-500" },
