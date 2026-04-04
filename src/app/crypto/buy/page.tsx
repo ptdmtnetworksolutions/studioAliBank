@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -47,8 +46,6 @@ import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import Script from "next/script";
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 declare global {
   interface Window {
@@ -105,7 +102,7 @@ export default function CryptoBuyPage() {
     }
   }, []);
 
-  const exchangeRate = 15850; // USDT/IDR Fixed AliBank Rate
+  const exchangeRate = 15850; 
   
   const estimatedReceive = useMemo(() => {
     const num = parseFloat(amount.replace(',', '.'));
@@ -120,34 +117,46 @@ export default function CryptoBuyPage() {
     return (num / exchangeRate).toFixed(2);
   }, [amount]);
 
+  // Mekanisme Render Tombol Pembayaran yang Lebih Robust
   useEffect(() => {
-    if (isCheckoutDialogOpen && paypalReady && window.paypal && paypalContainerRef.current) {
-      paypalContainerRef.current.innerHTML = "";
-      window.paypal.Buttons({
-        style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
-        createOrder: (data: any, actions: any) => {
-          return actions.order.create({
-            purchase_units: [{
-              amount: { currency_code: "USD", value: usdValue },
-              description: `Beli ${estimatedReceive} ${selectedAsset.symbol} - AliBank V3`
-            }]
-          });
-        },
-        onApprove: async (data: any, actions: any) => {
-          setIsProcessing(true);
-          try {
-            const details = await actions.order.capture();
-            if (details.status === 'COMPLETED') {
-              await finalizePurchase(details);
+    let timeoutId: any;
+
+    if (isCheckoutDialogOpen && paypalReady && window.paypal) {
+      // Tunggu sedikit agar container Ref benar-benar siap di DOM setelah dialog terbuka
+      timeoutId = setTimeout(() => {
+        if (!paypalContainerRef.current) return;
+        
+        paypalContainerRef.current.innerHTML = "";
+        window.paypal.Buttons({
+          style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
+          createOrder: (data: any, actions: any) => {
+            return actions.order.create({
+              purchase_units: [{
+                amount: { currency_code: "USD", value: usdValue },
+                description: `Beli ${estimatedReceive} ${selectedAsset.symbol} - AliBank V3`
+              }]
+            });
+          },
+          onApprove: async (data: any, actions: any) => {
+            setIsProcessing(true);
+            try {
+              const details = await actions.order.capture();
+              if (details.status === 'COMPLETED') {
+                await finalizePurchase(details);
+              }
+            } catch (err) {
+              toast({ variant: "destructive", title: "Gagal Kliring", description: "Pembayaran tidak dapat diselesaikan." });
+            } finally {
+              setIsProcessing(false);
             }
-          } catch (err) {
-            toast({ variant: "destructive", title: "Gagal Kliring", description: "Pembayaran tidak dapat diselesaikan." });
-          } finally {
-            setIsProcessing(false);
           }
-        }
-      }).render(paypalContainerRef.current);
+        }).render(paypalContainerRef.current).catch((err: any) => {
+          console.warn("PayPal Render Error, retrying...", err);
+        });
+      }, 300);
     }
+
+    return () => clearTimeout(timeoutId);
   }, [isCheckoutDialogOpen, paypalReady, usdValue, estimatedReceive, selectedAsset]);
 
   const finalizePurchase = async (paymentDetails: any) => {
@@ -163,7 +172,7 @@ export default function CryptoBuyPage() {
         [`cryptoBalances.${selectedAsset.symbol}`]: increment(numReceive)
       });
 
-      // 2. Update Likuiditas Sistem & Inventaris Bank
+      // 2. Update Likuiditas Sistem & Inventaris Bank secara Riil
       const sysRef = doc(db, "system", "liquidity");
       const sysUpdates: any = {
         totalFiatInjected: increment(numPay),
@@ -171,15 +180,16 @@ export default function CryptoBuyPage() {
       };
 
       if (selectedAsset.symbol === 'ALX') {
+        // Potong Inventaris Vault secara Riil
         sysUpdates.alixVaultBalance = increment(-numReceive);
         sysUpdates.totalAlixSoldInternally = increment(numReceive);
       }
 
       await updateDoc(sysRef, sysUpdates);
 
-      // 3. Catat Transaksi Audit Global (Penting untuk Monitoring Admin)
-      const auditId = `CRYPTO-BUY-${paymentDetails.id || Date.now()}`;
+      // 3. Catat Transaksi Audit Global (WAJIB untuk Dashboard Super Admin)
       const auditData = {
+        id: `CRYPTO-BUY-${paymentDetails.id || Date.now()}`,
         category: "External Settlement",
         gateway: "PayPal/Google Pay",
         amountIdr: numPay,
@@ -195,7 +205,7 @@ export default function CryptoBuyPage() {
       await addDoc(collection(db, "system", "audit", "global_transactions"), auditData);
 
       // 4. Catat Transaksi Riwayat Nasabah
-      const userTxData = {
+      await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
         description: `Beli ${selectedAsset.symbol} via Ali-Secure Gateway`,
         category: "Bursa",
@@ -208,10 +218,9 @@ export default function CryptoBuyPage() {
         type: "income",
         status: "success",
         timestamp: serverTimestamp()
-      };
+      });
 
-      await addDoc(collection(db, "users", user.uid, "transactions"), userTxData);
-
+      // 5. Kirim Notifikasi Internal
       await addDoc(collection(db, "users", user.uid, "notifications"), {
         title: "Settlement Berhasil",
         message: `Pembayaran riil terkonfirmasi. Berhasil membeli ${numReceive} ${selectedAsset.symbol}.`,
@@ -225,7 +234,7 @@ export default function CryptoBuyPage() {
       toast({ title: "Settlement Berhasil", description: "Dana telah diverifikasi dan masuk ke dompet Anda." });
     } catch (err: any) {
       console.error("Finalize Purchase Error:", err);
-      toast({ variant: "destructive", title: "Error Sinkronisasi", description: "Saldo diperbarui namun gagal mencatat audit." });
+      toast({ variant: "destructive", title: "Error Sinkronisasi", description: "Saldo diperbarui namun gagal mencatat audit lengkap." });
     }
   };
 
@@ -248,7 +257,7 @@ export default function CryptoBuyPage() {
           <CheckCircle2 className="w-12 h-12 text-green-600" />
         </div>
         <h2 className="text-2xl font-black italic uppercase tracking-tight mb-2">PEMBELIAN SELESAI</h2>
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-8">DANA TELAH DIAMANKAN DI BRANKAS ALIBANK</p>
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-8 italic">Dana telah diamankan di Brankas AliBank V3</p>
         
         <Card className="w-full bg-muted/30 border-none rounded-[2rem] p-8 mb-10 space-y-4 shadow-inner">
           <div>
@@ -257,7 +266,7 @@ export default function CryptoBuyPage() {
           </div>
           <div className="h-px bg-border" />
           <div className="flex justify-between text-[10px] font-bold uppercase text-muted-foreground">
-            <span>Metode</span>
+            <span>Metode Settlement</span>
             <span className="text-foreground">{selectedPayment.name}</span>
           </div>
         </Card>
@@ -373,6 +382,7 @@ export default function CryptoBuyPage() {
             <div className="space-y-4">
               <div ref={paypalContainerRef} className="min-h-[150px] flex flex-col items-center justify-center">
                 {!paypalReady && <Loader2 className="animate-spin text-primary opacity-40" />}
+                {paypalReady && isProcessing && <div className="flex flex-col items-center gap-3"><Loader2 className="animate-spin text-primary w-8 h-8" /><p className="text-[10px] font-black uppercase text-primary italic animate-pulse">Memproses Settlement Riil...</p></div>}
               </div>
               <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
                 <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0" />
