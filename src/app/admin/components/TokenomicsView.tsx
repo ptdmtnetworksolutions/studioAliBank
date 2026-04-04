@@ -19,7 +19,6 @@ import {
   Lock,
   ArrowRightLeft,
   Database,
-  Fingerprint,
   Info
 } from "lucide-react";
 import { 
@@ -113,7 +112,7 @@ export function TokenomicsView({
                 <div className="absolute right-6 top-1/2 -translate-y-1/2 text-xl font-black text-primary italic">ALX</div>
               </div>
             </div>
-            <Button onClick={handleMint} disabled={!mintAmount || isProcessing} className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none">
+            <Button onClick={handleMint} disabled={!mintAmount || isProcessing} className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none text-base">
               {isProcessing ? <Loader2 className="animate-spin" /> : "EXECUTE ON-CHAIN MINT"}
             </Button>
           </div>
@@ -149,7 +148,6 @@ export function TokenomicsView({
         </Card>
       </div>
 
-      {/* DETAIL FUNGSI & ARSITEKTUR KONTRAK ALX V3.1 */}
       <section className="space-y-8 pt-10 border-t border-border/50">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
