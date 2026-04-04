@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -120,10 +121,12 @@ export default function CryptoBuyPage() {
   useEffect(() => {
     let timeoutId: any;
 
-    if (isCheckoutDialogOpen && paypalReady && window.paypal) {
-      timeoutId = setTimeout(() => {
-        if (!paypalContainerRef.current) return;
+    if (isCheckoutDialogOpen && (paypalReady || window.paypal)) {
+      // Logic render tombol yang lebih tangguh
+      const renderButtons = async () => {
+        if (!paypalContainerRef.current || !window.paypal) return;
         
+        // Bersihkan kontainer untuk mencegah duplikasi
         paypalContainerRef.current.innerHTML = "";
         
         const buttonConfig: any = {
@@ -160,20 +163,31 @@ export default function CryptoBuyPage() {
           }
         };
 
-        // SPESIFIKASI FUNDING SOURCE BERDASARKAN PILIHAN USER
-        if (selectedPayment.id === 'gpay') {
-          buttonConfig.fundingSource = window.paypal.FUNDING.GOOGLEPAY;
-        } else if (selectedPayment.id === 'card') {
-          buttonConfig.fundingSource = window.paypal.FUNDING.CARD;
+        try {
+          if (selectedPayment.id === 'gpay') {
+            await window.paypal.Buttons({
+              ...buttonConfig,
+              fundingSource: window.paypal.FUNDING.GOOGLEPAY
+            }).render(paypalContainerRef.current);
+          } else if (selectedPayment.id === 'card') {
+            await window.paypal.Buttons({
+              ...buttonConfig,
+              fundingSource: window.paypal.FUNDING.CARD
+            }).render(paypalContainerRef.current);
+          } else {
+            await window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
+          }
+        } catch (err) {
+          console.warn("Spesifik funding source gagal, memuat tombol pintar standar...");
+          if (paypalContainerRef.current) {
+            paypalContainerRef.current.innerHTML = "";
+            window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
+          }
         }
+      };
 
-        window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current).catch((err: any) => {
-          // Fallback jika fundingSource spesifik tidak tersedia di browser/wilayah
-          console.warn("Requested funding source not available, falling back to smart buttons");
-          delete buttonConfig.fundingSource;
-          window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
-        });
-      }, 300);
+      // Berikan waktu sedikit agar dialog animasi selesai
+      timeoutId = setTimeout(renderButtons, 500);
     }
 
     return () => clearTimeout(timeoutId);
@@ -400,9 +414,20 @@ export default function CryptoBuyPage() {
 
             <div className="space-y-4">
               <div ref={paypalContainerRef} className="min-h-[150px] flex flex-col items-center justify-center">
-                {!paypalReady && <Loader2 className="animate-spin text-primary opacity-40" />}
-                {paypalReady && isProcessing && <div className="flex flex-col items-center gap-3"><Loader2 className="animate-spin text-primary w-8 h-8" /><p className="text-[10px] font-black uppercase text-primary italic animate-pulse">Memproses Settlement Riil...</p></div>}
+                {/* Loader ini akan digantikan oleh tombol PayPal saat siap */}
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="animate-spin text-primary w-8 h-8" />
+                  <p className="text-[10px] font-black uppercase text-primary italic animate-pulse">Menghubungkan Terminal Kliring...</p>
+                </div>
               </div>
+              
+              {isProcessing && (
+                <div className="flex flex-col items-center gap-3 animate-in fade-in">
+                  <Loader2 className="animate-spin text-green-500 w-8 h-8" />
+                  <p className="text-[10px] font-black uppercase text-green-500 italic animate-pulse">Memproses Settlement Riil...</p>
+                </div>
+              )}
+
               <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
                 <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0" />
                 <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">

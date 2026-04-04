@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -138,64 +139,74 @@ export default function CheckoutPage() {
   }, [db, invoiceId]);
 
   useEffect(() => {
-    if (paymentStep === 'bridge_gate' && paypalReady && window.paypal && invoice) {
-      const formattedAmount = parseFloat(invoice.amountUsd.toString()).toFixed(2);
+    let timeoutId: any;
 
-      const commonConfig: any = {
-        createOrder: (data: any, actions: any) => {
-          return actions.order.create({
-            intent: 'CAPTURE',
-            purchase_units: [{
-              amount: { currency_code: "USD", value: formattedAmount },
-              description: `AliBank Global - INV ${invoice?.invoiceId}`
-            }],
-            application_context: {
-              brand_name: 'ALIBANK SECURE V3',
-              user_action: 'PAY_NOW'
+    if (paymentStep === 'bridge_gate' && (paypalReady || window.paypal) && invoice) {
+      const renderButtons = async () => {
+        const formattedAmount = parseFloat(invoice.amountUsd.toString()).toFixed(2);
+        const targetContainer = activeGatewayTab === 'network' ? paypalContainerRef.current : cardButtonRef.current;
+
+        if (!targetContainer || !window.paypal) return;
+        targetContainer.innerHTML = "";
+
+        const commonConfig: any = {
+          createOrder: (data: any, actions: any) => {
+            return actions.order.create({
+              intent: 'CAPTURE',
+              purchase_units: [{
+                amount: { currency_code: "USD", value: formattedAmount },
+                description: `AliBank Global - INV ${invoice?.invoiceId}`
+              }],
+              application_context: {
+                brand_name: 'ALIBANK SECURE V3',
+                user_action: 'PAY_NOW'
+              }
+            });
+          },
+          onApprove: async (data: any, actions: any) => {
+            try {
+              const details = await actions.order.capture();
+              if (details.status === 'COMPLETED') {
+                processPaymentFinalization({
+                  id: details.id,
+                  gateway: activeGatewayTab === 'network' ? "Ali-Global Network (GPay)" : "Ali-Global Card Clearing",
+                  payerEmail: details.payer?.email_address
+                });
+              }
+            } catch (error: any) {
+              console.error("Capture error:", error);
+              toast({ variant: "destructive", title: "Kegagalan Kliring", description: "Dana tidak dapat ditarik dari sumber pembayaran." });
             }
-          });
-        },
-        onApprove: async (data: any, actions: any) => {
-          try {
-            const details = await actions.order.capture();
-            if (details.status === 'COMPLETED') {
-              processPaymentFinalization({
-                id: details.id,
-                gateway: activeGatewayTab === 'network' ? "Ali-Global Network (GPay)" : "Ali-Global Card Clearing",
-                payerEmail: details.payer?.email_address
-              });
-            }
-          } catch (error: any) {
-            console.error("Capture error:", error);
-            toast({ variant: "destructive", title: "Kegagalan Kliring", description: "Dana tidak dapat ditarik dari sumber pembayaran." });
+          }
+        };
+
+        try {
+          if (activeGatewayTab === 'network') {
+            await window.paypal.Buttons({
+              ...commonConfig,
+              fundingSource: window.paypal.FUNDING.GOOGLEPAY,
+              style: { layout: 'vertical', color: 'black', shape: 'rect' }
+            }).render(targetContainer);
+          } else {
+            await window.paypal.Buttons({
+              ...commonConfig,
+              fundingSource: window.paypal.FUNDING.CARD,
+              style: { layout: 'vertical', color: 'black', shape: 'rect' }
+            }).render(targetContainer);
+          }
+        } catch (err) {
+          console.warn("Spesifik funding source gagal, memuat tombol pintar standar...");
+          if (targetContainer) {
+            targetContainer.innerHTML = "";
+            window.paypal.Buttons(commonConfig).render(targetContainer);
           }
         }
       };
 
-      if (activeGatewayTab === 'network' && paypalContainerRef.current) {
-        paypalContainerRef.current.innerHTML = "";
-        window.paypal.Buttons({
-          ...commonConfig,
-          fundingSource: window.paypal.FUNDING.GOOGLEPAY,
-          style: { layout: 'vertical', color: 'black', shape: 'rect' }
-        }).render(paypalContainerRef.current).catch(() => {
-          // Fallback ke Smart Buttons jika GPay tidak didukung browser
-          window.paypal.Buttons({
-            ...commonConfig,
-            style: { layout: 'vertical', color: 'gold', shape: 'rect' }
-          }).render(paypalContainerRef.current);
-        });
-      }
-
-      if (activeGatewayTab === 'card' && cardButtonRef.current) {
-        cardButtonRef.current.innerHTML = "";
-        window.paypal.Buttons({
-          ...commonConfig,
-          fundingSource: window.paypal.FUNDING.CARD,
-          style: { layout: 'vertical', color: 'black', shape: 'rect' }
-        }).render(cardButtonRef.current);
-      }
+      timeoutId = setTimeout(renderButtons, 500);
     }
+
+    return () => clearTimeout(timeoutId);
   }, [paymentStep, paypalReady, invoice, activeGatewayTab]);
 
   const processPaymentFinalization = async (details: any) => {
@@ -439,23 +450,22 @@ export default function CheckoutPage() {
                   </header>
 
                    <div className="space-y-6">
-                      {activeGatewayTab === 'network' ? (
-                        <div className="space-y-6">
-                          <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
-                            <Info className="w-5 h-5 text-blue-500 shrink-0" />
-                            <p className="text-[10px] text-muted-foreground font-bold leading-relaxed uppercase italic">Gunakan saldo GOOGLE PAY atau dompet digital Anda untuk penyelesaian dana riil.</p>
+                      <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
+                        <Info className="w-5 h-5 text-blue-500 shrink-0" />
+                        <p className="text-[10px] text-muted-foreground font-bold leading-relaxed uppercase italic">Gunakan saldo GOOGLE PAY atau dompet digital Anda untuk penyelesaian dana riil.</p>
+                      </div>
+                      <div 
+                        ref={activeGatewayTab === 'network' ? paypalContainerRef : cardButtonRef} 
+                        className="w-full min-h-[150px] flex flex-col items-center justify-center"
+                      >
+                        {!paypalReady && !window.paypal && <Loader2 className="w-8 h-8 animate-spin text-primary opacity-40" />}
+                        {(paypalReady || window.paypal) && (
+                          <div className="flex flex-col items-center gap-3">
+                            <Loader2 className="animate-spin text-primary w-8 h-8" />
+                            <p className="text-[10px] font-black uppercase text-primary italic animate-pulse">Menghubungkan Terminal Kliring...</p>
                           </div>
-                          <div ref={paypalContainerRef} className="w-full min-h-[150px] flex flex-col items-center justify-center">
-                            {!paypalReady && <Loader2 className="w-8 h-8 animate-spin text-primary opacity-40" />}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-                          <div ref={cardButtonRef} className="w-full min-h-[100px] flex flex-col items-center justify-center">
-                            {!paypalReady && <Loader2 className="w-8 h-8 animate-spin text-primary opacity-40" />}
-                          </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                    </div>
                 </div>
               )}
