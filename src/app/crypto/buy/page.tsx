@@ -202,7 +202,7 @@ export default function CryptoBuyPage() {
     setIsProcessing(true);
     try {
       const requestId = `TRQ-${Date.now()}`;
-      await addDoc(collection(db, "system", "topup_requests"), {
+      await addDoc(collection(db, "topup_requests"), {
         requestId,
         userId: user.uid,
         userName: userData.name,
@@ -352,7 +352,7 @@ export default function CryptoBuyPage() {
           </div>
         </div>
         <div className="pb-10 space-y-6">
-          <Button disabled={amount === "0" || isProcessing} onClick={() => setIsCheckoutDialogOpen(true)} className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest transition-all active:scale-95">{isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : `LANJUTKAN KE PEMBAYARAN`}</Button>
+          <Button disabled={amount === "0" || isProcessing} onClick={() => setIsCheckoutDialogOpen(true)} className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest transition-all">{isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : `LANJUTKAN KE PEMBAYARAN`}</Button>
           <div className="grid grid-cols-3 gap-y-1">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (<button key={n} onClick={() => handleKeyPress(n.toString())} className="text-3xl font-black italic active:bg-muted py-3 rounded-full transition-colors">{n}</button>))}
             <button className="text-3xl font-black italic active:bg-muted py-3 rounded-full transition-colors">,</button>

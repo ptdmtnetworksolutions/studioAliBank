@@ -4,7 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V4.0 - PRODUCTION GRADE
+     * ALIBANK SECURITY RULES V5.0 - PRODUCTION GRADE
      * Otorisasi mutlak untuk Super Admin dan izin granular untuk nasabah.
      */
 
@@ -23,30 +23,28 @@ service cloud.firestore {
       );
     }
 
-    // Global Admin Override: Izin mutlak di seluruh database
+    // --- Global Admin Priority ---
     match /{document=**} {
       allow read, write: if isAdmin();
     }
 
     // --- Aturan Koleksi Nasabah ---
     match /users/{userId} {
-      allow get, list: if isOwner(userId) || isAdmin();
+      allow get, list: if isOwner(userId);
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
+      allow update: if isOwner(userId);
+      allow delete: if false;
 
-      // Sub-koleksi Finansial & Utilitas
       match /{allSubcollections=**} {
-        allow read, write: if isOwner(userId) || isAdmin();
+        allow read, write: if isOwner(userId);
       }
     }
 
-    // --- Aturan Koleksi Bisnis (Merchant) ---
-    match /merchants/{merchantId} {
-      allow read, write: if isOwner(merchantId) || isAdmin();
-      match /{allSubcollections=**} {
-        allow read, write: if isOwner(merchantId) || isAdmin();
-      }
+    // --- Aturan Topup Requests ---
+    match /topup_requests/{reqId} {
+      allow create: if isSignedIn();
+      allow read: if isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     // --- Aturan Data Pasar & Sistem ---
@@ -66,11 +64,6 @@ service cloud.firestore {
     match /system/audit/{subPath=**} {
       allow create: if isSignedIn();
       allow read: if isAdmin();
-    }
-
-    match /system/topup_requests/{reqId} {
-      allow create: if isSignedIn();
-      allow read, write: if isAdmin();
     }
   }
 }

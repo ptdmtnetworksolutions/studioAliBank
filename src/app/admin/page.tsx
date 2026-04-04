@@ -88,7 +88,7 @@ function AdminContent() {
   const apiKeysRef = useMemoFirebase(() => (db && isAuthorized ? doc(db, "system", "api_keys") : null), [db, isAuthorized]);
   const { data: storedKeys } = useDoc(apiKeysRef);
 
-  const topupQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "system", "topup_requests"), orderBy("timestamp", "desc"), limit(50)) : null), [db, isAuthorized]);
+  const topupQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "topup_requests"), orderBy("timestamp", "desc"), limit(50)) : null), [db, isAuthorized]);
   const { data: topupRequests } = useCollection(topupQuery);
 
   const candleData = useMemo(() => {

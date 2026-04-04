@@ -81,7 +81,7 @@ export function PendingRequestsView({ topupRequests }: any) {
         createdAt: new Date().toISOString()
       });
 
-      await updateDoc(doc(db, "system", "topup_requests", req.id), { status: "approved" });
+      await updateDoc(doc(db, "topup_requests", req.id), { status: "approved" });
       
       toast({ title: "Request Approved", description: `Funds sent to ${req.userName}` });
     } catch (err: any) {
@@ -93,7 +93,7 @@ export function PendingRequestsView({ topupRequests }: any) {
 
   const handleReject = async (id: string) => {
     if (!db || !confirm("Reject this request?")) return;
-    await updateDoc(doc(db, "system", "topup_requests", id), { status: "rejected" });
+    await updateDoc(doc(db, "topup_requests", id), { status: "rejected" });
     toast({ title: "Request Rejected" });
   };
 

@@ -52,6 +52,24 @@
         "alxContractAddress": { "type": "string" }
       }
     },
+    "TopupRequest": {
+      "title": "TopupRequest",
+      "description": "Manual bank transfer verification request.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "amount": { "type": "number" },
+        "uniqueCode": { "type": "number" },
+        "totalToTransfer": { "type": "number" },
+        "asset": { "type": "string" },
+        "estimatedAsset": { "type": "number" },
+        "proofImage": { "type": "string", "description": "Base64 encoded image of payment proof" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
     "Transaction": {
       "title": "Transaction",
       "description": "Financial transaction record.",
@@ -63,16 +81,6 @@
         "amount": { "type": "number" },
         "type": { "type": "string" },
         "status": { "type": "string" }
-      }
-    },
-    "ExternalWallet": {
-      "title": "ExternalWallet",
-      "description": "Linked external digital wallet.",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "balance": { "type": "number" },
-        "icon": { "type": "string" }
       }
     }
   },
@@ -89,24 +97,10 @@
         }
       },
       {
-        "path": "/users/{userId}/notifications/{notificationId}",
+        "path": "/topup_requests/{reqId}",
         "definition": {
-          "entityName": "Notification",
-          "description": "User notifications."
-        }
-      },
-      {
-        "path": "/users/{userId}/transactions/{txId}",
-        "definition": {
-          "entityName": "Transaction",
-          "description": "User transaction history."
-        }
-      },
-      {
-        "path": "/users/{userId}/wallets/{walletId}",
-        "definition": {
-          "entityName": "ExternalWallet",
-          "description": "User linked wallets."
+          "entityName": "TopupRequest",
+          "description": "Pending manual top-up requests."
         }
       },
       {
