@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -19,10 +18,12 @@ import {
   Loader2,
   Trophy,
   User as UserIcon,
-  ArrowUpDown
+  ArrowUpDown,
+  TrendingDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
@@ -42,27 +43,25 @@ export default function CryptoMarketPage() {
   const db = useFirestore();
   const { user } = useUser();
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState("Grow");
+  const [activeTab, setActiveTab] = useState("Pasar");
   const [bannerApi, setBannerApi] = useState<CarouselApi>();
   const [currentBanner, setCurrentBanner] = useState(0);
   const [marketData, setMarketData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Ambil data likuiditas untuk harga ALX riil
+  // Ambil data likuiditas untuk harga ALX riil dari Firestore
   const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
   const fetchMarketData = async () => {
     try {
       const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "WLDUSDT", "POLUSDT", "USDTIDR"];
-      // Menggunakan Binance Public API (No API Key required)
       const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(symbols)}`);
       const data = await res.json();
       
       if (!Array.isArray(data)) return;
 
       const formatted = data.map(res => {
-        const isIdrPair = res.symbol.includes("IDR");
         const price = parseFloat(res.lastPrice) * MARKUP;
         return {
           symbol: res.symbol.replace("USDT", "").replace("IDR", ""),
@@ -73,7 +72,7 @@ export default function CryptoMarketPage() {
         };
       });
 
-      // Integrasi ALX Riil dari Firestore
+      // Integrasi ALX Riil dari Firestore AliBank
       const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
       const alxData = {
         symbol: "ALX",
@@ -147,121 +146,38 @@ export default function CryptoMarketPage() {
       </header>
 
       <main className="flex-1 px-4 pt-4 space-y-8 overflow-y-auto no-scrollbar">
-        {/* TAB: GROW (Default / Sesuai Gambar) */}
-        {activeTab === "Grow" && (
-          <div className="animate-in fade-in duration-500 space-y-8">
-            <div className="relative">
-              <Carousel setApi={setBannerApi} className="w-full">
-                <CarouselContent>
-                  <CarouselItem>
-                    <div className="bg-muted/50 rounded-2xl p-6 flex items-center justify-between min-h-[140px] relative overflow-hidden border border-border/50">
-                      <div className="space-y-3 max-w-[65%] relative z-10">
-                        <h2 className="text-sm font-black text-foreground leading-tight italic">
-                          Pinjam Koin untuk Berdagang guna Mendapatkan APY Tinggi
-                        </h2>
-                        <button className="text-[11px] font-black text-primary hover:underline uppercase italic">
-                          Tampilkan Selengkapnya
-                        </button>
-                      </div>
-                      <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
-                        <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl scale-125" />
-                        <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg relative z-10 border-2 border-background">
-                          <Zap className="w-6 h-6 text-primary-foreground" />
-                        </div>
-                      </div>
-                    </div>
-                  </CarouselItem>
-                </CarouselContent>
-              </Carousel>
-              <div className="flex justify-center gap-1.5 mt-4">
-                {[0].map((i) => (
-                  <div key={i} className={cn("h-1 rounded-full transition-all duration-300", currentBanner === i ? "w-4 bg-foreground" : "w-1 bg-muted")} />
-                ))}
+        {/* TAB: FAVORIT */}
+        {activeTab === "Favorit" && (
+          <div className="animate-in zoom-in-95 duration-500 py-10 flex flex-col items-center justify-center text-center space-y-6">
+            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+              <Star className="w-10 h-10 text-muted-foreground/20" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-black italic uppercase">Daftar Pantauan</h3>
+              <p className="text-xs font-medium text-muted-foreground italic uppercase max-w-[200px] leading-relaxed">
+                Tandai koin favorit untuk memantau harga premium AliBank secara instan.
+              </p>
+            </div>
+            <div className="w-full space-y-4 pt-6">
+              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-left px-1">Unggulan</p>
+              <div 
+                className="p-5 rounded-2xl bg-card border border-border flex items-center justify-between cursor-pointer"
+                onClick={() => router.push('/crypto/market/alx')}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full gold-gradient p-2 flex items-center justify-center shadow-lg"><LogoIcon className="text-white" /></div>
+                  <div className="text-left">
+                    <p className="text-sm font-black italic uppercase">Alix Coin (ALX)</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase italic">Native Ecosystem Token</p>
+                  </div>
+                </div>
+                <Badge className="bg-primary/10 text-primary border-none font-black italic">PRO</Badge>
               </div>
             </div>
-
-            <section className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <h3 className="text-base font-black text-foreground italic uppercase">Mulai Hasilkan Sekarang Juga</h3>
-                <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-card rounded-2xl p-5 border border-border flex flex-col justify-between relative overflow-hidden group active:scale-[0.98] transition-transform shadow-sm h-44" onClick={() => router.push('/deposits')}>
-                  <div className="flex justify-between items-start">
-                    <span className="text-sm font-black text-foreground italic tracking-tight">USDC</span>
-                    <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white p-1">
-                      <LogoIcon />
-                    </div>
-                  </div>
-                  <div className="h-16 w-full my-2">
-                    <svg viewBox="0 0 100 40" className="w-full h-full opacity-30">
-                      <path d="M0 35 Q 25 30, 50 20 T 100 5" fill="none" stroke="#16a34a" strokeWidth="2" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-xl font-black text-foreground italic tracking-tighter">5.73%</p>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase">APR Maks.</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="bg-card rounded-2xl p-4 border border-border flex justify-between items-center group active:scale-[0.98] transition-transform shadow-sm h-[84px]" onClick={() => router.push('/deposits')}>
-                    <div>
-                      <span className="text-xs font-black text-foreground italic">ETH</span>
-                      <p className="text-base font-black text-foreground italic tracking-tighter mt-1">195.81%</p>
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase">APR Maks.</p>
-                    </div>
-                    <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-white p-1">
-                      <LogoIcon />
-                    </div>
-                  </div>
-                  <div className="bg-card rounded-2xl p-4 border border-border flex justify-between items-center group active:scale-[0.98] transition-transform shadow-sm h-[84px]" onClick={() => router.push('/deposits')}>
-                    <div>
-                      <span className="text-xs font-black text-foreground italic">SOL</span>
-                      <p className="text-base font-black text-foreground italic tracking-tighter mt-1">93.7%</p>
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase">APR Maks.</p>
-                    </div>
-                    <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center text-white p-1.5">
-                      <LogoIcon className="text-cyan-400" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <h3 className="text-base font-black text-foreground italic uppercase">Pedagang Teratas yang Dapat Disalin</h3>
-                <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
-              </div>
-              <div className="space-y-6">
-                {[
-                  { id: 1, name: "你的那双眼还能看多远", badge: "Futures", roi: "+61.1%", color: "bg-muted" },
-                  { id: 2, name: "abccan", badge: "Futures", roi: "+59.42%", color: "bg-yellow-500/10" },
-                ].map((trader) => (
-                  <div key={trader.id} className="flex items-center justify-between group cursor-pointer active:bg-muted rounded-xl p-1 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shadow-sm", trader.color)}>
-                        <UserIcon className="w-6 h-6 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-foreground leading-tight italic uppercase">{trader.name}</p>
-                        <Badge className="bg-muted text-[8px] font-black h-4 px-1.5 mt-1 border-none uppercase">{trader.badge}</Badge>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-black text-green-500 italic tracking-tighter">{trader.roi}</p>
-                      <p className="text-[9px] font-bold text-muted-foreground/50 uppercase">ROI 7H</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
           </div>
         )}
 
-        {/* TAB: PASAR (Riil Data) */}
+        {/* TAB: PASAR */}
         {activeTab === "Pasar" && (
           <div className="animate-in slide-in-from-right-4 duration-500 space-y-6">
             <div className="flex items-center justify-between px-1">
@@ -281,7 +197,7 @@ export default function CryptoMarketPage() {
               {isLoading ? (
                 <div className="py-20 flex flex-col items-center justify-center gap-4 opacity-30">
                   <Loader2 className="w-8 h-8 animate-spin" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">Sinkronisasi Global...</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest">Sinkronisasi...</p>
                 </div>
               ) : marketData.map((coin) => (
                 <div 
@@ -302,7 +218,7 @@ export default function CryptoMarketPage() {
                     <p className="text-sm font-black italic tracking-tight text-foreground">
                       {coin.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: coin.price < 1 ? 4 : 2 })}
                     </p>
-                    <p className="text-[8px] font-bold text-muted-foreground uppercase">Markup Included</p>
+                    <p className="text-[8px] font-bold text-muted-foreground uppercase">Markup Incl.</p>
                   </div>
                   <div className="flex justify-end">
                     <div className={cn(
@@ -318,40 +234,7 @@ export default function CryptoMarketPage() {
           </div>
         )}
 
-        {/* TAB: FAVORIT */}
-        {activeTab === "Favorit" && (
-          <div className="animate-in zoom-in-95 duration-500 py-10 flex flex-col items-center justify-center text-center space-y-6">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-              <Star className="w-10 h-10 text-muted-foreground/20" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-lg font-black italic uppercase">Daftar Pantauan Anda</h3>
-              <p className="text-xs font-medium text-muted-foreground italic uppercase max-w-[200px] leading-relaxed">
-                Tandai koin favorit Anda untuk memantau pergerakan harga premium AliBank secara instan.
-              </p>
-            </div>
-            {marketData.length > 0 && (
-              <div className="w-full space-y-4 pt-6">
-                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-left px-1">Disarankan</p>
-                <div 
-                  className="p-5 rounded-2xl bg-card border border-border flex items-center justify-between cursor-pointer"
-                  onClick={() => router.push('/crypto/market/alx')}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full gold-gradient p-2 flex items-center justify-center shadow-lg"><LogoIcon className="text-white" /></div>
-                    <div className="text-left">
-                      <p className="text-sm font-black italic uppercase">Alix Coin (ALX)</p>
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase italic">Aset Utama AliBank</p>
-                    </div>
-                  </div>
-                  <Badge className="bg-primary/10 text-primary border-none font-black italic">PRO</Badge>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB: ALPHA (AI Insights) */}
+        {/* TAB: ALPHA */}
         {activeTab === "Alpha" && (
           <div className="animate-in fade-in duration-500 space-y-8">
             <header className="space-y-2">
@@ -360,7 +243,7 @@ export default function CryptoMarketPage() {
                 <h3 className="text-xl font-black italic uppercase tracking-tighter">Alpha Pulse</h3>
               </div>
               <p className="text-[10px] font-bold text-muted-foreground uppercase italic leading-relaxed">
-                Analisis kecerdasan buatan AliBank untuk menemukan koin dengan momentum pertumbuhan tertinggi.
+                Analisis AI AliBank untuk menemukan aset dengan momentum pertumbuhan tertinggi.
               </p>
             </header>
 
@@ -388,28 +271,101 @@ export default function CryptoMarketPage() {
           </div>
         )}
 
-        {/* TAB: DATA (Market Metrics) */}
+        {/* TAB: GROW */}
+        {activeTab === "Grow" && (
+          <div className="animate-in fade-in duration-500 space-y-8">
+            <div className="relative">
+              <Carousel setApi={setBannerApi} className="w-full">
+                <CarouselContent>
+                  <CarouselItem>
+                    <div className="bg-muted/50 rounded-2xl p-6 flex items-center justify-between min-h-[140px] relative overflow-hidden border border-border/50">
+                      <div className="space-y-3 max-w-[65%] relative z-10">
+                        <h2 className="text-sm font-black text-foreground leading-tight italic">
+                          Pinjam Koin untuk Berdagang guna Mendapatkan APY Tinggi
+                        </h2>
+                        <button className="text-[11px] font-black text-primary hover:underline uppercase italic">
+                          Tampilkan Selengkapnya
+                        </button>
+                      </div>
+                      <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
+                        <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl scale-125" />
+                        <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg relative z-10 border-2 border-background">
+                          <Zap className="w-6 h-6 text-primary-foreground" />
+                        </div>
+                      </div>
+                    </div>
+                  </CarouselItem>
+                </CarouselContent>
+              </Carousel>
+            </div>
+
+            <section className="space-y-4">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-base font-black text-foreground italic uppercase">Mulai Hasilkan</h3>
+                <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Card className="bg-card rounded-2xl p-5 border border-border flex flex-col justify-between relative overflow-hidden group active:scale-[0.98] transition-transform shadow-sm h-44 cursor-pointer" onClick={() => router.push('/deposits')}>
+                  <div className="flex justify-between items-start">
+                    <span className="text-sm font-black text-foreground italic tracking-tight">USDT</span>
+                    <div className="w-6 h-6 rounded-full bg-teal-600 flex items-center justify-center text-white p-1">
+                      <LogoIcon />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xl font-black text-foreground italic tracking-tighter">15.73%</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">APR Maks.</p>
+                  </div>
+                </Card>
+
+                <div className="space-y-3">
+                  <Card className="bg-card rounded-2xl p-4 border border-border flex justify-between items-center group active:scale-[0.98] transition-transform shadow-sm h-[84px] cursor-pointer" onClick={() => router.push('/deposits')}>
+                    <div>
+                      <span className="text-xs font-black text-foreground italic">ETH</span>
+                      <p className="text-base font-black text-foreground italic tracking-tighter mt-1">12.81%</p>
+                    </div>
+                    <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-white p-1">
+                      <LogoIcon />
+                    </div>
+                  </Card>
+                  <Card className="bg-card rounded-2xl p-4 border border-border flex justify-between items-center group active:scale-[0.98] transition-transform shadow-sm h-[84px] cursor-pointer" onClick={() => router.push('/deposits')}>
+                    <div>
+                      <span className="text-xs font-black text-foreground italic">SOL</span>
+                      <p className="text-base font-black text-foreground italic tracking-tighter mt-1">9.7%</p>
+                    </div>
+                    <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center text-white p-1.5">
+                      <LogoIcon className="text-cyan-400" />
+                    </div>
+                  </Card>
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* TAB: DATA */}
         {activeTab === "Data" && (
           <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-8">
             <section className="space-y-4">
               <h3 className="text-base font-black italic uppercase px-1">Statistik Pasar Global</h3>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-card rounded-2xl p-5 border border-border space-y-2 shadow-sm">
+                <Card className="bg-card rounded-2xl p-5 border border-border space-y-2 shadow-sm">
                   <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Market Cap</p>
-                  <p className="text-lg font-black italic text-foreground tracking-tighter">Rp42,640T</p>
+                  <p className="text-lg font-black italic text-foreground tracking-tighter">Rp42,6T</p>
                   <span className="text-[10px] font-bold text-green-500">+1.24%</span>
-                </div>
-                <div className="bg-card rounded-2xl p-5 border border-border space-y-2 shadow-sm">
+                </Card>
+                <Card className="bg-card rounded-2xl p-5 border border-border space-y-2 shadow-sm">
                   <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">24h Volume</p>
-                  <p className="text-lg font-black italic text-foreground tracking-tighter">Rp1,240T</p>
+                  <p className="text-lg font-black italic text-foreground tracking-tighter">Rp1,2T</p>
                   <span className="text-[10px] font-bold text-rose-500">-5.82%</span>
-                </div>
+                </Card>
               </div>
             </section>
 
             <section className="space-y-4">
               <h3 className="text-base font-black italic uppercase px-1">Dominasi Aset</h3>
-              <div className="space-y-4 p-6 rounded-[2rem] bg-card border border-border shadow-sm">
+              <Card className="space-y-4 p-6 rounded-[2rem] bg-card border border-border shadow-sm">
                 {[
                   { name: "BTC", value: 52.4, color: "bg-orange-500" },
                   { name: "ETH", value: 18.2, color: "bg-indigo-500" },
@@ -426,13 +382,13 @@ export default function CryptoMarketPage() {
                     </div>
                   </div>
                 ))}
-              </div>
+              </Card>
             </section>
           </div>
         )}
       </main>
 
-      {/* Floating Action Button - Quick Convert */}
+      {/* Floating Action Button */}
       <div className="fixed bottom-24 right-6 z-40">
         <button 
           onClick={() => router.push('/crypto/convert')}
