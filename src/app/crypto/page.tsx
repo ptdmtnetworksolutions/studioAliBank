@@ -66,9 +66,30 @@ export default function CryptoMarketPage() {
       if (!Array.isArray(data)) return;
 
       const formatted = data.map(res => {
-        const price = parseFloat(res.lastPrice) * MARKUP;
+        // Logika cerdas untuk mendapatkan simbol nama koin
+        let symbol = res.symbol;
+        if (symbol.endsWith("USDT")) {
+          symbol = symbol.replace("USDT", "");
+        } else if (symbol.endsWith("IDR")) {
+          symbol = symbol.replace("IDR", "");
+        }
+        
+        // Jika symbol kosong (kasus USDTIDR yang diproses), kembalikan ke USDT
+        if (symbol === "") symbol = "USDT";
+
+        let price = parseFloat(res.lastPrice);
+        
+        // Normalisasi: Jika ini adalah pasangan USDTIDR, harganya adalah IDR.
+        // Kita bagi dengan rate agar menjadi unit "USD" sehingga markup 2% dan 
+        // label sub-rupiah di UI (price * USDT_IDR_RATE) menjadi akurat.
+        if (res.symbol === "USDTIDR") {
+          price = price / USDT_IDR_RATE;
+        }
+        
+        price = price * MARKUP;
+
         return {
-          symbol: res.symbol.replace("USDT", "").replace("IDR", ""),
+          symbol: symbol,
           price: price,
           change: parseFloat(res.priceChangePercent) || 0,
           isUp: (parseFloat(res.priceChangePercent) || 0) >= 0,
@@ -86,7 +107,7 @@ export default function CryptoMarketPage() {
         isNative: true
       };
 
-      setMarketData([alxData, ...formatted.filter(c => c.symbol !== "USDTIDR")]);
+      setMarketData([alxData, ...formatted]);
     } catch (e) {
       console.error("Market Data Sync Error:", e);
     } finally {
@@ -101,7 +122,7 @@ export default function CryptoMarketPage() {
     return () => clearInterval(interval);
   }, [globalLiquidity]);
 
-  // LOGIKA TERMINAL TICKER (Consistency with Home Page)
+  // LOGIKA TERMINAL TICKER
   useEffect(() => {
     if (!mounted) return;
     const interval = setInterval(() => {
@@ -229,7 +250,7 @@ export default function CryptoMarketPage() {
             <div className="space-y-6">
               {isLoading ? (
                 <div className="py-20 flex flex-col items-center justify-center gap-4 opacity-30">
-                  <Loader2 className="w-8 h-8 animate-spin" />
+                  <Loader2 className="w-8 h-8 animate-spin text-primary/40" />
                   <p className="text-[10px] font-black uppercase tracking-widest">Sinkronisasi...</p>
                 </div>
               ) : marketData.map((coin) => (
