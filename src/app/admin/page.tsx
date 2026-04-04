@@ -45,12 +45,14 @@ import { VaultControlView } from "./components/VaultControlView";
 import { TokenomicsView } from "./components/TokenomicsView";
 import { ApiManagementView } from "./components/ApiManagementView";
 import { InventoryView } from "./components/InventoryView";
-import { AuditLogsView } from "./audit-logs/AuditLogsView"; // Assuming logical path or using correct one below
 
 import { useAlixCoin } from '@/hooks/useAlixCoin';
 import { AuditLogsView as AuditLogsMod } from "./components/AuditLogsView";
 
-const ALX_CONTRACT = process.env.NEXT_PUBLIC_ALX_ADDRESS || "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd"; 
+// KONFIGURASI DUA JARINGAN BERBEDA
+const ALX_CONTRACT = process.env.NEXT_PUBLIC_ALX_ADDRESS || "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd"; // Polygon
+const VAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; // ETH Mainnet (AliBankVault)
+
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
 
@@ -62,7 +64,7 @@ function AdminContent() {
   const searchParams = useSearchParams();
   const { theme, setTheme } = useTheme();
   
-  // Blockchain Data Hook (Polygon)
+  // Blockchain Data Hook (Polygon - ALX)
   const {
     totalSupply,
     maxSupply,
@@ -109,15 +111,21 @@ function AdminContent() {
     return hours;
   }, [auditLogs]);
 
-  const syncOnChainData = useCallback(async (manual = false) => {
+  // Sync Data dari Brankas ETH Mainnet
+  const syncOnChainData = useCallback(async () => {
     if (!isAuthorized) return;
     setSyncingVault(true);
     try {
-      const rpc = "https://ethereum-rpc.publicnode.com";
-      const provider = new JsonRpcProvider(rpc);
-      const vaultBalance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
+      const ethRpc = "https://ethereum-rpc.publicnode.com";
+      const provider = new JsonRpcProvider(ethRpc);
+      // Ambil saldo ETH langsung dari alamat kontrak AliBankVault
+      const vaultBalance = await provider.getBalance(VAULT_CONTRACT).catch(() => 0n);
       setOnChainEth(formatEther(vaultBalance));
-    } catch (err) {} finally { setSyncingVault(false); }
+    } catch (err) {
+      console.error("Vault sync failed:", err);
+    } finally {
+      setSyncingVault(false);
+    }
   }, [isAuthorized]);
 
   useEffect(() => {
@@ -196,7 +204,13 @@ function AdminContent() {
             />
           )}
           {activeTab === 'users' && <ClientsView allUsers={allUsers} />}
-          {activeTab === 'vault' && <VaultControlView onChainEth={onChainEth} ALX_CONTRACT={ALX_CONTRACT} auditLogs={auditLogs} />}
+          {activeTab === 'vault' && (
+            <VaultControlView 
+              onChainEth={onChainEth} 
+              VAULT_CONTRACT={VAULT_CONTRACT} 
+              auditLogs={auditLogs} 
+            />
+          )}
           {activeTab === 'tokenomics' && (
             <TokenomicsView 
               totalSupply={totalSupply}

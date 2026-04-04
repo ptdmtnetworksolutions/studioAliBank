@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { executeVaultWithdrawalAction } from "@/app/actions/vault-actions";
 import { useUser } from "@/firebase";
 
-export function VaultControlView({ onChainEth, ALX_CONTRACT, auditLogs }: any) {
+export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any) {
   const { user } = useUser();
   const { toast } = useToast();
   const [recipient, setRecipient] = useState("");
@@ -48,24 +48,24 @@ export function VaultControlView({ onChainEth, ALX_CONTRACT, auditLogs }: any) {
           <h2 className="text-3xl font-black italic uppercase tracking-tighter">Vault Control</h2>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Pusat Kliring Node & Brankas ETH Mainnet</p>
         </div>
-        <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg">SECURE NODE ACTIVE</Badge>
+        <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg">ETH NODE ACTIVE</Badge>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <Card className="lg:col-span-4 border-none bg-[#1A1D1F] rounded-[3rem] p-10 text-white space-y-10 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-5"><Wallet className="w-48 h-48" /></div>
           <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Mainnet Net Balance</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Vault Net Balance</p>
             <h3 className="text-5xl font-black italic tracking-tighter text-blue-400">{parseFloat(onChainEth).toFixed(6)} <span className="text-xl text-white/30">ETH</span></h3>
           </div>
           <div className="space-y-4">
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-              <p className="text-[8px] font-black uppercase text-white/40 mb-1">Contract Node</p>
-              <p className="text-[9px] font-mono font-bold break-all opacity-60">{ALX_CONTRACT}</p>
+              <p className="text-[8px] font-black uppercase text-white/40 mb-1">Vault Node Address</p>
+              <p className="text-[9px] font-mono font-bold break-all opacity-60">{VAULT_CONTRACT}</p>
             </div>
             <div className="flex items-center gap-3 text-green-500">
               <ShieldCheck className="w-5 h-5" />
-              <span className="text-[10px] font-black uppercase tracking-widest">Encrypted & Verified</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">Audited by V3 Protocol</span>
             </div>
           </div>
         </Card>
