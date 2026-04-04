@@ -18,7 +18,8 @@ import {
   Lock,
   Zap,
   Globe,
-  Database
+  Database,
+  AlertTriangle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { executeVaultWithdrawalAction } from "@/app/actions/vault-actions";
@@ -60,7 +61,7 @@ export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any)
         <Card className="lg:col-span-4 border-none bg-[#1A1D1F] rounded-[3rem] p-10 text-white space-y-10 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-5"><Wallet className="w-48 h-48" /></div>
           <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Vault Net Balance</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Vault Net Balance (Native)</p>
             <h3 className="text-5xl font-black italic tracking-tighter text-blue-400">{parseFloat(onChainEth).toFixed(6)} <span className="text-xl text-white/30">ETH</span></h3>
           </div>
           <div className="space-y-4">
@@ -77,9 +78,12 @@ export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any)
 
         {/* Withdrawal Terminal */}
         <Card className="lg:col-span-8 border-none bg-card rounded-[3rem] p-10 space-y-8 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><ArrowUpFromLine className="w-6 h-6" /></div>
-            <h4 className="text-xl font-black italic uppercase tracking-tight">Manual Disbursement Terminal</h4>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><ArrowUpFromLine className="w-6 h-6" /></div>
+              <h4 className="text-xl font-black italic uppercase tracking-tight">Manual Disbursement Terminal</h4>
+            </div>
+            <Badge variant="outline" className="text-[8px] font-black text-blue-500 border-blue-500/20 uppercase">ETH ONLY</Badge>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -142,9 +146,9 @@ export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any)
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
               <Zap className="w-6 h-6" />
             </div>
-            <h5 className="font-black uppercase italic text-sm">Infrastruktur Yield</h5>
+            <h5 className="font-black uppercase italic text-sm">Aset Yang Didukung</h5>
             <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
-              Brankas ini dirancang sebagai fondasi sistem <span className="text-accent font-bold">Staking & Rewards</span>. Dana yang tersimpan secara on-chain memberikan jaminan likuiditas bagi nasabah yang mengunci aset mereka di fitur deposito AliBank.
+              Kontrak ini dirancang khusus untuk menyimpan <span className="text-blue-500 font-bold">Native ETH</span>. Tidak mendukung token ERC-20 (USDT/ALX). Hal ini memastikan brankas memiliki likuiditas murni yang paling likuid di jaringan Ethereum.
             </p>
           </Card>
 
@@ -165,7 +169,7 @@ export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any)
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
             <li className="flex items-start gap-3">
               <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Immutability:</span> Semua transaksi terekam selamanya di Ledger Ethereum dan tidak dapat dimanipulasi.</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Native ETH Integration:</span> Menerima setoran langsung dari bursa atau dompet mana pun dalam bentuk Ether.</p>
             </li>
             <li className="flex items-start gap-3">
               <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
@@ -180,6 +184,13 @@ export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any)
               <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Disbursement Engine:</span> Mendukung pengiriman dana massal dari satu titik aman tanpa risiko kebocoran kunci privat ke sisi klien.</p>
             </li>
           </ul>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-rose-500/5 border border-rose-500/10 flex gap-4">
+          <AlertTriangle className="w-6 h-6 text-rose-500 shrink-0" />
+          <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+            <span className="text-rose-600 font-black">Peringatan:</span> Kontrak ini tidak memiliki logika pemindahan token ERC-20. Jangan mengirim ALX, USDT, atau token lainnya ke alamat ini atau aset tersebut tidak akan bisa ditarik kembali.
+          </p>
         </div>
       </section>
 
