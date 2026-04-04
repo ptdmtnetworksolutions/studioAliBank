@@ -19,7 +19,9 @@ import {
   Zap,
   Globe,
   Database,
-  AlertTriangle
+  AlertTriangle,
+  ExternalLink,
+  ArrowDownToLine
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { executeVaultWithdrawalAction } from "@/app/actions/vault-actions";
@@ -67,7 +69,10 @@ export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any)
           <div className="space-y-4">
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
               <p className="text-[8px] font-black uppercase text-white/40 mb-1">Vault Node Address</p>
-              <p className="text-[9px] font-mono font-bold break-all opacity-60">{VAULT_CONTRACT}</p>
+              <div className="flex items-center justify-between">
+                <p className="text-[9px] font-mono font-bold break-all opacity-60">{VAULT_CONTRACT}</p>
+                <ExternalLink className="w-3 h-3 text-primary shrink-0 ml-2" />
+              </div>
             </div>
             <div className="flex items-center gap-3 text-green-500">
               <ShieldCheck className="w-5 h-5" />
@@ -88,7 +93,7 @@ export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any)
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Recipient Address</label>
+              <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Recipient Address (MetaMask/CEX)</label>
               <Input 
                 placeholder="0x..." 
                 value={recipient} 
@@ -111,7 +116,7 @@ export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any)
           <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
             <Info className="w-6 h-6 text-blue-500 shrink-0" />
             <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-              Operasi ini bersifat permanen dan dieksekusi melalui Secure Node di server. Kunci privat dilindungi oleh Google Secret Manager.
+              Dana dapat dikirim ke dompet eksternal mana pun. Penarikan bersifat permanen dan dieksekusi melalui Secure Node di server.
             </p>
           </div>
 
@@ -128,17 +133,17 @@ export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any)
       {/* DETAIL FUNGSI & KEUNGGULAN BRANKAS */}
       <section className="space-y-6 pt-10">
         <h3 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-3">
-          <Database className="w-6 h-6 text-primary" /> Arsitektur & Filosofi Brankas V3
+          <Database className="w-6 h-6 text-primary" /> Arsitektur & Mekanisme Penarikan
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-4 group hover:border-primary/30 transition-all">
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-              <Lock className="w-6 h-6" />
+              <ArrowDownToLine className="w-6 h-6" />
             </div>
-            <h5 className="font-black uppercase italic text-sm">Keamanan Multi-Layer</h5>
+            <h5 className="font-black uppercase italic text-sm">Mekanisme Penarikan</h5>
             <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
-              Menggunakan modifier <span className="text-accent font-bold">nonReentrant</span> untuk mencegah eksploitasi serangan penarikan ganda. Seluruh logika transaksi mengikuti pola <span className="text-accent font-bold">Checks-Effects-Interactions</span> standar industri global.
+              ETH dapat ditarik kembali ke dompet eksternal (MetaMask) kapan pun. Kontrak memvalidasi <span className="text-accent font-bold">msg.sender</span> untuk memastikan hanya pemilik saldo yang sah yang bisa melakukan penarikan.
             </p>
           </Card>
 
@@ -148,40 +153,40 @@ export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any)
             </div>
             <h5 className="font-black uppercase italic text-sm">Aset Yang Didukung</h5>
             <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
-              Kontrak ini dirancang khusus untuk menyimpan <span className="text-blue-500 font-bold">Native ETH</span>. Tidak mendukung token ERC-20 (USDT/ALX). Hal ini memastikan brankas memiliki likuiditas murni yang paling likuid di jaringan Ethereum.
+              Hanya <span className="text-blue-500 font-bold">Native ETH</span> yang dapat disetor dan ditarik. Token ERC-20 (seperti ALX/USDT) tidak didukung dan jangan dikirim ke sini karena tidak akan bisa ditarik kembali.
             </p>
           </Card>
 
           <Card className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-4 group hover:border-primary/30 transition-all">
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-              <Globe className="w-6 h-6" />
+              <Lock className="w-6 h-6" />
             </div>
-            <h5 className="font-black uppercase italic text-sm">Kliring On-Chain</h5>
+            <h5 className="font-black uppercase italic text-sm">Keamanan Multi-Layer</h5>
             <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
-              Berfungsi sebagai pusat penyelesaian (<span className="text-accent font-bold">Settlement Hub</span>) untuk seluruh operasional perbankan hibrida. Memastikan dana riil tersedia di ETH Mainnet untuk mendukung kepercayaan institusional.
+              Setiap transaksi dilindungi oleh modifier <span className="text-accent font-bold">nonReentrant</span>. Ini mencegah peretas menarik dana berkali-kali dalam satu blok transaksi yang sama.
             </p>
           </Card>
         </div>
 
         <div className="p-10 rounded-[3rem] bg-accent/5 border border-primary/10 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-5"><ShieldCheck className="w-32 h-32 text-primary" /></div>
-          <h4 className="text-lg font-black uppercase italic mb-4">Kelebihan AliBankVault V3:</h4>
+          <h4 className="text-lg font-black uppercase italic mb-4">Kelebihan Brankas AliBank:</h4>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
             <li className="flex items-start gap-3">
               <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Native ETH Integration:</span> Menerima setoran langsung dari bursa atau dompet mana pun dalam bentuk Ether.</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Individual Accounting:</span> Saldo setiap nasabah dicatat secara terpisah di blockchain (mapping), memberikan keamanan absolut bagi setiap penyetor.</p>
             </li>
             <li className="flex items-start gap-3">
               <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Full Transparency:</span> Publik dapat memverifikasi saldo riil brankas melalui Etherscan secara real-time.</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Full Portability:</span> ETH di brankas bersifat liquid. Anda bisa memindahkannya ke bursa global atau MetaMask dalam hitungan detik setelah transaksi dikonfirmasi.</p>
             </li>
             <li className="flex items-start gap-3">
               <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Owner Access:</span> Kontrol penuh berada di tangan Super Admin untuk memindahkan kepemilikan jika terjadi peningkatan infrastruktur.</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Immutable Rules:</span> Aturan penarikan sudah tertanam permanen di smart contract, menjamin tidak ada campur tangan manusia dalam proses pencairan dana.</p>
             </li>
             <li className="flex items-start gap-3">
               <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Disbursement Engine:</span> Mendukung pengiriman dana massal dari satu titik aman tanpa risiko kebocoran kunci privat ke sisi klien.</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Transparency:</span> Seluruh arus dana keluar (Withdraw) dapat dipantau oleh publik di Etherscan secara terbuka.</p>
             </li>
           </ul>
         </div>
@@ -189,7 +194,7 @@ export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any)
         <div className="p-6 rounded-2xl bg-rose-500/5 border border-rose-500/10 flex gap-4">
           <AlertTriangle className="w-6 h-6 text-rose-500 shrink-0" />
           <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-            <span className="text-rose-600 font-black">Peringatan:</span> Kontrak ini tidak memiliki logika pemindahan token ERC-20. Jangan mengirim ALX, USDT, atau token lainnya ke alamat ini atau aset tersebut tidak akan bisa ditarik kembali.
+            <span className="text-rose-600 font-black">Peringatan:</span> Kontrak ini tidak memiliki fungsi penarikan untuk token ERC-20. Hanya dana dalam bentuk ETH yang dapat ditarik kembali ke MetaMask Anda.
           </p>
         </div>
       </section>
