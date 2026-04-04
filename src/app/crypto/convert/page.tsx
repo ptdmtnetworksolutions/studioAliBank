@@ -17,18 +17,16 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { LogoIcon } from "@/components/ui/logo";
-import { 
-  LineChart, 
-  Line, 
-  ResponsiveContainer,
-  YAxis
-} from "recharts";
 import { cn } from "@/lib/utils";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+
+const MARKUP = 1.02; // ALIBANK 2% PROFIT MARGIN
+const USDT_IDR_RATE = 15850;
 
 export default function ConvertPage() {
   const router = useRouter();
@@ -43,33 +41,36 @@ export default function ConvertPage() {
   const [direction, setDirection] = useState<'FROM_ALX' | 'TO_ALX'>('TO_ALX');
   const [counterCurrency, setCounterCurrency] = useState<'USDT' | 'IDR'>('IDR');
   
-  // LOGIKA HARGA DINAMIS ALX BERBASIS DATABASE
   const [liveAlxPriceUsdt, setLiveAlxPriceUsdt] = useState(12.24);
-  const USDT_IDR_RATE = 15850;
 
   const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
   useEffect(() => {
     setMounted(true);
-    // Jika ada harga referensi di sistem, gunakan itu sebagai basis
     if (globalLiquidity?.lastAlxPriceUsdt) {
       setLiveAlxPriceUsdt(globalLiquidity.lastAlxPriceUsdt);
     }
   }, [globalLiquidity]);
 
   const currentPriceIdr = useMemo(() => liveAlxPriceUsdt * USDT_IDR_RATE, [liveAlxPriceUsdt]);
-  const currentRate = counterCurrency === 'USDT' ? liveAlxPriceUsdt : currentPriceIdr;
+  
+  // LOGIKA MARKUP: Hanya diterapkan jika berinteraksi dengan aset eksternal (USDT/IDR)
+  // Saat nasabah MEMBELI ALX mengunakan USDT/IDR, AliBank menerapkan markup pada harga jualnya.
+  const currentRateWithMarkup = useMemo(() => {
+    const baseRate = counterCurrency === 'USDT' ? liveAlxPriceUsdt : currentPriceIdr;
+    return direction === 'TO_ALX' ? baseRate * MARKUP : baseRate;
+  }, [counterCurrency, liveAlxPriceUsdt, currentPriceIdr, direction]);
 
   const convertedValue = useMemo(() => {
     const num = parseFloat(amount);
     if (isNaN(num) || num <= 0) return "0.00";
     if (direction === 'FROM_ALX') {
-      return (num * currentRate).toFixed(counterCurrency === 'USDT' ? 2 : 0);
+      return (num * (counterCurrency === 'USDT' ? liveAlxPriceUsdt : currentPriceIdr)).toFixed(counterCurrency === 'USDT' ? 2 : 0);
     } else {
-      return (num / currentRate).toFixed(8);
+      return (num / currentRateWithMarkup).toFixed(8);
     }
-  }, [amount, direction, currentRate, counterCurrency]);
+  }, [amount, direction, currentRateWithMarkup, counterCurrency, liveAlxPriceUsdt, currentPriceIdr]);
 
   const handleConvert = async () => {
     if (!user || !db || !userData) return;
@@ -77,7 +78,6 @@ export default function ConvertPage() {
     
     if (isNaN(numAmount) || numAmount <= 0) return;
 
-    // Cek Saldo Berdasarkan Mata Uang Asal
     let hasBalance = false;
     if (direction === 'FROM_ALX') {
       hasBalance = (userData.cryptoBalances?.ALX || 0) >= numAmount;
@@ -93,7 +93,7 @@ export default function ConvertPage() {
       toast({ 
         variant: "destructive", 
         title: "Saldo Tidak Cukup", 
-        description: `Anda membutuhkan saldo ${direction === 'FROM_ALX' ? 'ALX' : counterCurrency} yang lebih besar untuk transaksi ini.` 
+        description: `Anda membutuhkan saldo ${direction === 'FROM_ALX' ? 'ALX' : counterCurrency} yang lebih besar.` 
       });
       return;
     }
@@ -104,56 +104,34 @@ export default function ConvertPage() {
       const userDocRef = doc(db, "users", user.uid);
       const tradeTime = new Date().toISOString();
 
-      // Hitung dampak harga (slippage simulasi riil)
-      // Semakin banyak ALX dibeli, harga naik sedikit.
-      const priceImpact = (numAmount / 1000000); 
-      const newPriceUsdt = direction === 'TO_ALX' ? liveAlxPriceUsdt + priceImpact : liveAlxPriceUsdt - priceImpact;
-
       if (direction === 'FROM_ALX') {
         const updates: any = { "cryptoBalances.ALX": increment(-numAmount) };
-        if (counterCurrency === 'USDT') {
-          updates["cryptoBalances.USDT"] = increment(resultNum);
-        } else {
-          updates["totalBalance"] = increment(resultNum);
-        }
+        if (counterCurrency === 'USDT') updates["cryptoBalances.USDT"] = increment(resultNum);
+        else updates["totalBalance"] = increment(resultNum);
         await updateDoc(userDocRef, updates);
       } else {
         const updates: any = { "cryptoBalances.ALX": increment(resultNum) };
-        if (counterCurrency === 'USDT') {
-          updates["cryptoBalances.USDT"] = increment(-numAmount);
-        } else {
-          updates["totalBalance"] = increment(-numAmount);
-        }
+        if (counterCurrency === 'USDT') updates["cryptoBalances.USDT"] = increment(-numAmount);
+        else updates["totalBalance"] = increment(-numAmount);
         await updateDoc(userDocRef, updates);
       }
 
-      // 1. Catat ke Transaksi User
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: tradeTime,
-        description: direction === 'FROM_ALX' ? `Jual ALX ke ${counterCurrency}` : `Beli ALX dengan ${counterCurrency}`,
+        description: direction === 'FROM_ALX' ? `Jual ALX ke ${counterCurrency}` : `Beli ALX dengan ${counterCurrency} (Premium)`,
         category: "Ali-Exchange",
         fromAmount: numAmount,
         fromCurrency: direction === 'FROM_ALX' ? "ALX" : counterCurrency,
         toAmount: resultNum,
         toCurrency: direction === 'FROM_ALX' ? counterCurrency : "ALX",
-        executionPrice: liveAlxPriceUsdt,
+        executionPrice: currentRateWithMarkup,
         type: direction === 'TO_ALX' ? 'expense' : 'income',
         status: "success",
         timestamp: serverTimestamp()
       });
 
-      // 2. CATAT KE MARKET DATA RIIL (Inilah yang membuat grafik bergerak nyata)
-      await addDoc(collection(db, "market", "ALX_USDT", "trades"), {
-        price: liveAlxPriceUsdt,
-        amount: direction === 'TO_ALX' ? resultNum : numAmount,
-        side: direction === 'TO_ALX' ? 'buy' : 'sell',
-        timestamp: serverTimestamp()
-      });
-
-      // 3. Update Likuiditas & Harga Global
       const systemRef = doc(db, "system", "liquidity");
       const liquidityUpdates: any = {
-        lastAlxPriceUsdt: newPriceUsdt,
         totalAlixTrades: increment(1)
       };
       
@@ -184,10 +162,10 @@ export default function ConvertPage() {
         <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-4">
           <CheckCircle2 className="w-10 h-10 text-green-600" />
         </div>
-        <h2 className="text-xl font-black italic uppercase tracking-tight text-foreground mb-1">Transaksi Berhasil</h2>
-        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-6 italic">Verified by AliBank Settlement Node</p>
+        <h2 className="text-xl font-black italic uppercase tracking-tight text-foreground mb-1">Konversi Berhasil</h2>
+        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-6 italic">Ali-Secure Settlement Node V3</p>
         
-        <div className="w-full bg-muted/50 rounded-[2rem] p-6 mb-8 space-y-4 shadow-inner">
+        <div className="w-full bg-muted/50 rounded-[2rem] p-6 mb-8 space-y-4 shadow-inner border border-border/50">
           <div>
             <p className="text-[9px] font-black uppercase text-muted-foreground mb-1">Total Diterima</p>
             <p className="text-3xl font-black italic text-foreground">
@@ -196,8 +174,8 @@ export default function ConvertPage() {
           </div>
           <div className="h-px bg-border" />
           <div className="flex justify-between items-center text-[9px] font-bold uppercase text-muted-foreground">
-            <span>Harga Eksekusi</span>
-            <span>1 ALX = {counterCurrency === 'USDT' ? `${liveAlxPriceUsdt.toFixed(4)} USDT` : `Rp${currentPriceIdr.toLocaleString()}`}</span>
+            <span>Kurs Eksekusi Premium</span>
+            <span>1 ALX = {counterCurrency === 'USDT' ? `${currentRateWithMarkup.toFixed(4)} USDT` : `Rp${currentRateWithMarkup.toLocaleString()}`}</span>
           </div>
         </div>
 
@@ -215,33 +193,36 @@ export default function ConvertPage() {
     <div className="min-h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
       <header className="px-4 h-12 flex items-center justify-between sticky top-0 bg-background z-50">
         <button onClick={() => router.back()} className="p-1 hover:bg-muted rounded-full transition-colors"><ArrowLeft className="w-5 h-5" /></button>
-        <h1 className="text-base font-black tracking-tight italic uppercase">Ali-Exchange Terminal</h1>
+        <h1 className="text-base font-black tracking-tight italic uppercase">Ali-Convert Node</h1>
         <div className="flex gap-2">
           <History onClick={() => router.push('/transactions')} className="w-4 h-4 text-muted-foreground cursor-pointer" />
         </div>
       </header>
 
       <main className="flex-1 px-4 pt-1 space-y-3 overflow-hidden">
-        <div className="bg-primary/10 border border-primary/20 rounded-xl p-2.5 flex items-center gap-3">
-          <Sparkles className="w-4 h-4 text-primary shrink-0" />
-          <p className="text-[9px] font-bold text-foreground leading-tight uppercase italic">Beli ALX di fase internal untuk mendapatkan harga dasar $12.24 sebelum Listing Global.</p>
+        <div className="bg-primary/10 border border-primary/20 rounded-xl p-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Sparkles className="w-4 h-4 text-primary shrink-0" />
+            <p className="text-[9px] font-bold text-foreground leading-tight uppercase italic">Konversi instan dengan proteksi harga AliBank.</p>
+          </div>
+          <Badge className="bg-primary text-primary-foreground text-[7px] font-black italic border-none h-4">MARKUP +2%</Badge>
         </div>
 
         <div className="flex items-center justify-between px-1">
           <div className="flex flex-col">
-            <p className="text-[11px] font-black text-foreground italic flex items-center gap-2">
-              Harga Pasar ALX: 
-              <span className={cn("transition-colors duration-500", liveAlxPriceUsdt >= 12.24 ? "text-green-500" : "text-rose-500")}>
-                {counterCurrency === 'USDT' ? `$${liveAlxPriceUsdt.toFixed(4)}` : `Rp${currentPriceIdr.toLocaleString()}`}
+            <p className="text-[11px] font-black text-foreground italic">
+              Harga Pasar: 
+              <span className="text-green-500 ml-1">
+                {counterCurrency === 'USDT' ? `$${currentRateWithMarkup.toFixed(4)}` : `Rp${currentRateWithMarkup.toLocaleString()}`}
               </span>
             </p>
-            <span className="text-[7px] font-bold text-muted-foreground uppercase tracking-widest">Anchor Price: $12.24</span>
+            <span className="text-[7px] font-bold text-muted-foreground uppercase tracking-widest italic">Termasuk Biaya Jaringan & Margin Bank</span>
           </div>
           <div 
             className="flex items-center gap-1 text-[10px] font-black bg-muted/50 px-3 py-1.5 rounded-full border border-border cursor-pointer active:scale-95 transition-all"
             onClick={() => setCounterCurrency(counterCurrency === 'USDT' ? 'IDR' : 'USDT')}
           >
-            Bayar dengan {counterCurrency === 'USDT' ? 'IDR' : 'USDT'} <ChevronDown className="w-3 h-3" />
+            {counterCurrency} <ChevronDown className="w-3 h-3" />
           </div>
         </div>
 
@@ -289,7 +270,7 @@ export default function ConvertPage() {
         <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3 mt-4">
           <Info className="w-5 h-5 text-blue-500 shrink-0" />
           <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">
-            Hasil penjualan ALX dikumpulkan untuk pembentukan pool likuiditas (USDT) yang akan dikunci pada Smart Contract AliBank di Uniswap V3 Mainnet.
+            Harga konversi yang ditampilkan mencakup perlindungan volatilitas pasar dan margin operasional AliBank sebesar 2%.
           </p>
         </div>
       </main>
@@ -300,7 +281,7 @@ export default function ConvertPage() {
           onClick={handleConvert} 
           className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-[1.5rem] shadow-xl text-sm tracking-[0.2em]"
         >
-          {isProcessing ? <Loader2 className="animate-spin w-6 h-6" /> : (direction === 'TO_ALX' ? 'EKSEKUSI PEMBELIAN ALX' : 'KONFIRMASI PENJUALAN')}
+          {isProcessing ? <Loader2 className="animate-spin w-6 h-6" /> : (direction === 'TO_ALX' ? 'EKSEKUSI KONVERSI PREMIUM' : 'KONFIRMASI PENJUALAN')}
         </Button>
       </div>
     </div>
