@@ -19,7 +19,9 @@ import {
   Trophy,
   User as UserIcon,
   ArrowUpDown,
-  TrendingDown
+  TrendingDown,
+  ShieldCheck,
+  Coins
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +35,7 @@ import {
   CarouselItem,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 
 const MARKUP = 1.02; // 2% AliBank Profit Margin
@@ -66,9 +68,9 @@ export default function CryptoMarketPage() {
         return {
           symbol: res.symbol.replace("USDT", "").replace("IDR", ""),
           price: price,
-          change: parseFloat(res.priceChangePercent),
-          isUp: parseFloat(res.priceChangePercent) >= 0,
-          volume: parseFloat(res.quoteVolume)
+          change: parseFloat(res.priceChangePercent) || 0,
+          isUp: (parseFloat(res.priceChangePercent) || 0) >= 0,
+          volume: parseFloat(res.quoteVolume) || 0
         };
       });
 
@@ -225,7 +227,7 @@ export default function CryptoMarketPage() {
                       "w-20 py-1.5 rounded-lg flex items-center justify-center text-[11px] font-black italic shadow-sm transition-colors",
                       coin.isUp ? "bg-green-500 text-white" : "bg-rose-500 text-white"
                     )}>
-                      {coin.change >= 0 ? '+' : ''}{coin.change.toFixed(2)}%
+                      {coin.change >= 0 ? '+' : ''}{(coin.change ?? 0).toFixed(2)}%
                     </div>
                   </div>
                 </div>
@@ -274,6 +276,58 @@ export default function CryptoMarketPage() {
         {/* TAB: GROW */}
         {activeTab === "Grow" && (
           <div className="animate-in fade-in duration-500 space-y-8">
+            {/* ALX PRIORITY CARD */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-base font-black text-foreground italic uppercase flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-primary" /> Prioritas Pertumbuhan ALX
+                </h3>
+                <Badge className="bg-primary/20 text-primary border-none text-[8px] font-black uppercase px-2 h-5">V3 Exclusive</Badge>
+              </div>
+
+              <Card className="gold-gradient border-none rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-primary/20 group cursor-pointer active:scale-[0.98] transition-all" onClick={() => router.push('/deposits')}>
+                <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/money/800/800')] opacity-[0.05] mix-blend-overlay" />
+                <div className="absolute -right-10 -bottom-10 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                  <LogoIcon className="w-64 h-64" />
+                </div>
+                
+                <div className="relative z-10 space-y-6">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-80">Sovereign Asset</p>
+                      <h4 className="text-2xl font-black italic uppercase tracking-tighter leading-none">ALX Sovereign Staking</h4>
+                    </div>
+                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/30">
+                      <Coins className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+
+                  <div className="flex items-end gap-2">
+                    <span className="text-5xl font-black italic tracking-tighter">24.8%</span>
+                    <div className="pb-1.5">
+                      <p className="text-[10px] font-bold uppercase tracking-widest leading-none">APY Maksimum</p>
+                      <p className="text-[8px] font-black text-white/60 uppercase">Reward Dibayar dalam ALX</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-white/60" />
+                      <span className="text-[9px] font-black uppercase italic">Buyback Protection</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-white/60" />
+                      <span className="text-[9px] font-black uppercase italic">Compounding Daily</span>
+                    </div>
+                  </div>
+
+                  <Button className="w-full bg-white text-primary hover:bg-white/90 h-12 rounded-xl font-black uppercase italic text-xs tracking-widest shadow-xl">
+                    Mulai Hasilkan Sekarang
+                  </Button>
+                </div>
+              </Card>
+            </section>
+
             <div className="relative">
               <Carousel setApi={setBannerApi} className="w-full">
                 <CarouselContent>
@@ -301,7 +355,7 @@ export default function CryptoMarketPage() {
 
             <section className="space-y-4">
               <div className="flex items-center justify-between px-1">
-                <h3 className="text-base font-black text-foreground italic uppercase">Mulai Hasilkan</h3>
+                <h3 className="text-base font-black text-foreground italic uppercase">Aset Lainnya</h3>
                 <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
               </div>
 
