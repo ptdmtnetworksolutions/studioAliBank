@@ -47,6 +47,8 @@ import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import Script from "next/script";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 declare global {
   interface Window {
@@ -118,7 +120,6 @@ export default function CryptoBuyPage() {
     return (num / exchangeRate).toFixed(2);
   }, [amount]);
 
-  // MOUNT REAL PAYPAL/GPAY BUTTONS
   useEffect(() => {
     if (isCheckoutDialogOpen && paypalReady && window.paypal && paypalContainerRef.current) {
       paypalContainerRef.current.innerHTML = "";
@@ -152,76 +153,89 @@ export default function CryptoBuyPage() {
   const finalizePurchase = async (paymentDetails: any) => {
     if (!user || !db || !userDocRef || !userData) return;
     
-    try {
-      const numReceive = parseFloat(estimatedReceive);
-      const numPay = parseFloat(amount.replace(',', '.'));
+    const numReceive = parseFloat(estimatedReceive);
+    const numPay = parseFloat(amount.replace(',', '.'));
+    const usdValNum = parseFloat(usdValue);
 
-      // 1. Update Saldo Kripto Nasabah secara Riil
-      await updateDoc(userDocRef, {
-        [`cryptoBalances.${selectedAsset.symbol}`]: increment(numReceive)
-      });
+    // 1. Update Saldo Kripto Nasabah secara Riil
+    updateDoc(userDocRef, {
+      [`cryptoBalances.${selectedAsset.symbol}`]: increment(numReceive)
+    }).catch(async (serverError) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: userDocRef.path, operation: 'update', requestResourceData: { [`cryptoBalances.${selectedAsset.symbol}`]: increment(numReceive) }
+      }));
+    });
 
-      // 2. Update Likuiditas Sistem & Inventaris Bank
-      const sysRef = doc(db, "system", "liquidity");
-      const sysUpdates: any = {
-        totalFiatInjected: increment(numPay),
-        totalUsdInjected: increment(parseFloat(usdValue))
-      };
+    // 2. Update Likuiditas Sistem & Inventaris Bank
+    const sysRef = doc(db, "system", "liquidity");
+    const sysUpdates: any = {
+      totalFiatInjected: increment(numPay),
+      totalUsdInjected: increment(usdValNum)
+    };
 
-      // Jika koin ALX dibeli, kurangi inventaris internal bank
-      if (selectedAsset.symbol === 'ALX') {
-        sysUpdates.alixVaultBalance = increment(-numReceive);
-        sysUpdates.totalAlixSoldInternally = increment(numReceive);
-      }
-
-      await updateDoc(sysRef, sysUpdates);
-
-      // 3. Catat Transaksi Audit Global (Untuk Super Admin Monitoring)
-      const globalAuditRef = collection(db, "system", "audit", "global_transactions");
-      await addDoc(globalAuditRef, {
-        id: `CRYPTO-BUY-${paymentDetails.id}`,
-        category: "External Settlement",
-        gateway: "PayPal/Google Pay",
-        amountIdr: numPay,
-        amountUsd: parseFloat(usdValue),
-        cryptoAmount: numReceive,
-        cryptoCurrency: selectedAsset.symbol,
-        description: `User ${userData.name} purchased ${numReceive} ${selectedAsset.symbol} via Ali-Secure Gateway.`,
-        status: "success",
-        timestamp: serverTimestamp(),
-        userEmail: user.email
-      });
-
-      // 4. Catat Transaksi Riwayat Nasabah
-      await addDoc(collection(db, "users", user.uid, "transactions"), {
-        date: new Date().toISOString(),
-        description: `Beli ${selectedAsset.symbol} via Ali-Secure Gateway`,
-        category: "Bursa",
-        amount: numPay,
-        currency: selectedCurrency.code,
-        cryptoAmount: numReceive,
-        cryptoCurrency: selectedAsset.symbol,
-        paymentId: paymentDetails.id,
-        gateway: "Google Pay / Card",
-        type: "income",
-        status: "success",
-        timestamp: serverTimestamp()
-      });
-
-      await addDoc(collection(db, "users", user.uid, "notifications"), {
-        title: "Settlement Berhasil",
-        message: `Pembayaran riil terkonfirmasi. Berhasil membeli ${numReceive} ${selectedAsset.symbol}.`,
-        type: "success",
-        read: false,
-        createdAt: new Date().toISOString()
-      });
-
-      setIsCheckoutDialogOpen(false);
-      setStep('success');
-      toast({ title: "Settlement Berhasil", description: "Dana telah diverifikasi dan masuk ke dompet Anda." });
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Error Finalisasi", description: err.message });
+    if (selectedAsset.symbol === 'ALX') {
+      sysUpdates.alixVaultBalance = increment(-numReceive);
+      sysUpdates.totalAlixSoldInternally = increment(numReceive);
     }
+
+    updateDoc(sysRef, sysUpdates).catch(async (serverError) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: sysRef.path, operation: 'update', requestResourceData: sysUpdates
+      }));
+    });
+
+    // 3. Catat Transaksi Audit Global (Untuk Super Admin Monitoring)
+    const auditId = `CRYPTO-BUY-${paymentDetails.id || Date.now()}`;
+    const globalAuditRef = doc(db, "system", "audit", "global_transactions", auditId);
+    const auditData = {
+      id: auditId,
+      category: "External Settlement",
+      gateway: "PayPal/Google Pay",
+      amountIdr: numPay,
+      amountUsd: usdValNum,
+      cryptoAmount: numReceive,
+      cryptoCurrency: selectedAsset.symbol,
+      description: `User ${userData.name} purchased ${numReceive} ${selectedAsset.symbol} via Ali-Secure Gateway.`,
+      status: "success",
+      timestamp: serverTimestamp(),
+      userEmail: user.email
+    };
+
+    addDoc(collection(db, "system", "audit", "global_transactions"), auditData).catch(async (serverError) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: "system/audit/global_transactions", operation: 'create', requestResourceData: auditData
+      }));
+    });
+
+    // 4. Catat Transaksi Riwayat Nasabah
+    const userTxData = {
+      date: new Date().toISOString(),
+      description: `Beli ${selectedAsset.symbol} via Ali-Secure Gateway`,
+      category: "Bursa",
+      amount: numPay,
+      currency: selectedCurrency.code,
+      cryptoAmount: numReceive,
+      cryptoCurrency: selectedAsset.symbol,
+      paymentId: paymentDetails.id,
+      gateway: "Google Pay / Card",
+      type: "income",
+      status: "success",
+      timestamp: serverTimestamp()
+    };
+
+    addDoc(collection(db, "users", user.uid, "transactions"), userTxData);
+
+    addDoc(collection(db, "users", user.uid, "notifications"), {
+      title: "Settlement Berhasil",
+      message: `Pembayaran riil terkonfirmasi. Berhasil membeli ${numReceive} ${selectedAsset.symbol}.`,
+      type: "success",
+      read: false,
+      createdAt: new Date().toISOString()
+    });
+
+    setIsCheckoutDialogOpen(false);
+    setStep('success');
+    toast({ title: "Settlement Berhasil", description: "Dana telah diverifikasi dan masuk ke dompet Anda." });
   };
 
   const handleKeyPress = (num: string) => {
@@ -245,7 +259,7 @@ export default function CryptoBuyPage() {
         <h2 className="text-2xl font-black italic uppercase tracking-tight mb-2">PEMBELIAN SELESAI</h2>
         <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-8">DANA TELAH DIAMANKAN DI BRANKAS ALIBANK</p>
         
-        <Card className="w-full bg-muted/30 border-none rounded-[2rem] p-8 mb-10 space-y-4">
+        <Card className="w-full bg-muted/30 border-none rounded-[2rem] p-8 mb-10 space-y-4 shadow-inner">
           <div>
             <p className="text-[10px] font-black uppercase text-muted-foreground mb-1">Aset Diterima</p>
             <p className="text-4xl font-black italic text-foreground">{estimatedReceive} {selectedAsset.symbol}</p>

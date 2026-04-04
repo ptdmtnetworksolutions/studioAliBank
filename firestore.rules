@@ -4,8 +4,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V3.7 - PRODUCTION GRADE
-     * Otorisasi berbasis real-time market data & user protection
+     * ALIBANK SECURITY RULES V3.8 - PRODUCTION GRADE
+     * Otorisasi dinamis untuk mendukung pencatatan audit otomatis dari sisi klien.
      */
 
     function isSignedIn() {
@@ -49,7 +49,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       match /trades/{tradeId} {
         allow read: if isSignedIn();
-        allow create: if isSignedIn(); // User bisa mencatat trade saat eksekusi convert
+        allow create: if isSignedIn();
       }
     }
 
@@ -60,8 +60,10 @@ service cloud.firestore {
 
     // --- Aturan Inti Sistem (Vault & Audit) ---
     match /system/liquidity {
-      allow read: if isSignedIn(); // Izinkan user melihat likuiditas untuk kalkulasi harga riil
-      allow write: if isAdmin();
+      allow read: if isSignedIn();
+      // Izinkan user terdaftar memperbarui likuiditas saat transaksi (beli/jual koin)
+      allow update: if isSignedIn(); 
+      allow create, delete: if isAdmin();
     }
     
     match /system/api_keys {
@@ -69,7 +71,10 @@ service cloud.firestore {
     }
 
     match /system/audit/{document=**} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      // Izinkan user terdaftar mencatat log transaksi mereka ke audit ledger
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
     
     // --- Aturan Pencarian Global (Collection Group) ---

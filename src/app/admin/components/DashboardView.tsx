@@ -24,6 +24,7 @@ import {
 } from "recharts";
 import { LogoIcon } from "@/components/ui/logo";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 export function DashboardView({ globalLiquidity, allUsers, candleData, auditLogs, setActiveTab, syncOnChainData, syncingVault, isLoadingAlix, totalSupply }: any) {
   return (
@@ -90,8 +91,16 @@ export function DashboardView({ globalLiquidity, allUsers, candleData, auditLogs
             <p className="text-[9px] font-bold text-white/30 uppercase mt-2">ALX V3 PROTOCOL</p>
           </div>
           <div className="relative z-10 flex justify-between items-end">
-            <div><p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Vault Inventory</p><p className="text-xl font-black italic">{isLoadingAlix ? '...' : Number(totalSupply).toLocaleString()} ALX</p></div>
-            <div className="text-right"><p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Anchor Price</p><p className="text-xl font-black italic text-primary">$ 12.24</p></div>
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Vault Inventory</p>
+              <p className="text-xl font-black italic">
+                {globalLiquidity?.alixVaultBalance?.toLocaleString() || '0'} ALX
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Anchor Price</p>
+              <p className="text-xl font-black italic text-primary">$ 12.24</p>
+            </div>
           </div>
         </Card>
       </div>
@@ -117,7 +126,7 @@ export function DashboardView({ globalLiquidity, allUsers, candleData, auditLogs
               <tbody className="divide-y divide-border">
                 {auditLogs?.slice(0, 5).map((log: any) => (
                   <tr key={log.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-8 py-4 text-[10px] font-mono font-bold text-accent">{log.id.slice(0, 15)}...</td>
+                    <td className="px-8 py-4 text-[10px] font-mono font-bold text-accent">{log.id?.slice(0, 15)}...</td>
                     <td className="px-8 py-4"><Badge className="bg-muted text-foreground border-none text-[8px] font-black h-5 uppercase px-2">{log.category}</Badge></td>
                     <td className="px-8 py-4 text-[10px] font-black italic">{log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : '---'}</td>
                     <td className="px-8 py-4 text-right text-[9px] font-bold text-muted-foreground italic">{log.timestamp?.toDate?.().toLocaleString() || '---'}</td>
@@ -139,8 +148,4 @@ function QuickOpButton({ icon: Icon, label, sub, color, onClick, syncing }: any)
       <div><p className="text-[10px] font-black uppercase italic">{label}</p><p className="text-[7px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">{sub}</p></div>
     </button>
   );
-}
-
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(" ");
 }
