@@ -125,7 +125,7 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { JsonRpcProvider, formatEther, ethers } from "ethers";
+import { JsonRpcProvider, formatEther, ethers, BrowserProvider } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -147,6 +147,7 @@ import {
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import { executeVaultWithdrawalAction } from "@/app/actions/vault-actions";
+import { useAlixCoin } from '@/hooks/useAlixCoin';
 
 // KONSTANTA GLOBAL ADMIN - ALIBANK VAULT V3
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
@@ -165,6 +166,19 @@ function AdminContent() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
   
+  // Blockchain Data Hook
+  const {
+    totalSupply,
+    maxSupply,
+    remainingMintable,
+    circulationRate,
+    isPaused,
+    isLoading: isLoadingAlix,
+    mintALX,
+    burnALX,
+    togglePause,
+  } = useAlixCoin();
+
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || "dashboard");
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [onChainEth, setOnChainEth] = useState<string>("0");
@@ -428,37 +442,67 @@ function AdminContent() {
       });
   };
 
-  const handleTokenOperation = async (type: 'mint' | 'burn') => {
-    if (!db || !isAuthorized || isProcessingToken) return;
-    const amountStr = type === 'mint' ? mintAmount : burnAmount;
-    const num = parseFloat(amountStr);
-    if (isNaN(num) || num <= 0) return;
-
+  // ON-CHAIN MINT HANDLER
+  const handleOnChainMint = async () => {
+    if (!window.ethereum || isProcessingToken || !mintAmount) return;
+    
     setIsProcessingToken(true);
     try {
-      const sysRef = doc(db, "system", "liquidity");
-      const change = type === 'mint' ? num : -num;
-
-      await updateDoc(sysRef, {
-        alixVaultBalance: increment(change),
-        totalAlixSupply: increment(change),
-        ...(type === 'mint' ? { totalAlixMinted: increment(num) } : { totalAlixBurned: increment(num) })
-      });
-
-      await addDoc(collection(db, "system", "audit", "global_transactions"), {
-        id: `${type.toUpperCase()}-${Date.now()}`,
-        category: "Tokenomics",
-        gateway: "Super Admin Node",
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
+      const txHash = await mintALX(
+        await signer.getAddress(),
+        mintAmount,
+        signer
+      );
+      
+      await addDoc(collection(db!, "system", "audit", "global_transactions"), {
+        id: `MINT-BLOCKCHAIN-${Date.now()}`,
+        category: "On-Chain Tokenomics",
+        gateway: "Polygon Mainnet",
         amountIdr: 0,
-        description: `Authorized ALX ${type}: ${num} tokens`,
+        txHash: txHash,
+        description: `On-Chain Mint: ${mintAmount} ALX authorized via MetaMask`,
         timestamp: serverTimestamp(),
         status: "success"
       });
 
-      toast({ title: `ALX ${type === 'mint' ? 'Minted' : 'Burned'}`, description: `${num} ALX has been updated in Vault.` });
-      setMintAmount(""); setBurnAmount("");
+      toast({ title: "Mint Berhasil", description: `Blockchain TX: ${txHash.slice(0,10)}...` });
+      setMintAmount("");
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Operation Failed", description: err.message });
+      toast({ variant: "destructive", title: "Gagal Mint", description: err.message });
+    } finally {
+      setIsProcessingToken(false);
+    }
+  };
+
+  // ON-CHAIN BURN HANDLER
+  const handleOnChainBurn = async () => {
+    if (!window.ethereum || isProcessingToken || !burnAmount) return;
+    
+    setIsProcessingToken(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
+      const txHash = await burnALX(burnAmount, signer);
+      
+      await addDoc(collection(db!, "system", "audit", "global_transactions"), {
+        id: `BURN-BLOCKCHAIN-${Date.now()}`,
+        category: "On-Chain Deflation",
+        gateway: "Polygon Mainnet",
+        amountIdr: 0,
+        txHash: txHash,
+        description: `On-Chain Burn: ${burnAmount} ALX permanent destruction`,
+        timestamp: serverTimestamp(),
+        status: "success"
+      });
+
+      toast({ title: "Burn Berhasil", description: "Suplai blockchain telah berkurang." });
+      setBurnAmount("");
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Burn", description: err.message });
     } finally {
       setIsProcessingToken(false);
     }
@@ -665,10 +709,10 @@ function AdminContent() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row font-body transition-colors duration-300">
+      <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
         
         {/* SIDEBAR NAVIGATION */}
-        <aside className="w-full md:w-72 bg-card border-r border-border flex flex-col sticky top-0 md:h-screen z-50">
+        <aside className="w-full md:w-72 bg-card border-r border-border flex flex-col fixed top-0 md:h-screen z-50">
           <div className="p-8 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg">
               <LogoIcon className="text-white" />
@@ -706,7 +750,7 @@ function AdminContent() {
           </div>
         </aside>
 
-        <main className="flex-1 flex flex-col min-w-0 bg-background transition-colors">
+        <main className="md:ml-72 flex-1 flex flex-col min-w-0 bg-background transition-colors">
           <header className="h-20 bg-card border-b border-border flex items-center justify-between px-6 md:px-10 sticky top-0 z-40">
             <div className="relative w-full max-sm hidden sm:block">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -832,7 +876,7 @@ function AdminContent() {
                     <div className="relative z-10 flex justify-between items-end">
                       <div>
                         <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Vault Inventory</p>
-                        <p className="text-xl font-black italic">{displayVal(globalLiquidity?.alixVaultBalance).toLocaleString('id-ID')} ALX</p>
+                        <p className="text-xl font-black italic">{isLoadingAlix ? '...' : Number(totalSupply).toLocaleString()} ALX</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Anchor Price</p>
@@ -1082,10 +1126,10 @@ function AdminContent() {
                 </header>
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                  <TokenStatCard label="Total Supply" value={`${displayVal(globalLiquidity?.totalAlixSupply).toLocaleString()} ALX`} sub="Maximum Cap" icon={Zap} />
+                  <TokenStatCard label="Total Supply" value={`${isLoadingAlix ? '...' : Number(totalSupply).toLocaleString()} ALX`} sub={`Max: ${Number(maxSupply).toLocaleString()}`} icon={Zap} />
                   <TokenStatCard label="Circulating" value={`${circulatingSupply.toLocaleString()} ALX`} sub="Held by Users" icon={Globe} color="text-green-600" />
                   <TokenStatCard label="Vault Balance" value={`${displayVal(globalLiquidity?.alixVaultBalance).toLocaleString()} ALX`} sub="System Reserve" icon={Database} color="text-primary" />
-                  <TokenStatCard label="Buyback Pool" value={`Rp ${displayVal(globalLiquidity?.buybackReserveIdr).toLocaleString()}`} sub="20% Revenue Share" icon={Flame} color="text-orange-500" />
+                  <TokenStatCard label="Burn Pool" value={`${isLoadingAlix ? '...' : (Number(maxSupply) - Number(totalSupply)).toLocaleString()} ALX`} sub="Deflation realized" icon={Flame} color="text-orange-500" />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -1093,7 +1137,7 @@ function AdminContent() {
                     <div className="absolute top-0 right-0 p-8 opacity-5"><LogoIcon className="w-48 h-48 text-primary" /></div>
                     <div className="relative z-10 flex items-center justify-between">
                       <h4 className="text-xl font-black italic uppercase tracking-tight">Authorized Minting Terminal</h4>
-                      <Badge variant="outline" className="border-green-500/20 text-green-600 font-black text-[8px] px-3 h-6 uppercase">Legal Issuer</Badge>
+                      <Badge variant="outline" className="border-green-500/20 text-green-600 font-black text-[8px] px-3 h-6 uppercase">On-Chain Issuer</Badge>
                     </div>
                     <div className="relative z-10 space-y-8">
                       <div className="p-10 rounded-[2.5rem] bg-muted/50 border border-border space-y-6">
@@ -1113,23 +1157,23 @@ function AdminContent() {
                           </div>
                         </div>
                         <Button 
-                          onClick={() => handleTokenOperation('mint')} 
+                          onClick={handleOnChainMint} 
                           disabled={!mintAmount || isProcessingToken}
                           className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none text-base"
                         >
-                          {isProcessingToken ? <Loader2 className="animate-spin" /> : "EXECUTE AUTHORIZED MINT"}
+                          {isProcessingToken ? <Loader2 className="animate-spin" /> : "EXECUTE ON-CHAIN MINT"}
                         </Button>
                       </div>
                       <div className="flex gap-4 p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10">
                         <Info className="w-5 h-5 text-blue-500 shrink-0" />
-                        <p className="text-[10px] font-bold text-muted-foreground italic uppercase leading-relaxed">Pencetakan token akan menambah cadangan brankas pusat AliBank. Gunakan hanya saat dibutuhkan untuk menjaga nilai koin tetap stabil di angka $12.24.</p>
+                        <p className="text-[10px] font-bold text-muted-foreground italic uppercase leading-relaxed">Pencetakan token on-chain memerlukan tanda tangan MetaMask dari alamat pemilik kontrak. Sisa yang bisa dicetak: {Number(remainingMintable).toLocaleString()} ALX.</p>
                       </div>
                     </div>
                   </Card>
 
                   <Card className="lg:col-span-5 border-none bg-card rounded-[3rem] p-10 space-y-10 shadow-sm relative overflow-hidden">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xl font-black italic uppercase tracking-tight">Supply Distribution</h4>
+                      <h4 className="text-xl font-black italic uppercase tracking-tight">Supply Stats</h4>
                       <PieIcon className="w-5 h-5 text-muted-foreground opacity-40" />
                     </div>
                     <div className="h-64">
@@ -1137,9 +1181,8 @@ function AdminContent() {
                         <PieChart>
                           <Pie
                             data={[
-                              { name: 'Vault', value: displayVal(globalLiquidity?.alixVaultBalance) },
-                              { name: 'Circulating', value: circulatingSupply },
-                              { name: 'Burned', value: displayVal(globalLiquidity?.totalAlixBurned) }
+                              { name: 'Supply', value: Number(totalSupply) },
+                              { name: 'Unminted', value: Number(remainingMintable) }
                             ]}
                             cx="50%"
                             cy="50%"
@@ -1149,17 +1192,24 @@ function AdminContent() {
                             dataKey="value"
                           >
                             <Cell fill="hsl(var(--primary))" />
-                            <Cell fill="#10b981" />
-                            <Cell fill="#ef4444" />
+                            <Cell fill="hsl(var(--muted))" />
                           </Pie>
                           <RechartsTooltip />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
                     <div className="space-y-4">
-                      <DistributionItem label="Vault Reserve" value={displayVal(globalLiquidity?.alixVaultBalance)} color="bg-primary" />
-                      <DistributionItem label="User Holdings" value={circulatingSupply} color="bg-green-500" />
-                      <DistributionItem label="Burned Suplly" value={displayVal(globalLiquidity?.totalAlixBurned)} color="bg-rose-500" />
+                      <DistributionItem label="Current Supply" value={Number(totalSupply)} color="bg-primary" />
+                      <DistributionItem label="Unminted Cap" value={Number(remainingMintable)} color="bg-muted" />
+                      <div className="pt-4 border-t border-border flex justify-between items-center">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Status Kontrak</span>
+                        <Badge className={cn("text-[8px] font-black h-5 uppercase", isPaused ? "bg-rose-500" : "bg-green-500")}>
+                          {isPaused ? "Paused" : "Active"}
+                        </Badge>
+                      </div>
+                      <Button onClick={() => togglePause(new ethers.BrowserProvider(window.ethereum as any).getSigner())} variant="outline" className="w-full text-[10px] font-black uppercase italic h-10 border-primary/20">
+                        TOGGLE EMERGENCY PAUSE
+                      </Button>
                     </div>
                   </Card>
                 </div>
@@ -1170,16 +1220,16 @@ function AdminContent() {
                       <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 shadow-inner">
                         <Pickaxe className="w-6 h-6" />
                       </div>
-                      <h4 className="text-xl font-black italic uppercase tracking-tight">Buyback & Burn Protocol</h4>
+                      <h4 className="text-xl font-black italic uppercase tracking-tight">On-Chain Deflation Protocol</h4>
                     </div>
-                    <Badge className="bg-rose-100 text-rose-600 font-black text-[8px] uppercase px-3 h-6">Deflation Active</Badge>
+                    <Badge className="bg-rose-100 text-rose-600 font-black text-[8px] uppercase px-3 h-6">Live Burning</Badge>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
                     <div className="md:col-span-8">
                       <div className="relative">
                         <Input 
                           type="number" 
-                          placeholder="Amount to burn permanently..." 
+                          placeholder="Amount to burn permanently from your wallet..." 
                           value={burnAmount} 
                           onChange={(e) => setBurnAmount(e.target.value)} 
                           className="h-16 bg-muted border-none rounded-2xl font-black italic text-xl px-8" 
@@ -1191,7 +1241,7 @@ function AdminContent() {
                     </div>
                     <div className="md:col-span-4">
                       <Button 
-                        onClick={() => handleTokenOperation('burn')}
+                        onClick={handleOnChainBurn}
                         disabled={!burnAmount || isProcessingToken}
                         className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase italic tracking-widest shadow-lg border-none"
                       >
@@ -1796,7 +1846,7 @@ function TokenStatCard({ label, value, sub, icon: Icon, color = "text-accent" }:
         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{label}</p>
         <Icon className={cn("w-4 h-4 opacity-20", color)} />
       </div>
-      <p className={cn("text-3xl font-black italic tracking-tighter", color)}>{value}</p>
+      <p className={cn("text-2xl font-black italic tracking-tighter", color)}>{value}</p>
       <p className="text-[9px] font-bold text-muted-foreground uppercase">{sub}</p>
     </Card>
   );
