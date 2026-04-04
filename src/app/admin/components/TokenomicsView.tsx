@@ -31,6 +31,7 @@ import {
 } from "recharts";
 import { BrowserProvider } from "ethers";
 import { useToast } from "@/hooks/use-toast";
+import { LogoIcon } from "@/components/ui/logo";
 
 export function TokenomicsView({ 
   totalSupply, 
@@ -249,4 +250,17 @@ function TokenStatCard({ label, value, sub, icon: Icon, color = "text-accent" }:
 
 function cn(...inputs: any[]) {
   return inputs.filter(Boolean).join(" ");
+}
+
+function Fingerprint({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M2 12C2 6.477 6.477 2 12 2s10 4.477 10 10" />
+      <path d="M5 12c0-3.866 3.134-7 7-7s7 3.134 7 7" />
+      <path d="M8 12c0-2.209 1.791-4 4-4s4 1.791 4 4" />
+      <path d="M12 12v9" />
+      <path d="M12 15c-1.657 0-3 1.343-3 3" />
+      <path d="M12 18c1.657 0 3-1.343 3-3" />
+    </svg>
+  );
 }
