@@ -20,7 +20,9 @@ import {
   Lock,
   Globe,
   Smartphone,
-  ShieldAlert
+  ShieldAlert,
+  Copy,
+  Landmark
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -57,7 +59,8 @@ declare global {
 const PAYMENT_METHODS = [
   { id: 'gpay', name: "Google Pay", icon: "gpay", desc: "Instan & Aman" },
   { id: 'card', name: "Kartu Kredit/Debit", icon: CreditCard, desc: "Visa, Mastercard, JCB" },
-  { id: 'bank', name: "Transfer Bank", icon: Building2, desc: "BCA, Mandiri, BNI, BRI" },
+  { id: 'bank', name: "Transfer Bank", icon: Building2, desc: "BCA (Satu-satunya yang didukung)" },
+  { id: 'va', name: "Virtual Account", icon: Landmark, desc: "BCA, Mandiri, Permata" },
 ];
 
 const ASSETS = [
@@ -121,12 +124,10 @@ export default function CryptoBuyPage() {
   useEffect(() => {
     let timeoutId: any;
 
-    if (isCheckoutDialogOpen && (paypalReady || window.paypal)) {
-      // Logic render tombol yang lebih tangguh
+    if (isCheckoutDialogOpen && (paypalReady || window.paypal) && (selectedPayment.id === 'gpay' || selectedPayment.id === 'card')) {
       const renderButtons = async () => {
         if (!paypalContainerRef.current || !window.paypal) return;
         
-        // Bersihkan kontainer untuk mencegah duplikasi
         paypalContainerRef.current.innerHTML = "";
         
         const buttonConfig: any = {
@@ -169,16 +170,13 @@ export default function CryptoBuyPage() {
               ...buttonConfig,
               fundingSource: window.paypal.FUNDING.GOOGLEPAY
             }).render(paypalContainerRef.current);
-          } else if (selectedPayment.id === 'card') {
+          } else {
             await window.paypal.Buttons({
               ...buttonConfig,
               fundingSource: window.paypal.FUNDING.CARD
             }).render(paypalContainerRef.current);
-          } else {
-            await window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
           }
         } catch (err) {
-          console.warn("Spesifik funding source gagal, memuat tombol pintar standar...");
           if (paypalContainerRef.current) {
             paypalContainerRef.current.innerHTML = "";
             window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
@@ -186,7 +184,6 @@ export default function CryptoBuyPage() {
         }
       };
 
-      // Berikan waktu sedikit agar dialog animasi selesai
       timeoutId = setTimeout(renderButtons, 500);
     }
 
@@ -196,17 +193,16 @@ export default function CryptoBuyPage() {
   const finalizePurchase = async (paymentDetails: any) => {
     if (!user || !db || !userDocRef || !userData) return;
     
+    setIsProcessing(true);
     const numReceive = parseFloat(estimatedReceive);
     const numPay = parseFloat(amount.replace(',', '.'));
     const usdValNum = parseFloat(usdValue);
 
     try {
-      // 1. Update Saldo Kripto Nasabah secara Riil
       await updateDoc(userDocRef, {
         [`cryptoBalances.${selectedAsset.symbol}`]: increment(numReceive)
       });
 
-      // 2. Update Likuiditas Sistem & Inventaris Bank secara Riil
       const sysRef = doc(db, "system", "liquidity");
       const sysUpdates: any = {
         totalFiatInjected: increment(numPay),
@@ -220,16 +216,15 @@ export default function CryptoBuyPage() {
 
       await updateDoc(sysRef, sysUpdates);
 
-      // 3. Catat Transaksi Audit Global (WAJIB untuk Dashboard Super Admin)
       const auditData = {
         id: `CRYPTO-BUY-${paymentDetails.id || Date.now()}`,
         category: "External Settlement",
-        gateway: selectedPayment.id === 'gpay' ? "Ali-Secure (Google Pay)" : "Ali-Secure (Card)",
+        gateway: selectedPayment.name,
         amountIdr: numPay,
         amountUsd: usdValNum,
         cryptoAmount: numReceive,
         cryptoCurrency: selectedAsset.symbol,
-        description: `User ${userData.name} purchased ${numReceive} ${selectedAsset.symbol} via AliBank Secure Node.`,
+        description: `User ${userData.name} purchased ${numReceive} ${selectedAsset.symbol} via AliBank Secure Node (${selectedPayment.name}).`,
         status: "success",
         timestamp: serverTimestamp(),
         userEmail: user.email
@@ -237,7 +232,6 @@ export default function CryptoBuyPage() {
 
       await addDoc(collection(db, "system", "audit", "global_transactions"), auditData);
 
-      // 4. Catat Transaksi Riwayat Nasabah
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
         description: `Beli ${selectedAsset.symbol} via ${selectedPayment.name}`,
@@ -246,14 +240,13 @@ export default function CryptoBuyPage() {
         currency: selectedCurrency.code,
         cryptoAmount: numReceive,
         cryptoCurrency: selectedAsset.symbol,
-        paymentId: paymentDetails.id,
+        paymentId: paymentDetails.id || `TXN-${Date.now()}`,
         gateway: selectedPayment.name,
         type: "income",
         status: "success",
         timestamp: serverTimestamp()
       });
 
-      // 5. Kirim Notifikasi Internal
       await addDoc(collection(db, "users", user.uid, "notifications"), {
         title: "Settlement Berhasil",
         message: `Pembayaran riil terkonfirmasi via ${selectedPayment.name}. Berhasil membeli ${numReceive} ${selectedAsset.symbol}.`,
@@ -268,6 +261,8 @@ export default function CryptoBuyPage() {
     } catch (err: any) {
       console.error("Finalize Purchase Error:", err);
       toast({ variant: "destructive", title: "Error Sinkronisasi", description: "Saldo diperbarui namun gagal mencatat audit lengkap." });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -279,6 +274,11 @@ export default function CryptoBuyPage() {
   const handleDelete = () => {
     if (amount.length > 1) setAmount(amount.slice(0, -1));
     else setAmount("0");
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Berhasil Disalin", description: "Nomor rekening telah disalin." });
   };
 
   if (!mounted) return null;
@@ -413,15 +413,64 @@ export default function CryptoBuyPage() {
             </div>
 
             <div className="space-y-4">
-              <div ref={paypalContainerRef} className="min-h-[150px] flex flex-col items-center justify-center">
-                {/* Loader ini akan digantikan oleh tombol PayPal saat siap */}
-                <div className="flex flex-col items-center gap-3">
-                  <Loader2 className="animate-spin text-primary w-8 h-8" />
-                  <p className="text-[10px] font-black uppercase text-primary italic animate-pulse">Menghubungkan Terminal Kliring...</p>
+              {(selectedPayment.id === 'gpay' || selectedPayment.id === 'card') ? (
+                <div ref={paypalContainerRef} className="min-h-[150px] flex flex-col items-center justify-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="animate-spin text-primary w-8 h-8" />
+                    <p className="text-[10px] font-black uppercase text-primary italic animate-pulse">Menghubungkan Terminal Kliring...</p>
+                  </div>
                 </div>
-              </div>
+              ) : selectedPayment.id === 'bank' ? (
+                <div className="animate-in fade-in zoom-in duration-500 space-y-6">
+                  <div className="p-6 rounded-[1.5rem] bg-accent/5 border border-primary/20 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground">Bank Tujuan</p>
+                      <Badge className="bg-primary text-black font-black italic text-[8px] h-5">BCA</Badge>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Nomor Rekening</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-2xl font-black italic tracking-widest text-foreground">3210902545</p>
+                        <button onClick={() => copyToClipboard('3210902545')} className="p-2 hover:bg-primary/10 rounded-lg text-primary"><Copy className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Atas Nama</p>
+                      <p className="text-sm font-black uppercase italic">ALIBANK GLOBAL VAULT</p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => finalizePurchase({ id: `BANK-BCA-${Date.now()}` })}
+                    disabled={isProcessing}
+                    className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl"
+                  >
+                    {isProcessing ? <Loader2 className="animate-spin" /> : "SAYA SUDAH TRANSFER"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="animate-in fade-in zoom-in duration-500 space-y-6">
+                  <div className="p-6 rounded-[1.5rem] bg-blue-500/5 border border-blue-500/10 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground">Nomor Virtual Account</p>
+                      <Badge className="bg-blue-500 text-white font-black italic text-[8px] h-5 uppercase">BCA VA</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-2xl font-black italic tracking-widest text-foreground">8829321090</p>
+                      <button onClick={() => copyToClipboard('8829321090')} className="p-2 hover:bg-blue-500/10 rounded-lg text-blue-500"><Copy className="w-4 h-4" /></button>
+                    </div>
+                    <p className="text-[9px] font-medium text-muted-foreground italic">Pembayaran VA dikonfirmasi secara instan oleh node kliring.</p>
+                  </div>
+                  <Button 
+                    onClick={() => finalizePurchase({ id: `VA-BCA-${Date.now()}` })}
+                    disabled={isProcessing}
+                    className="w-full h-16 bg-blue-600 text-white rounded-2xl font-black uppercase italic shadow-xl hover:bg-blue-700"
+                  >
+                    {isProcessing ? <Loader2 className="animate-spin" /> : "CEK STATUS PEMBAYARAN"}
+                  </Button>
+                </div>
+              )}
               
-              {isProcessing && (
+              {isProcessing && (selectedPayment.id === 'gpay' || selectedPayment.id === 'card') && (
                 <div className="flex flex-col items-center gap-3 animate-in fade-in">
                   <Loader2 className="animate-spin text-green-500 w-8 h-8" />
                   <p className="text-[10px] font-black uppercase text-green-500 italic animate-pulse">Memproses Settlement Riil...</p>
@@ -431,9 +480,7 @@ export default function CryptoBuyPage() {
               <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
                 <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0" />
                 <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">
-                  {selectedPayment.id === 'gpay' 
-                    ? "Pembayaran diproses secara riil melalui node keamanan AliBank. Dana akan memotong saldo GOOGLE PAY Anda."
-                    : "Pembayaran diproses secara riil melalui node keamanan AliBank. Dana akan memotong saldo KARTU atau PayPal Anda."}
+                  Pembayaran diproses secara riil melalui node keamanan AliBank. Dana akan diamankan di cold storage segera setelah konfirmasi.
                 </p>
               </div>
             </div>
