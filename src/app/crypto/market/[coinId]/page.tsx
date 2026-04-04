@@ -98,18 +98,20 @@ export default function MarketDetailPage() {
     setOrderBook(generateBook());
   }, [isAlix, currentPrice]);
 
-  // LIVE SIMULATION INTERVAL
+  // LIVE SIMULATION INTERVAL (DYNAMIC PRICE ENGINE)
   useEffect(() => {
     if (!mounted) return;
 
     const interval = setInterval(() => {
-      // 1. Simulate Price Movement (ALX much more stable)
-      const move = isAlix ? (Math.random() * 0.002 - 0.001) : (Math.random() * 20 - 10); 
+      // 1. Simulate Price Movement
+      // ALX bergerak stabil tapi dinamis untuk UX bursa
+      const move = isAlix ? (Math.random() * 0.006 - 0.003) : (Math.random() * 20 - 10); 
+      
       setCurrentPrice(prev => {
         const next = prev + move;
         if (isAlix) {
           if (next < 12.20) return 12.20;
-          if (next > 12.28) return 12.28;
+          if (next > 12.35) return 12.30;
         }
         return next;
       });
@@ -124,13 +126,19 @@ export default function MarketDetailPage() {
         return newData;
       });
 
-      // 3. Update Order Book
+      // 3. Update Price Change %
+      setPriceChange(prev => {
+        const pMove = isAlix ? (Math.random() * 0.02 - 0.01) : (Math.random() * 0.1 - 0.05);
+        return prev + pMove;
+      });
+
+      // 4. Update Order Book
       setOrderBook(prev => ({
         bids: prev.bids.map(b => ({ ...b, amount: (parseFloat(b.amount) + (Math.random() * 2 - 1)).toFixed(3), depth: Math.random() * 100 })),
         asks: prev.asks.map(a => ({ ...a, amount: (parseFloat(a.amount) + (Math.random() * 2 - 1)).toFixed(3), depth: Math.random() * 100 }))
       }));
 
-      // 4. Update Sentiment
+      // 5. Update Sentiment
       setSentiment(prev => {
         const sMove = (Math.random() * 2 - 1);
         const nextS = prev + sMove;
@@ -198,7 +206,7 @@ export default function MarketDetailPage() {
                   "text-4xl font-black tracking-tighter italic transition-colors duration-500",
                   priceChange >= 0 ? "text-green-500" : "text-rose-500"
                 )}>
-                  {currentPrice.toFixed(2)}
+                  {currentPrice.toFixed(4)}
                 </h2>
                 <div className="flex items-center gap-2">
                   <p className="text-xs font-bold text-muted-foreground">Rp{idrPrice}</p>
@@ -209,7 +217,7 @@ export default function MarketDetailPage() {
                 {isAlix && (
                   <div className="flex gap-2 pt-2">
                     <span className="text-[8px] font-black uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">Utility-Driven</span>
-                    <span className="text-[8px] font-black uppercase text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded">Anchor Price</span>
+                    <span className="text-[8px] font-black uppercase text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded">Live Ticker</span>
                   </div>
                 )}
               </div>
@@ -217,7 +225,7 @@ export default function MarketDetailPage() {
               <div className="grid grid-cols-2 gap-y-2 text-[10px] font-bold text-muted-foreground text-right italic">
                 <div>
                   <p className="uppercase opacity-60">High 24 jam</p>
-                  <p className="text-foreground">{isAlix ? '12.28' : '67,120.00'}</p>
+                  <p className="text-foreground">{isAlix ? '12.35' : '67,120.00'}</p>
                 </div>
                 <div>
                   <p className="uppercase opacity-60">Vol 24 jam({symbol})</p>
@@ -268,7 +276,7 @@ export default function MarketDetailPage() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.3} />
                   <XAxis dataKey="time" hide />
-                  <YAxis domain={['dataMin - 0.05', 'dataMax + 0.05']} orientation="right" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: 'hsl(var(--muted-foreground))'}} />
+                  <YAxis domain={['dataMin - 0.01', 'dataMax + 0.01']} orientation="right" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: 'hsl(var(--muted-foreground))'}} />
                   <Tooltip 
                     contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
                     itemStyle={{ color: 'hsl(var(--primary))', fontWeight: 'bold' }}

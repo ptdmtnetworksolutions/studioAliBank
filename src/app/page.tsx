@@ -86,13 +86,11 @@ function HandCoinIcon({ className }: { className?: string }) {
   );
 }
 
-// KONFIGURASI HARGA RIIL ALX (Anchor Price V3)
-const ALX_PRICE_USD = 12.24;
+// KONFIGURASI HARGA AWAL ALX
 const USDT_IDR_RATE = 15850;
-const ALX_PRICE_IDR = ALX_PRICE_USD * USDT_IDR_RATE; // Rp 194,004
 
 const INITIAL_COINS = [
-  { symbol: "ALX", price: ALX_PRICE_USD, baseIdr: ALX_PRICE_IDR, change: 1.14, isUp: true, isNative: true },
+  { symbol: "ALX", price: 12.24, baseIdr: 194004, change: 1.14, isUp: true, isNative: true },
   { symbol: "BTC", price: 66262.29, baseIdr: 1125133021, change: -3.76, isUp: false },
   { symbol: "ETH", price: 1987.12, baseIdr: 33741277, change: -3.98, isUp: false },
   { symbol: "SOL", price: 82.63, baseIdr: 1403056, change: -4.69, isUp: false },
@@ -118,7 +116,7 @@ function DashboardContent() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isPnlOpen, setIsPnlOpen] = useState(false);
   
-  // LIVE MARKET STATE
+  // LIVE MARKET STATE (DYNAMC PRICE ENGINE)
   const [marketCoins, setMarketCoins] = useState(INITIAL_COINS);
 
   const [pullY, setPullY] = useState(0);
@@ -133,28 +131,31 @@ function DashboardContent() {
 
   const { data: userData } = useDoc(userDocRef);
 
-  // HITUNG TOTAL ESTIMASI NILAI (IDR Balance + ALX Value + USDT Value)
+  // HITUNG TOTAL ESTIMASI NILAI SECARA RIIL
   const totalValueCalculated = useMemo(() => {
     const idrBalance = userData?.totalBalance ?? 0;
     const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
     const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
     
-    const alxValueIdr = alxHoldings * ALX_PRICE_IDR;
+    // Gunakan harga dinamis dari state marketCoins
+    const alxMarket = marketCoins.find(c => c.symbol === "ALX");
+    const alxPriceIdr = (alxMarket?.price ?? 12.24) * USDT_IDR_RATE;
+    
+    const alxValueIdr = alxHoldings * alxPriceIdr;
     const usdtValueIdr = usdtHoldings * USDT_IDR_RATE;
     
     return idrBalance + alxValueIdr + usdtValueIdr;
-  }, [userData]);
+  }, [userData, marketCoins]);
 
-  // HITUNG PNL HARI INI BERDASARKAN PERUBAHAN PASAR
   const pnlData = useMemo(() => {
     const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
     const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
     
-    // Cari coin dari market state untuk mendapatkan persentase perubahan terbaru
     const alxMarket = marketCoins.find(c => c.symbol === "ALX");
-    const usdtMarket = marketCoins.find(c => c.symbol === "USDT") || { change: 0.01 }; // USDT stabil tapi tetap fluktuatif kecil
+    const usdtMarket = marketCoins.find(c => c.symbol === "USDT") || { change: 0.01 };
 
-    const alxPnl = (alxHoldings * ALX_PRICE_IDR * (alxMarket?.change ?? 0)) / 100;
+    const alxPriceIdr = (alxMarket?.price ?? 12.24) * USDT_IDR_RATE;
+    const alxPnl = (alxHoldings * alxPriceIdr * (alxMarket?.change ?? 0)) / 100;
     const usdtPnl = (usdtHoldings * USDT_IDR_RATE * (usdtMarket.change ?? 0)) / 100;
     
     const totalPnl = alxPnl + usdtPnl;
@@ -206,15 +207,21 @@ function DashboardContent() {
     }
   }, [user, userLoading, router, searchParams]);
 
-  // MARKET TICKER EFFECT
+  // LOGIKA PASAR DINAMIS (TICKER)
   useEffect(() => {
     if (!mounted) return;
     const interval = setInterval(() => {
       setMarketCoins(prev => prev.map(coin => {
         if (coin.symbol === "ALX") {
-          // ALX bergerak sangat stabil tapi tetap naik karena utility
+          // ALX bergerak naik secara organik di fase internal
           const move = (Math.random() * 0.0002 - 0.00005); 
-          return { ...coin, change: coin.change + move };
+          const newPrice = coin.price + move;
+          return { 
+            ...coin, 
+            price: newPrice, 
+            baseIdr: newPrice * USDT_IDR_RATE,
+            change: coin.change + (Math.random() * 0.01 - 0.005) 
+          };
         }
         
         const move = (Math.random() * 0.002 - 0.001); 
@@ -223,6 +230,7 @@ function DashboardContent() {
         return {
           ...coin,
           price: newPrice,
+          baseIdr: newPrice * USDT_IDR_RATE,
           change: newChange,
           isUp: newChange >= 0
         };
@@ -533,7 +541,7 @@ function DashboardContent() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-black italic text-primary">{(userData?.cryptoBalances?.ALX ?? 0).toFixed(4)} ALX</p>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase italic">≈ Rp {((userData?.cryptoBalances?.ALX ?? 0) * ALX_PRICE_IDR).toLocaleString('id-ID')}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase italic">≈ Rp {((userData?.cryptoBalances?.ALX ?? 0) * (marketCoins.find(c => c.symbol === "ALX")?.price ?? 12.24) * USDT_IDR_RATE).toLocaleString('id-ID')}</p>
                       </div>
                     </div>
 
@@ -926,7 +934,7 @@ function DashboardContent() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-black text-foreground italic tracking-tighter">{asset.price.toFixed(2)}</p>
+                      <p className="text-sm font-black text-foreground italic tracking-tighter">{asset.price.toFixed(4)}</p>
                       <p className={cn("text-[10px] font-black italic", asset.isUp ? "text-green-500" : "text-rose-500")}>{asset.change.toFixed(2)}%</p>
                     </div>
                   </div>

@@ -57,20 +57,29 @@ export default function ConvertPage() {
   const [step, setStep] = useState<'input' | 'success'>('input');
   const [direction, setDirection] = useState<'FROM_ALX' | 'TO_ALX'>('TO_ALX');
   const [counterCurrency, setCounterCurrency] = useState<'USDT' | 'IDR'>('IDR');
-
-  const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
-  const { data: userData } = useDoc(userDocRef);
+  
+  // LOGIKA HARGA DINAMIS ALX
+  const [liveAlxPriceUsdt, setLiveAlxPriceUsdt] = useState(12.24);
+  const USDT_IDR_RATE = 15850;
 
   useEffect(() => {
     setMounted(true);
+    // Simulasi Pergerakan Harga Pasar ALX (Dynamic Engine)
+    const interval = setInterval(() => {
+      setLiveAlxPriceUsdt(prev => {
+        const fluctuation = (Math.random() * 0.004 - 0.002); // Pergerakan kecil +/- 0.002
+        const nextPrice = prev + fluctuation;
+        // Jaga harga tetap di sekitar Anchor $12.24
+        if (nextPrice < 12.20) return 12.20;
+        if (nextPrice > 12.30) return 12.28;
+        return nextPrice;
+      });
+    }, 2500);
+    return () => clearInterval(interval);
   }, []);
 
-  // KONFIGURASI HARGA STRATEGIS ALIBANK V3
-  const ALX_PRICE_USDT = 12.24;
-  const USDT_IDR_RATE = 15850;
-  const ALX_PRICE_IDR = ALX_PRICE_USDT * USDT_IDR_RATE; // Rp 194,004
-  
-  const currentRate = counterCurrency === 'USDT' ? ALX_PRICE_USDT : ALX_PRICE_IDR;
+  const currentPriceIdr = useMemo(() => liveAlxPriceUsdt * USDT_IDR_RATE, [liveAlxPriceUsdt]);
+  const currentRate = counterCurrency === 'USDT' ? liveAlxPriceUsdt : currentPriceIdr;
 
   const convertedValue = useMemo(() => {
     const num = parseFloat(amount);
@@ -83,7 +92,7 @@ export default function ConvertPage() {
   }, [amount, direction, currentRate, counterCurrency]);
 
   const handleConvert = async () => {
-    if (!user || !db || !userDocRef || !userData) return;
+    if (!user || !db || !userData) return;
     const numAmount = parseFloat(amount);
     
     if (isNaN(numAmount) || numAmount <= 0) return;
@@ -112,6 +121,7 @@ export default function ConvertPage() {
     setIsProcessing(true);
     try {
       const resultNum = parseFloat(convertedValue);
+      const userDocRef = doc(db, "users", user.uid);
 
       if (direction === 'FROM_ALX') {
         // JUAL ALX -> (DITERIMA USDT / IDR)
@@ -142,6 +152,7 @@ export default function ConvertPage() {
         fromCurrency: direction === 'FROM_ALX' ? "ALX" : counterCurrency,
         toAmount: resultNum,
         toCurrency: direction === 'FROM_ALX' ? counterCurrency : "ALX",
+        executionPrice: currentRate,
         type: "expense",
         status: "success",
         timestamp: serverTimestamp()
@@ -169,6 +180,9 @@ export default function ConvertPage() {
     }
   };
 
+  const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const { data: userData } = useDoc(userDocRef);
+
   if (!mounted) return null;
 
   if (step === 'success') {
@@ -190,7 +204,7 @@ export default function ConvertPage() {
           <div className="h-px bg-border" />
           <div className="flex justify-between items-center text-[9px] font-bold uppercase text-muted-foreground">
             <span>Harga Eksekusi</span>
-            <span>1 ALX = {counterCurrency === 'USDT' ? `${ALX_PRICE_USDT} USDT` : `Rp${ALX_PRICE_IDR.toLocaleString()}`}</span>
+            <span>1 ALX = {counterCurrency === 'USDT' ? `${liveAlxPriceUsdt.toFixed(4)} USDT` : `Rp${currentPriceIdr.toLocaleString()}`}</span>
           </div>
         </div>
 
@@ -222,10 +236,13 @@ export default function ConvertPage() {
 
         <div className="flex items-center justify-between px-1">
           <div className="flex flex-col">
-            <p className="text-[11px] font-black text-foreground italic">
-              Harga ALX: {counterCurrency === 'USDT' ? `$${ALX_PRICE_USDT}` : `Rp${ALX_PRICE_IDR.toLocaleString()}`}
+            <p className="text-[11px] font-black text-foreground italic flex items-center gap-2">
+              Harga Pasar ALX: 
+              <span className={cn("transition-colors duration-500", liveAlxPriceUsdt >= 12.24 ? "text-green-500" : "text-rose-500")}>
+                {counterCurrency === 'USDT' ? `$${liveAlxPriceUsdt.toFixed(4)}` : `Rp${currentPriceIdr.toLocaleString()}`}
+              </span>
             </p>
-            <span className="text-[7px] font-bold text-muted-foreground uppercase tracking-widest">Target Price: $12.24 (Anchor)</span>
+            <span className="text-[7px] font-bold text-muted-foreground uppercase tracking-widest">Anchor Price: $12.24</span>
           </div>
           <div 
             className="flex items-center gap-1 text-[10px] font-black bg-muted/50 px-3 py-1.5 rounded-full border border-border cursor-pointer active:scale-95 transition-all"
