@@ -14,7 +14,13 @@ import {
   Flame, 
   Loader2, 
   PieChart as PieIcon, 
-  AlertCircle 
+  AlertCircle,
+  ShieldCheck,
+  Lock,
+  ArrowRightLeft,
+  Database,
+  Fingerprint,
+  Info
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -141,6 +147,92 @@ export function TokenomicsView({
           </div>
         </Card>
       </div>
+
+      {/* DETAIL FUNGSI & ARSITEKTUR KONTRAK ALX V3.1 */}
+      <section className="space-y-8 pt-10 border-t border-border/50">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+            <Database className="w-6 h-6" />
+          </div>
+          <h3 className="text-2xl font-black italic uppercase tracking-tight text-accent dark:text-white">Arsitektur Alix Coin V3.1</h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-4 group hover:border-primary/30 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 shadow-inner">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <h5 className="font-black uppercase italic text-sm">Standar & Jaringan</h5>
+            <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
+              Kontrak ini menggunakan standar <span className="text-accent font-bold">ERC-20</span> yang berjalan di atas jaringan <span className="text-indigo-500 font-bold">Polygon POS</span>. Ini menjamin transaksi super cepat dengan biaya gas yang sangat rendah.
+            </p>
+          </Card>
+
+          <Card className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-4 group hover:border-primary/30 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 shadow-inner">
+              <Flame className="w-6 h-6" />
+            </div>
+            <h5 className="font-black uppercase italic text-sm">Deflasi Otomatis</h5>
+            <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
+              Implementasi <span className="text-accent font-bold">ERC20Burnable</span> memungkinkan AliBank untuk melakukan pembakaran suplai secara permanen guna mendukung kelangkaan aset dan kenaikan nilai jangka panjang.
+            </p>
+          </Card>
+
+          <Card className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-4 group hover:border-primary/30 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-500 shadow-inner">
+              <Fingerprint className="w-6 h-6" />
+            </div>
+            <h5 className="font-black uppercase italic text-sm">Fitur ERC20Permit</h5>
+            <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
+              Mendukung <span className="text-accent font-bold">Gasless Approval</span> melalui tanda tangan EIP-712. Pengguna dapat memberikan izin transaksi tanpa harus membayar biaya gas di awal, meningkatkan kenyamanan UX.
+            </p>
+          </Card>
+        </div>
+
+        <div className="p-10 rounded-[3rem] bg-accent/5 border border-primary/10 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5"><LogoIcon className="w-32 h-32 text-primary" /></div>
+          <h4 className="text-lg font-black uppercase italic mb-6 flex items-center gap-2">
+            <Info className="w-5 h-5 text-primary" /> Kebijakan Pengelolaan Aset:
+          </h4>
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+            <li className="flex items-start gap-4">
+              <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+              <div>
+                <p className="text-[11px] font-black uppercase text-accent leading-none mb-1">Aset Yang Diterima/Dikirim</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">Kontrak ini secara eksklusif mengelola koin **ALX**. Anda dapat mengirim dan menerima ALX dari/ke dompet mana pun. Kontrak tidak menerima koin lain (seperti MATIC atau USDT) secara fungsional di dalam logikanya.</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-4">
+              <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+              <div>
+                <p className="text-[11px] font-black uppercase text-accent leading-none mb-1">Hard Cap Supply</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">Suplai maksimum dibatasi secara permanen di angka **100.000.000 ALX**. Kode kontrak menjamin tidak ada fungsi yang dapat menambah suplai di atas batas ini.</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-4">
+              <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+              <div>
+                <p className="text-[11px] font-black uppercase text-accent leading-none mb-1">Circuit Breaker (Pausable)</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">Dalam kondisi darurat keamanan, Admin memiliki wewenang untuk membekukan seluruh transaksi ALX secara global guna melindungi aset nasabah.</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-4">
+              <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+              <div>
+                <p className="text-[11px] font-black uppercase text-accent leading-none mb-1">Institutional Audit Trail</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">Setiap operasi Mint, Burn, dan Pause memicu Event log di blockchain yang dapat diaudit oleh publik di Polygonscan secara transparan.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
+          <AlertCircle className="w-6 h-6 text-blue-500 shrink-0" />
+          <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+            <span className="text-blue-600 font-black">Catatan Operasional:</span> Harga jangkar $12.24 yang tertanam dalam kontrak adalah variabel referensi informasi dan tidak mengikat secara algoritma pada fungsi swap internal, melainkan sebagai target stabilitas ekosistem AliBank.
+          </p>
+        </div>
+      </section>
     </div>
   );
 }
