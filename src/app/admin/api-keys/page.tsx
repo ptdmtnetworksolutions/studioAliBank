@@ -32,6 +32,7 @@ import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/e
 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
+const ALX_CONTRACT = process.env.NEXT_PUBLIC_ALX_ADDRESS || "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
 
 export default function APIKeysPage() {
   return (
@@ -57,7 +58,7 @@ function APIKeysContent() {
     etherscanApiKey: "",
     ethereumRpcUrl: "",
     geminiApiKey: "",
-    alxContractAddress: "0x56268032A3B3E64CFeF1916d591087CF8dF40945"
+    alxContractAddress: ALX_CONTRACT
   });
 
   const apiKeysRef = useMemoFirebase(() => (db && isAuthorized ? doc(db, "system", "api_keys") : null), [db, isAuthorized]);
@@ -70,7 +71,7 @@ function APIKeysContent() {
         etherscanApiKey: storedKeys.etherscanApiKey || "",
         ethereumRpcUrl: storedKeys.ethereumRpcUrl || "",
         geminiApiKey: storedKeys.geminiApiKey || "",
-        alxContractAddress: storedKeys.alxContractAddress || "0x56268032A3B3E64CFeF1916d591087CF8dF40945"
+        alxContractAddress: storedKeys.alxContractAddress || ALX_CONTRACT
       });
     }
   }, [storedKeys]);

@@ -96,8 +96,8 @@ import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/e
 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
-const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
-const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
+const ALX_CONTRACT = process.env.NEXT_PUBLIC_ALX_ADDRESS || "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
+const GLOBAL_RPC = process.env.NEXT_PUBLIC_POLYGON_RPC || "https://rpc.ankr.com/polygon";
 const ALX_PRICE_IDR = 194004;
 
 export default function AdminMobilePage() {
@@ -777,7 +777,7 @@ function MenuToolItem({ icon: Icon, label, sub, color, onClick }: any) {
 
 function QuickOpButton({ icon: Icon, label, sub, color, onClick, syncing }: any) {
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-3 p-6 rounded-[2rem] bg-card border border-border/50 hover:bg-muted/50 transition-all group shadow-sm active:scale-95 text-center w-full">
+    <button onClick={onClick} className="flex flex-col items-center gap-3 p-6 rounded-[2.5rem] bg-card border border-border/50 hover:bg-muted/50 transition-all group shadow-sm active:scale-95 text-center w-full">
       <div className={cn("w-12 h-12 rounded-full bg-muted flex items-center justify-center border border-border group-hover:scale-110 transition-transform shadow-inner", color, syncing && "animate-spin")}><Icon className="w-5 h-5" /></div>
       <div>
         <p className="text-[10px] font-black uppercase italic">{label}</p>
@@ -791,7 +791,7 @@ function ProfileField({ icon: Icon, label, value, isMono = false }: any) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-2 text-muted-foreground">
-        <Icon className="w-3 h-3" />
+        <Icon className="w-3.5 h-3.5" />
         <span className="text-[8px] font-black uppercase tracking-widest">{label}</span>
       </div>
       <div className="p-3 rounded-xl bg-muted/50 border border-border">

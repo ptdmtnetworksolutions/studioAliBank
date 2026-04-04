@@ -150,8 +150,8 @@ import { executeVaultWithdrawalAction } from "@/app/actions/vault-actions";
 import { useAlixCoin } from '@/hooks/useAlixCoin';
 
 // KONSTANTA GLOBAL ADMIN - ALIBANK VAULT V3
-const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com"; 
-const ALX_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; 
+const GLOBAL_RPC = process.env.NEXT_PUBLIC_POLYGON_RPC || "https://rpc.ankr.com/polygon"; 
+const ALX_CONTRACT = process.env.NEXT_PUBLIC_ALX_ADDRESS || "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd"; 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
 const ETHERSCAN_API_KEY = "M1S7MDTBQSG1A3URQKYNVF31PSPE48UA8R";
@@ -218,7 +218,7 @@ function AdminContent() {
     etherscanApiKey: "",
     ethereumRpcUrl: "",
     geminiApiKey: "",
-    alxContractAddress: "0x56268032A3B3E64CFeF1916d591087CF8dF40945"
+    alxContractAddress: ALX_CONTRACT
   });
 
   // Detailed User States
@@ -258,7 +258,7 @@ function AdminContent() {
         etherscanApiKey: storedKeys.etherscanApiKey || "",
         ethereumRpcUrl: storedKeys.ethereumRpcUrl || "",
         geminiApiKey: storedKeys.geminiApiKey || "",
-        alxContractAddress: storedKeys.alxContractAddress || "0x56268032A3B3E64CFeF1916d591087CF8dF40945"
+        alxContractAddress: storedKeys.alxContractAddress || ALX_CONTRACT
       });
     }
   }, [storedKeys]);
@@ -717,7 +717,7 @@ function AdminContent() {
             <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg">
               <LogoIcon className="text-white" />
             </div>
-            <span className="font-black text-xl tracking-tighter italic uppercase">AliBank</span>
+            <span className="font-bold text-xl tracking-tighter italic uppercase">AliBank</span>
           </div>
 
           <nav className="flex-1 px-4 space-y-2 pt-4 overflow-y-auto no-scrollbar">
@@ -1217,9 +1217,7 @@ function AdminContent() {
                 <Card className="border-none bg-card rounded-[3rem] p-10 space-y-8 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 shadow-inner">
-                        <Pickaxe className="w-6 h-6" />
-                      </div>
+                      <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 shadow-inner"><Pickaxe className="w-6 h-6" /></div>
                       <h4 className="text-xl font-black italic uppercase tracking-tight">On-Chain Deflation Protocol</h4>
                     </div>
                     <Badge className="bg-rose-100 text-rose-600 font-black text-[8px] uppercase px-3 h-6">Live Burning</Badge>
