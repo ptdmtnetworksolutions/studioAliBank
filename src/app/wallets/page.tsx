@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo } from "react";
-import { useUser, useFirestore, useCollection } from "@/firebase";
+import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query } from "firebase/firestore";
 
 const iconMap: Record<string, any> = {
@@ -25,7 +25,7 @@ export default function WalletsPage() {
     setMounted(true);
   }, []);
 
-  const walletsQuery = useMemo(() => {
+  const walletsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(collection(db, "users", user.uid, "wallets"));
   }, [db, user]);

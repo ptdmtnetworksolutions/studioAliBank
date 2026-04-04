@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useState, useMemo, useEffect } from "react";
-import { useUser, useDoc, useFirestore, useCollection } from "@/firebase";
+import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { doc, collection, query, orderBy, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -41,10 +41,10 @@ export default function AliBankPayPage() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  const txQuery = useMemo(() => (!db || !user) ? null : query(
+  const txQuery = useMemoFirebase(() => (!db || !user) ? null : query(
     collection(db, "users", user.uid, "transactions"),
     orderBy("timestamp", "desc"),
     limit(10)

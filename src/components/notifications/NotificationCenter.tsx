@@ -9,7 +9,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { useUser, useFirestore, useCollection } from "@/firebase";
+import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, limit, doc, updateDoc, writeBatch } from "firebase/firestore";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,7 @@ export function NotificationCenter() {
   const { user } = useUser();
   const db = useFirestore();
 
-  const notificationsQuery = useMemo(() => {
+  const notificationsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
       collection(db, "users", user.uid, "notifications"),

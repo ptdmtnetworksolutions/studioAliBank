@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { useFirestore, useUser, useDoc, useCollection } from "@/firebase";
+import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import { 
   collection, 
   addDoc, 
@@ -51,11 +51,10 @@ export default function TransferPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState<'selection' | 'confirmation' | 'success'>('selection');
 
-  const userDocRef = useMemo(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  // Simplified query to avoid index errors, filter client-side
-  const transactionsQuery = useMemo(() => (!db || !user) ? null : query(
+  const transactionsQuery = useMemoFirebase(() => (!db || !user) ? null : query(
     collection(db, "users", user.uid, "transactions"),
     limit(100)
   ), [db, user]);
@@ -65,7 +64,6 @@ export default function TransferPage() {
   const realRecentRecipients = useMemo(() => {
     if (!rawTxs) return [];
     
-    // Client-side filtering and sorting for Transfer category
     const recentTxs = rawTxs
       .filter(tx => tx.category === "Transfer")
       .sort((a, b) => {
