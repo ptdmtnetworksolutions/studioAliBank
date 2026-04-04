@@ -150,7 +150,12 @@ import { executeVaultWithdrawalAction } from "@/app/actions/vault-actions";
 import { useAlixCoin } from '@/hooks/useAlixCoin';
 
 // KONSTANTA GLOBAL ADMIN - ALIBANK VAULT V3
-const GLOBAL_RPC = process.env.NEXT_PUBLIC_POLYGON_RPC || "https://rpc.ankr.com/polygon"; 
+const FALLBACK_RPCS = [
+  process.env.NEXT_PUBLIC_POLYGON_RPC,
+  "https://polygon-bor-rpc.publicnode.com",
+  "https://rpc.ankr.com/polygon"
+].filter(Boolean) as string[];
+
 const ALX_CONTRACT = process.env.NEXT_PUBLIC_ALX_ADDRESS || "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd"; 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
@@ -318,31 +323,36 @@ function AdminContent() {
   const syncOnChainData = useCallback(async (manual = false) => {
     if (!isAuthorized) return;
     setSyncingVault(true);
+    
+    // Gunakan fallback RPC untuk sinkronisasi vault di dashboard
+    let currentRpc = keys.ethereumRpcUrl || FALLBACK_RPCS[0];
+    let balanceFetched = false;
+
     try {
-      const provider = new JsonRpcProvider(keys.ethereumRpcUrl || GLOBAL_RPC);
-      const vaultBalance = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
-      setOnChainEth(formatEther(vaultBalance));
+      for (const rpc of [currentRpc, ...FALLBACK_RPCS]) {
+        if (balanceFetched) break;
+        try {
+          const provider = new JsonRpcProvider(rpc, undefined, { staticNetwork: ethers.Network.from(137) });
+          const vaultBalance = await provider.getBalance(ALX_CONTRACT);
+          setOnChainEth(formatEther(vaultBalance));
+          balanceFetched = true;
+        } catch (e) {
+          continue;
+        }
+      }
 
       if (userData?.walletAddress) {
+        const provider = new JsonRpcProvider(FALLBACK_RPCS[0], undefined, { staticNetwork: ethers.Network.from(137) });
         const adminBal = await provider.getBalance(userData.walletAddress).catch(() => 0n);
         setAdminWalletEth(formatEther(adminBal));
       }
 
       try {
-        const [resNormal, resInternal] = await Promise.all([
-          fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${keys.etherscanApiKey || ETHERSCAN_API_KEY}`),
-          fetch(`https://api.etherscan.io/api?module=account&action=txlistinternal&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${keys.etherscanApiKey || ETHERSCAN_API_KEY}`)
-        ]);
-
+        const etherscanUrl = `https://api.etherscan.io/api?module=account&action=txlist&address=${ALX_CONTRACT}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc&apikey=${keys.etherscanApiKey || ETHERSCAN_API_KEY}`;
+        const resNormal = await fetch(etherscanUrl);
         const dataNormal = await resNormal.json();
-        const dataInternal = await resInternal.json();
         
-        const normalResults = dataNormal.status === "1" ? dataNormal.result : [];
-        const internalResults = dataInternal.status === "1" ? dataInternal.result : [];
-
-        const combinedResults = [...normalResults, ...internalResults].sort((a, b) => parseInt(b.timeStamp) - parseInt(a.timeStamp));
-
-        if (combinedResults.length > 0) {
+        if (dataNormal.status === "1") {
           const timeAgo = (ts: string) => {
             const seconds = Math.floor((Date.now() - parseInt(ts) * 1000) / 1000);
             if (seconds < 60) return `${seconds}s ago`;
@@ -351,18 +361,18 @@ function AdminContent() {
             return `${Math.floor(seconds / 86400)}d ago`;
           };
 
-          const realHistory = combinedResults.slice(0, 20).map((tx: any) => {
+          const realHistory = dataNormal.result.slice(0, 20).map((tx: any) => {
             const isOut = tx.from.toLowerCase() === ALX_CONTRACT.toLowerCase();
             const val = formatEther(tx.value);
             return {
-              hash: tx.hash ? (tx.hash.slice(0, 10) + "...") : "Internal",
-              fullHash: tx.hash || "",
+              hash: tx.hash.slice(0, 10) + "...",
+              fullHash: tx.hash,
               from: tx.from,
               to: tx.to,
               value: `${parseFloat(val).toFixed(6)} ETH`,
               type: isOut ? "OUT" : "IN",
               time: timeAgo(tx.timeStamp),
-              method: tx.functionName ? tx.functionName.split('(')[0] : (tx.input && tx.input !== '0x' ? 'Contract' : (tx.hash ? 'Transfer' : 'Internal'))
+              method: tx.functionName ? tx.functionName.split('(')[0] : 'Transfer'
             };
           });
           setOnChainHistory(realHistory);
