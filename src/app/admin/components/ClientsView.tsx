@@ -171,6 +171,11 @@ export function ClientsView({ allUsers }: any) {
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl rounded-[3rem] p-0 bg-background border-none shadow-2xl overflow-hidden">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Profil Nasabah: {selectedUser?.name}</DialogTitle>
+            <DialogDescription>Kelola parameter finansial, saldo koin ALX, dan pengaturan keamanan nasabah AliBank secara riil.</DialogDescription>
+          </DialogHeader>
+          
           <div className="gold-gradient h-32 w-full relative">
             <div className="absolute -bottom-10 left-10 w-24 h-24 rounded-3xl bg-background border-8 border-background overflow-hidden shadow-xl">
               <Image src={`https://picsum.photos/seed/${selectedUser?.uid}/200/200`} alt="avatar" width={100} height={100} className="object-cover" />
