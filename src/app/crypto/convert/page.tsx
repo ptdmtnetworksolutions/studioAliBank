@@ -147,13 +147,17 @@ export default function ConvertPage() {
         timestamp: serverTimestamp()
       });
 
-      // Update Likuiditas Global System (Jika beli ALX, IDR masuk ke kas sistem)
+      // Update Likuiditas Global System
+      const systemRef = doc(db, "system", "liquidity");
+      const liquidityUpdates: any = {};
+      
       if (direction === 'TO_ALX' && counterCurrency === 'IDR') {
-        const systemRef = doc(db, "system", "liquidity");
-        await updateDoc(systemRef, {
-          totalInternalAumIdr: increment(numAmount),
-          totalAlixSoldInternally: increment(resultNum)
-        });
+        liquidityUpdates.totalInternalAumIdr = increment(numAmount);
+        liquidityUpdates.totalAlixSoldInternally = increment(resultNum);
+      }
+      
+      if (Object.keys(liquidityUpdates).length > 0) {
+        await updateDoc(systemRef, liquidityUpdates);
       }
 
       setStep('success');
@@ -204,7 +208,7 @@ export default function ConvertPage() {
     <div className="min-h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
       <header className="px-4 h-12 flex items-center justify-between sticky top-0 bg-background z-50">
         <button onClick={() => router.back()} className="p-1 hover:bg-muted rounded-full transition-colors"><ArrowLeft className="w-5 h-5" /></button>
-        <h1 className="text-base font-black tracking-tight italic uppercase">Beli / Jual ALX</h1>
+        <h1 className="text-base font-black tracking-tight italic uppercase">Ali-Exchange Terminal</h1>
         <div className="flex gap-2">
           <History onClick={() => router.push('/transactions')} className="w-4 h-4 text-muted-foreground cursor-pointer" />
         </div>
@@ -213,15 +217,18 @@ export default function ConvertPage() {
       <main className="flex-1 px-4 pt-1 space-y-3 overflow-hidden">
         <div className="bg-primary/10 border border-primary/20 rounded-xl p-2.5 flex items-center gap-3">
           <Sparkles className="w-4 h-4 text-primary shrink-0" />
-          <p className="text-[9px] font-bold text-foreground leading-tight">Beli ALX sekarang sebelum listing di Uniswap untuk mendapatkan harga terbaik!</p>
+          <p className="text-[9px] font-bold text-foreground leading-tight uppercase italic">Beli ALX di fase internal untuk mendapatkan harga dasar $12.24 sebelum Listing Global.</p>
         </div>
 
         <div className="flex items-center justify-between px-1">
-          <p className="text-[11px] font-black text-foreground italic">
-            Harga ALX: {counterCurrency === 'USDT' ? `$${ALX_PRICE_USDT}` : `Rp${ALX_PRICE_IDR.toLocaleString()}`}
-          </p>
+          <div className="flex flex-col">
+            <p className="text-[11px] font-black text-foreground italic">
+              Harga ALX: {counterCurrency === 'USDT' ? `$${ALX_PRICE_USDT}` : `Rp${ALX_PRICE_IDR.toLocaleString()}`}
+            </p>
+            <span className="text-[7px] font-bold text-muted-foreground uppercase tracking-widest">Target Price: $12.24 (Anchor)</span>
+          </div>
           <div 
-            className="flex items-center gap-1 text-[10px] font-black bg-muted/50 px-2 py-1 rounded-md cursor-pointer"
+            className="flex items-center gap-1 text-[10px] font-black bg-muted/50 px-3 py-1.5 rounded-full border border-border cursor-pointer active:scale-95 transition-all"
             onClick={() => setCounterCurrency(counterCurrency === 'USDT' ? 'IDR' : 'USDT')}
           >
             Bayar dengan {counterCurrency === 'USDT' ? 'IDR' : 'USDT'} <ChevronDown className="w-3 h-3" />
@@ -232,7 +239,7 @@ export default function ConvertPage() {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={mockChartData}>
               <YAxis domain={['dataMin - 0.1', 'dataMax + 0.1']} hide />
-              <Line type="monotone" dataKey="price" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} animationDuration={1000} />
+              <Line type="monotone" dataKey="price" stroke="hsl(var(--primary))" strokeWidth={3} dot={false} animationDuration={1000} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -245,56 +252,56 @@ export default function ConvertPage() {
                 {direction === 'TO_ALX' ? 'Bayar' : 'Jual'}
               </label>
               <span className="text-[9px] font-black text-muted-foreground italic">
-                Saldo: {direction === 'TO_ALX' ? (counterCurrency === 'USDT' ? `${userData?.cryptoBalances?.USDT ?? 0} USDT` : `Rp${(userData?.totalBalance ?? 0).toLocaleString()}`) : `${userData?.cryptoBalances?.ALX ?? 0} ALX`}
+                Saldo: {direction === 'TO_ALX' ? (counterCurrency === 'USDT' ? `${(userData?.cryptoBalances?.USDT ?? 0).toFixed(2)} USDT` : `Rp${(userData?.totalBalance ?? 0).toLocaleString()}`) : `${(userData?.cryptoBalances?.ALX ?? 0).toFixed(4)} ALX`}
               </span>
             </div>
-            <div className="bg-muted/30 rounded-xl p-3 flex items-center justify-between border border-border shadow-sm">
-              <div className="flex items-center gap-2">
-                <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-2 shadow-sm", direction === 'TO_ALX' ? (counterCurrency === 'USDT' ? "bg-[#0D9488]" : "bg-rose-600") : "bg-foreground")}>
-                  {direction === 'TO_ALX' ? (counterCurrency === 'USDT' ? <svg viewBox="0 0 24 24" fill="white" className="w-full h-full"><path d="M12 2L2 12l10 10 10-10L12 2zm0 16.5L5.5 12 12 5.5 18.5 12 12 18.5z"/></svg> : <span className="text-white font-black text-xs">Rp</span>) : <LogoIcon className="text-background" />}
+            <div className="bg-muted/30 rounded-2xl p-4 flex items-center justify-between border border-border shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2.5 shadow-md", direction === 'TO_ALX' ? (counterCurrency === 'USDT' ? "bg-[#0D9488]" : "bg-rose-600") : "gold-gradient")}>
+                  {direction === 'TO_ALX' ? (counterCurrency === 'USDT' ? <svg viewBox="0 0 24 24" fill="white" className="w-full h-full"><path d="M12 2L2 12l10 10 10-10L12 2zm0 16.5L5.5 12 12 5.5 18.5 12 12 18.5z"/></svg> : <span className="text-white font-black text-sm">Rp</span>) : <LogoIcon className="text-white" />}
                 </div>
-                <span className="text-sm font-black italic uppercase">{direction === 'TO_ALX' ? counterCurrency : 'ALX'}</span>
+                <span className="text-sm font-black italic uppercase tracking-tighter">{direction === 'TO_ALX' ? counterCurrency : 'ALX'}</span>
               </div>
-              <input type="number" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-1/2 bg-transparent text-right text-lg font-black italic outline-none tracking-tighter" />
+              <input type="number" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-1/2 bg-transparent text-right text-2xl font-black italic outline-none tracking-tighter text-foreground" />
             </div>
           </div>
 
-          <div className="flex justify-center -my-3.5 relative z-20">
-            <button onClick={() => { setDirection(prev => prev === 'TO_ALX' ? 'FROM_ALX' : 'TO_ALX'); setAmount(""); }} className="w-8 h-8 bg-background border border-border rounded-full shadow-md flex items-center justify-center text-foreground active:scale-90 transition-transform"><ArrowUpDown className="w-4 h-4" /></button>
+          <div className="flex justify-center -my-4 relative z-20">
+            <button onClick={() => { setDirection(prev => prev === 'TO_ALX' ? 'FROM_ALX' : 'TO_ALX'); setAmount(""); }} className="w-10 h-10 bg-background border-4 border-muted rounded-full shadow-xl flex items-center justify-center text-primary active:scale-90 transition-transform"><ArrowUpDown className="w-5 h-5" /></button>
           </div>
 
           {/* TUJUAN */}
           <div className="space-y-1">
             <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">
-              {direction === 'TO_ALX' ? 'Terima' : 'Dapatkan'}
+              {direction === 'TO_ALX' ? 'Terima Estimasi' : 'Dapatkan'}
             </label>
-            <div className="bg-muted/30 rounded-xl p-3 flex items-center justify-between border border-border shadow-sm">
-              <div className="flex items-center gap-2">
-                <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-2 shadow-sm", direction === 'FROM_ALX' ? (counterCurrency === 'USDT' ? "bg-[#0D9488]" : "bg-rose-600") : "bg-foreground")}>
-                  {direction === 'FROM_ALX' ? (counterCurrency === 'USDT' ? <svg viewBox="0 0 24 24" fill="white" className="w-full h-full"><path d="M12 2L2 12l10 10 10-10L12 2zm0 16.5L5.5 12 12 5.5 18.5 12 12 18.5z"/></svg> : <span className="text-white font-black text-xs">Rp</span>) : <LogoIcon className="text-background" />}
+            <div className="bg-muted/30 rounded-2xl p-4 flex items-center justify-between border border-border shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2.5 shadow-md", direction === 'FROM_ALX' ? (counterCurrency === 'USDT' ? "bg-[#0D9488]" : "bg-rose-600") : "gold-gradient")}>
+                  {direction === 'FROM_ALX' ? (counterCurrency === 'USDT' ? <svg viewBox="0 0 24 24" fill="white" className="w-full h-full"><path d="M12 2L2 12l10 10 10-10L12 2zm0 16.5L5.5 12 12 5.5 18.5 12 12 18.5z"/></svg> : <span className="text-white font-black text-sm">Rp</span>) : <LogoIcon className="text-white" />}
                 </div>
-                <span className="text-sm font-black italic uppercase">{direction === 'FROM_ALX' ? counterCurrency : 'ALX'}</span>
+                <span className="text-sm font-black italic uppercase tracking-tighter">{direction === 'FROM_ALX' ? counterCurrency : 'ALX'}</span>
               </div>
-              <p className="text-lg font-black text-muted-foreground/40 italic tracking-tighter">{convertedValue}</p>
+              <p className="text-2xl font-black text-muted-foreground/60 italic tracking-tighter">{convertedValue}</p>
             </div>
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
-          <Info className="w-4 h-4 text-blue-500 shrink-0" />
-          <p className="text-[8px] font-bold text-muted-foreground leading-relaxed uppercase italic">
-            Seluruh hasil penjualan ALX secara internal akan dikumpulkan untuk penyediaan Likuiditas Global (USDT) di Uniswap V3.
+        <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3 mt-4">
+          <Info className="w-5 h-5 text-blue-500 shrink-0" />
+          <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">
+            Hasil penjualan ALX dikumpulkan untuk pembentukan pool likuiditas (USDT) yang akan dikunci pada Smart Contract AliBank di Uniswap V3 Mainnet.
           </p>
         </div>
       </main>
 
-      <div className="p-4 bg-background border-t border-border mt-auto">
+      <div className="p-4 bg-background border-t border-border mt-auto pb-10">
         <Button 
           disabled={!amount || isProcessing} 
           onClick={handleConvert} 
-          className="w-full h-12 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-xs tracking-widest"
+          className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-[1.5rem] shadow-xl text-sm tracking-[0.2em]"
         >
-          {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : (direction === 'TO_ALX' ? 'KONFIRMASI PEMBELIAN' : 'KONFIRMASI PENJUALAN')}
+          {isProcessing ? <Loader2 className="animate-spin w-6 h-6" /> : (direction === 'TO_ALX' ? 'EKSEKUSI PEMBELIAN ALX' : 'KONFIRMASI PENJUALAN')}
         </Button>
       </div>
     </div>

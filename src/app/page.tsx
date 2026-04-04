@@ -438,7 +438,7 @@ function DashboardContent() {
                       <ChevronDown className="w-3 h-3 transition-transform" />
                     )}
                   </div>
-                  <h1 className="text-4xl font-black tracking-tight text-foreground">
+                  <h1 className="text-4xl font-black tracking-tight text-foreground italic">
                     Rp{totalValueCalculated.toLocaleString('id-ID')}
                   </h1>
                   
@@ -460,7 +460,7 @@ function DashboardContent() {
                     )}
                   </div>
                 </div>
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-black px-4 h-10 rounded-lg shadow-none text-xs" onClick={openAddFunds}>
+                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-black px-4 h-10 rounded-lg shadow-none text-xs uppercase" onClick={openAddFunds}>
                   Tambah Dana
                 </Button>
               </div>
@@ -570,7 +570,7 @@ function DashboardContent() {
                           <h3 className="text-sm font-black text-foreground leading-tight">Undang Teman, Raih Hadiah 3.000 USDC!</h3>
                         </div>
                       </div>
-                      <Button className="bg-muted hover:bg-muted/80 text-foreground font-bold text-[10px] h-8 px-4 rounded-md shadow-none shrink-0">Ikuti</Button>
+                      <Button className="bg-muted hover:bg-muted/80 text-foreground font-bold text-[10px] h-8 px-4 rounded-md shadow-none shrink-0 uppercase italic">Ikuti</Button>
                     </div>
                   </CarouselItem>
                   <CarouselItem>
@@ -584,7 +584,7 @@ function DashboardContent() {
                           <h3 className="text-sm font-black text-foreground leading-tight">Dapatkan Hingga 15% APY di Stablecoin!</h3>
                         </div>
                       </div>
-                      <Button className="bg-primary text-primary-foreground font-bold text-[10px] h-8 px-4 rounded-md shadow-none shrink-0">Mulai</Button>
+                      <Button className="bg-primary text-primary-foreground font-bold text-[10px] h-8 px-4 rounded-md shadow-none shrink-0 uppercase italic">Mulai</Button>
                     </div>
                   </CarouselItem>
                 </CarouselContent>
@@ -605,7 +605,7 @@ function DashboardContent() {
                   <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:translate-x-1 transition-transform" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-foreground leading-tight italic">Aset ALX</h4>
+                  <h4 className="text-sm font-black text-foreground leading-tight italic">Terminal ALX</h4>
                   <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-tight italic">Utilitas & Membership</p>
                 </div>
               </div>
@@ -644,7 +644,7 @@ function DashboardContent() {
                         </div>
                         <div>
                           <Badge className="bg-blue-500/10 text-blue-500 text-[8px] font-black h-4 px-1.5 mb-2 border-none uppercase">Setor</Badge>
-                          <h4 className="text-sm font-black text-foreground leading-tight italic">Transfer Bank (SWIFT)</h4>
+                          <h4 className="text-sm font-black text-foreground leading-tight italic uppercase">Transfer SWIFT</h4>
                         </div>
                       </div>
                     </CarouselItem>
@@ -659,7 +659,7 @@ function DashboardContent() {
                         </div>
                         <div>
                           <Badge className="bg-rose-500/10 text-rose-500 text-[8px] font-black h-4 px-1.5 mb-2 border-none uppercase">Tarik</Badge>
-                          <h4 className="text-sm font-black text-foreground leading-tight italic">Transfer Bank (SWIFT)</h4>
+                          <h4 className="text-sm font-black text-foreground leading-tight italic uppercase">Transfer SWIFT</h4>
                         </div>
                       </div>
                     </CarouselItem>

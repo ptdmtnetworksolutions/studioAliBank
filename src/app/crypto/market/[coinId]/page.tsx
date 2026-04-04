@@ -209,7 +209,7 @@ export default function MarketDetailPage() {
                 {isAlix && (
                   <div className="flex gap-2 pt-2">
                     <span className="text-[8px] font-black uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">Utility-Driven</span>
-                    <span className="text-[8px] font-black uppercase text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded">Listing Price</span>
+                    <span className="text-[8px] font-black uppercase text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded">Anchor Price</span>
                   </div>
                 )}
               </div>
