@@ -30,21 +30,6 @@ import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
-const mockChartData = [
-  { time: '00:00', price: 12.10 },
-  { time: '01:00', price: 12.15 },
-  { time: '02:00', price: 12.05 },
-  { time: '03:00', price: 12.08 },
-  { time: '04:00', price: 12.18 },
-  { time: '05:00', price: 12.25 },
-  { time: '06:00', price: 12.20 },
-  { time: '07:00', price: 12.22 },
-  { time: '08:00', price: 12.24 },
-  { time: '09:00', price: 12.21 },
-  { time: '10:00', price: 12.23 },
-  { time: '11:00', price: 12.24 },
-];
-
 export default function ConvertPage() {
   const router = useRouter();
   const { user } = useUser();
@@ -58,25 +43,20 @@ export default function ConvertPage() {
   const [direction, setDirection] = useState<'FROM_ALX' | 'TO_ALX'>('TO_ALX');
   const [counterCurrency, setCounterCurrency] = useState<'USDT' | 'IDR'>('IDR');
   
-  // LOGIKA HARGA DINAMIS ALX
+  // LOGIKA HARGA DINAMIS ALX BERBASIS DATABASE
   const [liveAlxPriceUsdt, setLiveAlxPriceUsdt] = useState(12.24);
   const USDT_IDR_RATE = 15850;
 
+  const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
+  const { data: globalLiquidity } = useDoc(liquidityRef);
+
   useEffect(() => {
     setMounted(true);
-    // Simulasi Pergerakan Harga Pasar ALX (Dynamic Engine)
-    const interval = setInterval(() => {
-      setLiveAlxPriceUsdt(prev => {
-        const fluctuation = (Math.random() * 0.004 - 0.002); // Pergerakan kecil +/- 0.002
-        const nextPrice = prev + fluctuation;
-        // Jaga harga tetap di sekitar Anchor $12.24
-        if (nextPrice < 12.20) return 12.20;
-        if (nextPrice > 12.30) return 12.28;
-        return nextPrice;
-      });
-    }, 2500);
-    return () => clearInterval(interval);
-  }, []);
+    // Jika ada harga referensi di sistem, gunakan itu sebagai basis
+    if (globalLiquidity?.lastAlxPriceUsdt) {
+      setLiveAlxPriceUsdt(globalLiquidity.lastAlxPriceUsdt);
+    }
+  }, [globalLiquidity]);
 
   const currentPriceIdr = useMemo(() => liveAlxPriceUsdt * USDT_IDR_RATE, [liveAlxPriceUsdt]);
   const currentRate = counterCurrency === 'USDT' ? liveAlxPriceUsdt : currentPriceIdr;
@@ -122,9 +102,14 @@ export default function ConvertPage() {
     try {
       const resultNum = parseFloat(convertedValue);
       const userDocRef = doc(db, "users", user.uid);
+      const tradeTime = new Date().toISOString();
+
+      // Hitung dampak harga (slippage simulasi riil)
+      // Semakin banyak ALX dibeli, harga naik sedikit.
+      const priceImpact = (numAmount / 1000000); 
+      const newPriceUsdt = direction === 'TO_ALX' ? liveAlxPriceUsdt + priceImpact : liveAlxPriceUsdt - priceImpact;
 
       if (direction === 'FROM_ALX') {
-        // JUAL ALX -> (DITERIMA USDT / IDR)
         const updates: any = { "cryptoBalances.ALX": increment(-numAmount) };
         if (counterCurrency === 'USDT') {
           updates["cryptoBalances.USDT"] = increment(resultNum);
@@ -133,7 +118,6 @@ export default function ConvertPage() {
         }
         await updateDoc(userDocRef, updates);
       } else {
-        // BELI ALX DENGAN (USDT / IDR)
         const updates: any = { "cryptoBalances.ALX": increment(resultNum) };
         if (counterCurrency === 'USDT') {
           updates["cryptoBalances.USDT"] = increment(-numAmount);
@@ -143,33 +127,42 @@ export default function ConvertPage() {
         await updateDoc(userDocRef, updates);
       }
 
-      // Catat ke Audit Internal & Transaksi User
+      // 1. Catat ke Transaksi User
       await addDoc(collection(db, "users", user.uid, "transactions"), {
-        date: new Date().toISOString(),
+        date: tradeTime,
         description: direction === 'FROM_ALX' ? `Jual ALX ke ${counterCurrency}` : `Beli ALX dengan ${counterCurrency}`,
         category: "Ali-Exchange",
         fromAmount: numAmount,
         fromCurrency: direction === 'FROM_ALX' ? "ALX" : counterCurrency,
         toAmount: resultNum,
         toCurrency: direction === 'FROM_ALX' ? counterCurrency : "ALX",
-        executionPrice: currentRate,
-        type: "expense",
+        executionPrice: liveAlxPriceUsdt,
+        type: direction === 'TO_ALX' ? 'expense' : 'income',
         status: "success",
         timestamp: serverTimestamp()
       });
 
-      // Update Likuiditas Global System
+      // 2. CATAT KE MARKET DATA RIIL (Inilah yang membuat grafik bergerak nyata)
+      await addDoc(collection(db, "market", "ALX_USDT", "trades"), {
+        price: liveAlxPriceUsdt,
+        amount: direction === 'TO_ALX' ? resultNum : numAmount,
+        side: direction === 'TO_ALX' ? 'buy' : 'sell',
+        timestamp: serverTimestamp()
+      });
+
+      // 3. Update Likuiditas & Harga Global
       const systemRef = doc(db, "system", "liquidity");
-      const liquidityUpdates: any = {};
+      const liquidityUpdates: any = {
+        lastAlxPriceUsdt: newPriceUsdt,
+        totalAlixTrades: increment(1)
+      };
       
       if (direction === 'TO_ALX' && counterCurrency === 'IDR') {
         liquidityUpdates.totalInternalAumIdr = increment(numAmount);
         liquidityUpdates.totalAlixSoldInternally = increment(resultNum);
       }
       
-      if (Object.keys(liquidityUpdates).length > 0) {
-        await updateDoc(systemRef, liquidityUpdates);
-      }
+      await updateDoc(systemRef, liquidityUpdates);
 
       setStep('success');
       toast({ title: "Transaksi Berhasil", description: "Aset ALX Anda telah diperbarui." });
@@ -252,17 +245,7 @@ export default function ConvertPage() {
           </div>
         </div>
 
-        <div className="h-28 w-full relative">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={mockChartData}>
-              <YAxis domain={['dataMin - 0.1', 'dataMax + 0.1']} hide />
-              <Line type="monotone" dataKey="price" stroke="hsl(var(--primary))" strokeWidth={3} dot={false} animationDuration={1000} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="space-y-1">
-          {/* ASAL */}
+        <div className="space-y-1 mt-4">
           <div className="space-y-1">
             <div className="flex justify-between items-center px-1">
               <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
@@ -287,7 +270,6 @@ export default function ConvertPage() {
             <button onClick={() => { setDirection(prev => prev === 'TO_ALX' ? 'FROM_ALX' : 'TO_ALX'); setAmount(""); }} className="w-10 h-10 bg-background border-4 border-muted rounded-full shadow-xl flex items-center justify-center text-primary active:scale-90 transition-transform"><ArrowUpDown className="w-5 h-5" /></button>
           </div>
 
-          {/* TUJUAN */}
           <div className="space-y-1">
             <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">
               {direction === 'TO_ALX' ? 'Terima Estimasi' : 'Dapatkan'}
