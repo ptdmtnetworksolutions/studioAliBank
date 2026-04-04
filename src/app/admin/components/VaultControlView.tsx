@@ -14,7 +14,11 @@ import {
   Info, 
   History, 
   CheckCircle2, 
-  ArrowRightLeft 
+  ArrowRightLeft,
+  Lock,
+  Zap,
+  Globe,
+  Database
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { executeVaultWithdrawalAction } from "@/app/actions/vault-actions";
@@ -52,6 +56,7 @@ export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any)
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Vault Status Card */}
         <Card className="lg:col-span-4 border-none bg-[#1A1D1F] rounded-[3rem] p-10 text-white space-y-10 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-5"><Wallet className="w-48 h-48" /></div>
           <div className="space-y-2">
@@ -70,6 +75,7 @@ export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any)
           </div>
         </Card>
 
+        {/* Withdrawal Terminal */}
         <Card className="lg:col-span-8 border-none bg-card rounded-[3rem] p-10 space-y-8 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><ArrowUpFromLine className="w-6 h-6" /></div>
@@ -115,6 +121,69 @@ export function VaultControlView({ onChainEth, VAULT_CONTRACT, auditLogs }: any)
         </Card>
       </div>
 
+      {/* DETAIL FUNGSI & KEUNGGULAN BRANKAS */}
+      <section className="space-y-6 pt-10">
+        <h3 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-3">
+          <Database className="w-6 h-6 text-primary" /> Arsitektur & Filosofi Brankas V3
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-4 group hover:border-primary/30 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+              <Lock className="w-6 h-6" />
+            </div>
+            <h5 className="font-black uppercase italic text-sm">Keamanan Multi-Layer</h5>
+            <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
+              Menggunakan modifier <span className="text-accent font-bold">nonReentrant</span> untuk mencegah eksploitasi serangan penarikan ganda. Seluruh logika transaksi mengikuti pola <span className="text-accent font-bold">Checks-Effects-Interactions</span> standar industri global.
+            </p>
+          </Card>
+
+          <Card className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-4 group hover:border-primary/30 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+              <Zap className="w-6 h-6" />
+            </div>
+            <h5 className="font-black uppercase italic text-sm">Infrastruktur Yield</h5>
+            <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
+              Brankas ini dirancang sebagai fondasi sistem <span className="text-accent font-bold">Staking & Rewards</span>. Dana yang tersimpan secara on-chain memberikan jaminan likuiditas bagi nasabah yang mengunci aset mereka di fitur deposito AliBank.
+            </p>
+          </Card>
+
+          <Card className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-4 group hover:border-primary/30 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+              <Globe className="w-6 h-6" />
+            </div>
+            <h5 className="font-black uppercase italic text-sm">Kliring On-Chain</h5>
+            <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
+              Berfungsi sebagai pusat penyelesaian (<span className="text-accent font-bold">Settlement Hub</span>) untuk seluruh operasional perbankan hibrida. Memastikan dana riil tersedia di ETH Mainnet untuk mendukung kepercayaan institusional.
+            </p>
+          </Card>
+        </div>
+
+        <div className="p-10 rounded-[3rem] bg-accent/5 border border-primary/10 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5"><ShieldCheck className="w-32 h-32 text-primary" /></div>
+          <h4 className="text-lg font-black uppercase italic mb-4">Kelebihan AliBankVault V3:</h4>
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+            <li className="flex items-start gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Immutability:</span> Semua transaksi terekam selamanya di Ledger Ethereum dan tidak dapat dimanipulasi.</p>
+            </li>
+            <li className="flex items-start gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Full Transparency:</span> Publik dapat memverifikasi saldo riil brankas melalui Etherscan secara real-time.</p>
+            </li>
+            <li className="flex items-start gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Owner Access:</span> Kontrol penuh berada di tangan Super Admin untuk memindahkan kepemilikan jika terjadi peningkatan infrastruktur.</p>
+            </li>
+            <li className="flex items-start gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic"><span className="text-accent">Disbursement Engine:</span> Mendukung pengiriman dana massal dari satu titik aman tanpa risiko kebocoran kunci privat ke sisi klien.</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      {/* Sync History */}
       <div className="space-y-6">
         <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-3"><History className="w-5 h-5 text-primary" /> On-Chain Sync History</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
