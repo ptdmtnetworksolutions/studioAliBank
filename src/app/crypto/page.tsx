@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -39,6 +40,7 @@ import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@
 import { doc } from "firebase/firestore";
 
 const MARKUP = 1.02; // 2% AliBank Profit Margin
+const USDT_IDR_RATE = 15850;
 
 export default function CryptoMarketPage() {
   const router = useRouter();
@@ -99,6 +101,35 @@ export default function CryptoMarketPage() {
     return () => clearInterval(interval);
   }, [globalLiquidity]);
 
+  // LOGIKA TERMINAL TICKER (Consistency with Home Page)
+  useEffect(() => {
+    if (!mounted) return;
+    const interval = setInterval(() => {
+      setMarketData(prev => prev.map(coin => {
+        if (coin.symbol === "ALX") {
+          const move = (Math.random() * 0.0002 - 0.00005); 
+          const newPrice = coin.price + move;
+          return { 
+            ...coin, 
+            price: newPrice, 
+            change: (coin.change ?? 0) + (Math.random() * 0.01 - 0.005) 
+          };
+        }
+        
+        const move = (Math.random() * 0.0004 - 0.0002); 
+        const newPrice = coin.price * (1 + move);
+        const newChange = (coin.change ?? 0) + (Math.random() * 0.02 - 0.01);
+        return {
+          ...coin,
+          price: newPrice,
+          change: newChange,
+          isUp: newChange >= 0
+        };
+      }));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [mounted]);
+
   useEffect(() => {
     if (!bannerApi) return;
     bannerApi.on("select", () => {
@@ -147,7 +178,7 @@ export default function CryptoMarketPage() {
         </div>
       </header>
 
-      <main className="flex-1 px-4 pt-4 space-y-8 overflow-y-auto no-scrollbar">
+      <main className="flex-1 px-4 pt-4 space-y-8 overflow-y-auto no-scrollbar pb-32">
         {/* TAB: FAVORIT */}
         {activeTab === "Favorit" && (
           <div className="animate-in zoom-in-95 duration-500 py-10 flex flex-col items-center justify-center text-center space-y-6">
@@ -220,11 +251,13 @@ export default function CryptoMarketPage() {
                     <p className="text-sm font-black italic tracking-tight text-foreground">
                       {coin.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: coin.price < 1 ? 4 : 2 })}
                     </p>
-                    <p className="text-[8px] font-bold text-muted-foreground uppercase">Markup Incl.</p>
+                    <p className="text-[8px] font-bold text-muted-foreground uppercase">
+                      Rp{(coin.price * USDT_IDR_RATE).toLocaleString('id-ID', { maximumFractionDigits: 0 })}
+                    </p>
                   </div>
                   <div className="flex justify-end">
                     <div className={cn(
-                      "w-20 py-1.5 rounded-lg flex items-center justify-center text-[11px] font-black italic shadow-sm transition-colors",
+                      "w-20 py-1.5 rounded-lg flex items-center justify-center text-[11px] font-black italic shadow-sm transition-colors duration-500",
                       coin.isUp ? "bg-green-500 text-white" : "bg-rose-500 text-white"
                     )}>
                       {coin.change >= 0 ? '+' : ''}{(coin.change ?? 0).toFixed(2)}%
