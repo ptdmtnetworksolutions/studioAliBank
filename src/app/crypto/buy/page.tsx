@@ -117,18 +117,22 @@ export default function CryptoBuyPage() {
     return (num / exchangeRate).toFixed(2);
   }, [amount]);
 
-  // Mekanisme Render Tombol Pembayaran yang Lebih Robust
   useEffect(() => {
     let timeoutId: any;
 
     if (isCheckoutDialogOpen && paypalReady && window.paypal) {
-      // Tunggu sedikit agar container Ref benar-benar siap di DOM setelah dialog terbuka
       timeoutId = setTimeout(() => {
         if (!paypalContainerRef.current) return;
         
         paypalContainerRef.current.innerHTML = "";
-        window.paypal.Buttons({
-          style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
+        
+        const buttonConfig: any = {
+          style: { 
+            layout: 'vertical', 
+            color: selectedPayment.id === 'gpay' ? 'black' : 'gold', 
+            shape: 'rect', 
+            label: selectedPayment.id === 'gpay' ? 'pay' : 'checkout' 
+          },
           createOrder: (data: any, actions: any) => {
             return actions.order.create({
               purchase_units: [{
@@ -149,15 +153,31 @@ export default function CryptoBuyPage() {
             } finally {
               setIsProcessing(false);
             }
+          },
+          onError: (err: any) => {
+            console.error("PayPal Error:", err);
+            toast({ variant: "destructive", title: "Gateway Error", description: "Terjadi kesalahan pada jalur komunikasi bank." });
           }
-        }).render(paypalContainerRef.current).catch((err: any) => {
-          console.warn("PayPal Render Error, retrying...", err);
+        };
+
+        // SPESIFIKASI FUNDING SOURCE BERDASARKAN PILIHAN USER
+        if (selectedPayment.id === 'gpay') {
+          buttonConfig.fundingSource = window.paypal.FUNDING.GOOGLEPAY;
+        } else if (selectedPayment.id === 'card') {
+          buttonConfig.fundingSource = window.paypal.FUNDING.CARD;
+        }
+
+        window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current).catch((err: any) => {
+          // Fallback jika fundingSource spesifik tidak tersedia di browser/wilayah
+          console.warn("Requested funding source not available, falling back to smart buttons");
+          delete buttonConfig.fundingSource;
+          window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
         });
       }, 300);
     }
 
     return () => clearTimeout(timeoutId);
-  }, [isCheckoutDialogOpen, paypalReady, usdValue, estimatedReceive, selectedAsset]);
+  }, [isCheckoutDialogOpen, paypalReady, usdValue, estimatedReceive, selectedAsset, selectedPayment]);
 
   const finalizePurchase = async (paymentDetails: any) => {
     if (!user || !db || !userDocRef || !userData) return;
@@ -180,7 +200,6 @@ export default function CryptoBuyPage() {
       };
 
       if (selectedAsset.symbol === 'ALX') {
-        // Potong Inventaris Vault secara Riil
         sysUpdates.alixVaultBalance = increment(-numReceive);
         sysUpdates.totalAlixSoldInternally = increment(numReceive);
       }
@@ -191,12 +210,12 @@ export default function CryptoBuyPage() {
       const auditData = {
         id: `CRYPTO-BUY-${paymentDetails.id || Date.now()}`,
         category: "External Settlement",
-        gateway: "PayPal/Google Pay",
+        gateway: selectedPayment.id === 'gpay' ? "Ali-Secure (Google Pay)" : "Ali-Secure (Card)",
         amountIdr: numPay,
         amountUsd: usdValNum,
         cryptoAmount: numReceive,
         cryptoCurrency: selectedAsset.symbol,
-        description: `User ${userData.name} purchased ${numReceive} ${selectedAsset.symbol} via Ali-Secure Gateway.`,
+        description: `User ${userData.name} purchased ${numReceive} ${selectedAsset.symbol} via AliBank Secure Node.`,
         status: "success",
         timestamp: serverTimestamp(),
         userEmail: user.email
@@ -207,14 +226,14 @@ export default function CryptoBuyPage() {
       // 4. Catat Transaksi Riwayat Nasabah
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
-        description: `Beli ${selectedAsset.symbol} via Ali-Secure Gateway`,
+        description: `Beli ${selectedAsset.symbol} via ${selectedPayment.name}`,
         category: "Bursa",
         amount: numPay,
         currency: selectedCurrency.code,
         cryptoAmount: numReceive,
         cryptoCurrency: selectedAsset.symbol,
         paymentId: paymentDetails.id,
-        gateway: "Google Pay / Card",
+        gateway: selectedPayment.name,
         type: "income",
         status: "success",
         timestamp: serverTimestamp()
@@ -223,7 +242,7 @@ export default function CryptoBuyPage() {
       // 5. Kirim Notifikasi Internal
       await addDoc(collection(db, "users", user.uid, "notifications"), {
         title: "Settlement Berhasil",
-        message: `Pembayaran riil terkonfirmasi. Berhasil membeli ${numReceive} ${selectedAsset.symbol}.`,
+        message: `Pembayaran riil terkonfirmasi via ${selectedPayment.name}. Berhasil membeli ${numReceive} ${selectedAsset.symbol}.`,
         type: "success",
         read: false,
         createdAt: new Date().toISOString()
@@ -279,7 +298,7 @@ export default function CryptoBuyPage() {
   return (
     <div className="h-screen bg-background text-foreground flex flex-col font-body overflow-hidden transition-colors duration-300">
       <Script 
-        src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&intent=capture&enable-funding=paylater,card`}
+        src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&intent=capture&enable-funding=googlepay,card`}
         onLoad={() => setPaypalReady(true)}
       />
 
@@ -386,7 +405,11 @@ export default function CryptoBuyPage() {
               </div>
               <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
                 <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0" />
-                <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">Pembayaran diproses secara riil melalui node keamanan AliBank. Dana akan memotong saldo Google Pay atau Kartu Anda.</p>
+                <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">
+                  {selectedPayment.id === 'gpay' 
+                    ? "Pembayaran diproses secara riil melalui node keamanan AliBank. Dana akan memotong saldo GOOGLE PAY Anda."
+                    : "Pembayaran diproses secara riil melalui node keamanan AliBank. Dana akan memotong saldo KARTU atau PayPal Anda."}
+                </p>
               </div>
             </div>
           </div>

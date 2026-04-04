@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -139,89 +138,65 @@ export default function CheckoutPage() {
   }, [db, invoiceId]);
 
   useEffect(() => {
-    if (paymentStep === 'bridge_gate' && paypalReady && window.paypal && window.paypal.Buttons && invoice) {
+    if (paymentStep === 'bridge_gate' && paypalReady && window.paypal && invoice) {
       const formattedAmount = parseFloat(invoice.amountUsd.toString()).toFixed(2);
 
-      const createOrderOptions = {
-        intent: 'CAPTURE',
-        purchase_units: [{
-          amount: { 
-            currency_code: "USD", 
-            value: formattedAmount 
-          },
-          description: `AliBank Global - INV ${invoice?.invoiceId}`
-        }],
-        application_context: {
-          shipping_preference: 'NO_SHIPPING',
-          user_action: 'PAY_NOW',
-          brand_name: 'ALIBANK SECURE V3'
-        }
-      };
-
-      const handleCaptureDecline = (error: any, actions: any) => {
-        const isDeclined = error?.name === 'UNPROCESSABLE_ENTITY' || 
-                         error?.message?.includes('INSTRUMENT_DECLINED') || 
-                         (error?.details && error.details[0]?.issue === 'INSTRUMENT_DECLINED');
-
-        if (isDeclined) {
-          toast({ 
-            variant: "destructive", 
-            title: "Pembayaran Ditolak Bank", 
-            description: "Bank Anda menolak transaksi ini." 
+      const commonConfig: any = {
+        createOrder: (data: any, actions: any) => {
+          return actions.order.create({
+            intent: 'CAPTURE',
+            purchase_units: [{
+              amount: { currency_code: "USD", value: formattedAmount },
+              description: `AliBank Global - INV ${invoice?.invoiceId}`
+            }],
+            application_context: {
+              brand_name: 'ALIBANK SECURE V3',
+              user_action: 'PAY_NOW'
+            }
           });
-          if (actions && actions.restart) return actions.restart();
+        },
+        onApprove: async (data: any, actions: any) => {
+          try {
+            const details = await actions.order.capture();
+            if (details.status === 'COMPLETED') {
+              processPaymentFinalization({
+                id: details.id,
+                gateway: activeGatewayTab === 'network' ? "Ali-Global Network (GPay)" : "Ali-Global Card Clearing",
+                payerEmail: details.payer?.email_address
+              });
+            }
+          } catch (error: any) {
+            console.error("Capture error:", error);
+            toast({ variant: "destructive", title: "Kegagalan Kliring", description: "Dana tidak dapat ditarik dari sumber pembayaran." });
+          }
         }
-        
-        console.error("PayPal Capture Error:", error);
-        toast({ variant: "destructive", title: "Kegagalan Kliring", description: "Terjadi gangguan koneksi dengan bank." });
       };
 
-      if (paypalContainerRef.current) {
+      if (activeGatewayTab === 'network' && paypalContainerRef.current) {
         paypalContainerRef.current.innerHTML = "";
         window.paypal.Buttons({
-          style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
-          createOrder: (data: any, actions: any) => actions.order.create(createOrderOptions),
-          onApprove: async (data: any, actions: any) => {
-            try {
-              const details = await actions.order.capture();
-              if (details.status === 'COMPLETED') {
-                processPaymentFinalization({
-                  id: details.id,
-                  gateway: "Ali-Global Network",
-                  payerEmail: details.payer?.email_address
-                });
-              }
-            } catch (error: any) {
-              handleCaptureDecline(error, actions);
-            }
-          }
-        }).render(paypalContainerRef.current);
+          ...commonConfig,
+          fundingSource: window.paypal.FUNDING.GOOGLEPAY,
+          style: { layout: 'vertical', color: 'black', shape: 'rect' }
+        }).render(paypalContainerRef.current).catch(() => {
+          // Fallback ke Smart Buttons jika GPay tidak didukung browser
+          window.paypal.Buttons({
+            ...commonConfig,
+            style: { layout: 'vertical', color: 'gold', shape: 'rect' }
+          }).render(paypalContainerRef.current);
+        });
       }
 
-      if (cardButtonRef.current) {
+      if (activeGatewayTab === 'card' && cardButtonRef.current) {
         cardButtonRef.current.innerHTML = "";
         window.paypal.Buttons({
+          ...commonConfig,
           fundingSource: window.paypal.FUNDING.CARD,
-          style: { layout: 'vertical', color: 'black', shape: 'rect', label: 'checkout' },
-          createOrder: (data: any, actions: any) => actions.order.create(createOrderOptions),
-          onApprove: async (data: any, actions: any) => {
-            try {
-              const details = await actions.order.capture();
-              if (details.status === 'COMPLETED') {
-                processPaymentFinalization({
-                  id: details.id,
-                  gateway: "Ali-Global Card Clearing",
-                  bankName: details.payment_source?.card?.name || "International Issuer"
-                });
-              }
-            } catch (error: any) {
-              handleCaptureDecline(error, actions);
-            }
-          }
+          style: { layout: 'vertical', color: 'black', shape: 'rect' }
         }).render(cardButtonRef.current);
       }
     }
-  }, [paymentStep, paypalReady, invoice]);
+  }, [paymentStep, paypalReady, invoice, activeGatewayTab]);
 
   const processPaymentFinalization = async (details: any) => {
     if (!db || !invoice) return;
@@ -242,13 +217,11 @@ export default function CheckoutPage() {
         }, { merge: true });
       }
 
-      // 1. Update Likuiditas Global Super Admin
       await setDoc(systemLiquidityRef, {
         totalFiatInjected: increment(invoice.amountIdr),
         totalUsdInjected: increment(invoice.amountUsd), 
       }, { merge: true });
 
-      // 2. Catat ke Audit Ledger Global (Untuk Monitoring Super Admin)
       await addDoc(globalAuditRef, {
         id: `CHECKOUT-${gatewayId}`,
         category: "External Settlement",
@@ -278,7 +251,7 @@ export default function CheckoutPage() {
     try {
       setPosState('scanning');
       setNfcError(null);
-      const ndef = new window.NDEFReader();
+      const ndef = new (window as any).NDEFReader();
       await ndef.scan();
       
       ndef.onreading = (event: any) => {
@@ -341,7 +314,7 @@ export default function CheckoutPage() {
     <TooltipProvider>
       <div className="min-h-screen bg-background pb-20 relative overflow-hidden transition-colors duration-300">
         <Script 
-          src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&intent=capture&enable-funding=card`}
+          src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&intent=capture&enable-funding=googlepay,card`}
           onLoad={() => setPaypalReady(true)}
         />
         
@@ -470,7 +443,7 @@ export default function CheckoutPage() {
                         <div className="space-y-6">
                           <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
                             <Info className="w-5 h-5 text-blue-500 shrink-0" />
-                            <p className="text-[10px] text-muted-foreground font-bold leading-relaxed uppercase italic">Gunakan saldo dompet digital global Anda untuk penyelesaian dana riil ke brankas AliBank.</p>
+                            <p className="text-[10px] text-muted-foreground font-bold leading-relaxed uppercase italic">Gunakan saldo GOOGLE PAY atau dompet digital Anda untuk penyelesaian dana riil.</p>
                           </div>
                           <div ref={paypalContainerRef} className="w-full min-h-[150px] flex flex-col items-center justify-center">
                             {!paypalReady && <Loader2 className="w-8 h-8 animate-spin text-primary opacity-40" />}
