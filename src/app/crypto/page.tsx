@@ -77,6 +77,9 @@ export default function CryptoMarketPage() {
       ];
       
       const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(symbols)}`);
+      
+      if (!res.ok) throw new Error('Failed to fetch from market provider');
+      
       const data = await res.json();
       
       if (!Array.isArray(data)) return;
