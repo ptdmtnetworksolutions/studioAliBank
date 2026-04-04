@@ -163,7 +163,7 @@ export function TokenomicsView({
             </div>
             <h5 className="font-black uppercase italic text-sm">Standar & Jaringan</h5>
             <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
-              Kontrak ini menggunakan standar <span className="text-accent font-bold">ERC-20</span> yang berjalan di atas jaringan <span className="text-indigo-500 font-bold">Polygon POS</span>. Ini menjamin transaksi super cepat dengan biaya gas yang sangat rendah.
+              ALX adalah <span className="text-accent font-bold">Utility Token</span> berbasis standar <span className="text-accent font-bold">ERC-20</span> di jaringan <span className="text-indigo-500 font-bold">Polygon POS</span>. Memastikan transaksi instan dengan efisiensi biaya gas maksimal.
             </p>
           </Card>
 
@@ -173,7 +173,7 @@ export function TokenomicsView({
             </div>
             <h5 className="font-black uppercase italic text-sm">Deflasi Otomatis</h5>
             <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
-              Implementasi <span className="text-accent font-bold">ERC20Burnable</span> memungkinkan AliBank untuk melakukan pembakaran suplai secara permanen guna mendukung kelangkaan aset dan kenaikan nilai jangka panjang.
+              Fitur <span className="text-accent font-bold">ERC20Burnable</span> memungkinkan AliBank memusnahkan suplai secara permanen guna meningkatkan kelangkaan koin dan nilai ekosistem jangka panjang.
             </p>
           </Card>
 
@@ -183,7 +183,7 @@ export function TokenomicsView({
             </div>
             <h5 className="font-black uppercase italic text-sm">Fitur ERC20Permit</h5>
             <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
-              Mendukung <span className="text-accent font-bold">Gasless Approval</span> melalui tanda tangan EIP-712. Pengguna dapat memberikan izin transaksi tanpa harus membayar biaya gas di awal, meningkatkan kenyamanan UX.
+              Mendukung <span className="text-accent font-bold">Gasless Approval</span> (EIP-712). Pengguna dapat menandatangani izin transaksi tanpa saldo MATIC di awal, memberikan UX perbankan yang mulus.
             </p>
           </Card>
         </div>
@@ -197,8 +197,8 @@ export function TokenomicsView({
             <li className="flex items-start gap-4">
               <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
               <div>
-                <p className="text-[11px] font-black uppercase text-accent leading-none mb-1">Aset Yang Diterima/Dikirim</p>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">Kontrak ini secara eksklusif mengelola koin **ALX**. Anda dapat mengirim dan menerima ALX dari/ke dompet mana pun. Kontrak tidak menerima koin lain (seperti MATIC atau USDT) secara fungsional di dalam logikanya.</p>
+                <p className="text-[11px] font-black uppercase text-accent leading-none mb-1">Klasifikasi Aset</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">Walaupun secara branding disebut "Alix Coin", secara teknis ini adalah **Token**. Kontrak secara eksklusif hanya mengelola unit ALX dan tidak dapat menyimpan koin lain.</p>
               </div>
             </li>
             <li className="flex items-start gap-4">
