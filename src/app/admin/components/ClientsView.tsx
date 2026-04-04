@@ -1,0 +1,247 @@
+
+"use client";
+
+import { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { 
+  Search, 
+  Edit2, 
+  Trash2, 
+  MoreHorizontal, 
+  Mail, 
+  Phone, 
+  ShieldCheck, 
+  Key, 
+  Wallet, 
+  Plus, 
+  Minus, 
+  Loader2 
+} from "lucide-react";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription 
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  getDocs, 
+  collection, 
+  query, 
+  orderBy, 
+  limit, 
+  doc, 
+  updateDoc, 
+  increment, 
+  addDoc, 
+  serverTimestamp,
+  deleteDoc
+} from "firebase/firestore";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { useAuth, useFirestore } from "@/firebase";
+import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
+
+export function ClientsView({ allUsers }: any) {
+  const db = useFirestore();
+  const auth = useAuth();
+  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [balanceAdjustment, setBalanceAdjustment] = useState("");
+  const [alxAdjustment, setAlxAdjustment] = useState("");
+  const [userWallets, setUserWallets] = useState<any[]>([]);
+  const [userTxs, setUserTxs] = useState<any[]>([]);
+  const [loadingSub, setLoadingSub] = useState(false);
+
+  const filteredUsers = allUsers?.filter((u: any) => 
+    u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.accountNumber?.includes(searchTerm)
+  );
+
+  useEffect(() => {
+    async function fetchDetails() {
+      if (!selectedUser || !db || !isDialogOpen) return;
+      setLoadingSub(true);
+      try {
+        const [wSnap, tSnap] = await Promise.all([
+          getDocs(collection(db, "users", selectedUser.id, "wallets")),
+          getDocs(query(collection(db, "users", selectedUser.id, "transactions"), orderBy("timestamp", "desc"), limit(10)))
+        ]);
+        setUserWallets(wSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setUserTxs(tSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (e) {} finally { setLoadingSub(false); }
+    }
+    fetchDetails();
+  }, [selectedUser, isDialogOpen, db]);
+
+  const handleAdjust = async (type: 'idr' | 'alx', op: 'add' | 'sub') => {
+    if (!db || !selectedUser) return;
+    const amt = parseFloat(type === 'idr' ? balanceAdjustment : alxAdjustment);
+    if (isNaN(amt)) return;
+
+    const ref = doc(db, "users", selectedUser.id);
+    const val = op === 'add' ? amt : -amt;
+    const key = type === 'idr' ? "totalBalance" : "cryptoBalances.ALX";
+
+    await updateDoc(ref, { [key]: increment(val) });
+    await addDoc(collection(db, "system", "audit", "global_transactions"), {
+      id: `ADJ-${Date.now()}`,
+      category: "Manual Adjustment",
+      amountIdr: type === 'idr' ? val : 0,
+      description: `Manual ${op} ${amt} ${type.toUpperCase()} for ${selectedUser.name}`,
+      timestamp: serverTimestamp(),
+      status: "success"
+    });
+    toast({ title: "Update Success" });
+    setBalanceAdjustment(""); setAlxAdjustment("");
+  };
+
+  const handleDelete = async (uid: string) => {
+    if (!confirm("Hapus nasabah permanen?")) return;
+    await deleteDoc(doc(db!, "users", uid));
+    toast({ title: "User Deleted" });
+  };
+
+  return (
+    <div className="animate-in fade-in slide-in-from-right-10 duration-700 space-y-8">
+      <header className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Client Hub</h2>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Manajemen Database Nasabah AliBank</p>
+        </div>
+        <div className="relative w-72">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input 
+            placeholder="Cari Nasabah..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-11 pl-12 bg-card border-none rounded-xl text-xs font-bold shadow-sm"
+          />
+        </div>
+      </header>
+
+      <Card className="border-none bg-card rounded-[2rem] overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-muted/50 text-[9px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
+              <tr>
+                <th className="px-8 py-5">Nasabah</th>
+                <th className="px-8 py-5">ID Rekening</th>
+                <th className="px-8 py-5">Saldo IDR</th>
+                <th className="px-8 py-5">Saldo ALX</th>
+                <th className="px-8 py-5 text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filteredUsers?.map((u: any) => (
+                <tr key={u.id} className="hover:bg-muted/30 transition-colors group">
+                  <td className="px-8 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden border border-border shrink-0">
+                        <Image src={`https://picsum.photos/seed/${u.uid}/100/100`} alt="avatar" width={40} height={40} className="object-cover" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black italic uppercase leading-none">{u.name}</p>
+                        <p className="text-[10px] font-bold text-muted-foreground mt-1 lowercase">{u.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-8 py-4 text-[10px] font-mono font-bold text-accent">{u.accountNumber}</td>
+                  <td className="px-8 py-4 text-[11px] font-black italic">Rp {u.totalBalance?.toLocaleString()}</td>
+                  <td className="px-8 py-4 text-[11px] font-black italic text-primary">{u.cryptoBalances?.ALX?.toFixed(4) || '0.0000'} ALX</td>
+                  <td className="px-8 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary" onClick={() => { setSelectedUser(u); setIsDialogOpen(true); }}><Edit2 className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-rose-100 hover:text-rose-600" onClick={() => handleDelete(u.id)}><Trash2 className="w-4 h-4" /></Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl rounded-[3rem] p-0 bg-background border-none shadow-2xl overflow-hidden">
+          <div className="gold-gradient h-32 w-full relative">
+            <div className="absolute -bottom-10 left-10 w-24 h-24 rounded-3xl bg-background border-8 border-background overflow-hidden shadow-xl">
+              <Image src={`https://picsum.photos/seed/${selectedUser?.uid}/200/200`} alt="avatar" width={100} height={100} className="object-cover" />
+            </div>
+          </div>
+          <div className="pt-14 px-10 pb-10 space-y-8">
+            <header className="flex justify-between items-start">
+              <div>
+                <h2 className="text-2xl font-black italic uppercase tracking-tighter">{selectedUser?.name}</h2>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">{selectedUser?.email}</p>
+              </div>
+              <Badge className="bg-green-500 text-white font-black italic text-[8px] px-3 h-6 uppercase">Active Session</Badge>
+            </header>
+
+            <Tabs defaultValue="finance" className="space-y-6">
+              <TabsList className="bg-muted/50 p-1 rounded-2xl h-12 w-full justify-start gap-2 border border-border">
+                <TabsTrigger value="finance" className="rounded-xl px-6 font-black uppercase text-[10px] italic">Financials</TabsTrigger>
+                <TabsTrigger value="wallets" className="rounded-xl px-6 font-black uppercase text-[10px] italic">Wallets</TabsTrigger>
+                <TabsTrigger value="security" className="rounded-xl px-6 font-black uppercase text-[10px] italic">Security</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="finance" className="space-y-6 animate-in fade-in duration-300">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">IDR Pool</label>
+                    <div className="p-5 rounded-2xl bg-muted/50 border border-border flex flex-col gap-4">
+                      <p className="text-xl font-black italic">Rp {selectedUser?.totalBalance?.toLocaleString()}</p>
+                      <div className="flex gap-2">
+                        <Input placeholder="Amt" type="number" value={balanceAdjustment} onChange={(e) => setBalanceAdjustment(e.target.value)} className="h-10 bg-background border-none text-xs font-black" />
+                        <button onClick={() => handleAdjust('idr', 'add')} className="w-10 h-10 rounded-lg bg-green-600 text-white flex items-center justify-center"><Plus className="w-4 h-4" /></button>
+                        <button onClick={() => handleAdjust('idr', 'sub')} className="w-10 h-10 rounded-lg bg-rose-600 text-white flex items-center justify-center"><Minus className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">ALX Holdings</label>
+                    <div className="p-5 rounded-2xl bg-muted/50 border border-border flex flex-col gap-4">
+                      <p className="text-xl font-black italic text-primary">{selectedUser?.cryptoBalances?.ALX?.toFixed(4)} ALX</p>
+                      <div className="flex gap-2">
+                        <Input placeholder="ALX" type="number" value={alxAdjustment} onChange={(e) => setAlxAdjustment(e.target.value)} className="h-10 bg-background border-none text-xs font-black" />
+                        <button onClick={() => handleAdjust('alx', 'add')} className="w-10 h-10 rounded-lg gold-gradient text-white flex items-center justify-center"><Plus className="w-4 h-4" /></button>
+                        <button onClick={() => handleAdjust('alx', 'sub')} className="w-10 h-10 rounded-lg bg-slate-800 text-white flex items-center justify-center"><Minus className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="wallets" className="space-y-4 animate-in fade-in duration-300">
+                {userWallets.map((w, i) => (
+                  <div key={i} className="p-4 rounded-xl bg-muted/30 border border-border flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center"><Wallet className="w-4 h-4 text-primary" /></div>
+                      <p className="text-xs font-black uppercase italic">{w.name}</p>
+                    </div>
+                    <p className="text-sm font-black italic">Rp {w.balance?.toLocaleString()}</p>
+                  </div>
+                ))}
+                {userWallets.length === 0 && <p className="text-center text-[10px] font-bold text-muted-foreground py-10 uppercase italic opacity-30">No linked wallets</p>}
+              </TabsContent>
+
+              <TabsContent value="security" className="space-y-4 animate-in fade-in duration-300">
+                <Button variant="outline" className="w-full h-12 rounded-xl border-primary/20 text-primary font-black uppercase italic text-xs" onClick={() => sendPasswordResetEmail(auth!, selectedUser.email)}>Kirim Reset Password</Button>
+                <div className="p-4 rounded-xl bg-accent/5 border border-primary/10">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">Native Address: <span className="text-accent font-mono ml-2 break-all">{selectedUser?.walletAddress}</span></p>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
