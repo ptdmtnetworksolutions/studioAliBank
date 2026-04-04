@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -7,14 +6,13 @@ import { AlixCoinABI } from '@/lib/abi/AlixCoin';
 
 const ALX_ADDRESS = process.env.NEXT_PUBLIC_ALX_ADDRESS || "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
 
-// Daftar RPC Fallback untuk stabilitas tinggi
+// Daftar RPC Fallback untuk stabilitas tinggi di jaringan Polygon
 const FALLBACK_RPCS = [
-  process.env.NEXT_PUBLIC_POLYGON_RPC,
-  "https://polygon-bor-rpc.publicnode.com",
   "https://rpc.ankr.com/polygon",
+  "https://polygon-bor-rpc.publicnode.com",
   "https://1rpc.io/matic",
   "https://polygon-rpc.com"
-].filter(Boolean) as string[];
+];
 
 export function useAlixCoin() {
   const [totalSupply, setTotalSupply]           = useState<string>('0');
@@ -27,13 +25,13 @@ export function useAlixCoin() {
   const fetchData = useCallback(async () => {
     let success = false;
     
-    // Coba setiap RPC sampai berhasil
+    // Iterasi melalui RPC fallback jika terjadi gangguan koneksi
     for (const rpcUrl of FALLBACK_RPCS) {
       if (success) break;
       
       try {
         const provider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
-          staticNetwork: ethers.Network.from(137) // Mempercepat deteksi dengan static network
+          staticNetwork: ethers.Network.from(137)
         });
         
         const contract = new ethers.Contract(ALX_ADDRESS, AlixCoinABI, provider);
@@ -53,7 +51,6 @@ export function useAlixCoin() {
         setIsPaused(paused);
         
         success = true;
-        console.log(`ALX Data fetched successfully via ${rpcUrl}`);
       } catch (error) {
         console.warn(`Failed to fetch from RPC ${rpcUrl}, trying next...`);
       }
