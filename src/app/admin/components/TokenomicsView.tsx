@@ -19,7 +19,9 @@ import {
   Lock,
   ArrowRightLeft,
   Database,
-  Info
+  Info,
+  Clock,
+  History
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -31,6 +33,7 @@ import {
 import { BrowserProvider } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
+import { cn } from "@/lib/utils";
 
 export function TokenomicsView({ 
   totalSupply, 
@@ -41,12 +44,19 @@ export function TokenomicsView({
   isLoadingAlix, 
   mintALX, 
   burnALX, 
-  togglePause 
+  togglePause,
+  auditLogs
 }: any) {
   const { toast } = useToast();
   const [mintAmount, setMintAmount] = useState("");
   const [burnAmount, setBurnAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const alxTransactions = auditLogs?.filter((log: any) => 
+    log.cryptoCurrency === "ALX" || 
+    log.description?.toLowerCase().includes("alx") || 
+    log.category?.toLowerCase().includes("tokenomics")
+  );
 
   const handleMint = async () => {
     if (typeof window === 'undefined' || !window.ethereum) {
@@ -148,6 +158,57 @@ export function TokenomicsView({
         </Card>
       </div>
 
+      <section className="space-y-6">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2">
+            <History className="w-4 h-4 text-primary" /> Recent ALX Operations
+          </h3>
+          <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase px-2 h-5">Internal & On-Chain</Badge>
+        </div>
+        <Card className="border-none bg-card rounded-[2rem] overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-muted/50 text-[9px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
+                <tr>
+                  <th className="px-8 py-5">Timestamp</th>
+                  <th className="px-8 py-5">Activity</th>
+                  <th className="px-8 py-5">Value (ALX)</th>
+                  <th className="px-8 py-5 text-right">Settlement</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {alxTransactions?.map((log: any) => (
+                  <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-8 py-4 text-[10px] font-mono font-bold text-muted-foreground italic">
+                      {log.timestamp?.toDate?.().toLocaleString() || '---'}
+                    </td>
+                    <td className="px-8 py-4">
+                      <div className="flex flex-col">
+                        <Badge className="bg-muted text-foreground border-none text-[7px] font-black h-4 uppercase px-1.5 w-fit mb-1">{log.category}</Badge>
+                        <span className="text-[10px] font-black uppercase italic text-accent">{log.description?.slice(0, 40)}...</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-4 text-[11px] font-black italic text-primary">
+                      {log.cryptoAmount ? `${log.cryptoAmount.toFixed(4)} ALX` : '---'}
+                    </td>
+                    <td className="px-8 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2 text-[9px] font-bold text-green-600 uppercase italic">
+                        <CheckCircle2 className="w-3 h-3" /> Confirmed
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {(!alxTransactions || alxTransactions.length === 0) && (
+                  <tr>
+                    <td colSpan={4} className="px-8 py-10 text-center opacity-30 italic text-xs font-bold uppercase tracking-widest">No ALX records found</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </section>
+
       <section className="space-y-8 pt-10 border-t border-border/50">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
@@ -187,50 +248,6 @@ export function TokenomicsView({
             </p>
           </Card>
         </div>
-
-        <div className="p-10 rounded-[3rem] bg-accent/5 border border-primary/10 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-5"><LogoIcon className="w-32 h-32 text-primary" /></div>
-          <h4 className="text-lg font-black uppercase italic mb-6 flex items-center gap-2">
-            <Info className="w-5 h-5 text-primary" /> Kebijakan Pengelolaan Aset:
-          </h4>
-          <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-            <li className="flex items-start gap-4">
-              <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
-              <div>
-                <p className="text-[11px] font-black uppercase text-accent leading-none mb-1">Klasifikasi Aset</p>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">Walaupun secara branding disebut "Alix Coin", secara teknis ini adalah **Token**. Kontrak secara eksklusif hanya mengelola unit ALX dan tidak dapat menyimpan koin lain.</p>
-              </div>
-            </li>
-            <li className="flex items-start gap-4">
-              <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
-              <div>
-                <p className="text-[11px] font-black uppercase text-accent leading-none mb-1">Hard Cap Supply</p>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">Suplai maksimum dibatasi secara permanen di angka **100.000.000 ALX**. Kode kontrak menjamin tidak ada fungsi yang dapat menambah suplai di atas batas ini.</p>
-              </div>
-            </li>
-            <li className="flex items-start gap-4">
-              <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
-              <div>
-                <p className="text-[11px] font-black uppercase text-accent leading-none mb-1">Circuit Breaker (Pausable)</p>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">Dalam kondisi darurat keamanan, Admin memiliki wewenang untuk membekukan seluruh transaksi ALX secara global guna melindungi aset nasabah.</p>
-              </div>
-            </li>
-            <li className="flex items-start gap-4">
-              <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
-              <div>
-                <p className="text-[11px] font-black uppercase text-accent leading-none mb-1">Institutional Audit Trail</p>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">Setiap operasi Mint, Burn, dan Pause memicu Event log di blockchain yang dapat diaudit oleh publik di Polygonscan secara transparan.</p>
-              </div>
-            </li>
-          </ul>
-        </div>
-
-        <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
-          <AlertCircle className="w-6 h-6 text-blue-500 shrink-0" />
-          <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-            <span className="text-blue-600 font-black">Catatan Operasional:</span> Harga jangkar $12.24 yang tertanam dalam kontrak adalah variabel referensi informasi dan tidak mengikat secara algoritma pada fungsi swap internal, melainkan sebagai target stabilitas ekosistem AliBank.
-          </p>
-        </div>
       </section>
     </div>
   );
@@ -246,10 +263,6 @@ function TokenStatCard({ label, value, sub, icon: Icon, color = "text-accent" }:
   );
 }
 
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(" ");
-}
-
 function Fingerprint({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -259,6 +272,15 @@ function Fingerprint({ className }: { className?: string }) {
       <path d="M12 12v9" />
       <path d="M12 15c-1.657 0-3 1.343-3 3" />
       <path d="M12 18c1.657 0 3-1.343 3-3" />
+    </svg>
+  );
+}
+
+function CheckCircle2({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+      <path d="m9 12 2 2 4-4" />
     </svg>
   );
 }

@@ -222,6 +222,7 @@ function AdminContent() {
               mintALX={mintALX}
               burnALX={burnALX}
               togglePause={togglePause}
+              auditLogs={auditLogs}
             />
           )}
           {activeTab === 'api' && <ApiManagementView storedKeys={storedKeys} />}
