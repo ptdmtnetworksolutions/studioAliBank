@@ -44,6 +44,7 @@ import {
   query, 
   getDocs, 
   collectionGroup,
+  collection,
   where,
   limit
 } from "firebase/firestore";
@@ -139,7 +140,6 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (paymentStep === 'bridge_gate' && paypalReady && window.paypal && window.paypal.Buttons && invoice) {
-      // ULTRA-CLEAN NOMINAL FORMATTING (Strict 2 decimals for PayPal)
       const formattedAmount = parseFloat(invoice.amountUsd.toString()).toFixed(2);
 
       const createOrderOptions = {
@@ -167,13 +167,13 @@ export default function CheckoutPage() {
           toast({ 
             variant: "destructive", 
             title: "Pembayaran Ditolak Bank", 
-            description: "Bank Anda menolak transaksi ini. Silakan aktifkan 'Transaksi Internasional' di aplikasi bank Anda atau gunakan kartu lain." 
+            description: "Bank Anda menolak transaksi ini." 
           });
           if (actions && actions.restart) return actions.restart();
         }
         
         console.error("PayPal Capture Error:", error);
-        toast({ variant: "destructive", title: "Kegagalan Kliring", description: "Terjadi gangguan koneksi dengan bank. Silakan coba lagi." });
+        toast({ variant: "destructive", title: "Kegagalan Kliring", description: "Terjadi gangguan koneksi dengan bank." });
       };
 
       if (paypalContainerRef.current) {
@@ -184,7 +184,6 @@ export default function CheckoutPage() {
           onApprove: async (data: any, actions: any) => {
             try {
               const details = await actions.order.capture();
-              // Memastikan status COMPLETED sebelum finalisasi di AliBank
               if (details.status === 'COMPLETED') {
                 processPaymentFinalization({
                   id: details.id,
@@ -195,9 +194,6 @@ export default function CheckoutPage() {
             } catch (error: any) {
               handleCaptureDecline(error, actions);
             }
-          },
-          onError: (err: any) => {
-            console.error("PayPal Global Error:", err);
           }
         }).render(paypalContainerRef.current);
       }
@@ -221,9 +217,6 @@ export default function CheckoutPage() {
             } catch (error: any) {
               handleCaptureDecline(error, actions);
             }
-          },
-          onError: (err: any) => {
-            console.error("PayPal Card Error:", err);
           }
         }).render(cardButtonRef.current);
       }
@@ -249,22 +242,24 @@ export default function CheckoutPage() {
         }, { merge: true });
       }
 
-      // Update Likuiditas Global (Dana Riil Masuk)
+      // 1. Update Likuiditas Global Super Admin
       await setDoc(systemLiquidityRef, {
         totalFiatInjected: increment(invoice.amountIdr),
         totalUsdInjected: increment(invoice.amountUsd), 
       }, { merge: true });
 
-      // Catat ke Audit Pusat
+      // 2. Catat ke Audit Ledger Global (Untuk Monitoring Super Admin)
       await addDoc(globalAuditRef, {
-        id: gatewayId,
+        id: `CHECKOUT-${gatewayId}`,
         category: "External Settlement",
         gateway: details.gateway || "AliBank V3 Production",
         bankName: details.bankName || "Global Issuer",
         amountIdr: invoice.amountIdr,
         amountUsd: invoice.amountUsd,
+        description: `Settlement for Invoice ${invoice.invoiceId} (${invoice.productName || 'Marketplace Item'}).`,
         status: "success", 
         timestamp: serverTimestamp(),
+        userEmail: user?.email || "external_client@alibank.com"
       });
 
       setPaymentStep('success');
@@ -288,16 +283,6 @@ export default function CheckoutPage() {
       
       ndef.onreading = (event: any) => {
         setPosState('verifying');
-        
-        const records = event.message.records;
-        if (records.length > 0) {
-          setTimeout(() => {
-            setPosState('idle');
-            setNfcError("Perangkat Terdeteksi: Bukan Kartu Pembayaran.");
-          }, 1500);
-          return;
-        }
-
         const mockBins = Object.keys(GLOBAL_BIN_REGISTRY);
         const randomBin = mockBins[Math.floor(Math.random() * mockBins.length)];
         const cardInfo = GLOBAL_BIN_REGISTRY[randomBin];
@@ -355,7 +340,6 @@ export default function CheckoutPage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background pb-20 relative overflow-hidden transition-colors duration-300">
-        {/* PAYPAL STANDARD SDK (Includes Buttons & Real-Time Card Processing) */}
         <Script 
           src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&intent=capture&enable-funding=card`}
           onLoad={() => setPaypalReady(true)}
@@ -467,7 +451,7 @@ export default function CheckoutPage() {
                   ) : (
                     <div className="space-y-4">
                       <Button onClick={startNfcScanning} className="w-full h-16 bg-foreground text-background rounded-2xl font-black italic uppercase text-xs shadow-lg">ACTIVATE TERMINAL SENSORS</Button>
-                      <p className="text-[9px] text-muted-foreground font-medium uppercase italic tracking-widest leading-relaxed">Hanya mendukung kartu fisik perbankan (EMV Standard). Tempelkan kartu di belakang ponsel Anda.</p>
+                      <p className="text-[9px] text-muted-foreground font-medium uppercase italic tracking-widest leading-relaxed">Hanya mendukung kartu fisik perbankan (EMV Standard).</p>
                     </div>
                   )}
                 </div>
@@ -494,17 +478,8 @@ export default function CheckoutPage() {
                         </div>
                       ) : (
                         <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-                          <div className="p-6 rounded-2xl bg-primary/5 border border-primary/10 flex gap-4">
-                            <ShieldCheck className="w-5 h-5 text-primary shrink-0" />
-                            <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed italic">Pembayaran diproses secara riil melalui infrastruktur aman Ali-Global Card Clearing.</p>
-                          </div>
-                          
                           <div ref={cardButtonRef} className="w-full min-h-[100px] flex flex-col items-center justify-center">
                             {!paypalReady && <Loader2 className="w-8 h-8 animate-spin text-primary opacity-40" />}
-                          </div>
-
-                          <div className="text-center opacity-40">
-                            <p className="text-[8px] font-black uppercase italic tracking-widest text-muted-foreground">PCI-DSS COMPLIANT PRODUCTION NODE</p>
                           </div>
                         </div>
                       )}

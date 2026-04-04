@@ -150,25 +150,49 @@ export default function CryptoBuyPage() {
   }, [isCheckoutDialogOpen, paypalReady, usdValue, estimatedReceive, selectedAsset]);
 
   const finalizePurchase = async (paymentDetails: any) => {
-    if (!user || !db || !userDocRef) return;
+    if (!user || !db || !userDocRef || !userData) return;
     
     try {
       const numReceive = parseFloat(estimatedReceive);
       const numPay = parseFloat(amount.replace(',', '.'));
 
-      // Update Saldo Kripto Nasabah secara Riil
+      // 1. Update Saldo Kripto Nasabah secara Riil
       await updateDoc(userDocRef, {
         [`cryptoBalances.${selectedAsset.symbol}`]: increment(numReceive)
       });
 
-      // Update Likuiditas Sistem (Dana Riil Masuk)
+      // 2. Update Likuiditas Sistem & Inventaris Bank
       const sysRef = doc(db, "system", "liquidity");
-      await updateDoc(sysRef, {
+      const sysUpdates: any = {
         totalFiatInjected: increment(numPay),
         totalUsdInjected: increment(parseFloat(usdValue))
+      };
+
+      // Jika koin ALX dibeli, kurangi inventaris internal bank
+      if (selectedAsset.symbol === 'ALX') {
+        sysUpdates.alixVaultBalance = increment(-numReceive);
+        sysUpdates.totalAlixSoldInternally = increment(numReceive);
+      }
+
+      await updateDoc(sysRef, sysUpdates);
+
+      // 3. Catat Transaksi Audit Global (Untuk Super Admin Monitoring)
+      const globalAuditRef = collection(db, "system", "audit", "global_transactions");
+      await addDoc(globalAuditRef, {
+        id: `CRYPTO-BUY-${paymentDetails.id}`,
+        category: "External Settlement",
+        gateway: "PayPal/Google Pay",
+        amountIdr: numPay,
+        amountUsd: parseFloat(usdValue),
+        cryptoAmount: numReceive,
+        cryptoCurrency: selectedAsset.symbol,
+        description: `User ${userData.name} purchased ${numReceive} ${selectedAsset.symbol} via Ali-Secure Gateway.`,
+        status: "success",
+        timestamp: serverTimestamp(),
+        userEmail: user.email
       });
 
-      // Catat Transaksi Audit
+      // 4. Catat Transaksi Riwayat Nasabah
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
         description: `Beli ${selectedAsset.symbol} via Ali-Secure Gateway`,
@@ -378,7 +402,7 @@ export default function CryptoBuyPage() {
       <Sheet open={isPaymentSheetOpen} onOpenChange={setIsPaymentSheetOpen}>
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
           <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
-          <div className="px-6 space-y-6">
+          <div className="px-6 space-y-3">
             <SheetHeader><SheetTitle className="text-xl font-black italic uppercase tracking-tight">Metode Pembayaran</SheetTitle></SheetHeader>
             <div className="space-y-3">
               {PAYMENT_METHODS.map((method) => (

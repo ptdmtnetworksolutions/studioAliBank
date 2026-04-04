@@ -74,46 +74,28 @@ export default function AliSpinPage() {
 
   const playSound = (type: 'spin' | 'win' | 'loss') => {
     if (!soundEnabled) return;
-    
     try {
       if (!audioCtx.current) audioCtx.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       const ctx = audioCtx.current;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
+      osc.connect(gain); gain.connect(ctx.destination);
       if (type === 'spin') {
-        osc.type = 'sine';
         osc.frequency.setValueAtTime(150, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.1);
         gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.1);
+        osc.start(); osc.stop(ctx.currentTime + 0.1);
       } else if (type === 'win') {
-        osc.type = 'triangle';
-        const notes = [523.25, 659.25, 783.99, 1046.50];
-        notes.forEach((freq, i) => {
-          osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.1);
-        });
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => { osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.1); });
         gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.5);
+        osc.start(); osc.stop(ctx.currentTime + 0.5);
       } else if (type === 'loss') {
-        osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(100, ctx.currentTime);
         osc.frequency.linearRampToValueAtTime(50, ctx.currentTime + 0.3);
         gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.3);
+        osc.start(); osc.stop(ctx.currentTime + 0.3);
       }
-    } catch (e) {
-      console.warn("Audio Context Error", e);
-    }
+    } catch (e) {}
   };
 
   const handleSpin = async () => {
@@ -124,7 +106,7 @@ export default function AliSpinPage() {
     else balance = userData.cryptoBalances?.[stakeCurrency] || 0;
 
     if (freeSpins <= 0 && balance < betAmount) {
-      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Isi ulang ${stakeCurrency} Anda.` });
+      toast({ variant: "destructive", title: "Saldo Tidak Cukup" });
       return;
     }
 
@@ -139,7 +121,6 @@ export default function AliSpinPage() {
       
       const systemRef = doc(db, "system", "liquidity");
       updateDoc(systemRef, { 
-        // Seluruh taruhan masuk ke kas kotor bank
         totalFiatInjected: increment(amountInIdr),
         spinGrossVolumeIdr: increment(amountInIdr) 
       });
@@ -163,13 +144,12 @@ export default function AliSpinPage() {
     }, 100);
   };
 
-  const finalizeResult = () => {
+  const finalizeResult = async () => {
     const finalReels = [
       SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)],
       SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)],
       SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]
     ];
-    
     setReels(finalReels);
     
     const [r1, r2, r3] = finalReels;
@@ -186,17 +166,36 @@ export default function AliSpinPage() {
       else { multiplier = 2; winDescription = "MATCH!"; }
     }
 
+    const globalAuditRef = collection(db!, "system", "audit", "global_transactions");
+    const amountInIdr = betAmount * (stakeCurrency === 'IDR' ? 1 : 15850);
+
     if (multiplier > 0) {
       playSound('win');
-      const stakeInIdr = betAmount * (stakeCurrency === 'IDR' ? 1 : 15850);
-      const winAmountInIdr = stakeInIdr * multiplier;
+      const winAmountInIdr = amountInIdr * multiplier;
       const winAmountInAlx = winAmountInIdr / ALX_PRICE_IDR;
 
-      updateDoc(userDocRef!, { "cryptoBalances.ALX": increment(winAmountInAlx) });
+      await updateDoc(userDocRef!, { "cryptoBalances.ALX": increment(winAmountInAlx) });
+      const systemRef = doc(db!, "system", "liquidity");
+      await updateDoc(systemRef, { 
+        alixVaultBalance: increment(-winAmountInAlx),
+        totalAlixSoldInternally: increment(winAmountInAlx)
+      });
+
       setLastWin(winAmountInAlx);
       if (earnedFreeSpins > 0) setFreeSpins(prev => prev + earnedFreeSpins);
 
-      addDoc(collection(db!, "users", user!.uid, "transactions"), {
+      // Audit Log for Admin
+      await addDoc(globalAuditRef, {
+        id: `SPIN-WIN-${Date.now()}`,
+        category: "Ali-Spin Win",
+        amountIdr: amountInIdr,
+        description: `User ${userData?.name} won ${multiplier}x on Ali-Spin. Reward: ${winAmountInAlx.toFixed(6)} ALX.`,
+        status: "success",
+        timestamp: serverTimestamp(),
+        userEmail: user?.email
+      });
+
+      await addDoc(collection(db!, "users", user!.uid, "transactions"), {
         date: new Date().toISOString(),
         description: `Ali-Spin Win: ${winDescription} (${multiplier}x)`,
         category: "Game",
@@ -207,27 +206,20 @@ export default function AliSpinPage() {
         timestamp: serverTimestamp()
       });
 
-      toast({
-        title: winDescription,
-        description: `Selamat! Anda mendapatkan +${winAmountInAlx.toFixed(6)} ALX ${earnedFreeSpins > 0 ? `& ${earnedFreeSpins} Free Spins!` : ""}`,
-      });
+      toast({ title: winDescription, description: `Dapatkan +${winAmountInAlx.toFixed(6)} ALX` });
     } else {
       playSound('loss');
-      // LOG KEKALAHAN KE DASHBOARD ADMIN
-      if (db) {
-        addDoc(collection(db, "system", "audit", "global_transactions"), {
-          id: `SPIN-LOSS-${Date.now()}`,
-          category: "Ali-Spin Capture",
-          amountIdr: stakeCurrency === 'IDR' ? betAmount : (betAmount * 15850),
-          cryptoAmount: stakeCurrency !== 'IDR' ? betAmount : 0,
-          cryptoCurrency: stakeCurrency,
-          status: "success",
-          timestamp: serverTimestamp(),
-          description: `Bank Profit: User ${userData?.name} lost spin.`
-        });
-      }
+      // Record loss to global audit for profit monitoring
+      await addDoc(globalAuditRef, {
+        id: `SPIN-LOSS-${Date.now()}`,
+        category: "Ali-Spin Capture",
+        amountIdr: amountInIdr,
+        description: `Bank Profit: User ${userData?.name} lost ${betAmount} ${stakeCurrency} on Ali-Spin.`,
+        status: "success",
+        timestamp: serverTimestamp(),
+        userEmail: user?.email
+      });
     }
-
     setIsSpinning(false);
   };
 
@@ -288,8 +280,6 @@ export default function AliSpinPage() {
         <div className="absolute inset-0 gold-gradient opacity-5 blur-[120px]" />
         
         <div className="w-full max-w-sm aspect-square bg-[#171A1D] rounded-[3rem] border-4 border-white/5 shadow-2xl p-8 flex flex-col items-center justify-between relative overflow-hidden group">
-          <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/matrix/800/800')] opacity-[0.02] mix-blend-overlay" />
-          
           <div className="flex justify-center gap-4 w-full h-full items-center relative z-10">
             {reels.map((symbol, i) => (
               <div 
@@ -304,9 +294,6 @@ export default function AliSpinPage() {
               </div>
             ))}
           </div>
-
-          <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-[#171A1D] to-transparent z-20 pointer-events-none" />
-          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#171A1D] to-transparent z-20 pointer-events-none" />
         </div>
 
         <div className="h-24 flex flex-col items-center justify-center mt-8">
@@ -334,7 +321,6 @@ export default function AliSpinPage() {
             >
               <Minus className="w-4 h-4 text-white/40" />
             </button>
-            
             <div className="flex-1 text-center flex flex-col items-center justify-center overflow-hidden">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild disabled={isSpinning}>
@@ -350,62 +336,17 @@ export default function AliSpinPage() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <input 
-                type="number"
-                value={betAmount}
-                onChange={(e) => setBetAmount(parseFloat(e.target.value) || 0)}
-                disabled={isSpinning}
-                className="w-full bg-transparent text-center text-base font-black italic outline-none border-none p-0 focus:ring-0 appearance-none text-white"
-              />
+              <input type="number" value={betAmount} onChange={(e) => setBetAmount(parseFloat(e.target.value) || 0)} disabled={isSpinning} className="w-full bg-transparent text-center text-base font-black italic outline-none border-none p-0 focus:ring-0 appearance-none text-white" />
             </div>
-
-            <button 
-              onClick={() => setBetAmount(prev => prev + (stakeCurrency === 'IDR' ? 10000 : 0.001))}
-              disabled={isSpinning}
-              className="w-10 h-full flex items-center justify-center hover:bg-white/5 rounded-xl transition-colors disabled:opacity-20"
-            >
+            <button onClick={() => setBetAmount(prev => prev + (stakeCurrency === 'IDR' ? 10000 : 0.001))} disabled={isSpinning} className="w-10 h-full flex items-center justify-center hover:bg-white/5 rounded-xl transition-colors disabled:opacity-20">
               <Plus className="w-4 h-4 text-white/40" />
             </button>
           </div>
-
-          <Button 
-            onClick={handleSpin}
-            disabled={isSpinning}
-            className={cn(
-              "h-16 rounded-2xl text-lg font-black italic uppercase shadow-2xl transition-all active:scale-95 border-none",
-              freeSpins > 0 ? "bg-orange-500 text-white animate-pulse" : "gold-gradient text-white"
-            )}
-          >
+          <Button onClick={handleSpin} disabled={isSpinning} className={cn("h-16 rounded-2xl text-lg font-black italic uppercase shadow-2xl transition-all active:scale-95 border-none", freeSpins > 0 ? "bg-orange-500 text-white animate-pulse" : "gold-gradient text-white")}>
             {isSpinning ? <Loader2 className="w-8 h-8 animate-spin" /> : (freeSpins > 0 ? "FREE SPIN" : "SPIN")}
           </Button>
         </div>
-
-        <div className="flex justify-between items-center px-2">
-          <div className="flex items-center gap-2">
-            <Dice5 className="w-4 h-4 text-primary/40" />
-            <span className="text-[9px] font-black uppercase text-white/30 tracking-widest italic">RTP: 96.5% AliBank Standard</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <History className="w-4 h-4 text-white/40 cursor-pointer hover:text-primary transition-colors" />
-            <Info className="w-4 h-4 text-white/40 cursor-pointer hover:text-primary transition-colors" />
-          </div>
-        </div>
       </div>
-
-      <footer className="h-16 bg-[#171A1D] border-t border-white/5 flex items-center justify-around shrink-0 px-2 pb-safe">
-        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity w-full" onClick={() => router.push('/')}>
-          <LayoutGrid className="w-5 h-5" />
-          <span className="text-[8px] font-black uppercase italic">Dashboard</span>
-        </button>
-        <button className="flex flex-col items-center gap-1 opacity-100 w-full text-primary">
-          <RotateCw className="w-5 h-5" />
-          <span className="text-[8px] font-black uppercase italic">Ali-Spin</span>
-        </button>
-        <button className="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity w-full">
-          <Trophy className="w-5 h-5" />
-          <span className="text-[8px] font-black uppercase italic">Turnamen</span>
-        </button>
-      </footer>
     </div>
   );
 }

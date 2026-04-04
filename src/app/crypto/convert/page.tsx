@@ -55,8 +55,6 @@ export default function ConvertPage() {
 
   const currentPriceIdr = useMemo(() => liveAlxPriceUsdt * USDT_IDR_RATE, [liveAlxPriceUsdt]);
   
-  // LOGIKA MARKUP: Hanya diterapkan jika berinteraksi dengan aset eksternal (USDT/IDR)
-  // Saat nasabah MEMBELI ALX mengunakan USDT/IDR, AliBank menerapkan markup pada harga jualnya.
   const currentRateWithMarkup = useMemo(() => {
     const baseRate = counterCurrency === 'USDT' ? liveAlxPriceUsdt : currentPriceIdr;
     return direction === 'TO_ALX' ? baseRate * MARKUP : baseRate;
@@ -104,6 +102,7 @@ export default function ConvertPage() {
       const userDocRef = doc(db, "users", user.uid);
       const tradeTime = new Date().toISOString();
 
+      // 1. Eksekusi Perpindahan Saldo User
       if (direction === 'FROM_ALX') {
         const updates: any = { "cryptoBalances.ALX": increment(-numAmount) };
         if (counterCurrency === 'USDT') updates["cryptoBalances.USDT"] = increment(resultNum);
@@ -116,6 +115,34 @@ export default function ConvertPage() {
         await updateDoc(userDocRef, updates);
       }
 
+      // 2. Update Likuiditas & Inventaris Global
+      const systemRef = doc(db, "system", "liquidity");
+      const liquidityUpdates: any = {
+        totalAlixTrades: increment(1)
+      };
+      
+      if (direction === 'TO_ALX') {
+        liquidityUpdates.alixVaultBalance = increment(-resultNum);
+        liquidityUpdates.totalAlixSoldInternally = increment(resultNum);
+        if (counterCurrency === 'IDR') liquidityUpdates.totalInternalAumIdr = increment(numAmount);
+      } else {
+        liquidityUpdates.alixVaultBalance = increment(numAmount);
+      }
+      await updateDoc(systemRef, liquidityUpdates);
+
+      // 3. Catat ke Audit Ledger Global (Untuk Super Admin)
+      const globalAuditRef = collection(db, "system", "audit", "global_transactions");
+      await addDoc(globalAuditRef, {
+        id: `CONVERT-${Date.now()}`,
+        category: "Ali-Exchange",
+        description: `Conversion: ${numAmount} ${direction === 'FROM_ALX' ? 'ALX' : counterCurrency} to ${resultNum} ${direction === 'TO_ALX' ? 'ALX' : counterCurrency} for ${userData.name}`,
+        amountIdr: counterCurrency === 'IDR' ? numAmount : (numAmount * (direction === 'FROM_ALX' ? currentPriceIdr : 15850)),
+        status: "success",
+        timestamp: serverTimestamp(),
+        userEmail: user.email
+      });
+
+      // 4. Catat ke Riwayat User
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: tradeTime,
         description: direction === 'FROM_ALX' ? `Jual ALX ke ${counterCurrency}` : `Beli ALX dengan ${counterCurrency} (Premium)`,
@@ -129,18 +156,6 @@ export default function ConvertPage() {
         status: "success",
         timestamp: serverTimestamp()
       });
-
-      const systemRef = doc(db, "system", "liquidity");
-      const liquidityUpdates: any = {
-        totalAlixTrades: increment(1)
-      };
-      
-      if (direction === 'TO_ALX' && counterCurrency === 'IDR') {
-        liquidityUpdates.totalInternalAumIdr = increment(numAmount);
-        liquidityUpdates.totalAlixSoldInternally = increment(resultNum);
-      }
-      
-      await updateDoc(systemRef, liquidityUpdates);
 
       setStep('success');
       toast({ title: "Transaksi Berhasil", description: "Aset ALX Anda telah diperbarui." });
