@@ -444,12 +444,18 @@ function AdminContent() {
 
   // ON-CHAIN MINT HANDLER
   const handleOnChainMint = async () => {
-    if (!window.ethereum || isProcessingToken || !mintAmount) return;
+    if (typeof window === 'undefined' || !window.ethereum) {
+      toast({ variant: "destructive", title: "Dompet Tidak Terdeteksi", description: "Silakan gunakan browser dengan MetaMask." });
+      return;
+    }
+    if (isProcessingToken || !mintAmount) return;
     
     setIsProcessingToken(true);
     try {
-      const provider = new BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
+      const provider = new BrowserProvider(window.ethereum as any);
+      const signer = await provider.getSigner().catch(() => {
+        throw new Error("Gagal terhubung ke MetaMask. Pastikan dompet tidak terkunci.");
+      });
       
       const txHash = await mintALX(
         await signer.getAddress(),
@@ -479,12 +485,18 @@ function AdminContent() {
 
   // ON-CHAIN BURN HANDLER
   const handleOnChainBurn = async () => {
-    if (!window.ethereum || isProcessingToken || !burnAmount) return;
+    if (typeof window === 'undefined' || !window.ethereum) {
+      toast({ variant: "destructive", title: "Dompet Tidak Terdeteksi", description: "Silakan gunakan browser dengan MetaMask." });
+      return;
+    }
+    if (isProcessingToken || !burnAmount) return;
     
     setIsProcessingToken(true);
     try {
-      const provider = new BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
+      const provider = new BrowserProvider(window.ethereum as any);
+      const signer = await provider.getSigner().catch(() => {
+        throw new Error("Gagal terhubung ke MetaMask. Pastikan dompet tidak terkunci.");
+      });
       
       const txHash = await burnALX(burnAmount, signer);
       
@@ -505,6 +517,37 @@ function AdminContent() {
       toast({ variant: "destructive", title: "Gagal Burn", description: err.message });
     } finally {
       setIsProcessingToken(false);
+    }
+  };
+
+  // ON-CHAIN TOGGLE PAUSE HANDLER
+  const handleTogglePause = async () => {
+    if (typeof window === 'undefined' || !window.ethereum) {
+      toast({ variant: "destructive", title: "Dompet Tidak Terdeteksi", description: "Silakan gunakan browser dengan MetaMask." });
+      return;
+    }
+    
+    try {
+      const provider = new BrowserProvider(window.ethereum as any);
+      const signer = await provider.getSigner().catch(() => {
+        throw new Error("Gagal terhubung ke MetaMask. Pastikan dompet tidak terkunci.");
+      });
+      
+      const txHash = await togglePause(signer);
+      
+      await addDoc(collection(db!, "system", "audit", "global_transactions"), {
+        id: `PAUSE-TOGGLE-${Date.now()}`,
+        category: "Security Protocol",
+        gateway: "Contract State",
+        txHash: txHash,
+        description: `Emergency Pause status updated by ${user?.email}`,
+        timestamp: serverTimestamp(),
+        status: "success"
+      });
+
+      toast({ title: "Status Diperbarui", description: "Status kontrak pintar telah diubah secara on-chain." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Mengubah Status", description: err.message });
     }
   };
 
@@ -894,7 +937,7 @@ function AdminContent() {
                 </div>
 
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between px-1">
+                  <div className="items-center justify-between px-1 hidden sm:flex">
                     <h3 className="text-sm font-black italic uppercase tracking-widest">Recent Activity Ledger</h3>
                     <button onClick={() => setActiveTab('audit')} className="text-[10px] font-black text-primary uppercase flex items-center gap-1 hover:underline">View All Logs <ArrowUpRight className="w-3 h-3" /></button>
                   </div>
@@ -1207,7 +1250,7 @@ function AdminContent() {
                           {isPaused ? "Paused" : "Active"}
                         </Badge>
                       </div>
-                      <Button onClick={() => togglePause(new ethers.BrowserProvider(window.ethereum as any).getSigner())} variant="outline" className="w-full text-[10px] font-black uppercase italic h-10 border-primary/20">
+                      <Button onClick={handleTogglePause} variant="outline" className="w-full text-[10px] font-black uppercase italic h-10 border-primary/20">
                         TOGGLE EMERGENCY PAUSE
                       </Button>
                     </div>
