@@ -1,10 +1,4 @@
 
-/**
- * CRITICAL: AliBank Admin Control V3.5 - MODULAR RECONSTRUCTION
- * Pusat Kendali Suplai, Kebijakan Moneter ALX, dan Manajemen Katalog.
- * Otorisasi Eksklusif: alidzulfikar075@gmail.com / IJOuQpjEOMgvlYfzvQ1yfp976Oa2
- */
-
 "use client";
 
 import { 
@@ -19,7 +13,8 @@ import {
   Sun, 
   Moon, 
   LogOut, 
-  Loader2 
+  Loader2,
+  Clock
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
@@ -38,21 +33,18 @@ import { LogoIcon } from "@/components/ui/logo";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 
-// Import Modular Components
 import { DashboardView } from "./components/DashboardView";
 import { ClientsView } from "./components/ClientsView";
 import { VaultControlView } from "./components/VaultControlView";
 import { TokenomicsView } from "./components/TokenomicsView";
 import { ApiManagementView } from "./components/ApiManagementView";
 import { InventoryView } from "./components/InventoryView";
+import { AuditLogsView as AuditLogsMod } from "./components/AuditLogsView";
+import { PendingRequestsView } from "./components/PendingRequestsView";
 
 import { useAlixCoin } from '@/hooks/useAlixCoin';
-import { AuditLogsView as AuditLogsMod } from "./components/AuditLogsView";
 
-// KONFIGURASI DUA JARINGAN BERBEDA
-const ALX_CONTRACT = process.env.NEXT_PUBLIC_ALX_ADDRESS || "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd"; // Polygon
-const VAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945"; // ETH Mainnet (AliBankVault)
-
+const VAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
 
@@ -64,7 +56,6 @@ function AdminContent() {
   const searchParams = useSearchParams();
   const { theme, setTheme } = useTheme();
   
-  // Blockchain Data Hook (Polygon - ALX)
   const {
     totalSupply,
     maxSupply,
@@ -82,7 +73,6 @@ function AdminContent() {
   const [onChainEth, setOnChainEth] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
 
-  // Firestore Queries
   const liquidityRef = useMemoFirebase(() => (db && isAuthorized ? doc(db, "system", "liquidity") : null), [db, isAuthorized]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
   
@@ -98,6 +88,9 @@ function AdminContent() {
   const apiKeysRef = useMemoFirebase(() => (db && isAuthorized ? doc(db, "system", "api_keys") : null), [db, isAuthorized]);
   const { data: storedKeys } = useDoc(apiKeysRef);
 
+  const topupQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "system", "topup_requests"), orderBy("timestamp", "desc"), limit(50)) : null), [db, isAuthorized]);
+  const { data: topupRequests } = useCollection(topupQuery);
+
   const candleData = useMemo(() => {
     if (!auditLogs) return Array.from({ length: 24 }, (_, i) => ({ time: `${i}:00`, close: 0, isUp: true }));
     const hours = Array.from({ length: 24 }, (_, i) => ({ time: `${i.toString().padStart(2, '0')}:00`, close: 0, isUp: true }));
@@ -111,14 +104,12 @@ function AdminContent() {
     return hours;
   }, [auditLogs]);
 
-  // Sync Data dari Brankas ETH Mainnet
   const syncOnChainData = useCallback(async () => {
     if (!isAuthorized) return;
     setSyncingVault(true);
     try {
       const ethRpc = "https://ethereum-rpc.publicnode.com";
       const provider = new JsonRpcProvider(ethRpc);
-      // Ambil saldo ETH langsung dari alamat kontrak AliBankVault
       const vaultBalance = await provider.getBalance(VAULT_CONTRACT).catch(() => 0n);
       setOnChainEth(formatEther(vaultBalance));
     } catch (err) {
@@ -150,6 +141,7 @@ function AdminContent() {
         </div>
         <nav className="flex-1 px-4 space-y-2 pt-4 overflow-y-auto no-scrollbar">
           <SidebarItem icon={LayoutGrid} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+          <SidebarItem icon={Clock} label="Pending Requests" active={activeTab === 'pending'} onClick={() => setActiveTab('pending')} />
           <SidebarItem icon={Users} label="Clients" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
           <SidebarItem icon={Wallet} label="Vault Control" active={activeTab === 'vault'} onClick={() => setActiveTab('vault')} />
           <SidebarItem icon={Coins} label="Tokenomics" active={activeTab === 'tokenomics'} onClick={() => setActiveTab('tokenomics')} />
@@ -203,14 +195,9 @@ function AdminContent() {
               totalSupply={totalSupply}
             />
           )}
+          {activeTab === 'pending' && <PendingRequestsView topupRequests={topupRequests} />}
           {activeTab === 'users' && <ClientsView allUsers={allUsers} />}
-          {activeTab === 'vault' && (
-            <VaultControlView 
-              onChainEth={onChainEth} 
-              VAULT_CONTRACT={VAULT_CONTRACT} 
-              auditLogs={auditLogs} 
-            />
-          )}
+          {activeTab === 'vault' && <VaultControlView onChainEth={onChainEth} VAULT_CONTRACT={VAULT_CONTRACT} auditLogs={auditLogs} />}
           {activeTab === 'tokenomics' && (
             <TokenomicsView 
               totalSupply={totalSupply}

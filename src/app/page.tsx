@@ -87,7 +87,6 @@ function HandCoinIcon({ className }: { className?: string }) {
   );
 }
 
-// KONFIGURASI HARGA AWAL ALX
 const USDT_IDR_RATE = 15850;
 const MARKUP = 1.02;
 
@@ -118,7 +117,6 @@ function DashboardContent() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isPnlOpen, setIsPnlOpen] = useState(false);
   
-  // LIVE MARKET STATE (DYNAMC PRICE ENGINE)
   const [marketCoins, setMarketCoins] = useState(INITIAL_COINS);
   const [isMarketLoading, setIsMarketLoading] = useState(true);
 
@@ -134,13 +132,11 @@ function DashboardContent() {
 
   const { data: userData } = useDoc(userDocRef);
 
-  // HITUNG TOTAL ESTIMASI NILAI SECARA RIIL
   const totalValueCalculated = useMemo(() => {
     const idrBalance = userData?.totalBalance ?? 0;
     const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
     const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
     
-    // Gunakan harga dinamis dari state marketCoins
     const alxMarket = marketCoins.find(c => c.symbol === "ALX");
     const alxPriceIdr = (alxMarket?.price ?? 12.24) * USDT_IDR_RATE;
     
@@ -184,11 +180,10 @@ function DashboardContent() {
   const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
-  // FETCH DATA PASAR GLOBAL (AME)
   const fetchMarketData = useCallback(async () => {
     try {
       const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "USDTIDR"];
-      const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(symbols)}`);
+      const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`);
       
       if (!res.ok) throw new Error('Market sync failed');
       
@@ -223,9 +218,11 @@ function DashboardContent() {
       };
 
       setMarketCoins([alxData, ...formatted.filter((c: any) => c.symbol !== "USDT")].slice(0, 5));
-      setIsMarketLoading(false);
     } catch (e) {
-      console.error("Home Market Sync Error:", e);
+      console.warn("Home Market Sync failed, using fallbacks:", e);
+      // Fallback already in state (INITIAL_COINS)
+    } finally {
+      setIsMarketLoading(false);
     }
   }, [globalLiquidity]);
 
@@ -236,7 +233,6 @@ function DashboardContent() {
     return () => clearInterval(interval);
   }, [fetchMarketData]);
 
-  // LOGIKA PASAR DINAMIS (TICKER) - Visual Fluctuation
   useEffect(() => {
     if (!mounted) return;
     const interval = setInterval(() => {
@@ -518,7 +514,6 @@ function DashboardContent() {
                 </Button>
               </div>
 
-              {/* PNL Analysis Breakdown Detail Area */}
               {isPnlOpen && (
                 <div className="animate-in slide-in-from-top-2 fade-in duration-300 space-y-3 pt-2">
                   <div className="p-5 rounded-2xl bg-accent/5 border border-primary/10 space-y-4 shadow-xl relative overflow-hidden">
@@ -563,7 +558,6 @@ function DashboardContent() {
                 </div>
               )}
 
-              {/* Asset Breakdown Detail Area */}
               {isDetailsOpen && (
                 <div className="animate-in slide-in-from-top-2 fade-in duration-300 space-y-3 pt-2">
                   <div className="p-5 rounded-2xl bg-muted/30 border border-border space-y-4 shadow-inner">

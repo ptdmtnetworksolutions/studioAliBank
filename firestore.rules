@@ -4,8 +4,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V3.8 - PRODUCTION GRADE
-     * Otorisasi dinamis untuk mendukung pencatatan audit otomatis dari sisi klien.
+     * ALIBANK SECURITY RULES V4.0 - PRODUCTION GRADE
+     * Otorisasi mutlak untuk Super Admin dan izin granular untuk nasabah.
      */
 
     function isSignedIn() {
@@ -21,6 +21,11 @@ service cloud.firestore {
         request.auth.token.email == 'alidzulfikar075@gmail.com' || 
         request.auth.uid == 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2'
       );
+    }
+
+    // Global Admin Override: Izin mutlak di seluruh database
+    match /{document=**} {
+      allow read, write: if isAdmin();
     }
 
     // --- Aturan Koleksi Nasabah ---
@@ -39,51 +44,33 @@ service cloud.firestore {
     // --- Aturan Koleksi Bisnis (Merchant) ---
     match /merchants/{merchantId} {
       allow read, write: if isOwner(merchantId) || isAdmin();
-      match /invoices/{invoiceId} {
+      match /{allSubcollections=**} {
         allow read, write: if isOwner(merchantId) || isAdmin();
       }
     }
 
-    // --- Aturan Data Pasar (Publik untuk User Terdaftar) ---
+    // --- Aturan Data Pasar & Sistem ---
     match /market/{pairId} {
       allow read: if isSignedIn();
-      match /trades/{tradeId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn();
-      }
     }
 
     match /marketplace/{productId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
     }
 
-    // --- Aturan Inti Sistem (Vault & Audit) ---
     match /system/liquidity {
       allow read: if isSignedIn();
-      // Izinkan user terdaftar memperbarui likuiditas saat transaksi (beli/jual koin)
       allow update: if isSignedIn(); 
-      allow create, delete: if isAdmin();
     }
     
-    match /system/api_keys {
-      allow read, write: if isAdmin();
+    match /system/audit/{subPath=**} {
+      allow create: if isSignedIn();
+      allow read: if isAdmin();
     }
 
-    match /system/audit/{document=**} {
-      allow read: if isAdmin();
-      // Izinkan user terdaftar mencatat log transaksi mereka ke audit ledger
+    match /system/topup_requests/{reqId} {
       allow create: if isSignedIn();
-      allow update, delete: if isAdmin();
-    }
-    
-    // --- Aturan Pencarian Global (Collection Group) ---
-    match /{path=**}/invoices/{invoiceId} {
-      allow read: if isSignedIn();
-    }
-    
-    match /{path=**}/transactions/{txId} {
-      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow read, write: if isAdmin();
     }
   }
 }
