@@ -40,7 +40,8 @@ import {
   RotateCw,
   Info,
   TrendingDown,
-  ArrowUpDown
+  ArrowUpDown,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -88,13 +89,14 @@ function HandCoinIcon({ className }: { className?: string }) {
 
 // KONFIGURASI HARGA AWAL ALX
 const USDT_IDR_RATE = 15850;
+const MARKUP = 1.02;
 
 const INITIAL_COINS = [
   { symbol: "ALX", price: 12.24, baseIdr: 194004, change: 1.14, isUp: true, isNative: true },
   { symbol: "BTC", price: 66262.29, baseIdr: 1125133021, change: -3.76, isUp: false },
   { symbol: "ETH", price: 1987.12, baseIdr: 33741277, change: -3.98, isUp: false },
   { symbol: "SOL", price: 82.63, baseIdr: 1403056, change: -4.69, isUp: false },
-  { symbol: "WLD", price: 0.2480, baseIdr: 4211, change: -15.04, isUp: false },
+  { symbol: "BNB", price: 582.41, baseIdr: 9231200, change: -2.14, isUp: false },
 ];
 
 function DashboardContent() {
@@ -118,6 +120,7 @@ function DashboardContent() {
   
   // LIVE MARKET STATE (DYNAMC PRICE ENGINE)
   const [marketCoins, setMarketCoins] = useState(INITIAL_COINS);
+  const [isMarketLoading, setIsMarketLoading] = useState(true);
 
   const [pullY, setPullY] = useState(0);
   const startY = useRef(0);
@@ -178,8 +181,82 @@ function DashboardContent() {
   }, [db, user]);
   const { data: unreadNotifications } = useCollection(unreadQuery);
 
+  const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
+  const { data: globalLiquidity } = useDoc(liquidityRef);
+
+  // FETCH DATA PASAR GLOBAL (AME)
+  const fetchMarketData = useCallback(async () => {
+    try {
+      const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "USDTIDR"];
+      const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(symbols)}`);
+      
+      if (!res.ok) throw new Error('Market sync failed');
+      
+      const data = await res.json();
+      
+      const formatted = data.map((item: any) => {
+        let symbol = item.symbol.replace("USDT", "").replace("IDR", "");
+        if (symbol === "") symbol = "USDT";
+        
+        let price = parseFloat(item.lastPrice);
+        if (item.symbol === "USDTIDR") price = price / USDT_IDR_RATE;
+        
+        price = price * MARKUP;
+
+        return {
+          symbol: symbol,
+          price: price,
+          change: parseFloat(item.priceChangePercent) || 0,
+          isUp: (parseFloat(item.priceChangePercent) || 0) >= 0,
+          baseIdr: price * USDT_IDR_RATE
+        };
+      });
+
+      const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
+      const alxData = {
+        symbol: "ALX",
+        price: alxPrice,
+        baseIdr: alxPrice * USDT_IDR_RATE,
+        change: 1.14 + (Math.random() * 0.05),
+        isUp: true,
+        isNative: true
+      };
+
+      setMarketCoins([alxData, ...formatted.filter((c: any) => c.symbol !== "USDT")].slice(0, 5));
+      setIsMarketLoading(false);
+    } catch (e) {
+      console.error("Home Market Sync Error:", e);
+    }
+  }, [globalLiquidity]);
+
   useEffect(() => {
     setMounted(true);
+    fetchMarketData();
+    const interval = setInterval(fetchMarketData, 10000);
+    return () => clearInterval(interval);
+  }, [fetchMarketData]);
+
+  // LOGIKA PASAR DINAMIS (TICKER) - Visual Fluctuation
+  useEffect(() => {
+    if (!mounted) return;
+    const interval = setInterval(() => {
+      setMarketCoins(prev => prev.map(coin => {
+        const moveFactor = coin.symbol === "ALX" ? 0.0001 : 0.0003;
+        const move = (Math.random() * moveFactor * 2 - moveFactor); 
+        const newPrice = coin.price * (1 + move);
+        
+        return {
+          ...coin,
+          price: newPrice,
+          baseIdr: newPrice * USDT_IDR_RATE,
+          change: (coin.change ?? 0) + (Math.random() * 0.02 - 0.01)
+        };
+      }));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [mounted]);
+
+  useEffect(() => {
     if (!userLoading && !user) {
       router.push('/login');
       return;
@@ -206,38 +283,6 @@ function DashboardContent() {
       setIsTambahDanaOpen(true);
     }
   }, [user, userLoading, router, searchParams]);
-
-  // LOGIKA PASAR DINAMIS (TICKER)
-  useEffect(() => {
-    if (!mounted) return;
-    const interval = setInterval(() => {
-      setMarketCoins(prev => prev.map(coin => {
-        if (coin.symbol === "ALX") {
-          // ALX bergerak naik secara organik di fase internal
-          const move = (Math.random() * 0.0002 - 0.00005); 
-          const newPrice = coin.price + move;
-          return { 
-            ...coin, 
-            price: newPrice, 
-            baseIdr: newPrice * USDT_IDR_RATE,
-            change: coin.change + (Math.random() * 0.01 - 0.005) 
-          };
-        }
-        
-        const move = (Math.random() * 0.002 - 0.001); 
-        const newPrice = coin.price * (1 + move);
-        const newChange = coin.change + (Math.random() * 0.1 - 0.05);
-        return {
-          ...coin,
-          price: newPrice,
-          baseIdr: newPrice * USDT_IDR_RATE,
-          change: newChange,
-          isUp: newChange >= 0
-        };
-      }));
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [mounted]);
 
   useEffect(() => {
     if (!bannerApi) return;
@@ -719,7 +764,12 @@ function DashboardContent() {
                     <span className="text-right">Prbh% 24j</span>
                   </div>
                   <div className="space-y-6">
-                    {marketCoins.map((coin) => (
+                    {isMarketLoading ? (
+                      <div className="py-10 flex flex-col items-center justify-center gap-3 opacity-30">
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                        <p className="text-[10px] font-black uppercase tracking-widest">AME Sync Node...</p>
+                      </div>
+                    ) : marketCoins.map((coin) => (
                       <div key={coin.symbol} className="grid grid-cols-3 items-center group cursor-pointer active:opacity-70 transition-opacity" onClick={() => router.push(`/crypto/market/${coin.symbol.toLowerCase()}`)}>
                         <div className="flex items-center gap-1">
                           <span className="text-sm font-black italic tracking-tight text-foreground">{coin.symbol}</span>
