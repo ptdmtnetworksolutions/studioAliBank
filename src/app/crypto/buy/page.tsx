@@ -124,21 +124,28 @@ export default function CryptoBuyPage() {
   const totalAmountIdr = useMemo(() => {
     const num = parseFloat(amount.replace(',', '.'));
     if (isNaN(num) || num <= 0) return 0;
-    return num + uniqueCode;
-  }, [amount, uniqueCode]);
+    
+    // Konversi ke IDR jika input dalam USD
+    const baseAmountIdr = selectedCurrency.code === 'USD' ? num * exchangeRate : num;
+    return baseAmountIdr + uniqueCode;
+  }, [amount, uniqueCode, selectedCurrency, exchangeRate]);
 
   const estimatedReceive = useMemo(() => {
     const num = parseFloat(amount.replace(',', '.'));
     if (isNaN(num) || num <= 0) return "0";
-    const amountInUsd = num / exchangeRate;
+    
+    // Hitung Nilai dalam USD berdasarkan mata uang input
+    const amountInUsd = selectedCurrency.code === 'USD' ? num : num / exchangeRate;
+    
     const priceWithMarkup = selectedAsset.isNative ? selectedAsset.priceUsd : selectedAsset.priceUsd * 1.02;
     return (amountInUsd / priceWithMarkup).toFixed(selectedAsset.symbol === 'BTC' ? 8 : 4);
-  }, [amount, selectedAsset]);
+  }, [amount, selectedAsset, selectedCurrency, exchangeRate]);
 
   const usdValue = useMemo(() => {
     const num = parseFloat(amount.replace(',', '.'));
+    if (selectedCurrency.code === 'USD') return num.toFixed(2);
     return (num / exchangeRate).toFixed(2);
-  }, [amount]);
+  }, [amount, selectedCurrency, exchangeRate]);
 
   useEffect(() => {
     let timeoutId: any;
@@ -207,7 +214,8 @@ export default function CryptoBuyPage() {
         userId: user.uid,
         userName: userData.name,
         userEmail: user.email,
-        amount: parseFloat(amount),
+        amount: parseFloat(amount.replace(',', '.')),
+        currency: selectedCurrency.code,
         uniqueCode,
         totalToTransfer: totalAmountIdr,
         asset: selectedAsset.symbol,
@@ -241,19 +249,19 @@ export default function CryptoBuyPage() {
     if (!user || !db || !userDocRef || !userData) return;
     setIsProcessing(true);
     const numReceive = parseFloat(estimatedReceive);
-    const numPay = parseFloat(amount.replace(',', '.'));
+    const numPayIdr = totalAmountIdr;
     try {
       await updateDoc(userDocRef, { [`cryptoBalances.${selectedAsset.symbol}`]: increment(numReceive) });
       const sysRef = doc(db, "system", "liquidity");
       await updateDoc(sysRef, { 
-        totalFiatInjected: increment(numPay), 
+        totalFiatInjected: increment(numPayIdr), 
         totalUsdInjected: increment(parseFloat(usdValue)) 
       });
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `BUY-${paymentDetails.id || Date.now()}`,
         category: "External Settlement",
         gateway: selectedPayment.name,
-        amountIdr: numPay,
+        amountIdr: numPayIdr,
         status: "success",
         timestamp: serverTimestamp(),
         userEmail: user.email
@@ -270,6 +278,12 @@ export default function CryptoBuyPage() {
   const handleKeyPress = (num: string) => {
     if (amount === "0") setAmount(num);
     else if (amount.length < 12) setAmount(amount + num);
+  };
+
+  const handleComma = () => {
+    if (!amount.includes(",")) {
+      setAmount(prev => prev === "0" ? "0," : prev + ",");
+    }
   };
 
   const handleDelete = () => {
@@ -323,7 +337,9 @@ export default function CryptoBuyPage() {
           </div>
           <div className="flex flex-col items-center justify-center space-y-2">
             <div className="flex items-center gap-2">
-              <span className={cn("text-6xl font-black tracking-tighter italic", amount === "0" ? "text-muted-foreground/20" : "text-foreground")}>{parseFloat(amount).toLocaleString('id-ID')}</span>
+              <span className={cn("text-6xl font-black tracking-tighter italic", amount === "0" ? "text-muted-foreground/20" : "text-foreground")}>
+                {amount}
+              </span>
               <div className="flex items-center gap-1 cursor-pointer bg-muted/50 px-3 py-1.5 rounded-xl border border-border" onClick={() => router.push('/settings/payment-currency')}>
                 <span className="text-sm font-black uppercase tracking-tighter">{selectedCurrency.code}</span>
                 <ChevronDown className="w-4 h-4 text-muted-foreground" />
@@ -355,7 +371,7 @@ export default function CryptoBuyPage() {
           <Button disabled={amount === "0" || isProcessing} onClick={() => setIsCheckoutDialogOpen(true)} className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest transition-all">{isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : `LANJUTKAN KE PEMBAYARAN`}</Button>
           <div className="grid grid-cols-3 gap-y-1">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (<button key={n} onClick={() => handleKeyPress(n.toString())} className="text-3xl font-black italic active:bg-muted py-3 rounded-full transition-colors">{n}</button>))}
-            <button className="text-3xl font-black italic active:bg-muted py-3 rounded-full transition-colors">,</button>
+            <button onClick={handleComma} className="text-3xl font-black italic active:bg-muted py-3 rounded-full transition-colors">,</button>
             <button onClick={() => handleKeyPress("0")} className="text-3xl font-black italic active:bg-muted py-3 rounded-full transition-colors">0</button>
             <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-3 rounded-full transition-colors"><Delete className="w-7 h-7 text-foreground" /></button>
           </div>
@@ -468,8 +484,7 @@ export default function CryptoBuyPage() {
               {PAYMENT_METHODS.map((method) => (
                 <div key={method.id} onClick={() => { setSelectedPayment(method as any); setIsPaymentSheetOpen(false); }} className={cn("p-5 rounded-2xl border-2 flex items-center justify-between transition-all cursor-pointer group", selectedPayment.id === method.id ? "border-primary bg-primary/5 shadow-lg" : "border-muted bg-card hover:border-primary/20")}>
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center border border-border group-hover:scale-110 transition-transform">
-                      {method.id === 'gpay' ? <div className="w-6 h-6"><svg viewBox="0 0 24 24" className="w-full h-full"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1 .67-2.28 1.07-3.71 1.07-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.11c-.22-.66-.35-1.36-.35-2.11s.13-1.45.35-2.11V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.83z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.83c.87-2.6 3.3-4.51 6.16-4.51z" fill="#EA4335"/></svg></div> : <method.icon className="w-5 h-5" />}
+                    <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 overflow-hidden shadow-sm">{method.id === 'gpay' ? <div className="w-6 h-6"><svg viewBox="0 0 24 24" className="w-full h-full"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1 .67-2.28 1.07-3.71 1.07-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.11c-.22-.66-.35-1.36-.35-2.11s.13-1.45.35-2.11V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.83z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.83c.87-2.6 3.3-4.51 6.16-4.51z" fill="#EA4335"/></svg></div> : <method.icon className="w-5 h-5" />}
                     </div>
                     <div><h4 className="text-sm font-black italic uppercase leading-none">{method.name}</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">{method.desc}</p></div>
                   </div>
