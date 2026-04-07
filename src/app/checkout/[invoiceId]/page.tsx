@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { 
   ShieldCheck, 
   Loader2, 
@@ -27,7 +26,8 @@ import {
   ArrowDownRight,
   CreditCard as CardIcon,
   XCircle,
-  ArrowLeft
+  ArrowLeft,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -90,10 +90,12 @@ export default function CheckoutPage() {
   const [posState, setPosState] = useState<'idle' | 'scanning' | 'verifying' | 'processing'>('idle');
   const [nfcError, setNfcError] = useState<string | null>(null);
   const [activeGatewayTab, setActiveGatewayTab] = useState<'network' | 'card'>('network');
+  const [gatewayError, setGatewayError] = useState<string | null>(null);
   
   const [foundCustomer, setFoundCustomer] = useState<any>(null);
   const paypalContainerRef = useRef<HTMLDivElement>(null);
-  const cardButtonRef = useRef<HTMLDivElement>(null);
+  const renderInProgress = useRef(false);
+  const retryCount = useRef(0);
 
   // Ambil API Keys secara dinamis dari Firestore system/api_keys
   const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
@@ -140,79 +142,95 @@ export default function CheckoutPage() {
     fetchInvoice();
   }, [db, invoiceId]);
 
-  useEffect(() => {
-    let timeoutId: any;
+  // Robust PayPal Rendering Sync
+  const renderPayPalButtons = useCallback(async () => {
+    if (!paypalContainerRef.current || !invoice || !systemKeys?.paypalClientId) return;
+    if (paymentStep !== 'bridge_gate') return;
 
-    if (paymentStep === 'bridge_gate' && (paypalReady || window.paypal) && invoice && systemKeys?.paypalClientId) {
-      const renderButtons = async () => {
-        const formattedAmount = parseFloat(invoice.amountUsd.toString()).toFixed(2);
-        const targetContainer = activeGatewayTab === 'network' ? paypalContainerRef.current : cardButtonRef.current;
-
-        if (!targetContainer || !window.paypal) return;
-        targetContainer.innerHTML = "";
-
-        const commonConfig: any = {
-          createOrder: (data: any, actions: any) => {
-            return actions.order.create({
-              intent: 'CAPTURE',
-              purchase_units: [{
-                amount: { currency_code: "USD", value: formattedAmount },
-                description: `AliBank Global - INV ${invoice?.invoiceId}`
-              }],
-              application_context: {
-                brand_name: 'ALIBANK SECURE V3',
-                user_action: 'PAY_NOW'
-              }
-            });
-          },
-          onApprove: async (data: any, actions: any) => {
-            try {
-              const details = await actions.order.capture();
-              if (details.status === 'COMPLETED') {
-                processPaymentFinalization({
-                  id: details.id,
-                  gateway: activeGatewayTab === 'network' ? "Ali-Global Network (GPay)" : "Ali-Global Card Clearing",
-                  payerEmail: details.payer?.email_address
-                });
-              }
-            } catch (error: any) {
-              console.error("Capture error:", error);
-              toast({ variant: "destructive", title: "Kegagalan Kliring", description: "Dana tidak dapat ditarik dari sumber pembayaran." });
-            }
-          }
-        };
-
-        try {
-          if (activeGatewayTab === 'network') {
-            await window.paypal.Buttons({
-              ...commonConfig,
-              fundingSource: window.paypal.FUNDING.GOOGLEPAY,
-              style: { layout: 'vertical', color: 'black', shape: 'rect' }
-            }).render(targetContainer).catch(() => {
-              window.paypal.Buttons(commonConfig).render(targetContainer);
-            });
-          } else {
-            await window.paypal.Buttons({
-              ...commonConfig,
-              fundingSource: window.paypal.FUNDING.CARD,
-              style: { layout: 'vertical', color: 'black', shape: 'rect' }
-            }).render(targetContainer).catch(() => {
-              window.paypal.Buttons(commonConfig).render(targetContainer);
-            });
-          }
-        } catch (err) {
-          if (targetContainer) {
-            targetContainer.innerHTML = "";
-            window.paypal.Buttons(commonConfig).render(targetContainer);
-          }
-        }
-      };
-
-      timeoutId = setTimeout(renderButtons, 500);
+    if (typeof window === 'undefined' || !window.paypal) {
+      if (retryCount.current < 10) {
+        retryCount.current++;
+        setTimeout(renderPayPalButtons, 1000);
+      } else {
+        setGatewayError("Gagal memuat terminal kliring. Pastikan koneksi internet stabil.");
+      }
+      return;
     }
 
-    return () => clearTimeout(timeoutId);
-  }, [paymentStep, paypalReady, invoice, activeGatewayTab, systemKeys]);
+    if (renderInProgress.current) return;
+    renderInProgress.current = true;
+    setGatewayError(null);
+
+    paypalContainerRef.current.innerHTML = "";
+    const formattedAmount = parseFloat(invoice.amountUsd.toString()).toFixed(2);
+
+    const commonConfig: any = {
+      style: { layout: 'vertical', color: 'black', shape: 'rect', label: 'pay' },
+      createOrder: (data: any, actions: any) => {
+        return actions.order.create({
+          intent: 'CAPTURE',
+          purchase_units: [{
+            amount: { currency_code: "USD", value: formattedAmount },
+            description: `AliBank Checkout: ${invoice.productName || 'Global Item'}`
+          }],
+          application_context: {
+            brand_name: 'ALIBANK SECURE V3',
+            user_action: 'PAY_NOW'
+          }
+        });
+      },
+      onApprove: async (data: any, actions: any) => {
+        try {
+          const details = await actions.order.capture();
+          if (details.status === 'COMPLETED') {
+            await processPaymentFinalization({
+              id: details.id,
+              gateway: activeGatewayTab === 'network' ? "Ali-Global Network" : "Ali-Global Card Clearing",
+              payerEmail: details.payer?.email_address
+            });
+          }
+        } catch (error: any) {
+          toast({ variant: "destructive", title: "Kegagalan Kliring", description: "Dana tidak dapat ditarik dari sumber pembayaran." });
+        }
+      },
+      onError: (err: any) => {
+        console.error("PayPal Execution Error:", err);
+        setGatewayError("Terjadi kesalahan pada modul pembayaran PayPal.");
+        renderInProgress.current = false;
+      }
+    };
+
+    try {
+      if (activeGatewayTab === 'network') {
+        await window.paypal.Buttons({
+          ...commonConfig,
+          fundingSource: window.paypal.FUNDING.GOOGLEPAY
+        }).render(paypalContainerRef.current).catch(() => {
+          window.paypal.Buttons(commonConfig).render(paypalContainerRef.current);
+        });
+      } else {
+        await window.paypal.Buttons(commonConfig).render(paypalContainerRef.current);
+      }
+      renderInProgress.current = false;
+    } catch (err) {
+      console.warn("Retrying standard render fallback...");
+      try {
+        await window.paypal.Buttons(commonConfig).render(paypalContainerRef.current);
+      } catch (e) {
+        setGatewayError("Gagal merender tombol pembayaran.");
+      }
+      renderInProgress.current = false;
+    }
+  }, [paymentStep, invoice, systemKeys, activeGatewayTab, toast]);
+
+  useEffect(() => {
+    if (paymentStep === 'bridge_gate') {
+      retryCount.current = 0;
+      setTimeout(renderPayPalButtons, 500);
+    } else {
+      renderInProgress.current = false;
+    }
+  }, [paymentStep, activeGatewayTab, renderPayPalButtons]);
 
   const processPaymentFinalization = async (details: any) => {
     if (!db || !invoice) return;
@@ -331,7 +349,7 @@ export default function CheckoutPage() {
       <div className="min-h-screen bg-background pb-20 relative overflow-hidden transition-colors duration-300">
         {systemKeys?.paypalClientId && (
           <Script 
-            key={systemKeys.paypalClientId}
+            key="paypal-checkout-sdk"
             src={`https://www.paypal.com/sdk/js?client-id=${systemKeys.paypalClientId}&currency=USD&intent=capture&enable-funding=googlepay,card`}
             onLoad={() => setPaypalReady(true)}
           />
@@ -458,21 +476,33 @@ export default function CheckoutPage() {
                   </header>
 
                    <div className="space-y-6">
-                      <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
-                        <Info className="w-5 h-5 text-blue-500 shrink-0" />
-                        <p className="text-[10px] text-muted-foreground font-bold leading-relaxed uppercase italic">Gunakan saldo GOOGLE PAY atau dompet digital Anda untuk penyelesaian dana riil.</p>
-                      </div>
-                      <div 
-                        ref={activeGatewayTab === 'network' ? paypalContainerRef : cardButtonRef} 
-                        className="w-full min-h-[150px] flex flex-col items-center justify-center"
-                      >
-                        {(!systemKeys?.paypalClientId || (!paypalReady && !window.paypal)) ? (
-                          <div className="flex flex-col items-center gap-3">
-                            <Loader2 className="animate-spin text-primary w-8 h-8" />
-                            <p className="text-[10px] font-black uppercase text-primary italic animate-pulse">Menghubungkan Terminal Kliring...</p>
+                      {gatewayError ? (
+                        <div className="text-center p-6 space-y-4 animate-in zoom-in">
+                          <ShieldAlert className="w-10 h-10 text-rose-500 mx-auto" />
+                          <p className="text-[10px] font-bold text-rose-500 uppercase italic leading-relaxed">{gatewayError}</p>
+                          <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="h-10 text-[10px] font-black uppercase rounded-xl border-primary/20 text-primary">
+                            <RefreshCw className="w-3.5 h-3.5 mr-2" /> Segarkan Terminal
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
+                            <Info className="w-5 h-5 text-blue-500 shrink-0" />
+                            <p className="text-[10px] text-muted-foreground font-bold leading-relaxed uppercase italic">Gunakan saldo GOOGLE PAY atau dompet digital Anda untuk penyelesaian dana riil.</p>
                           </div>
-                        ) : null}
-                      </div>
+                          <div 
+                            ref={paypalContainerRef} 
+                            className="w-full min-h-[150px] flex flex-col items-center justify-center"
+                          >
+                            {(!systemKeys?.paypalClientId || (!paypalReady && !window.paypal)) ? (
+                              <div className="flex flex-col items-center gap-3">
+                                <Loader2 className="animate-spin text-primary w-8 h-8" />
+                                <p className="text-[10px] font-black uppercase text-primary italic animate-pulse">Menghubungkan Terminal Kliring...</p>
+                              </div>
+                            ) : null}
+                          </div>
+                        </>
+                      )}
                    </div>
                 </div>
               )}
