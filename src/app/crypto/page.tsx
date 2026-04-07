@@ -49,6 +49,15 @@ const getIconUrl = (symbol: string) => {
   return `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${s}.png`;
 };
 
+const FALLBACK_COINS = [
+  { symbol: "ALX", price: 12.24, change: 1.14, isUp: true, isNative: true, icon: null },
+  { symbol: "BTC", price: 66262.29, change: -3.76, isUp: false, icon: getIconUrl("BTC") },
+  { symbol: "ETH", price: 1987.12, change: -3.98, isUp: false, icon: getIconUrl("ETH") },
+  { symbol: "SOL", price: 82.63, change: -4.69, isUp: false, icon: getIconUrl("SOL") },
+  { symbol: "BNB", price: 582.41, change: -2.14, isUp: false, icon: getIconUrl("BNB") },
+  { symbol: "USDT", price: 1.00, change: 0.01, isUp: true, icon: getIconUrl("USDT") },
+];
+
 export default function CryptoMarketPage() {
   const router = useRouter();
   const db = useFirestore();
@@ -57,7 +66,7 @@ export default function CryptoMarketPage() {
   const [activeTab, setActiveTab] = useState("Pasar");
   const [bannerApi, setBannerApi] = useState<CarouselApi>();
   const [currentBanner, setCurrentBanner] = useState(0);
-  const [marketData, setMarketData] = useState<any[]>([]);
+  const [marketData, setMarketData] = useState<any[]>(FALLBACK_COINS);
   const [isLoading, setIsLoading] = useState(true);
 
   const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
@@ -81,8 +90,8 @@ export default function CryptoMarketPage() {
       
       if (!Array.isArray(data)) return;
 
-      const formatted = data.map(res => {
-        let symbol = res.symbol;
+      const formatted = data.map(item => {
+        let symbol = item.symbol;
         if (symbol.endsWith("USDT")) {
           symbol = symbol.replace("USDT", "");
         } else if (symbol.endsWith("IDR")) {
@@ -91,8 +100,8 @@ export default function CryptoMarketPage() {
         
         if (symbol === "") symbol = "USDT";
 
-        let price = parseFloat(res.lastPrice);
-        if (res.symbol === "USDTIDR") {
+        let price = parseFloat(item.lastPrice);
+        if (item.symbol === "USDTIDR") {
           price = price / USDT_IDR_RATE;
         }
         
@@ -101,9 +110,9 @@ export default function CryptoMarketPage() {
         return {
           symbol: symbol,
           price: price,
-          change: parseFloat(res.priceChangePercent) || 0,
-          isUp: (parseFloat(res.priceChangePercent) || 0) >= 0,
-          volume: parseFloat(res.quoteVolume) || 0,
+          change: parseFloat(item.priceChangePercent) || 0,
+          isUp: (parseFloat(item.priceChangePercent) || 0) >= 0,
+          volume: parseFloat(item.quoteVolume) || 0,
           icon: getIconUrl(symbol)
         };
       });
@@ -121,12 +130,15 @@ export default function CryptoMarketPage() {
       const sorted = [alxData, ...formatted.filter(c => c.symbol !== "USDT"), formatted.find(c => c.symbol === "USDT")].filter(Boolean);
       setMarketData(sorted);
     } catch (e) {
-      console.warn("Market Sync failed, using internal fallbacks:", e);
-      // If API fails, keep existing or initial data
+      console.warn("Market Sync failed, using current state or fallbacks:", e);
+      // If API fails and we have no data, set fallback
+      if (marketData.length === 0) {
+        setMarketData(FALLBACK_COINS);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [globalLiquidity]);
+  }, [globalLiquidity, marketData.length]);
 
   useEffect(() => {
     setMounted(true);
@@ -209,7 +221,7 @@ export default function CryptoMarketPage() {
             </div>
 
             <div className="space-y-6">
-              {isLoading ? (
+              {isLoading && marketData.length === 0 ? (
                 <div className="py-20 flex flex-col items-center justify-center gap-4 opacity-30">
                   <Loader2 className="w-8 h-8 animate-spin text-primary/40" />
                   <p className="text-[10px] font-black uppercase tracking-widest">Sinkronisasi...</p>
@@ -229,7 +241,7 @@ export default function CryptoMarketPage() {
                         <LogoIcon className="text-white p-2" />
                       ) : (
                         <Image 
-                          src={coin.icon || `https://placehold.co/100x100?text=${coin.symbol}`} 
+                          src={coin.icon || `https://placehold.co/100x100/1E2329/white?text=${coin.symbol}`} 
                           alt={coin.symbol} 
                           width={40} 
                           height={40}
