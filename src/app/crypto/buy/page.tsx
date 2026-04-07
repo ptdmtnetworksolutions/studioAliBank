@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -28,6 +27,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { currencies, type Currency } from "@/lib/currencies";
@@ -150,12 +150,10 @@ export default function CryptoBuyPage() {
   useEffect(() => {
     let timeoutId: any;
     
-    // Harus ada modal terbuka, skrip siap, dan pilihan pembayaran yang sesuai
     if (isCheckoutDialogOpen && (paypalReady || window.paypal) && (selectedPayment.id === 'gpay' || selectedPayment.id === 'card')) {
       const renderButtons = async () => {
         if (!paypalContainerRef.current || !window.paypal) return;
         
-        // Bersihkan kontainer sebelum merender ulang
         paypalContainerRef.current.innerHTML = "";
         
         const buttonConfig: any = {
@@ -191,7 +189,6 @@ export default function CryptoBuyPage() {
           },
           onError: (err: any) => {
             console.error("PayPal Error:", err);
-            // Jika spesifik funding source gagal, coba render ulang tanpa filter funding
             renderStandardButtons();
           }
         };
@@ -205,13 +202,11 @@ export default function CryptoBuyPage() {
 
         try {
           if (selectedPayment.id === 'gpay') {
-            // Coba render Google Pay jika didukung, jika tidak otomatis fallback
             await window.paypal.Buttons({ 
               ...buttonConfig, 
               fundingSource: window.paypal.FUNDING.GOOGLEPAY 
             }).render(paypalContainerRef.current).catch(() => renderStandardButtons());
           } else {
-            // Render Card / Smart Buttons
             await window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
           }
         } catch (err) {
@@ -219,7 +214,6 @@ export default function CryptoBuyPage() {
         }
       };
       
-      // Delay sedikit untuk memastikan DOM ref benar-benar tersedia
       timeoutId = setTimeout(renderButtons, 300);
     }
     
@@ -354,7 +348,6 @@ export default function CryptoBuyPage() {
 
   return (
     <div className="h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
-      {/* Memuat Script PayPal secara dinamis berdasarkan Client ID dari system/api_keys */}
       {systemKeys?.paypalClientId && (
         <Script 
           key={systemKeys.paypalClientId}
@@ -393,7 +386,7 @@ export default function CryptoBuyPage() {
             <div className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" onClick={() => setIsAssetSheetOpen(true)}>
               <div className="flex items-center gap-4">
                 <div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2", selectedAsset.isNative ? "gold-gradient" : "bg-teal-600")}>{selectedAsset.isNative ? <LogoIcon className="text-white" /> : <div className="w-full h-full bg-white/20 rounded-full flex items-center justify-center font-black text-white text-[10px]">{selectedAsset.symbol[0]}</div>}</div>
-                <div><p className="text-xs font-black italic">Beli</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-500 text-[7px] font-black h-4 px-1.5 border-none uppercase">Premium Node</Badge></div></div>
+                <div><p className="text-xs font-black italic">Beli</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-600 text-[7px] font-black h-4 px-1.5 border-none uppercase">Premium Node</Badge></div></div>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
             </div>
