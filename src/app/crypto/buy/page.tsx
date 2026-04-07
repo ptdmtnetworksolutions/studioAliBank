@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -89,11 +90,13 @@ export default function CryptoBuyPage() {
   const [isCheckoutDialogOpen, setIsCheckoutDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paypalReady, setPaypalReady] = useState(false);
+  const [gatewayError, setGatewayError] = useState<string | null>(null);
   const [step, setStep] = useState<'input' | 'success'>('input');
   
   const [proofImage, setProofImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const paypalContainerRef = useRef<HTMLDivElement>(null);
+  const renderInProgress = useRef(false);
 
   // Ambil API Keys secara dinamis dari Firestore system/api_keys
   const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
@@ -146,14 +149,33 @@ export default function CryptoBuyPage() {
     return (num / exchangeRate).toFixed(2);
   }, [amount, selectedCurrency, exchangeRate]);
 
-  // Render Tombol PayPal menggunakan API Key dinamis
+  // Efek untuk memantau window.paypal jika script sudah ada sebelumnya
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.paypal) {
+      setPaypalReady(true);
+    }
+  }, [mounted]);
+
+  // Render Tombol PayPal menggunakan API Key dinamis dengan perlindungan looping
   useEffect(() => {
     let timeoutId: any;
+    let errorTimeoutId: any;
     
-    if (isCheckoutDialogOpen && (paypalReady || window.paypal) && (selectedPayment.id === 'gpay' || selectedPayment.id === 'card')) {
+    if (isCheckoutDialogOpen && (selectedPayment.id === 'gpay' || selectedPayment.id === 'card')) {
       const renderButtons = async () => {
-        if (!paypalContainerRef.current || !window.paypal) return;
+        if (!paypalContainerRef.current) return;
         
+        // Cek apakah paypal sudah tersedia
+        if (!window.paypal) {
+          console.warn("PayPal SDK belum siap, menunggu...");
+          return;
+        }
+
+        if (renderInProgress.current) return;
+        renderInProgress.current = true;
+        setGatewayError(null);
+        
+        // Membersihkan kontainer sebelum render baru
         paypalContainerRef.current.innerHTML = "";
         
         const buttonConfig: any = {
@@ -188,15 +210,18 @@ export default function CryptoBuyPage() {
             }
           },
           onError: (err: any) => {
-            console.error("PayPal Error:", err);
-            renderStandardButtons();
+            console.error("PayPal Execution Error:", err);
+            setGatewayError("Terjadi hambatan pada akun atau metode pembayaran Anda.");
+            renderInProgress.current = false;
           }
         };
 
         const renderStandardButtons = () => {
-          if (paypalContainerRef.current) {
+          if (paypalContainerRef.current && window.paypal) {
             paypalContainerRef.current.innerHTML = "";
-            window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
+            window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current)
+              .then(() => { renderInProgress.current = false; })
+              .catch(() => { renderInProgress.current = false; });
           }
         };
 
@@ -205,20 +230,36 @@ export default function CryptoBuyPage() {
             await window.paypal.Buttons({ 
               ...buttonConfig, 
               fundingSource: window.paypal.FUNDING.GOOGLEPAY 
-            }).render(paypalContainerRef.current).catch(() => renderStandardButtons());
+            }).render(paypalContainerRef.current)
+              .then(() => { renderInProgress.current = false; })
+              .catch(() => renderStandardButtons());
           } else {
-            await window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
+            await window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current)
+              .then(() => { renderInProgress.current = false; });
           }
         } catch (err) {
           renderStandardButtons();
         }
       };
       
-      timeoutId = setTimeout(renderButtons, 300);
+      // Delay kecil untuk memastikan DOM dirender sempurna
+      timeoutId = setTimeout(renderButtons, 500);
+
+      // Timeout untuk mendeteksi kegagalan koneksi yang lama
+      errorTimeoutId = setTimeout(() => {
+        if (renderInProgress.current && !gatewayError) {
+          setGatewayError("Gateway PayPal membutuhkan waktu lama untuk merespons. Pastikan akun Anda tidak dalam status terbatas.");
+        }
+      }, 10000);
+    } else {
+      renderInProgress.current = false;
     }
     
-    return () => clearTimeout(timeoutId);
-  }, [isCheckoutDialogOpen, paypalReady, usdValue, estimatedReceive, selectedAsset, selectedPayment, systemKeys]);
+    return () => {
+      clearTimeout(timeoutId);
+      clearTimeout(errorTimeoutId);
+    };
+  }, [isCheckoutDialogOpen, paypalReady, selectedPayment.id, systemKeys?.paypalClientId]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -350,7 +391,7 @@ export default function CryptoBuyPage() {
     <div className="h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
       {systemKeys?.paypalClientId && (
         <Script 
-          key={systemKeys.paypalClientId}
+          key="paypal-sdk-global"
           src={`https://www.paypal.com/sdk/js?client-id=${systemKeys.paypalClientId}&currency=USD&intent=capture&enable-funding=googlepay,card`} 
           onLoad={() => setPaypalReady(true)} 
         />
@@ -433,6 +474,12 @@ export default function CryptoBuyPage() {
                 <div key={`${selectedPayment.id}-${systemKeys?.paypalClientId}`} ref={paypalContainerRef} className="min-h-[150px] flex flex-col items-center justify-center">
                   {!systemKeys?.paypalClientId ? (
                     <p className="text-[10px] font-bold text-rose-500 uppercase">Menunggu API Key dari Vault...</p>
+                  ) : gatewayError ? (
+                    <div className="text-center p-4 space-y-3">
+                      <ShieldAlert className="w-8 h-8 text-rose-500 mx-auto" />
+                      <p className="text-[10px] font-bold text-rose-500 uppercase italic leading-relaxed">{gatewayError}</p>
+                      <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="h-8 text-[8px] font-black uppercase">Segarkan Gateway</Button>
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 className="animate-spin text-primary w-8 h-8" />
