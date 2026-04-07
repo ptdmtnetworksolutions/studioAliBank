@@ -95,7 +95,9 @@ export default function CheckoutPage() {
   const paypalContainerRef = useRef<HTMLDivElement>(null);
   const cardButtonRef = useRef<HTMLDivElement>(null);
 
-  const PAYPAL_CLIENT_ID = "AbHG-qL9bHR0-rhmrDMV7TH-PiYAFHFNimv3LfxBUPmSIMaQPrbvFd7cJah1bc8YqlUkS7i3OpD0nvGF";
+  // Ambil API Keys secara dinamis dari Firestore system/api_keys
+  const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
+  const { data: systemKeys } = useDoc(apiKeysRef);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
@@ -141,7 +143,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     let timeoutId: any;
 
-    if (paymentStep === 'bridge_gate' && (paypalReady || window.paypal) && invoice) {
+    if (paymentStep === 'bridge_gate' && (paypalReady || window.paypal) && invoice && systemKeys?.paypalClientId) {
       const renderButtons = async () => {
         const formattedAmount = parseFloat(invoice.amountUsd.toString()).toFixed(2);
         const targetContainer = activeGatewayTab === 'network' ? paypalContainerRef.current : cardButtonRef.current;
@@ -186,16 +188,19 @@ export default function CheckoutPage() {
               ...commonConfig,
               fundingSource: window.paypal.FUNDING.GOOGLEPAY,
               style: { layout: 'vertical', color: 'black', shape: 'rect' }
-            }).render(targetContainer);
+            }).render(targetContainer).catch(() => {
+              window.paypal.Buttons(commonConfig).render(targetContainer);
+            });
           } else {
             await window.paypal.Buttons({
               ...commonConfig,
               fundingSource: window.paypal.FUNDING.CARD,
               style: { layout: 'vertical', color: 'black', shape: 'rect' }
-            }).render(targetContainer);
+            }).render(targetContainer).catch(() => {
+              window.paypal.Buttons(commonConfig).render(targetContainer);
+            });
           }
         } catch (err) {
-          console.warn("Spesifik funding source gagal, memuat tombol pintar standar...");
           if (targetContainer) {
             targetContainer.innerHTML = "";
             window.paypal.Buttons(commonConfig).render(targetContainer);
@@ -207,7 +212,7 @@ export default function CheckoutPage() {
     }
 
     return () => clearTimeout(timeoutId);
-  }, [paymentStep, paypalReady, invoice, activeGatewayTab]);
+  }, [paymentStep, paypalReady, invoice, activeGatewayTab, systemKeys]);
 
   const processPaymentFinalization = async (details: any) => {
     if (!db || !invoice) return;
@@ -324,10 +329,13 @@ export default function CheckoutPage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background pb-20 relative overflow-hidden transition-colors duration-300">
-        <Script 
-          src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&intent=capture&enable-funding=googlepay,card`}
-          onLoad={() => setPaypalReady(true)}
-        />
+        {systemKeys?.paypalClientId && (
+          <Script 
+            key={systemKeys.paypalClientId}
+            src={`https://www.paypal.com/sdk/js?client-id=${systemKeys.paypalClientId}&currency=USD&intent=capture&enable-funding=googlepay,card`}
+            onLoad={() => setPaypalReady(true)}
+          />
+        )}
         
         <div className="absolute top-0 left-0 w-full h-64 gold-gradient opacity-10 blur-[100px]" />
         
@@ -458,13 +466,12 @@ export default function CheckoutPage() {
                         ref={activeGatewayTab === 'network' ? paypalContainerRef : cardButtonRef} 
                         className="w-full min-h-[150px] flex flex-col items-center justify-center"
                       >
-                        {!paypalReady && !window.paypal && <Loader2 className="w-8 h-8 animate-spin text-primary opacity-40" />}
-                        {(paypalReady || window.paypal) && (
+                        {(!systemKeys?.paypalClientId || (!paypalReady && !window.paypal)) ? (
                           <div className="flex flex-col items-center gap-3">
                             <Loader2 className="animate-spin text-primary w-8 h-8" />
                             <p className="text-[10px] font-black uppercase text-primary italic animate-pulse">Menghubungkan Terminal Kliring...</p>
                           </div>
-                        )}
+                        ) : null}
                       </div>
                    </div>
                 </div>
