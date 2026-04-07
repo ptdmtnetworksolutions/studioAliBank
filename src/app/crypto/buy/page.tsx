@@ -24,7 +24,8 @@ import {
   Copy,
   Landmark,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -97,6 +98,7 @@ export default function CryptoBuyPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const paypalContainerRef = useRef<HTMLDivElement>(null);
   const renderInProgress = useRef(false);
+  const retryCount = useRef(0);
 
   // Ambil API Keys secara dinamis dari Firestore system/api_keys
   const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
@@ -128,138 +130,115 @@ export default function CryptoBuyPage() {
   const totalAmountIdr = useMemo(() => {
     const num = parseFloat(amount.replace(',', '.'));
     if (isNaN(num) || num <= 0) return 0;
-    
     const baseAmountIdr = selectedCurrency.code === 'USD' ? num * exchangeRate : num;
     return baseAmountIdr + uniqueCode;
-  }, [amount, uniqueCode, selectedCurrency, exchangeRate]);
+  }, [amount, uniqueCode, selectedCurrency]);
 
   const estimatedReceive = useMemo(() => {
     const num = parseFloat(amount.replace(',', '.'));
     if (isNaN(num) || num <= 0) return "0";
-    
     const amountInUsd = selectedCurrency.code === 'USD' ? num : num / exchangeRate;
     const priceWithMarkup = selectedAsset.isNative ? selectedAsset.priceUsd : selectedAsset.priceUsd * 1.02;
     return (amountInUsd / priceWithMarkup).toFixed(selectedAsset.symbol === 'BTC' ? 8 : 4);
-  }, [amount, selectedAsset, selectedCurrency, exchangeRate]);
+  }, [amount, selectedAsset, selectedCurrency]);
 
   const usdValue = useMemo(() => {
     const num = parseFloat(amount.replace(',', '.'));
     if (isNaN(num)) return "0.00";
     if (selectedCurrency.code === 'USD') return num.toFixed(2);
     return (num / exchangeRate).toFixed(2);
-  }, [amount, selectedCurrency, exchangeRate]);
+  }, [amount, selectedCurrency]);
 
-  // Efek untuk memantau window.paypal jika script sudah ada sebelumnya
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.paypal) {
-      setPaypalReady(true);
+  // Optimal PayPal Button Rendering
+  const renderPayPalButtons = useCallback(async () => {
+    if (!paypalContainerRef.current || !isCheckoutDialogOpen) return;
+    if (selectedPayment.id !== 'gpay' && selectedPayment.id !== 'card') return;
+
+    // Wait for window.paypal to be available
+    if (typeof window === 'undefined' || !window.paypal) {
+      if (retryCount.current < 10) {
+        retryCount.current++;
+        setTimeout(renderPayPalButtons, 1000);
+      } else {
+        setGatewayError("Gagal memuat terminal kliring. Pastikan koneksi internet stabil.");
+      }
+      return;
     }
-  }, [mounted]);
 
-  // Render Tombol PayPal menggunakan API Key dinamis dengan perlindungan looping
-  useEffect(() => {
-    let timeoutId: any;
-    let errorTimeoutId: any;
-    
-    if (isCheckoutDialogOpen && (selectedPayment.id === 'gpay' || selectedPayment.id === 'card')) {
-      const renderButtons = async () => {
-        if (!paypalContainerRef.current) return;
-        
-        // Cek apakah paypal sudah tersedia
-        if (!window.paypal) {
-          console.warn("PayPal SDK belum siap, menunggu...");
-          return;
-        }
+    if (renderInProgress.current) return;
+    renderInProgress.current = true;
+    setGatewayError(null);
 
-        if (renderInProgress.current) return;
-        renderInProgress.current = true;
-        setGatewayError(null);
-        
-        // Membersihkan kontainer sebelum render baru
-        paypalContainerRef.current.innerHTML = "";
-        
-        const buttonConfig: any = {
-          style: { 
-            layout: 'vertical', 
-            color: 'black', 
-            shape: 'rect',
-            label: 'pay'
-          },
-          createOrder: (data: any, actions: any) => {
-            return actions.order.create({
-              purchase_units: [{
-                amount: { 
-                  currency_code: "USD", 
-                  value: usdValue 
-                },
-                description: `AliBank V3 Purchase: ${estimatedReceive} ${selectedAsset.symbol}`
-              }]
-            });
-          },
-          onApprove: async (data: any, actions: any) => {
-            setIsProcessing(true);
-            try {
-              const details = await actions.order.capture();
-              if (details.status === 'COMPLETED') {
-                await finalizePurchase(details);
-              }
-            } catch (err) {
-              toast({ variant: "destructive", title: "Gagal Kliring", description: "Dana tidak dapat ditarik dari sumber pembayaran." });
-            } finally {
-              setIsProcessing(false);
-            }
-          },
-          onError: (err: any) => {
-            console.error("PayPal Execution Error:", err);
-            setGatewayError("Terjadi hambatan pada akun atau metode pembayaran Anda.");
-            renderInProgress.current = false;
-          }
-        };
+    // Clear container
+    paypalContainerRef.current.innerHTML = "";
 
-        const renderStandardButtons = () => {
-          if (paypalContainerRef.current && window.paypal) {
-            paypalContainerRef.current.innerHTML = "";
-            window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current)
-              .then(() => { renderInProgress.current = false; })
-              .catch(() => { renderInProgress.current = false; });
-          }
-        };
-
+    const buttonConfig: any = {
+      style: { 
+        layout: 'vertical', 
+        color: 'black', 
+        shape: 'rect',
+        label: 'pay'
+      },
+      createOrder: (data: any, actions: any) => {
+        return actions.order.create({
+          purchase_units: [{
+            amount: { 
+              currency_code: "USD", 
+              value: usdValue 
+            },
+            description: `AliBank Purchase: ${estimatedReceive} ${selectedAsset.symbol}`
+          }]
+        });
+      },
+      onApprove: async (data: any, actions: any) => {
+        setIsProcessing(true);
         try {
-          if (selectedPayment.id === 'gpay') {
-            await window.paypal.Buttons({ 
-              ...buttonConfig, 
-              fundingSource: window.paypal.FUNDING.GOOGLEPAY 
-            }).render(paypalContainerRef.current)
-              .then(() => { renderInProgress.current = false; })
-              .catch(() => renderStandardButtons());
-          } else {
-            await window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current)
-              .then(() => { renderInProgress.current = false; });
+          const details = await actions.order.capture();
+          if (details.status === 'COMPLETED') {
+            await finalizePurchase(details);
           }
         } catch (err) {
-          renderStandardButtons();
+          toast({ variant: "destructive", title: "Kliring Gagal", description: "Pembayaran tidak dapat diproses." });
+        } finally {
+          setIsProcessing(false);
         }
-      };
-      
-      // Delay kecil untuk memastikan DOM dirender sempurna
-      timeoutId = setTimeout(renderButtons, 500);
+      },
+      onError: (err: any) => {
+        console.error("PayPal Error:", err);
+        setGatewayError("Terjadi kesalahan pada modul pembayaran PayPal.");
+        renderInProgress.current = false;
+      }
+    };
 
-      // Timeout untuk mendeteksi kegagalan koneksi yang lama
-      errorTimeoutId = setTimeout(() => {
-        if (renderInProgress.current && !gatewayError) {
-          setGatewayError("Gateway PayPal membutuhkan waktu lama untuk merespons. Pastikan akun Anda tidak dalam status terbatas.");
-        }
-      }, 10000);
+    try {
+      if (selectedPayment.id === 'gpay') {
+        await window.paypal.Buttons({
+          ...buttonConfig,
+          fundingSource: window.paypal.FUNDING.GOOGLEPAY
+        }).render(paypalContainerRef.current);
+      } else {
+        await window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
+      }
+      renderInProgress.current = false;
+    } catch (err) {
+      console.warn("Retrying standard render...");
+      try {
+        await window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
+      } catch (e) {
+        setGatewayError("Gagal merender tombol pembayaran.");
+      }
+      renderInProgress.current = false;
+    }
+  }, [isCheckoutDialogOpen, selectedPayment.id, usdValue, estimatedReceive, selectedAsset.symbol, toast]);
+
+  useEffect(() => {
+    if (isCheckoutDialogOpen) {
+      retryCount.current = 0;
+      setTimeout(renderPayPalButtons, 500);
     } else {
       renderInProgress.current = false;
     }
-    
-    return () => {
-      clearTimeout(timeoutId);
-      clearTimeout(errorTimeoutId);
-    };
-  }, [isCheckoutDialogOpen, paypalReady, selectedPayment.id, systemKeys?.paypalClientId]);
+  }, [isCheckoutDialogOpen, selectedPayment.id, renderPayPalButtons]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -391,8 +370,9 @@ export default function CryptoBuyPage() {
     <div className="h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
       {systemKeys?.paypalClientId && (
         <Script 
-          key="paypal-sdk-global"
+          key="paypal-sdk-v5"
           src={`https://www.paypal.com/sdk/js?client-id=${systemKeys.paypalClientId}&currency=USD&intent=capture&enable-funding=googlepay,card`} 
+          strategy="afterInteractive"
           onLoad={() => setPaypalReady(true)} 
         />
       )}
@@ -471,19 +451,26 @@ export default function CryptoBuyPage() {
 
             <div className="space-y-4">
               {(selectedPayment.id === 'gpay' || selectedPayment.id === 'card') ? (
-                <div key={`${selectedPayment.id}-${systemKeys?.paypalClientId}`} ref={paypalContainerRef} className="min-h-[150px] flex flex-col items-center justify-center">
+                <div key={`${selectedPayment.id}-${systemKeys?.paypalClientId}`} className="min-h-[150px] flex flex-col items-center justify-center">
                   {!systemKeys?.paypalClientId ? (
                     <p className="text-[10px] font-bold text-rose-500 uppercase">Menunggu API Key dari Vault...</p>
                   ) : gatewayError ? (
                     <div className="text-center p-4 space-y-3">
                       <ShieldAlert className="w-8 h-8 text-rose-500 mx-auto" />
                       <p className="text-[10px] font-bold text-rose-500 uppercase italic leading-relaxed">{gatewayError}</p>
-                      <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="h-8 text-[8px] font-black uppercase">Segarkan Gateway</Button>
+                      <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="h-10 text-[10px] font-black uppercase rounded-xl border-primary/20 text-primary">
+                        <RefreshCw className="w-3.5 h-3.5 mr-2" /> Segarkan Terminal
+                      </Button>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center gap-3">
-                      <Loader2 className="animate-spin text-primary w-8 h-8" />
-                      <p className="text-[10px] font-black uppercase text-primary italic animate-pulse">Menghubungkan Terminal Kliring...</p>
+                    <div className="w-full flex flex-col items-center">
+                      <div ref={paypalContainerRef} className="w-full" />
+                      {!paypalReady && (
+                        <div className="flex flex-col items-center gap-3 py-6">
+                          <Loader2 className="animate-spin text-primary w-8 h-8" />
+                          <p className="text-[10px] font-black uppercase text-primary italic animate-pulse">Menghubungkan Terminal Kliring...</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
