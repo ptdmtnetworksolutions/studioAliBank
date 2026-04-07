@@ -46,14 +46,12 @@ export default function TradePage() {
   
   const [activeTopTab, setActiveTopTab] = useState<'Beli/Jual' | 'Spot' | 'P2P' | 'Alpha'>('Beli/Jual');
   const [tradeType, setTradeType] = useState<'beli' | 'jual' | 'convert'>('beli');
-  const [marginEnabled, setMarginEnabled] = useState(false);
   const [amount, setAmount] = useState("0");
   const [mounted, setMounted] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // MARKET DATA STATES
   const [livePrice, setLivePrice] = useState<number>(0);
-  const [priceChange, setPriceChange] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   const symbol = (coinId as string).toUpperCase();
@@ -69,10 +67,9 @@ export default function TradePage() {
   }, [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  // AliBank Autonomous Market Engine (AME) - Sync for Trading
   const fetchMarketPrice = useCallback(async () => {
     if (isAlix) {
-      setLivePrice(12.24); // Managed ALX Price
+      setLivePrice(12.24); 
       setIsLoading(false);
       return;
     }
@@ -85,8 +82,6 @@ export default function TradePage() {
       if (data.price) {
         let base = parseFloat(data.price);
         if (binanceSymbol === 'USDTIDR') base = base / USDT_IDR_RATE;
-        
-        // TERAPKAN MARKUP +2% SECARA MUTLAK
         setLivePrice(base * MARKUP);
       }
       setIsLoading(false);
@@ -102,23 +97,16 @@ export default function TradePage() {
   }, [fetchMarketPrice]);
 
   const handleKeyPress = (num: string) => {
-    if (amount === "0") {
-      setAmount(num);
-    } else {
-      if (amount.length < 15) setAmount(amount + num);
-    }
+    if (amount === "0") setAmount(num);
+    else if (amount.length < 15) setAmount(amount + num);
   };
 
   const handleDelete = () => {
-    if (amount.length > 1) {
-      setAmount(amount.slice(0, -1));
-    } else {
-      setAmount("0");
-    }
+    setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : "0");
   };
 
   const executeTrade = async () => {
-    if (!user || !db || isProcessing || amount === "0") return;
+    if (!user || !db || isProcessing || amount === "0" || !userData) return;
     const numAmount = parseFloat(amount);
     
     setIsProcessing(true);
@@ -127,16 +115,40 @@ export default function TradePage() {
       const cryptoGain = totalCostIdr / (livePrice * USDT_IDR_RATE);
 
       if (tradeType === 'beli') {
-        if ((userData?.totalBalance ?? 0) < totalCostIdr) {
+        if ((userData.totalBalance ?? 0) < totalCostIdr) {
           throw new Error("Saldo IDR Anda tidak mencukupi.");
         }
 
+        // 1. Update Saldo User
         const userRef = doc(db, "users", user.uid);
         await updateDoc(userRef, {
           totalBalance: increment(-totalCostIdr),
           [`cryptoBalances.${symbol}`]: increment(cryptoGain)
         });
 
+        // 2. Jika Aset adalah ALX, Update Inventaris Pusat Bank
+        if (isAlix) {
+          const sysRef = doc(db, "system", "liquidity");
+          await updateDoc(sysRef, {
+            alixVaultBalance: increment(-cryptoGain),
+            totalAlixSoldInternally: increment(cryptoGain),
+            totalInternalAumIdr: increment(totalCostIdr)
+          });
+        }
+
+        // 3. Catat ke Audit Ledger Global (Untuk Admin)
+        const globalAuditRef = collection(db, "system", "audit", "global_transactions");
+        await addDoc(globalAuditRef, {
+          id: `TRADE-BUY-${Date.now()}`,
+          category: "Market Trade",
+          description: `Buy ${cryptoGain.toFixed(6)} ${symbol} by ${userData.name}`,
+          amountIdr: totalCostIdr,
+          status: "success",
+          timestamp: serverTimestamp(),
+          userEmail: user.email
+        });
+
+        // 4. Catat Riwayat Pribadi
         await addDoc(collection(db, "users", user.uid, "transactions"), {
           date: new Date().toISOString(),
           description: `Beli ${symbol} (Ali-Premium)`,
@@ -164,7 +176,6 @@ export default function TradePage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-body select-none transition-colors duration-300">
-      {/* Top Header Tabs */}
       <header className="px-4 h-14 flex items-center justify-between border-b border-border sticky top-0 bg-background z-50">
         <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
           {['Beli/Jual', 'Spot', 'P2P', 'Alpha'].map((tab) => (

@@ -21,7 +21,9 @@ import {
   Database,
   Info,
   Clock,
-  History
+  History,
+  CheckCircle2,
+  TrendingDown
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -34,6 +36,8 @@ import { BrowserProvider } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
 
 export function TokenomicsView({ 
   totalSupply, 
@@ -48,14 +52,20 @@ export function TokenomicsView({
   auditLogs
 }: any) {
   const { toast } = useToast();
+  const db = useFirestore();
   const [mintAmount, setMintAmount] = useState("");
-  const [burnAmount, setBurnAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Fatch Internal Vault Balance (Firestore)
+  const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
+  const { data: globalLiquidity } = useDoc(liquidityRef);
 
   const alxTransactions = auditLogs?.filter((log: any) => 
     log.cryptoCurrency === "ALX" || 
     log.description?.toLowerCase().includes("alx") || 
-    log.category?.toLowerCase().includes("tokenomics")
+    log.category?.toLowerCase().includes("tokenomics") ||
+    log.category === "Ali-Exchange" ||
+    log.description?.includes("ALX")
   );
 
   const handleMint = async () => {
@@ -76,21 +86,6 @@ export function TokenomicsView({
     } finally { setIsProcessing(false); }
   };
 
-  const handleBurn = async () => {
-    if (typeof window === 'undefined' || !window.ethereum) return;
-    if (isProcessing || !burnAmount) return;
-    setIsProcessing(true);
-    try {
-      const provider = new BrowserProvider(window.ethereum as any);
-      const signer = await provider.getSigner();
-      await burnALX(burnAmount, signer);
-      toast({ title: "Burn Success" });
-      setBurnAmount("");
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Burn Failed", description: err.message });
-    } finally { setIsProcessing(false); }
-  };
-
   return (
     <div className="animate-in slide-in-from-bottom-10 duration-700 space-y-10">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -101,11 +96,12 @@ export function TokenomicsView({
         <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg">V3.1 PROTOCOL ACTIVE</Badge>
       </header>
 
+      {/* Internal vs On-Chain Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <TokenStatCard label="Total Supply" value={`${isLoadingAlix ? '...' : Number(totalSupply).toLocaleString()} ALX`} sub={`Max: ${Number(maxSupply).toLocaleString()}`} icon={Zap} />
-        <TokenStatCard label="Remaining Mintable" value={`${isLoadingAlix ? '...' : Number(remainingMintable).toLocaleString()} ALX`} sub="Available to Mint" icon={Globe} color="text-green-600" />
+        <TokenStatCard label="Internal Vault Liquidity" value={`${globalLiquidity?.alixVaultBalance?.toLocaleString() || '0'} ALX`} sub="Available for Internal Trade" icon={Database} color="text-primary" />
+        <TokenStatCard label="On-Chain Total Supply" value={`${isLoadingAlix ? '...' : Number(totalSupply).toLocaleString()} ALX`} sub={`Max: ${Number(maxSupply).toLocaleString()}`} icon={Zap} />
         <TokenStatCard label="Circulation Rate" value={`${circulationRate.toFixed(2)}%`} sub="Supply vs Max Cap" icon={Activity} color="text-blue-500" />
-        <TokenStatCard label="Burn Pool" value={`${(Number(maxSupply) - Number(totalSupply)).toLocaleString()} ALX`} sub="Deflation Realized" icon={Flame} color="text-orange-500" />
+        <TokenStatCard label="Internal Gross Sales" value={`Rp ${globalLiquidity?.totalInternalAumIdr?.toLocaleString() || '0'}`} sub="Revenue from ALX Sales" icon={TrendingDown} color="text-green-600" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -172,7 +168,7 @@ export function TokenomicsView({
                 <tr>
                   <th className="px-8 py-5">Timestamp</th>
                   <th className="px-8 py-5">Activity</th>
-                  <th className="px-8 py-5">Value (ALX)</th>
+                  <th className="px-8 py-5">Value (IDR)</th>
                   <th className="px-8 py-5 text-right">Settlement</th>
                 </tr>
               </thead>
@@ -185,11 +181,11 @@ export function TokenomicsView({
                     <td className="px-8 py-4">
                       <div className="flex flex-col">
                         <Badge className="bg-muted text-foreground border-none text-[7px] font-black h-4 uppercase px-1.5 w-fit mb-1">{log.category}</Badge>
-                        <span className="text-[10px] font-black uppercase italic text-accent">{log.description?.slice(0, 40)}...</span>
+                        <span className="text-[10px] font-black uppercase italic text-accent">{log.description?.slice(0, 60)}...</span>
                       </div>
                     </td>
                     <td className="px-8 py-4 text-[11px] font-black italic text-primary">
-                      {log.cryptoAmount ? `${log.cryptoAmount.toFixed(4)} ALX` : '---'}
+                      {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : '---'}
                     </td>
                     <td className="px-8 py-4 text-right">
                       <div className="flex items-center justify-end gap-2 text-[9px] font-bold text-green-600 uppercase italic">
@@ -208,47 +204,6 @@ export function TokenomicsView({
           </div>
         </Card>
       </section>
-
-      <section className="space-y-8 pt-10 border-t border-border/50">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-            <Database className="w-6 h-6" />
-          </div>
-          <h3 className="text-2xl font-black italic uppercase tracking-tight text-accent dark:text-white">Arsitektur Alix Coin V3.1</h3>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-4 group hover:border-primary/30 transition-all">
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 shadow-inner">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <h5 className="font-black uppercase italic text-sm">Standar & Jaringan</h5>
-            <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
-              ALX adalah <span className="text-accent font-bold">Utility Token</span> berbasis standar <span className="text-accent font-bold">ERC-20</span> di jaringan <span className="text-indigo-500 font-bold">Polygon POS</span>. Memastikan transaksi instan dengan efisiensi biaya gas maksimal.
-            </p>
-          </Card>
-
-          <Card className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-4 group hover:border-primary/30 transition-all">
-            <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 shadow-inner">
-              <Flame className="w-6 h-6" />
-            </div>
-            <h5 className="font-black uppercase italic text-sm">Deflasi Otomatis</h5>
-            <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
-              Fitur <span className="text-accent font-bold">ERC20Burnable</span> memungkinkan AliBank memusnahkan suplai secara permanen guna meningkatkan kelangkaan koin dan nilai ekosistem jangka panjang.
-            </p>
-          </Card>
-
-          <Card className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-4 group hover:border-primary/30 transition-all">
-            <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-500 shadow-inner">
-              <Fingerprint className="w-6 h-6" />
-            </div>
-            <h5 className="font-black uppercase italic text-sm">Fitur ERC20Permit</h5>
-            <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase italic">
-              Mendukung <span className="text-accent font-bold">Gasless Approval</span> (EIP-712). Pengguna dapat menandatangani izin transaksi tanpa saldo MATIC di awal, memberikan UX perbankan yang mulus.
-            </p>
-          </Card>
-        </div>
-      </section>
     </div>
   );
 }
@@ -260,27 +215,5 @@ function TokenStatCard({ label, value, sub, icon: Icon, color = "text-accent" }:
       <p className={cn("text-2xl font-black italic tracking-tighter", color)}>{value}</p>
       <p className="text-[9px] font-bold text-muted-foreground uppercase">{sub}</p>
     </Card>
-  );
-}
-
-function Fingerprint({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M2 12C2 6.477 6.477 2 12 2s10 4.477 10 10" />
-      <path d="M5 12c0-3.866 3.134-7 7-7s7 3.134 7 7" />
-      <path d="M8 12c0-2.209 1.791-4 4-4s4 1.791 4 4" />
-      <path d="M12 12v9" />
-      <path d="M12 15c-1.657 0-3 1.343-3 3" />
-      <path d="M12 18c1.657 0 3-1.343 3-3" />
-    </svg>
-  );
-}
-
-function CheckCircle2({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-      <path d="m9 12 2 2 4-4" />
-    </svg>
   );
 }
