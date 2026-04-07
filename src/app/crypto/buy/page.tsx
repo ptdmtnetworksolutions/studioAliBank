@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -24,13 +23,13 @@ import {
   Copy,
   Landmark,
   Upload,
-  Image as ImageIcon,
+  ImageIcon,
   RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { currencies, type Currency } from "@/lib/currencies";
 import { LogoIcon } from "@/components/ui/logo";
