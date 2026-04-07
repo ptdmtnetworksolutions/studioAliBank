@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -59,7 +60,7 @@ declare global {
 }
 
 const PAYMENT_METHODS = [
-  { id: 'gpay', name: "Google Pay", icon: "gpay", desc: "Instan & Aman" },
+  { id: 'gpay', name: "Google Pay / Digital Wallet", icon: "gpay", desc: "Instan & Aman" },
   { id: 'card', name: "Kartu Kredit/Debit", icon: CreditCard, desc: "Visa, Mastercard, JCB" },
   { id: 'bank', name: "Transfer Bank (BCA)", icon: Building2, desc: "Verifikasi Manual (Kode Unik)" },
   { id: 'va', name: "Virtual Account", icon: Landmark, desc: "Instan Kliring Multi-Bank" },
@@ -126,14 +127,16 @@ export default function CryptoBuyPage() {
   const exchangeRate = 15850; 
   
   const totalAmountIdr = useMemo(() => {
-    const num = parseFloat(amount.replace(',', '.'));
+    const cleanAmount = amount.replace(',', '.');
+    const num = parseFloat(cleanAmount);
     if (isNaN(num) || num <= 0) return 0;
     const baseAmountIdr = selectedCurrency.code === 'USD' ? num * exchangeRate : num;
     return baseAmountIdr + uniqueCode;
   }, [amount, uniqueCode, selectedCurrency]);
 
   const estimatedReceive = useMemo(() => {
-    const num = parseFloat(amount.replace(',', '.'));
+    const cleanAmount = amount.replace(',', '.');
+    const num = parseFloat(cleanAmount);
     if (isNaN(num) || num <= 0) return "0";
     const amountInUsd = selectedCurrency.code === 'USD' ? num : num / exchangeRate;
     const priceWithMarkup = selectedAsset.isNative ? selectedAsset.priceUsd : selectedAsset.priceUsd * 1.02;
@@ -141,22 +144,23 @@ export default function CryptoBuyPage() {
   }, [amount, selectedAsset, selectedCurrency]);
 
   const usdValue = useMemo(() => {
-    const num = parseFloat(amount.replace(',', '.'));
+    const cleanAmount = amount.replace(',', '.');
+    const num = parseFloat(cleanAmount);
     if (isNaN(num)) return "0.00";
     if (selectedCurrency.code === 'USD') return num.toFixed(2);
     return (num / exchangeRate).toFixed(2);
   }, [amount, selectedCurrency]);
 
   const renderPayPalButtons = useCallback(async () => {
-    if (!paypalContainerRef.current || !isCheckoutDialogOpen) return;
+    if (!paypalContainerRef.current || !isCheckoutDialogOpen || !systemKeys?.paypalClientId) return;
     if (selectedPayment.id !== 'gpay' && selectedPayment.id !== 'card') return;
 
     if (typeof window === 'undefined' || !window.paypal) {
-      if (retryCount.current < 15) {
+      if (retryCount.current < 10) {
         retryCount.current++;
         setTimeout(renderPayPalButtons, 1000);
       } else {
-        setGatewayError("Gagal memuat modul PayPal. Pastikan akun PayPal Anda mendukung fitur Advanced Payments dan domain ini telah diizinkan.");
+        setGatewayError("Gagal memuat terminal kliring. Pastikan domain ini telah diizinkan di dashboard PayPal.");
       }
       return;
     }
@@ -167,73 +171,60 @@ export default function CryptoBuyPage() {
 
     paypalContainerRef.current.innerHTML = "";
 
-    const buttonConfig: any = {
-      style: { 
-        layout: 'vertical', 
-        color: 'black', 
-        shape: 'rect',
-        label: 'pay'
-      },
-      createOrder: (data: any, actions: any) => {
-        return actions.order.create({
-          purchase_units: [{
-            amount: { 
-              currency_code: "USD", 
-              value: usdValue 
-            },
-            description: `AliBank Purchase: ${estimatedReceive} ${selectedAsset.symbol}`
-          }]
-        });
-      },
-      onApprove: async (data: any, actions: any) => {
-        setIsProcessing(true);
-        try {
-          const details = await actions.order.capture();
-          if (details.status === 'COMPLETED') {
-            await finalizePurchase(details);
-          }
-        } catch (err) {
-          toast({ variant: "destructive", title: "Kliring Gagal", description: "Pembayaran tidak dapat diproses. Cek limit kartu Anda." });
-        } finally {
-          setIsProcessing(false);
-        }
-      },
-      onError: (err: any) => {
-        console.error("PayPal Error:", err);
-        setGatewayError("Terjadi kesalahan sistem kliring. Pastikan Client ID Anda valid dan fitur Advanced Card Payments telah aktif di dashboard PayPal.");
-        renderInProgress.current = false;
-      }
-    };
-
     try {
-      if (selectedPayment.id === 'gpay') {
-        await window.paypal.Buttons({
-          ...buttonConfig,
-          fundingSource: window.paypal.FUNDING.GOOGLEPAY
-        }).render(paypalContainerRef.current);
-      } else {
-        await window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
-      }
+      await window.paypal.Buttons({
+        style: { 
+          layout: 'vertical', 
+          color: 'gold', 
+          shape: 'rect',
+          label: 'pay'
+        },
+        createOrder: (data: any, actions: any) => {
+          return actions.order.create({
+            purchase_units: [{
+              amount: { 
+                currency_code: "USD", 
+                value: usdValue 
+              },
+              description: `AliBank Purchase: ${estimatedReceive} ${selectedAsset.symbol}`
+            }]
+          });
+        },
+        onApprove: async (data: any, actions: any) => {
+          setIsProcessing(true);
+          try {
+            const details = await actions.order.capture();
+            if (details.status === 'COMPLETED') {
+              await finalizePurchase(details);
+            }
+          } catch (err) {
+            toast({ variant: "destructive", title: "Kliring Gagal", description: "Pembayaran tidak dapat diproses." });
+          } finally {
+            setIsProcessing(false);
+          }
+        },
+        onError: (err: any) => {
+          console.error("PayPal Error:", err);
+          setGatewayError("Terjadi hambatan pada node kliring PayPal. Silakan segarkan terminal.");
+          renderInProgress.current = false;
+        }
+      }).render(paypalContainerRef.current);
       renderInProgress.current = false;
     } catch (err) {
-      console.warn("Retrying standard render...");
-      try {
-        await window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
-      } catch (e) {
-        setGatewayError("Gagal menginisialisasi antarmuka pembayaran.");
-      }
+      console.warn("Render conflict detected, retrying...");
       renderInProgress.current = false;
+      setTimeout(renderPayPalButtons, 1000);
     }
-  }, [isCheckoutDialogOpen, selectedPayment.id, usdValue, estimatedReceive, selectedAsset.symbol, toast]);
+  }, [isCheckoutDialogOpen, selectedPayment.id, usdValue, estimatedReceive, selectedAsset.symbol, systemKeys?.paypalClientId, toast]);
 
   useEffect(() => {
-    if (isCheckoutDialogOpen) {
+    if (isCheckoutDialogOpen && paypalReady) {
       retryCount.current = 0;
-      setTimeout(renderPayPalButtons, 500);
+      renderPayPalButtons();
     } else {
       renderInProgress.current = false;
     }
-  }, [isCheckoutDialogOpen, selectedPayment.id, renderPayPalButtons]);
+  }, [isCheckoutDialogOpen, selectedPayment.id, paypalReady, renderPayPalButtons]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -249,12 +240,13 @@ export default function CryptoBuyPage() {
     setIsProcessing(true);
     try {
       const requestId = `TRQ-${Date.now()}`;
+      const cleanAmount = amount.replace(',', '.');
       await addDoc(collection(db, "topup_requests"), {
         requestId,
         userId: user.uid,
         userName: userData.name,
         userEmail: user.email,
-        amount: parseFloat(amount.replace(',', '.')),
+        amount: parseFloat(cleanAmount),
         currency: selectedCurrency.code,
         uniqueCode,
         totalToTransfer: totalAmountIdr,
@@ -366,10 +358,10 @@ export default function CryptoBuyPage() {
       {systemKeys?.paypalClientId && (
         <Script 
           key={`paypal-sdk-${systemKeys.paypalClientId}`}
-          src={`https://www.paypal.com/sdk/js?client-id=${systemKeys.paypalClientId}&currency=USD&intent=capture&enable-funding=googlepay,card`} 
+          src={`https://www.paypal.com/sdk/js?client-id=${systemKeys.paypalClientId}&currency=USD&intent=capture`} 
           strategy="afterInteractive"
           onLoad={() => setPaypalReady(true)} 
-          onError={() => setGatewayError("Gagal menghubungi server kliring PayPal. Periksa koneksi atau status Client ID.")}
+          onError={() => setGatewayError("Gagal menghubungi server kliring PayPal.")}
         />
       )}
       
@@ -435,7 +427,7 @@ export default function CryptoBuyPage() {
               <div className="w-12 h-12 rounded-2xl gold-gradient mx-auto flex items-center justify-center shadow-xl p-2.5 mb-2"><LogoIcon className="text-white" /></div>
               <DialogTitle className="text-xl font-black italic uppercase tracking-tight">ALIBANK SECURE GATEWAY</DialogTitle>
               <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                {selectedPayment.id === 'bank' ? 'Penyelesaian Dana Riil - BCA Manual Clearance' : 'Global Card Clearing Network'}
+                {selectedPayment.id === 'bank' ? 'Penyelesaian Dana Riil - BCA Manual Clearance' : 'Global Payment Network'}
               </DialogDescription>
             </DialogHeader>
 
@@ -447,7 +439,7 @@ export default function CryptoBuyPage() {
 
             <div className="space-y-4">
               {(selectedPayment.id === 'gpay' || selectedPayment.id === 'card') ? (
-                <div key={`${selectedPayment.id}-${systemKeys?.paypalClientId}`} className="min-h-[150px] flex flex-col items-center justify-center">
+                <div className="min-h-[150px] flex flex-col items-center justify-center">
                   {!systemKeys?.paypalClientId ? (
                     <p className="text-[10px] font-bold text-rose-500 uppercase">Menunggu API Key dari Vault...</p>
                   ) : gatewayError ? (
@@ -519,7 +511,7 @@ export default function CryptoBuyPage() {
                 <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">
                   {selectedPayment.id === 'bank' 
                     ? "Dana akan diverifikasi manual oleh AliBank Node. Pastikan kode unik sesuai." 
-                    : "Transaksi diproses melalui node keamanan PayPal SSL terenkripsi."}
+                    : "Transaksi diproses melalui node keamanan SSL terenkripsi."}
                 </p>
               </div>
             </div>
