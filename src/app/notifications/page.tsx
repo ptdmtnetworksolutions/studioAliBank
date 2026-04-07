@@ -14,7 +14,13 @@ import {
   LayoutGrid,
   Loader2,
   Brush,
-  Smile
+  Smile,
+  ArrowRightLeft,
+  ChevronRight,
+  Bell,
+  Clock,
+  CheckCircle2,
+  AlertTriangle
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
@@ -31,13 +37,11 @@ type NotificationCategory = {
 };
 
 const CATEGORIES: NotificationCategory[] = [
-  { id: 'obrolan', name: "Obrolan", icon: MessageSquareText, color: "bg-muted" },
-  { id: 'pengumuman', name: "Pengumuman", icon: Volume2, color: "bg-muted" },
-  { id: 'kampanye', name: "Kampanye", icon: Gift, color: "bg-muted" },
-  { id: 'ai', name: "AliBank AI", icon: Sparkles, color: "bg-muted" },
-  { id: 'akun', name: "Akun", icon: User, color: "bg-muted" },
-  { id: 'marketing', name: "Pemasaran & Aktivitas", icon: Calendar, color: "bg-muted" },
-  { id: 'square', name: "Square", icon: LayoutGrid, color: "bg-muted" },
+  { id: 'transaksi', name: "Transaksi", icon: ArrowRightLeft, color: "bg-green-500/10 text-green-600" },
+  { id: 'akun', name: "Keamanan & Akun", icon: User, color: "bg-blue-500/10 text-blue-600" },
+  { id: 'pengumuman', name: "Pengumuman", icon: Volume2, color: "bg-amber-500/10 text-amber-600" },
+  { id: 'marketing', name: "Promo & Reward", icon: Gift, color: "bg-rose-500/10 text-rose-600" },
+  { id: 'ai', name: "AliBank AI", icon: Sparkles, color: "bg-primary/10 text-primary" },
 ];
 
 export default function NotificationsPage() {
@@ -63,15 +67,16 @@ export default function NotificationsPage() {
   const getCategoryData = (catId: string) => {
     if (!realNotifications) return { latest: null, unreadCount: 0 };
     
-    // Logic: Map real notification types/titles to categories
     const filtered = realNotifications.filter(n => {
-      const title = (n.title || "").toLowerCase();
+      const t = (n.title || "").toLowerCase();
+      const msg = (n.message || "").toLowerCase();
       const type = (n.type || "").toLowerCase();
       
-      if (catId === 'akun') return title.includes('akun') || title.includes('device') || type === 'alert';
-      if (catId === 'marketing') return title.includes('reward') || title.includes('promo') || title.includes('pemasaran');
-      if (catId === 'pengumuman') return type === 'info' || title.includes('pengumuman');
-      if (catId === 'success') return type === 'success';
+      if (catId === 'transaksi') return t.includes('top up') || t.includes('transfer') || t.includes('dana') || t.includes('bayar') || t.includes('pencairan') || t.includes('settlement') || t.includes('beli') || t.includes('jual') || t.includes('withdraw');
+      if (catId === 'akun') return t.includes('akun') || t.includes('device') || t.includes('signature') || t.includes('password') || t.includes('profil') || type === 'alert';
+      if (catId === 'marketing') return t.includes('reward') || t.includes('promo') || t.includes('hadiah') || t.includes('turnamen') || t.includes('kampanye');
+      if (catId === 'pengumuman') return type === 'info' || t.includes('pengumuman') || t.includes('sistem') || t.includes('mainnet');
+      if (catId === 'ai') return t.includes('ai') || t.includes('insight') || t.includes('dna') || t.includes('sintesis');
       return false;
     });
 
@@ -98,6 +103,12 @@ export default function NotificationsPage() {
     }
   };
 
+  const markAsRead = async (id: string) => {
+    if (!db || !user) return;
+    const ref = doc(db, "users", user.uid, "notifications", id);
+    await updateDoc(ref, { read: true });
+  };
+
   if (!mounted) return null;
 
   return (
@@ -107,8 +118,8 @@ export default function NotificationsPage() {
         <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </button>
-        <h1 className="text-lg font-black tracking-tight">Pesan</h1>
-        <div className="flex items-center gap-4">
+        <h1 className="text-lg font-black tracking-tight italic uppercase">Pesan & Notifikasi</h1>
+        <div className="flex items-center gap-2">
           <button onClick={handleMarkAllRead} className="p-2 hover:bg-muted rounded-full transition-colors">
             <Brush className="w-5 h-5 text-muted-foreground" />
           </button>
@@ -118,8 +129,9 @@ export default function NotificationsPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto no-scrollbar pt-2">
-        <div className="space-y-1">
+      <main className="flex-1 overflow-y-auto no-scrollbar">
+        {/* Categories Section */}
+        <div className="space-y-1 py-2">
           {CATEGORIES.map((cat) => {
             const { latest, unreadCount } = getCategoryData(cat.id);
             const Icon = cat.icon;
@@ -129,26 +141,26 @@ export default function NotificationsPage() {
                 key={cat.id} 
                 className="px-4 py-4 flex items-center gap-4 hover:bg-muted active:bg-muted transition-colors cursor-pointer group"
               >
-                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm", cat.color)}>
-                  <Icon className="w-6 h-6 text-muted-foreground" />
+                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-110", cat.color)}>
+                  <Icon className="w-6 h-6" />
                 </div>
                 
                 <div className="flex-1 min-w-0 border-b border-border pb-4 group-last:border-none">
                   <div className="flex justify-between items-start mb-1">
-                    <h3 className="text-base font-black tracking-tight text-foreground italic">{cat.name}</h3>
+                    <h3 className="text-base font-black tracking-tight text-foreground italic uppercase">{cat.name}</h3>
                     <div className="flex flex-col items-end gap-1.5">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase">
                         {latest ? new Date(latest.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }) : ""}
                       </span>
                       {unreadCount > 0 && (
-                        <div className="bg-primary text-primary-foreground text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-lg">
+                        <div className="bg-primary text-primary-foreground text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-lg animate-in zoom-in">
                           {unreadCount}
                         </div>
                       )}
                     </div>
                   </div>
                   <p className="text-xs font-medium text-muted-foreground truncate leading-tight italic">
-                    {latest ? latest.message : "Tidak ada pesan baru"}
+                    {latest ? latest.message : "Tidak ada pesan baru dalam kategori ini"}
                   </p>
                 </div>
               </div>
@@ -156,17 +168,73 @@ export default function NotificationsPage() {
           })}
         </div>
 
-        {loading && (
-          <div className="py-20 flex justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-primary/40" />
+        {/* Full Activity List */}
+        <section className="px-4 py-8 space-y-6">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-sm font-black text-muted-foreground uppercase tracking-[0.2em] italic">Aktivitas Terbaru</h2>
+            <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black uppercase italic">Live Sync</Badge>
           </div>
-        )}
+
+          <div className="space-y-4 pb-20">
+            {loading ? (
+              <div className="py-20 flex flex-col items-center justify-center gap-4 opacity-30">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <p className="text-[10px] font-black uppercase tracking-widest">Sinkronisasi Pesan...</p>
+              </div>
+            ) : realNotifications && realNotifications.length > 0 ? (
+              realNotifications.map((n: any) => (
+                <div 
+                  key={n.id} 
+                  className={cn(
+                    "p-5 rounded-[2rem] border transition-all active:scale-[0.98] cursor-pointer relative overflow-hidden group",
+                    n.read ? "bg-muted/20 border-border/50 opacity-60" : "bg-card border-primary/20 shadow-xl shadow-primary/5"
+                  )}
+                  onClick={() => !n.read && markAsRead(n.id)}
+                >
+                  {!n.read && <div className="absolute left-0 top-0 bottom-0 w-1.5 gold-gradient" />}
+                  
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-8 h-8 rounded-xl flex items-center justify-center",
+                        n.type === 'success' ? "bg-green-100 text-green-600" : 
+                        n.type === 'alert' ? "bg-rose-100 text-rose-600" : "bg-primary/10 text-primary"
+                      )}>
+                        {n.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : 
+                         n.type === 'alert' ? <AlertTriangle className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+                      </div>
+                      <Badge className={cn(
+                        "border-none text-[7px] font-black uppercase px-2 h-4",
+                        n.type === 'success' ? "bg-green-500 text-white" : 
+                        n.type === 'alert' ? "bg-rose-500 text-white" : "bg-primary text-black"
+                      )}>
+                        {n.type || 'INFO'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[8px] font-bold text-muted-foreground uppercase italic">
+                      <Clock className="w-3 h-3" />
+                      {new Date(n.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                  
+                  <h3 className="text-sm font-black italic uppercase tracking-tight text-foreground group-hover:text-primary transition-colors">{n.title}</h3>
+                  <p className="text-[11px] font-medium text-muted-foreground mt-1.5 leading-relaxed italic">{n.message}</p>
+                </div>
+              ))
+            ) : (
+              <div className="py-20 text-center space-y-4 opacity-20 italic">
+                <MessageSquareText className="w-12 h-12 mx-auto" />
+                <p className="text-xs font-black uppercase tracking-widest">Pusat Pesan Kosong</p>
+              </div>
+            )}
+          </div>
+        </section>
       </main>
 
       {/* Floating Robot Icon */}
       <div className="fixed bottom-10 right-6 z-[60]">
         <div className="w-12 h-12 bg-muted rounded-2xl shadow-2xl border border-border flex items-center justify-center text-primary active:scale-90 transition-transform cursor-pointer relative overflow-hidden group">
-          <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100" />
+          <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
           <Smile className="w-7 h-7 relative z-10" />
           <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background animate-pulse" />
         </div>
