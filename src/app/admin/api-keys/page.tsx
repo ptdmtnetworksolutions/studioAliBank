@@ -17,7 +17,9 @@ import {
   RefreshCw,
   Eye,
   EyeOff,
-  Zap
+  Zap,
+  CreditCard,
+  Building2
 } from "lucide-react";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -55,19 +57,25 @@ function APIKeysContent() {
   // API Key States
   const [keys, setKeys] = useState({
     paypalClientId: "",
+    midtransMerchantId: "",
+    midtransClientKey: "",
+    midtransServerKey: "",
     etherscanApiKey: "",
     ethereumRpcUrl: "",
     geminiApiKey: "",
     alxContractAddress: ""
   });
 
-  const apiKeysRef = useMemoFirebase(() => (db && isAuthorized ? doc(db, "system", "api_keys") : null), [db, isAuthorized]);
+  const apiKeysRef = useMemoFirebase(() => (db && user ? doc(db, "system", "api_keys") : null), [db, user]);
   const { data: storedKeys, loading: keysLoading } = useDoc(apiKeysRef);
 
   useEffect(() => {
     if (storedKeys) {
       setKeys({
         paypalClientId: storedKeys.paypalClientId || "",
+        midtransMerchantId: storedKeys.midtransMerchantId || "",
+        midtransClientKey: storedKeys.midtransClientKey || "",
+        midtransServerKey: storedKeys.midtransServerKey || "",
         etherscanApiKey: storedKeys.etherscanApiKey || "",
         ethereumRpcUrl: storedKeys.ethereumRpcUrl || "",
         geminiApiKey: storedKeys.geminiApiKey || "",
@@ -91,7 +99,6 @@ function APIKeysContent() {
 
     const docRef = doc(db, "system", "api_keys");
     
-    // Pola non-blocking dengan error contextual
     setDoc(docRef, {
       ...keys,
       updatedAt: serverTimestamp(),
@@ -158,22 +165,63 @@ function APIKeysContent() {
               <section className="space-y-8">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-black italic uppercase tracking-tight flex items-center gap-3">
-                    <Globe className="w-5 h-5 text-primary" /> Payment Gateway Engine
+                    <Globe className="w-5 h-5 text-primary" /> Global Kliring (PayPal)
                   </h3>
-                  <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black italic uppercase px-2 h-5">Live Sync</Badge>
+                  <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black italic uppercase px-2 h-5">USD Gateway</Badge>
                 </div>
                 
-                <div className="grid grid-cols-1 gap-6">
+                <KeyField 
+                  label="PayPal Client ID" 
+                  icon={Globe} 
+                  value={keys.paypalClientId} 
+                  placeholder="AbHG-qL9bHR0..."
+                  onChange={(v) => setKeys({...keys, paypalClientId: v})}
+                  show={showKeys['paypal']}
+                  onToggle={() => toggleShow('paypal')}
+                  description="Digunakan untuk pembayaran Kartu Kredit/Debit internasional."
+                />
+              </section>
+
+              <div className="h-px bg-white/5 w-full" />
+
+              <section className="space-y-8">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-black italic uppercase tracking-tight flex items-center gap-3">
+                    <Building2 className="w-5 h-5 text-primary" /> Lokal Kliring (Midtrans)
+                  </h3>
+                  <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black italic uppercase px-2 h-5">IDR Gateway</Badge>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <KeyField 
-                    label="PayPal Production Client ID" 
-                    icon={Globe} 
-                    value={keys.paypalClientId} 
-                    placeholder="AbHG-qL9bHR0..."
-                    onChange={(v) => setKeys({...keys, paypalClientId: v})}
-                    show={showKeys['paypal']}
-                    onToggle={() => toggleShow('paypal')}
-                    description="Kunci ini digunakan oleh modul Checkout dan Beli Kripto untuk memproses pembayaran riil."
+                    label="Merchant ID" 
+                    icon={Building2} 
+                    value={keys.midtransMerchantId} 
+                    placeholder="M287..."
+                    onChange={(v) => setKeys({...keys, midtransMerchantId: v})}
+                    show={true}
                   />
+                  <KeyField 
+                    label="Client Key" 
+                    icon={Key} 
+                    value={keys.midtransClientKey} 
+                    placeholder="Mid-client-..."
+                    onChange={(v) => setKeys({...keys, midtransClientKey: v})}
+                    show={showKeys['mt_client']}
+                    onToggle={() => toggleShow('mt_client')}
+                  />
+                  <div className="md:col-span-2">
+                    <KeyField 
+                      label="Server Key (Sensitive)" 
+                      icon={Lock} 
+                      value={keys.midtransServerKey} 
+                      placeholder="Mid-server-..."
+                      onChange={(v) => setKeys({...keys, midtransServerKey: v})}
+                      show={showKeys['mt_server']}
+                      onToggle={() => toggleShow('mt_server')}
+                      description="Server Key digunakan untuk otentikasi aman antar server. Jangan pernah bagikan."
+                    />
+                  </div>
                 </div>
               </section>
 
@@ -189,27 +237,9 @@ function APIKeysContent() {
                     label="Ethereum RPC Node" 
                     icon={Cpu} 
                     value={keys.ethereumRpcUrl} 
-                    placeholder="https://eth-mainnet.g.alchemy.com/..."
+                    placeholder="https://..."
                     onChange={(v) => setKeys({...keys, ethereumRpcUrl: v})}
                     show={true}
-                  />
-                  <KeyField 
-                    label="Etherscan API Key" 
-                    icon={Database} 
-                    value={keys.etherscanApiKey} 
-                    placeholder="M1S7MDTBQSG1..."
-                    onChange={(v) => setKeys({...keys, etherscanApiKey: v})}
-                    show={showKeys['etherscan']}
-                    onToggle={() => toggleShow('etherscan')}
-                  />
-                  <KeyField 
-                    label="Gemini AI Key (Analytics)" 
-                    icon={Lock} 
-                    value={keys.geminiApiKey} 
-                    placeholder="AIzaSy..."
-                    onChange={(v) => setKeys({...keys, geminiApiKey: v})}
-                    show={showKeys['gemini']}
-                    onToggle={() => toggleShow('gemini')}
                   />
                   <KeyField 
                     label="ALX Smart Contract" 
@@ -225,7 +255,7 @@ function APIKeysContent() {
               <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex gap-4">
                 <AlertCircle className="w-6 h-6 text-amber-500 shrink-0" />
                 <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                  Peringatan Keamanan: Perubahan kredensial bersifat instan. Kegagalan konfigurasi pada field PayPal akan menyebabkan seluruh nasabah AliBank tidak dapat melakukan penyelesaian dana riil.
+                  Peringatan Keamanan: Perubahan kredensial bersifat instan. Kegagalan konfigurasi pada field Midtrans akan menyebabkan seluruh nasabah AliBank tidak dapat melakukan top-up IDR secara otomatis.
                 </p>
               </div>
 

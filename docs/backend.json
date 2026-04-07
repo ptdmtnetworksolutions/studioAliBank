@@ -46,6 +46,9 @@
       "type": "object",
       "properties": {
         "paypalClientId": { "type": "string" },
+        "midtransMerchantId": { "type": "string" },
+        "midtransClientKey": { "type": "string" },
+        "midtransServerKey": { "type": "string" },
         "etherscanApiKey": { "type": "string" },
         "ethereumRpcUrl": { "type": "string" },
         "geminiApiKey": { "type": "string" },
