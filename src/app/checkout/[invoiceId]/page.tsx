@@ -97,7 +97,6 @@ export default function CheckoutPage() {
   const renderInProgress = useRef(false);
   const retryCount = useRef(0);
 
-  // Ambil API Keys secara dinamis dari Firestore system/api_keys
   const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
   const { data: systemKeys } = useDoc(apiKeysRef);
 
@@ -142,17 +141,16 @@ export default function CheckoutPage() {
     fetchInvoice();
   }, [db, invoiceId]);
 
-  // Robust PayPal Rendering Sync
   const renderPayPalButtons = useCallback(async () => {
     if (!paypalContainerRef.current || !invoice || !systemKeys?.paypalClientId) return;
     if (paymentStep !== 'bridge_gate') return;
 
     if (typeof window === 'undefined' || !window.paypal) {
-      if (retryCount.current < 10) {
+      if (retryCount.current < 15) {
         retryCount.current++;
         setTimeout(renderPayPalButtons, 1000);
       } else {
-        setGatewayError("Gagal memuat terminal kliring. Pastikan koneksi internet stabil.");
+        setGatewayError("Gagal memuat terminal kliring. Pastikan akun PayPal Anda mendukung fitur Advanced Payments dan domain ini telah diizinkan di dashboard PayPal.");
       }
       return;
     }
@@ -195,7 +193,7 @@ export default function CheckoutPage() {
       },
       onError: (err: any) => {
         console.error("PayPal Execution Error:", err);
-        setGatewayError("Terjadi kesalahan pada modul pembayaran PayPal.");
+        setGatewayError("Terjadi kesalahan pada modul pembayaran PayPal. Pastikan kredensial Live telah aktif.");
         renderInProgress.current = false;
       }
     };
@@ -349,9 +347,11 @@ export default function CheckoutPage() {
       <div className="min-h-screen bg-background pb-20 relative overflow-hidden transition-colors duration-300">
         {systemKeys?.paypalClientId && (
           <Script 
-            key="paypal-checkout-sdk"
+            key={`paypal-checkout-${systemKeys.paypalClientId}`}
             src={`https://www.paypal.com/sdk/js?client-id=${systemKeys.paypalClientId}&currency=USD&intent=capture&enable-funding=googlepay,card`}
+            strategy="afterInteractive"
             onLoad={() => setPaypalReady(true)}
+            onError={() => setGatewayError("Gagal menghubungi server kliring PayPal. Periksa koneksi atau status Client ID di vault.")}
           />
         )}
         

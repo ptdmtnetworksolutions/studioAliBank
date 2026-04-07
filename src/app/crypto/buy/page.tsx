@@ -99,7 +99,6 @@ export default function CryptoBuyPage() {
   const renderInProgress = useRef(false);
   const retryCount = useRef(0);
 
-  // Ambil API Keys secara dinamis dari Firestore system/api_keys
   const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
   const { data: systemKeys } = useDoc(apiKeysRef);
 
@@ -148,18 +147,16 @@ export default function CryptoBuyPage() {
     return (num / exchangeRate).toFixed(2);
   }, [amount, selectedCurrency]);
 
-  // Optimal PayPal Button Rendering
   const renderPayPalButtons = useCallback(async () => {
     if (!paypalContainerRef.current || !isCheckoutDialogOpen) return;
     if (selectedPayment.id !== 'gpay' && selectedPayment.id !== 'card') return;
 
-    // Wait for window.paypal to be available
     if (typeof window === 'undefined' || !window.paypal) {
-      if (retryCount.current < 10) {
+      if (retryCount.current < 15) {
         retryCount.current++;
         setTimeout(renderPayPalButtons, 1000);
       } else {
-        setGatewayError("Gagal memuat terminal kliring. Pastikan koneksi internet stabil.");
+        setGatewayError("Gagal memuat modul PayPal. Pastikan akun PayPal Anda mendukung fitur Advanced Payments dan domain ini telah diizinkan.");
       }
       return;
     }
@@ -168,7 +165,6 @@ export default function CryptoBuyPage() {
     renderInProgress.current = true;
     setGatewayError(null);
 
-    // Clear container
     paypalContainerRef.current.innerHTML = "";
 
     const buttonConfig: any = {
@@ -197,14 +193,14 @@ export default function CryptoBuyPage() {
             await finalizePurchase(details);
           }
         } catch (err) {
-          toast({ variant: "destructive", title: "Kliring Gagal", description: "Pembayaran tidak dapat diproses." });
+          toast({ variant: "destructive", title: "Kliring Gagal", description: "Pembayaran tidak dapat diproses. Cek limit kartu Anda." });
         } finally {
           setIsProcessing(false);
         }
       },
       onError: (err: any) => {
         console.error("PayPal Error:", err);
-        setGatewayError("Terjadi kesalahan pada modul pembayaran PayPal.");
+        setGatewayError("Terjadi kesalahan sistem kliring. Pastikan Client ID Anda valid dan fitur Advanced Card Payments telah aktif di dashboard PayPal.");
         renderInProgress.current = false;
       }
     };
@@ -224,7 +220,7 @@ export default function CryptoBuyPage() {
       try {
         await window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
       } catch (e) {
-        setGatewayError("Gagal merender tombol pembayaran.");
+        setGatewayError("Gagal menginisialisasi antarmuka pembayaran.");
       }
       renderInProgress.current = false;
     }
@@ -369,10 +365,11 @@ export default function CryptoBuyPage() {
     <div className="h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
       {systemKeys?.paypalClientId && (
         <Script 
-          key="paypal-sdk-v5"
+          key={`paypal-sdk-${systemKeys.paypalClientId}`}
           src={`https://www.paypal.com/sdk/js?client-id=${systemKeys.paypalClientId}&currency=USD&intent=capture&enable-funding=googlepay,card`} 
           strategy="afterInteractive"
           onLoad={() => setPaypalReady(true)} 
+          onError={() => setGatewayError("Gagal menghubungi server kliring PayPal. Periksa koneksi atau status Client ID.")}
         />
       )}
       
@@ -464,7 +461,7 @@ export default function CryptoBuyPage() {
                   ) : (
                     <div className="w-full flex flex-col items-center">
                       <div ref={paypalContainerRef} className="w-full" />
-                      {!paypalReady && (
+                      {(!paypalReady && !window.paypal) && (
                         <div className="flex flex-col items-center gap-3 py-6">
                           <Loader2 className="animate-spin text-primary w-8 h-8" />
                           <p className="text-[10px] font-black uppercase text-primary italic animate-pulse">Menghubungkan Terminal Kliring...</p>
