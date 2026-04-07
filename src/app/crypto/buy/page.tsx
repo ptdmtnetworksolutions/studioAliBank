@@ -32,7 +32,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { currencies, type Currency } from "@/lib/currencies";
 import { LogoIcon } from "@/components/ui/logo";
-import { Badge } from "@/components/ui/badge";
 import { 
   Sheet, 
   SheetContent, 
@@ -98,7 +97,7 @@ export default function CryptoBuyPage() {
 
   // Ambil API Keys secara dinamis dari Firestore system/api_keys
   const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
-  const { data: systemKeys, loading: keysLoading } = useDoc(apiKeysRef);
+  const { data: systemKeys } = useDoc(apiKeysRef);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
@@ -150,18 +149,30 @@ export default function CryptoBuyPage() {
   // Render Tombol PayPal menggunakan API Key dinamis
   useEffect(() => {
     let timeoutId: any;
+    
+    // Harus ada modal terbuka, skrip siap, dan pilihan pembayaran yang sesuai
     if (isCheckoutDialogOpen && (paypalReady || window.paypal) && (selectedPayment.id === 'gpay' || selectedPayment.id === 'card')) {
       const renderButtons = async () => {
         if (!paypalContainerRef.current || !window.paypal) return;
+        
+        // Bersihkan kontainer sebelum merender ulang
         paypalContainerRef.current.innerHTML = "";
         
         const buttonConfig: any = {
-          style: { layout: 'vertical', color: selectedPayment.id === 'gpay' ? 'black' : 'gold', shape: 'rect' },
+          style: { 
+            layout: 'vertical', 
+            color: 'black', 
+            shape: 'rect',
+            label: 'pay'
+          },
           createOrder: (data: any, actions: any) => {
             return actions.order.create({
               purchase_units: [{
-                amount: { currency_code: "USD", value: usdValue },
-                description: `AliBank Purchase: ${estimatedReceive} ${selectedAsset.symbol}`
+                amount: { 
+                  currency_code: "USD", 
+                  value: usdValue 
+                },
+                description: `AliBank V3 Purchase: ${estimatedReceive} ${selectedAsset.symbol}`
               }]
             });
           },
@@ -177,26 +188,43 @@ export default function CryptoBuyPage() {
             } finally {
               setIsProcessing(false);
             }
+          },
+          onError: (err: any) => {
+            console.error("PayPal Error:", err);
+            // Jika spesifik funding source gagal, coba render ulang tanpa filter funding
+            renderStandardButtons();
+          }
+        };
+
+        const renderStandardButtons = () => {
+          if (paypalContainerRef.current) {
+            paypalContainerRef.current.innerHTML = "";
+            window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
           }
         };
 
         try {
           if (selectedPayment.id === 'gpay') {
-            await window.paypal.Buttons({ ...buttonConfig, fundingSource: window.paypal.FUNDING.GOOGLEPAY }).render(paypalContainerRef.current);
+            // Coba render Google Pay jika didukung, jika tidak otomatis fallback
+            await window.paypal.Buttons({ 
+              ...buttonConfig, 
+              fundingSource: window.paypal.FUNDING.GOOGLEPAY 
+            }).render(paypalContainerRef.current).catch(() => renderStandardButtons());
           } else {
-            await window.paypal.Buttons({ ...buttonConfig, fundingSource: window.paypal.FUNDING.CARD }).render(paypalContainerRef.current);
+            // Render Card / Smart Buttons
+            await window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
           }
         } catch (err) {
-          if (paypalContainerRef.current) {
-            paypalContainerRef.current.innerHTML = "";
-            window.paypal.Buttons(buttonConfig).render(paypalContainerRef.current);
-          }
+          renderStandardButtons();
         }
       };
-      timeoutId = setTimeout(renderButtons, 500);
+      
+      // Delay sedikit untuk memastikan DOM ref benar-benar tersedia
+      timeoutId = setTimeout(renderButtons, 300);
     }
+    
     return () => clearTimeout(timeoutId);
-  }, [isCheckoutDialogOpen, paypalReady, usdValue, estimatedReceive, selectedAsset, selectedPayment]);
+  }, [isCheckoutDialogOpen, paypalReady, usdValue, estimatedReceive, selectedAsset, selectedPayment, systemKeys]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -329,6 +357,7 @@ export default function CryptoBuyPage() {
       {/* Memuat Script PayPal secara dinamis berdasarkan Client ID dari system/api_keys */}
       {systemKeys?.paypalClientId && (
         <Script 
+          key={systemKeys.paypalClientId}
           src={`https://www.paypal.com/sdk/js?client-id=${systemKeys.paypalClientId}&currency=USD&intent=capture&enable-funding=googlepay,card`} 
           onLoad={() => setPaypalReady(true)} 
         />
@@ -408,7 +437,7 @@ export default function CryptoBuyPage() {
 
             <div className="space-y-4">
               {(selectedPayment.id === 'gpay' || selectedPayment.id === 'card') ? (
-                <div ref={paypalContainerRef} className="min-h-[150px] flex flex-col items-center justify-center">
+                <div key={`${selectedPayment.id}-${systemKeys?.paypalClientId}`} ref={paypalContainerRef} className="min-h-[150px] flex flex-col items-center justify-center">
                   {!systemKeys?.paypalClientId ? (
                     <p className="text-[10px] font-bold text-rose-500 uppercase">Menunggu API Key dari Vault...</p>
                   ) : (
