@@ -71,8 +71,6 @@ const ASSETS = [
   { symbol: "BTC", name: "Bitcoin", priceUsd: 66450.00, isNative: false },
 ];
 
-const PAYPAL_CLIENT_ID = "AbHG-qL9bHR0-rhmrDMV7TH-PiYAFHFNimv3LfxBUPmSIMaQPrbvFd7cJah1bc8YqlUkS7i3OpD0nvGF";
-
 export default function CryptoBuyPage() {
   const router = useRouter();
   const { user } = useUser();
@@ -97,6 +95,10 @@ export default function CryptoBuyPage() {
   const [proofImage, setProofImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const paypalContainerRef = useRef<HTMLDivElement>(null);
+
+  // Ambil API Keys secara dinamis dari Firestore system/api_keys
+  const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
+  const { data: systemKeys, loading: keysLoading } = useDoc(apiKeysRef);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
@@ -125,7 +127,6 @@ export default function CryptoBuyPage() {
     const num = parseFloat(amount.replace(',', '.'));
     if (isNaN(num) || num <= 0) return 0;
     
-    // Konversi ke IDR jika input dalam USD
     const baseAmountIdr = selectedCurrency.code === 'USD' ? num * exchangeRate : num;
     return baseAmountIdr + uniqueCode;
   }, [amount, uniqueCode, selectedCurrency, exchangeRate]);
@@ -134,32 +135,33 @@ export default function CryptoBuyPage() {
     const num = parseFloat(amount.replace(',', '.'));
     if (isNaN(num) || num <= 0) return "0";
     
-    // Hitung Nilai dalam USD berdasarkan mata uang input
     const amountInUsd = selectedCurrency.code === 'USD' ? num : num / exchangeRate;
-    
     const priceWithMarkup = selectedAsset.isNative ? selectedAsset.priceUsd : selectedAsset.priceUsd * 1.02;
     return (amountInUsd / priceWithMarkup).toFixed(selectedAsset.symbol === 'BTC' ? 8 : 4);
   }, [amount, selectedAsset, selectedCurrency, exchangeRate]);
 
   const usdValue = useMemo(() => {
     const num = parseFloat(amount.replace(',', '.'));
+    if (isNaN(num)) return "0.00";
     if (selectedCurrency.code === 'USD') return num.toFixed(2);
     return (num / exchangeRate).toFixed(2);
   }, [amount, selectedCurrency, exchangeRate]);
 
+  // Render Tombol PayPal menggunakan API Key dinamis
   useEffect(() => {
     let timeoutId: any;
     if (isCheckoutDialogOpen && (paypalReady || window.paypal) && (selectedPayment.id === 'gpay' || selectedPayment.id === 'card')) {
       const renderButtons = async () => {
         if (!paypalContainerRef.current || !window.paypal) return;
         paypalContainerRef.current.innerHTML = "";
+        
         const buttonConfig: any = {
           style: { layout: 'vertical', color: selectedPayment.id === 'gpay' ? 'black' : 'gold', shape: 'rect' },
           createOrder: (data: any, actions: any) => {
             return actions.order.create({
               purchase_units: [{
                 amount: { currency_code: "USD", value: usdValue },
-                description: `Beli ${estimatedReceive} ${selectedAsset.symbol}`
+                description: `AliBank Purchase: ${estimatedReceive} ${selectedAsset.symbol}`
               }]
             });
           },
@@ -171,12 +173,13 @@ export default function CryptoBuyPage() {
                 await finalizePurchase(details);
               }
             } catch (err) {
-              toast({ variant: "destructive", title: "Gagal Kliring" });
+              toast({ variant: "destructive", title: "Gagal Kliring", description: "Dana tidak dapat ditarik dari sumber pembayaran." });
             } finally {
               setIsProcessing(false);
             }
           }
         };
+
         try {
           if (selectedPayment.id === 'gpay') {
             await window.paypal.Buttons({ ...buttonConfig, fundingSource: window.paypal.FUNDING.GOOGLEPAY }).render(paypalContainerRef.current);
@@ -269,7 +272,7 @@ export default function CryptoBuyPage() {
       setIsCheckoutDialogOpen(false);
       setStep('success');
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error Sync" });
+      toast({ variant: "destructive", title: "Error Sync", description: "Kegagalan sinkronisasi saldo riil." });
     } finally {
       setIsProcessing(false);
     }
@@ -323,7 +326,14 @@ export default function CryptoBuyPage() {
 
   return (
     <div className="h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
-      <Script src={`https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&intent=capture&enable-funding=googlepay,card`} onLoad={() => setPaypalReady(true)} />
+      {/* Memuat Script PayPal secara dinamis berdasarkan Client ID dari system/api_keys */}
+      {systemKeys?.paypalClientId && (
+        <Script 
+          src={`https://www.paypal.com/sdk/js?client-id=${systemKeys.paypalClientId}&currency=USD&intent=capture&enable-funding=googlepay,card`} 
+          onLoad={() => setPaypalReady(true)} 
+        />
+      )}
+      
       <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background z-50">
         <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors"><ArrowLeft className="w-5 h-5" /></button>
         <button className="p-2 hover:bg-muted rounded-full transition-colors" onClick={() => router.push('/transactions')}><History className="w-5 h-5 text-muted-foreground" /></button>
@@ -385,7 +395,9 @@ export default function CryptoBuyPage() {
             <DialogHeader className="text-center space-y-2">
               <div className="w-12 h-12 rounded-2xl gold-gradient mx-auto flex items-center justify-center shadow-xl p-2.5 mb-2"><LogoIcon className="text-white" /></div>
               <DialogTitle className="text-xl font-black italic uppercase tracking-tight">ALIBANK SECURE GATEWAY</DialogTitle>
-              <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Penyelesaian Dana Riil - BCA Manual Clearance</DialogDescription>
+              <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                {selectedPayment.id === 'bank' ? 'Penyelesaian Dana Riil - BCA Manual Clearance' : 'Global Card Clearing Network'}
+              </DialogDescription>
             </DialogHeader>
 
             <div className="bg-muted/50 rounded-[2rem] p-6 text-center space-y-2 border border-border">
@@ -397,10 +409,14 @@ export default function CryptoBuyPage() {
             <div className="space-y-4">
               {(selectedPayment.id === 'gpay' || selectedPayment.id === 'card') ? (
                 <div ref={paypalContainerRef} className="min-h-[150px] flex flex-col items-center justify-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="animate-spin text-primary w-8 h-8" />
-                    <p className="text-[10px] font-black uppercase text-primary italic animate-pulse">Menghubungkan Terminal Kliring...</p>
-                  </div>
+                  {!systemKeys?.paypalClientId ? (
+                    <p className="text-[10px] font-bold text-rose-500 uppercase">Menunggu API Key dari Vault...</p>
+                  ) : (
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2 className="animate-spin text-primary w-8 h-8" />
+                      <p className="text-[10px] font-black uppercase text-primary italic animate-pulse">Menghubungkan Terminal Kliring...</p>
+                    </div>
+                  )}
                 </div>
               ) : selectedPayment.id === 'bank' ? (
                 <div className="animate-in fade-in zoom-in duration-500 space-y-6">
@@ -448,7 +464,11 @@ export default function CryptoBuyPage() {
               )}
               <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
                 <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0" />
-                <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">Pembayaran diproses melalui node keamanan AliBank. Dana akan diverifikasi manual untuk metode Transfer Bank.</p>
+                <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">
+                  {selectedPayment.id === 'bank' 
+                    ? "Dana akan diverifikasi manual oleh AliBank Node. Pastikan kode unik sesuai." 
+                    : "Transaksi diproses melalui node keamanan PayPal SSL terenkripsi."}
+                </p>
               </div>
             </div>
           </div>
