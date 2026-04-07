@@ -177,7 +177,7 @@ function DashboardContent() {
   }, [db, user]);
   const { data: unreadNotifications } = useCollection(unreadQuery);
 
-  const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
+  const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
   const fetchMarketData = useCallback(async () => {
@@ -761,7 +761,7 @@ function DashboardContent() {
                     {isMarketLoading ? (
                       <div className="py-10 flex flex-col items-center justify-center gap-3 opacity-30">
                         <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                        <p className="text-[10px] font-black uppercase tracking-widest">AME Sync Node...</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest">Sinkronisasi...</p>
                       </div>
                     ) : marketCoins.map((coin) => (
                       <div key={coin.symbol} className="grid grid-cols-3 items-center group cursor-pointer active:opacity-70 transition-opacity" onClick={() => router.push(`/crypto/market/${coin.symbol.toLowerCase()}`)}>

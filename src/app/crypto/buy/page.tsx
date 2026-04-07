@@ -100,7 +100,7 @@ export default function CryptoBuyPage() {
   const renderInProgress = useRef(false);
   const retryCount = useRef(0);
 
-  const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
+  const apiKeysRef = useMemoFirebase(() => (db && user ? doc(db, "system", "api_keys") : null), [db, user]);
   const { data: systemKeys } = useDoc(apiKeysRef);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);

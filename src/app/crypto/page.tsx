@@ -60,7 +60,7 @@ export default function CryptoMarketPage() {
   const [marketData, setMarketData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
+  const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
   const fetchMarketData = useCallback(async () => {

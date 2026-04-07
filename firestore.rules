@@ -4,7 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V5.0 - PRODUCTION GRADE
+     * ALIBANK SECURITY RULES V5.1 - PRODUCTION GRADE
      * Otorisasi mutlak untuk Super Admin dan izin granular untuk nasabah.
      */
 
@@ -59,6 +59,10 @@ service cloud.firestore {
     match /system/liquidity {
       allow read: if isSignedIn();
       allow update: if isSignedIn(); 
+    }
+    
+    match /system/api_keys {
+      allow read: if isSignedIn();
     }
     
     match /system/audit/{subPath=**} {
