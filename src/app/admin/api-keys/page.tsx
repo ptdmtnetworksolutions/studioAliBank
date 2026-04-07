@@ -16,7 +16,8 @@ import {
   Cpu,
   RefreshCw,
   Eye,
-  EyeOff
+  EyeOff,
+  Zap
 } from "lucide-react";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -32,7 +33,6 @@ import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/e
 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
-const ALX_CONTRACT = process.env.NEXT_PUBLIC_ALX_ADDRESS || "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
 
 export default function APIKeysPage() {
   return (
@@ -58,7 +58,7 @@ function APIKeysContent() {
     etherscanApiKey: "",
     ethereumRpcUrl: "",
     geminiApiKey: "",
-    alxContractAddress: ALX_CONTRACT
+    alxContractAddress: ""
   });
 
   const apiKeysRef = useMemoFirebase(() => (db && isAuthorized ? doc(db, "system", "api_keys") : null), [db, isAuthorized]);
@@ -71,7 +71,7 @@ function APIKeysContent() {
         etherscanApiKey: storedKeys.etherscanApiKey || "",
         ethereumRpcUrl: storedKeys.ethereumRpcUrl || "",
         geminiApiKey: storedKeys.geminiApiKey || "",
-        alxContractAddress: storedKeys.alxContractAddress || ALX_CONTRACT
+        alxContractAddress: storedKeys.alxContractAddress || ""
       });
     }
   }, [storedKeys]);
@@ -90,13 +90,18 @@ function APIKeysContent() {
     setIsSaving(true);
 
     const docRef = doc(db, "system", "api_keys");
+    
+    // Pola non-blocking dengan error contextual
     setDoc(docRef, {
       ...keys,
       updatedAt: serverTimestamp(),
       updatedBy: user?.email
     }, { merge: true })
       .then(() => {
-        toast({ title: "Konfigurasi Disimpan", description: "Seluruh API Key sistem telah diperbarui secara riil." });
+        toast({ 
+          title: "Vault Diperbarui", 
+          description: "Seluruh terminal pembayaran dan node sistem telah disinkronkan secara riil." 
+        });
       })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -131,42 +136,66 @@ function APIKeysContent() {
           </button>
           
           <div className="flex flex-col md:flex-row items-center gap-6">
-            <div className="w-20 h-20 rounded-[1.5rem] gold-gradient flex items-center justify-center shadow-xl p-5">
-              <Key className="text-white w-full h-full" />
+            <div className="w-20 h-20 rounded-[1.5rem] bg-slate-900 flex items-center justify-center shadow-2xl p-5 border border-white/5 relative overflow-hidden group">
+              <div className="absolute inset-0 gold-gradient opacity-10 group-hover:opacity-20 transition-opacity" />
+              <Key className="text-primary w-full h-full relative z-10" />
             </div>
             <div className="text-center md:text-left">
-              <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px] mb-2 tracking-widest">Security Layer V3</Badge>
+              <Badge className="bg-primary text-primary-foreground font-black uppercase text-[8px] mb-2 tracking-widest px-3 py-1 rounded-full">Security Protocol V3.5</Badge>
               <h1 className="text-4xl font-black italic uppercase tracking-tighter">Credential <span className="text-primary">Vault</span></h1>
               <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-1 italic flex items-center gap-2">
-                <ShieldCheck className="w-3.5 h-3.5 text-primary" /> Pengelolaan API Key Eksternal AliBank
+                <ShieldCheck className="w-3.5 h-3.5 text-primary" /> Manajemen Kliring & Node Infrastruktur AliBank
               </p>
             </div>
           </div>
         </header>
 
         <div className="grid grid-cols-1 gap-8">
-          <Card className="liquid-glass border-none rounded-[2.5rem] p-10 space-y-10 shadow-2xl relative overflow-hidden">
+          <Card className="liquid-glass-dark border-none rounded-[3rem] p-10 space-y-10 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none"><LogoIcon className="w-64 h-64 text-primary" /></div>
             
-            <div className="space-y-8 relative z-10">
-              <section className="space-y-6">
-                <h3 className="text-lg font-black italic uppercase tracking-tight flex items-center gap-3">
-                  <Database className="w-5 h-5 text-primary" /> Gateway Configurations
-                </h3>
+            <div className="space-y-10 relative z-10">
+              <section className="space-y-8">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-black italic uppercase tracking-tight flex items-center gap-3">
+                    <Globe className="w-5 h-5 text-primary" /> Payment Gateway Engine
+                  </h3>
+                  <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black italic uppercase px-2 h-5">Live Sync</Badge>
+                </div>
                 
                 <div className="grid grid-cols-1 gap-6">
                   <KeyField 
-                    label="PayPal Client ID" 
+                    label="PayPal Production Client ID" 
                     icon={Globe} 
                     value={keys.paypalClientId} 
                     placeholder="AbHG-qL9bHR0..."
                     onChange={(v) => setKeys({...keys, paypalClientId: v})}
                     show={showKeys['paypal']}
                     onToggle={() => toggleShow('paypal')}
+                    description="Kunci ini digunakan oleh modul Checkout dan Beli Kripto untuk memproses pembayaran riil."
+                  />
+                </div>
+              </section>
+
+              <div className="h-px bg-white/5 w-full" />
+
+              <section className="space-y-8">
+                <h3 className="text-lg font-black italic uppercase tracking-tight flex items-center gap-3">
+                  <RefreshCw className="w-5 h-5 text-primary" /> Blockchain & AI Nodes
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <KeyField 
+                    label="Ethereum RPC Node" 
+                    icon={Cpu} 
+                    value={keys.ethereumRpcUrl} 
+                    placeholder="https://eth-mainnet.g.alchemy.com/..."
+                    onChange={(v) => setKeys({...keys, ethereumRpcUrl: v})}
+                    show={true}
                   />
                   <KeyField 
                     label="Etherscan API Key" 
-                    icon={Cpu} 
+                    icon={Database} 
                     value={keys.etherscanApiKey} 
                     placeholder="M1S7MDTBQSG1..."
                     onChange={(v) => setKeys({...keys, etherscanApiKey: v})}
@@ -174,15 +203,7 @@ function APIKeysContent() {
                     onToggle={() => toggleShow('etherscan')}
                   />
                   <KeyField 
-                    label="Ethereum RPC Node" 
-                    icon={RefreshCw} 
-                    value={keys.ethereumRpcUrl} 
-                    placeholder="https://ethereum-rpc.publicnode.com"
-                    onChange={(v) => setKeys({...keys, ethereumRpcUrl: v})}
-                    show={true}
-                  />
-                  <KeyField 
-                    label="Gemini API Key (AI Insight)" 
+                    label="Gemini AI Key (Analytics)" 
                     icon={Lock} 
                     value={keys.geminiApiKey} 
                     placeholder="AIzaSy..."
@@ -191,8 +212,8 @@ function APIKeysContent() {
                     onToggle={() => toggleShow('gemini')}
                   />
                   <KeyField 
-                    label="ALX Smart Contract Address" 
-                    icon={Database} 
+                    label="ALX Smart Contract" 
+                    icon={Zap} 
                     value={keys.alxContractAddress} 
                     placeholder="0x..."
                     onChange={(v) => setKeys({...keys, alxContractAddress: v})}
@@ -204,18 +225,18 @@ function APIKeysContent() {
               <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex gap-4">
                 <AlertCircle className="w-6 h-6 text-amber-500 shrink-0" />
                 <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                  Perhatian: Perubahan pada API Key akan berdampak langsung pada operasional kliring riil, sinkronisasi Mainnet, dan asisten AI. Pastikan kredensial valid sebelum disimpan.
+                  Peringatan Keamanan: Perubahan kredensial bersifat instan. Kegagalan konfigurasi pada field PayPal akan menyebabkan seluruh nasabah AliBank tidak dapat melakukan penyelesaian dana riil.
                 </p>
               </div>
 
               <Button 
                 onClick={handleSaveKeys} 
                 disabled={isSaving || keysLoading}
-                className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none text-base"
+                className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none text-base group"
               >
                 {isSaving ? <Loader2 className="animate-spin" /> : (
                   <span className="flex items-center gap-3">
-                    <Save className="w-5 h-5" /> SIMPAN PERUBAHAN SISTEM
+                    <Save className="w-5 h-5 group-hover:scale-110 transition-transform" /> SIMPAN KONFIGURASI VAULT
                   </span>
                 )}
               </Button>
@@ -224,9 +245,9 @@ function APIKeysContent() {
         </div>
 
         <footer className="mt-20 text-center space-y-4">
-          <div className="flex items-center justify-center gap-2 opacity-30 grayscale">
-            <LogoIcon className="w-5 h-5" />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] italic">AliBank V3 Encrypted Vault</span>
+          <div className="flex items-center justify-center gap-2 opacity-30 grayscale group">
+            <LogoIcon className="w-5 h-5 group-hover:text-primary transition-colors" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] italic">AliBank V3 Encrypted Vault System</span>
           </div>
         </footer>
       </main>
@@ -234,10 +255,15 @@ function APIKeysContent() {
   );
 }
 
-function KeyField({ label, icon: Icon, value, placeholder, onChange, show, onToggle }: any) {
+function KeyField({ label, icon: Icon, value, placeholder, onChange, show, onToggle, description }: any) {
   return (
-    <div className="space-y-2">
-      <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{label}</label>
+    <div className="space-y-3">
+      <div className="flex justify-between items-end px-2">
+        <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">{label}</label>
+        {description && (
+          <Badge className="bg-white/5 text-muted-foreground text-[7px] font-bold h-4 border-none uppercase px-1.5">Info</Badge>
+        )}
+      </div>
       <div className="relative group">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
           <Icon className="w-4 h-4" />
@@ -247,17 +273,20 @@ function KeyField({ label, icon: Icon, value, placeholder, onChange, show, onTog
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="h-14 pl-12 pr-12 rounded-xl bg-muted/50 border-none font-bold text-xs focus:ring-2 focus:ring-primary/20 transition-all"
+          className="h-14 pl-12 pr-12 rounded-2xl bg-white/5 border-white/5 font-mono text-xs focus:ring-2 focus:ring-primary/20 transition-all text-white placeholder:text-white/10"
         />
         {onToggle && (
           <button 
             onClick={onToggle}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
           >
             {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
         )}
       </div>
+      {description && (
+        <p className="text-[8px] font-bold text-muted-foreground/60 uppercase italic px-2 leading-tight">{description}</p>
+      )}
     </div>
   );
 }
