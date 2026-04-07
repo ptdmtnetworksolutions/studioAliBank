@@ -52,7 +52,7 @@ import {
   Cell
 } from "recharts";
 import { LogoIcon } from "@/components/ui/logo";
-import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { doc, collection, query, orderBy, limit } from "firebase/firestore";
 
 const MARKUP = 1.02; // AliBank 2% Profit Margin
@@ -62,6 +62,7 @@ export default function MarketDetailPage() {
   const { coinId } = useParams();
   const router = useRouter();
   const db = useFirestore();
+  const { user } = useUser();
   
   const [activeTab, setActiveTab] = useState("Harga");
   const [subTab, setSubTab] = useState("Book");
@@ -83,13 +84,13 @@ export default function MarketDetailPage() {
   const displayPair = symbol === 'USDT' ? 'USDT/IDR' : `${symbol}/USDT`;
 
   // REAL DATA QUERIES (FOR ALX)
-  const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
+  const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
   const tradesQuery = useMemoFirebase(() => {
-    if (!db || !isAlix) return null;
+    if (!db || !isAlix || !user) return null;
     return query(collection(db, "market", "ALX_USDT", "trades"), orderBy("timestamp", "asc"), limit(100));
-  }, [db, isAlix]);
+  }, [db, isAlix, user]);
   const { data: realTrades } = useCollection(tradesQuery);
 
   // CLOCK ENGINE
@@ -118,6 +119,7 @@ export default function MarketDetailPage() {
 
       // 1. Fetch Ticker for 24h stats
       const tickerRes = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`);
+      if (!tickerRes.ok) throw new Error('Ticker fetch failed');
       const ticker = await tickerRes.json();
 
       if (ticker.lastPrice) {
@@ -134,6 +136,7 @@ export default function MarketDetailPage() {
 
       // 2. Fetch Klines for Candlestick
       const klineRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=60`);
+      if (!klineRes.ok) throw new Error('Klines fetch failed');
       const klines = await klineRes.json();
 
       if (Array.isArray(klines)) {
@@ -154,9 +157,11 @@ export default function MarketDetailPage() {
         });
         setCandlestickData(formatted);
       }
-      setIsLoading(false);
     } catch (err) {
-      console.error("AME Sync Error:", err);
+      console.warn("AME Detail Sync failed, using fallback data:", err);
+      // Maintain last known data if available
+    } finally {
+      setIsLoading(false);
     }
   }, [symbol, isAlix, timeframe]);
 
@@ -189,7 +194,7 @@ export default function MarketDetailPage() {
   }, [isAlix, realTrades, candlestickData]);
 
   const orderBook = useMemo(() => {
-    const basePrice = currentPrice;
+    const basePrice = currentPrice || 1;
     const vaultInventory = globalLiquidity?.alixVaultBalance || 1000000;
     return {
       bids: Array.from({ length: 8 }, (_, i) => ({
