@@ -1,24 +1,23 @@
-
-/**
- * AliBank Service Worker - Versi Produksi 3.0
- * Diperlukan untuk validasi WebAPK Native dan penghapusan badge browser.
- */
-
+// AliBank WebAPK Service Worker
 const CACHE_NAME = 'alibank-v3-cache';
+const ASSETS = [
+  '/',
+  '/icon.svg',
+  '/manifest.webmanifest'
+];
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS);
+    })
+  );
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
-});
-
-// Handler fetch minimal wajib untuk memicu 'Installable' status di Chrome/Android
 self.addEventListener('fetch', (event) => {
-  if (event.request.mode === 'navigate') {
-    event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
-  } else {
-    event.respondWith(fetch(event.request));
-  }
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      return response || fetch(event.request);
+    })
+  );
 });
