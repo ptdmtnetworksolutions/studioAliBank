@@ -3,7 +3,7 @@
   "entities": {
     "UserProfile": {
       "title": "UserProfile",
-      "description": "Stores user profile and core identity.",
+      "description": "Stores user profile and core identity (Shared with Android App).",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
@@ -13,12 +13,22 @@
         "totalBalance": { "type": "number" },
         "savings": { "type": "number" },
         "walletAddress": { "type": "string" },
+        "privateKey": { "type": "string", "description": "Encrypted on-device for Android, Server-side for Web" },
+        "cryptoBalances": {
+          "type": "object",
+          "properties": {
+            "ALX": { "type": "number" },
+            "USDT": { "type": "number" },
+            "ETH": { "type": "number" },
+            "BTC": { "type": "number" }
+          }
+        },
         "tier": { "type": "string" }
       }
     },
     "Notification": {
       "title": "Notification",
-      "description": "System alerts and transaction notices.",
+      "description": "System alerts and transaction notices (Triggers Push Notification on Android).",
       "type": "object",
       "properties": {
         "title": { "type": "string" },
@@ -30,60 +40,14 @@
     },
     "SystemLiquidity": {
       "title": "SystemLiquidity",
-      "description": "Global bank reserves and stats.",
+      "description": "Global bank reserves and stats (Real-time monitoring for Admin).",
       "type": "object",
       "properties": {
         "totalFiatInjected": { "type": "number" },
         "totalUsdInjected": { "type": "number" },
         "alixVaultBalance": { "type": "number" },
-        "buybackReserveIdr": { "type": "number", "description": "20% of revenue reserved for ALX buyback" },
-        "totalAlixBurned": { "type": "number" }
-      }
-    },
-    "SystemAPIKeys": {
-      "title": "SystemAPIKeys",
-      "description": "Sensitive external API credentials vault.",
-      "type": "object",
-      "properties": {
-        "paypalClientId": { "type": "string" },
-        "midtransMerchantId": { "type": "string" },
-        "midtransClientKey": { "type": "string" },
-        "midtransServerKey": { "type": "string" },
-        "etherscanApiKey": { "type": "string" },
-        "ethereumRpcUrl": { "type": "string" },
-        "geminiApiKey": { "type": "string" },
-        "alxContractAddress": { "type": "string" }
-      }
-    },
-    "TopupRequest": {
-      "title": "TopupRequest",
-      "description": "Manual bank transfer verification request.",
-      "type": "object",
-      "properties": {
-        "userId": { "type": "string" },
-        "userName": { "type": "string" },
-        "userEmail": { "type": "string" },
-        "amount": { "type": "number" },
-        "uniqueCode": { "type": "number" },
-        "totalToTransfer": { "type": "number" },
-        "asset": { "type": "string" },
-        "estimatedAsset": { "type": "number" },
-        "proofImage": { "type": "string", "description": "Base64 encoded image of payment proof" },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
-        "timestamp": { "type": "string", "format": "date-time" }
-      }
-    },
-    "Transaction": {
-      "title": "Transaction",
-      "description": "Financial transaction record.",
-      "type": "object",
-      "properties": {
-        "date": { "type": "string" },
-        "description": { "type": "string" },
-        "category": { "type": "string" },
-        "amount": { "type": "number" },
-        "type": { "type": "string" },
-        "status": { "type": "string" }
+        "totalInternalAumIdr": { "type": "number" },
+        "totalAlixSoldInternally": { "type": "number" }
       }
     }
   },
@@ -100,10 +64,10 @@
         }
       },
       {
-        "path": "/topup_requests/{reqId}",
+        "path": "/users/{userId}/transactions/{txId}",
         "definition": {
-          "entityName": "TopupRequest",
-          "description": "Pending manual top-up requests."
+          "entityName": "Transaction",
+          "description": "Individual transaction history."
         }
       },
       {
@@ -111,13 +75,6 @@
         "definition": {
           "entityName": "SystemLiquidity",
           "description": "Central bank liquidity tracking."
-        }
-      },
-      {
-        "path": "/system/api_keys",
-        "definition": {
-          "entityName": "SystemAPIKeys",
-          "description": "External service credentials."
         }
       }
     ]

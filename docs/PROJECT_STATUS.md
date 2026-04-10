@@ -2,72 +2,63 @@
 # Laporan Status Proyek: AliBank V3 - Financial Infrastructure
 
 ## 1. DESKRIPSI PROYEK
-AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layanan fiat (IDR) dengan kekuatan aset kripto (ALX, BTC, ETH, USDT) serta kecerdasan buatan (GenAI) untuk manajemen finansial yang elit.
+AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layanan fiat (IDR) dengan kekuatan aset kripto (ALX, BTC, ETH, USDT) serta kecerdasan buatan (GenAI) untuk manajemen finansial yang elit. 
+
+**Status Platform:** Cross-Platform (Web & Android).
 
 ---
 
 ## 2. ARSITEKTUR APLIKASI (Verified)
 
-### Stack Teknologi
-#### Frontend
+### Stack Teknologi (Web & Android Parity)
+#### Frontend (Web)
 - **Framework:** Next.js 15.5 (App Router)
-- **State Management:** React Context (Bahasa) & Firebase Real-time Hooks (Data)
-- **Web3 Library:** ethers.js v6 (Manajemen Dompet Native)
-- **UI Library:** ShadCN UI, Tailwind CSS, Lucide-react
-- **Hosting:** Firebase App Hosting (Standalone Node.js 20)
+- **UI Library:** ShadCN UI, Tailwind CSS
+- **Hosting:** Firebase App Hosting
 
-#### Backend
-- **Runtime:** Node.js 20 (Server Action Environment)
-- **AI Framework:** Genkit (Analisis Spending DNA & DNA Synthesis)
-- **Database:** Firebase Firestore (Real-time NoSQL)
-- **Auth:** Firebase Authentication (Email/Password)
-- **Secret Management:** Google Cloud Secret Manager (Project ID: darmedia-pos)
+#### Mobile (Android Native)
+- **Bahasa:** Kotlin 2.0+
+- **UI Framework:** Jetpack Compose (Declarative UI)
+- **SDK:** Target SDK 35 (Android 15)
+- **Web3 Library:** Web3j (Android Edition)
 
-#### Infrastruktur
-- **Cloud Provider:** Google Cloud Platform (GCP)
-- **Project ID:** darmedia-pos
-- **Project Number:** 852996332274
-- **RPC Provider:** Konfigurasi Dinamis (Managed via Admin API Vault)
-- **Domain:** darmedia-pos.web.app (Development)
+#### Backend (Shared)
+- **AI Framework:** Genkit (Deployed via Firebase)
+- **Database:** Firebase Firestore (Real-time NoSQL - Shared Schema)
+- **Auth:** Firebase Authentication (Shared Session)
+- **Payment:** Midtrans Production (Shared Merchant ID: M287110638)
 
 ---
 
 ## 3. FITUR YANG SUDAH SELESAI ✅
 
 ### Keamanan & Infrastruktur
-- [x] **Secure Vault Node:** Integrasi GCP Secret Manager (Logic implemented, awaiting GCP activation).
-- [x] **Server-Side Execution:** Penarikan dana diproses di server via Server Actions.
-- [x] **Billing Integration:** Paid Account detected (Status: Recovery Required).
+- [x] **Secure Vault Node:** Integrasi GCP Secret Manager.
+- [x] **Midtrans Production:** Terintegrasi di Web & Android (Client Key synced).
+- [x] **Cross-Platform Sync:** Saldo riil sinkron otomatis antara Web & Android.
 
 ### On-Chain & Web3
-- [x] **AliBank Native Wallet:** Sistem pembuatan kunci privat mandiri saat registrasi.
-- [x] **On-Chain Sync:** Sinkronisasi saldo ETH Mainnet secara riil.
-- [x] **External Disbursement:** Modul pencairan dana dari Vault pusat melalui Server Actions.
+- [x] **AliBank Native Wallet:** Pembuatan private key otomatis saat registrasi (Ethers.js di Web, Web3j di Android).
+- [x] **ALX Protocol V3.1:** Kontrak cerdas di Polygon Mainnet (Shared address).
 
 ### Aplikasi & Finansial
 - [x] **Dynamic Dashboard:** Kalkulasi otomatis IDR + ALX + USDT.
-- [x] **Interactive PNL:** Analisis untung/rugi harian interaktif.
-- [x] **Ali-Exchange:** Gerbang konversi aset dengan harga jangkar $12.24.
-- [x] **AI Financial Assistant:** Analisis pola pengeluaran menggunakan Genkit AI.
+- [x] **AI Financial Assistant:** Sintesis DNA Finansial menggunakan Genkit.
+- [x] **Trade-X & Ali-Spin:** Gamifikasi trading dengan reward ALX.
 
 ---
 
 ## 4. FITUR DALAM PENGEMBANGAN 🔧
-- **Staking Yield ALX** (70%)
+- **Staking Yield ALX** (70%) - Sinkronisasi algoritma yield di Android.
 - **P2P Matching Engine** (40%)
-- **Mobile NFC Clearing** (85%)
+- **Mobile NFC Clearing** (85%) - Eksklusif untuk fitur Android Hardware.
 
 ---
 
-## 5. CATATAN PENTING & TROUBLESHOOTING
-- **BLOCKER UTAMA**: Akun penagihan dalam status **"Not in good standing"**.
-- **Penyebab Terdeteksi**: "Issues with your payments account" (Peringatan Merah di Billing Overview).
-- **Solusi**: 
-    1. Klik dropdown pada banner merah di Google Cloud untuk detail.
-    2. Verifikasi identitas di **pay.google.com**.
-    3. Cek email dari Google Payments untuk instruksi verifikasi KTP/Kartu.
-    4. Hubungi Support Google melalui ikon [?] jika tombol "Reopen" tetap mati setelah verifikasi.
-- **Verified Project ID**: Menggunakan `darmedia-pos`.
+## 5. CATATAN SINKRONISASI ANDROID
+- **Firestore Rules**: Menggunakan Rules V5.2 (Sama untuk Web & Android).
+- **Merchant ID**: `M287110638` (PT DMT Network Solutions).
+- **AI Sync**: Android memanggil Genkit flows via Firebase Functions.
 
 ---
 *Terakhir Diperbarui: Mei 2026*
