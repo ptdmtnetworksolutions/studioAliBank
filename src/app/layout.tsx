@@ -8,6 +8,7 @@ import { LanguageProvider } from '@/context/LanguageContext';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import Script from 'next/script';
+import { Suspense } from 'react';
 
 export const metadata: Metadata = {
   title: 'AliBank',
@@ -64,7 +65,9 @@ export default function RootLayout({
                   {children}
                 </div>
                 <InstallPrompt />
-                <BottomNav />
+                <Suspense fallback={null}>
+                  <BottomNav />
+                </Suspense>
               </div>
               <Toaster />
             </FirebaseClientProvider>
