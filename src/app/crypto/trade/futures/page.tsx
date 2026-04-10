@@ -46,6 +46,7 @@ import {
 
 const MARKUP = 1.02; 
 const USDT_IDR_RATE = 15850;
+const TRADING_FEE_PERCENT = 0.001; // 0.1% Platform Fee untuk Admin
 
 export default function FuturesPage() {
   const router = useRouter();
@@ -122,7 +123,7 @@ export default function FuturesPage() {
     return amt / leverage;
   }, [amountUsdt, leverage]);
 
-  // EXECUTE TRADE
+  // EXECUTE TRADE (RIIL BALANCES)
   const handleOpenPosition = async () => {
     if (!user || !db || !userData || isProcessing) return;
     const amt = parseFloat(amountUsdt);
@@ -132,42 +133,59 @@ export default function FuturesPage() {
     }
 
     const requiredMargin = costUsdt;
-    if ((userData.cryptoBalances?.USDT || 0) < requiredMargin) {
-      toast({ variant: "destructive", title: "Saldo Margin Tidak Cukup", description: `Anda butuh setidaknya ${requiredMargin.toFixed(2)} USDT sebagai margin.` });
+    const platformFeeUsdt = amt * TRADING_FEE_PERCENT; // Admin Profit
+    const totalDeduction = requiredMargin + platformFeeUsdt;
+
+    if ((userData.cryptoBalances?.USDT || 0) < totalDeduction) {
+      toast({ 
+        variant: "destructive", 
+        title: "Saldo Tidak Cukup", 
+        description: `Dibutuhkan ${totalDeduction.toFixed(2)} USDT (Margin + Fee).` 
+      });
       return;
     }
 
     setIsProcessing(true);
     try {
-      // 1. Kurangi Saldo USDT (Dikomit sebagai Margin)
-      await updateDoc(userDocRef!, { "cryptoBalances.USDT": increment(-requiredMargin) });
+      // 1. Potong Saldo USDT Nasabah (Margin + Platform Fee)
+      await updateDoc(userDocRef!, { "cryptoBalances.USDT": increment(-totalDeduction) });
 
-      // 2. Buka Posisi di Firestore
+      // 2. Transfer Fee ke Likuiditas Admin
+      const sysRef = doc(db, "system", "liquidity");
+      const platformFeeIdr = platformFeeUsdt * USDT_IDR_RATE;
+      await updateDoc(sysRef, { 
+        totalFiatInjected: increment(platformFeeIdr),
+        futuresGrossProfitIdr: increment(platformFeeIdr),
+        totalTradingFeesIdr: increment(platformFeeIdr)
+      });
+
+      // 3. Buka Posisi di Firestore
       await addDoc(collection(db, "users", user.uid, "futures_positions"), {
         symbol: "BTCUSDT",
         side: tradeSide,
         leverage: leverage,
         entryPrice: livePrice,
         margin: requiredMargin,
+        platformFee: platformFeeUsdt,
         size: amt,
         status: "open",
         timestamp: serverTimestamp(),
         createdAt: new Date().toISOString()
       });
 
-      // 3. Catat Audit Ledger Global
+      // 4. Catat Audit Ledger Global (Untuk Admin)
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `FUTURES-OPEN-${Date.now()}`,
-        category: "Futures Trade",
-        description: `Open ${tradeSide.toUpperCase()} ${leverage}x BTCUSDT by ${userData.name}`,
-        amountIdr: requiredMargin * USDT_IDR_RATE,
+        category: "Futures Entry",
+        description: `Open ${tradeSide.toUpperCase()} ${leverage}x BTCUSDT by ${userData.name}. Fee captured: ${platformFeeUsdt.toFixed(4)} USDT.`,
+        amountIdr: platformFeeIdr,
         status: "success",
         timestamp: serverTimestamp(),
         userEmail: user.email
       });
 
       setAmountUsdt("");
-      toast({ title: "Posisi Dibuka", description: `Berhasil membuka posisi ${tradeSide.toUpperCase()} ${leverage}x.` });
+      toast({ title: "Posisi Berhasil Dibuka", description: `Margin dikomit & biaya layanan 0.1% telah dibayarkan.` });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal Eksekusi", description: err.message });
     } finally {
@@ -178,13 +196,23 @@ export default function FuturesPage() {
   const handleClosePosition = async (pos: any) => {
     if (!user || !db || !userDocRef) return;
     
-    // Hitung PNL Akhir
-    const pnlMultiplier = pos.side === 'long' ? (livePrice - pos.entryPrice) / pos.entryPrice : (pos.entryPrice - livePrice) / pos.entryPrice;
-    const realizedPnl = pos.size * pnlMultiplier;
-    const finalReturn = pos.margin + realizedPnl;
-
+    setIsProcessing(true);
     try {
-      // Kembalikan Modal + PNL ke Saldo USDT
+      // Hitung PNL Riil terhadap harga saat ini
+      const pnlMultiplier = pos.side === 'long' ? (livePrice - pos.entryPrice) / pos.entryPrice : (pos.entryPrice - livePrice) / pos.entryPrice;
+      const realizedPnl = pos.size * pnlMultiplier;
+      const finalReturn = pos.margin + realizedPnl;
+
+      // Jika rugi, selisih margin yang hilang tetap di kas Admin
+      // Jika untung, kas Admin (Liquidity) akan berkurang untuk membayar profit nasabah
+      if (realizedPnl > 0) {
+        const sysRef = doc(db, "system", "liquidity");
+        await updateDoc(sysRef, { 
+          totalFiatInjected: increment(-(realizedPnl * USDT_IDR_RATE)) 
+        });
+      }
+
+      // Kembalikan Modal + PNL ke Saldo USDT (Hanya jika masih ada sisa setelah rugi)
       await updateDoc(userDocRef, { "cryptoBalances.USDT": increment(Math.max(0, finalReturn)) });
       
       // Update Status Posisi
@@ -195,12 +223,27 @@ export default function FuturesPage() {
         closedAt: serverTimestamp() 
       });
 
+      // Audit Log untuk Admin
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `FUTURES-CLOSE-${Date.now()}`,
+        category: "Futures Settlement",
+        description: `Settled position for ${userData?.name}. Result: ${realizedPnl >= 0 ? 'User Profit' : 'Bank Captured Loss'}. PNL: ${realizedPnl.toFixed(2)} USDT.`,
+        amountIdr: Math.abs(realizedPnl * USDT_IDR_RATE),
+        status: "success",
+        timestamp: serverTimestamp(),
+        userEmail: user.email
+      });
+
       toast({ 
-        title: "Posisi Ditutup", 
-        description: realizedPnl >= 0 ? `Profit: +${realizedPnl.toFixed(2)} USDT` : `Loss: ${realizedPnl.toFixed(2)} USDT`,
+        title: realizedPnl >= 0 ? "Profit Terealisasi" : "Kerugian Ditanggung", 
+        description: `${Math.abs(realizedPnl).toFixed(2)} USDT telah diselesaikan.`,
         variant: realizedPnl >= 0 ? "default" : "destructive"
       });
-    } catch (e) {}
+    } catch (e) {
+      toast({ variant: "destructive", title: "Settlement Gagal" });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (!mounted) return null;
@@ -283,23 +326,21 @@ export default function FuturesPage() {
             </div>
 
             <div className="bg-white/5 rounded-md p-2.5 flex items-center justify-between border border-white/5 h-11">
-              <div className="flex items-center gap-1.5"><Info className="w-3.5 h-3.5 text-white/30" /><span className="text-xs font-black italic">Limit Order</span></div>
+              <div className="flex items-center gap-1.5"><Info className="w-3.5 h-3.5 text-white/30" /><span className="text-xs font-black italic">Market Order</span></div>
               <ChevronDown className="w-3.5 h-3.5 text-white/30" />
             </div>
 
             <div className="space-y-1">
-              <div className="flex items-center bg-white/5 rounded-md border border-white/5 overflow-hidden h-11">
-                <button className="px-3 text-white/30 hover:text-white">-</button>
+              <div className="flex items-center bg-white/5 rounded-md border border-white/5 overflow-hidden h-11 opacity-50">
                 <div className="w-full flex flex-col items-center justify-center">
-                  <span className="text-[8px] font-bold text-white/20 uppercase leading-none mt-1">Harga (USDT)</span>
+                  <span className="text-[8px] font-bold text-white/20 uppercase leading-none mt-1">Mark Price</span>
                   <input className="w-full bg-transparent text-center text-xs font-black outline-none text-white mb-1" value={livePrice.toFixed(1)} readOnly />
                 </div>
-                <button className="px-3 text-white/30 hover:text-white">+</button>
               </div>
             </div>
 
             <div className="flex items-center bg-white/5 rounded-md border border-white/5 overflow-hidden h-11">
-              <button className="px-3 text-white/30 font-bold">-</button>
+              <button className="px-3 text-white/30 font-bold" onClick={() => setAmountUsdt(prev => (parseFloat(prev) || 0).toString())}>-</button>
               <div className="w-full flex flex-col items-center justify-center">
                 <span className="text-[8px] font-bold text-white/20 uppercase leading-none mt-1">Jumlah (USDT)</span>
                 <input 
@@ -329,8 +370,8 @@ export default function FuturesPage() {
             </div>
 
             <div className="space-y-1 text-[10px] font-bold text-white/30 pt-2 uppercase italic">
-              <div className="flex justify-between items-center"><span>Estimasi Margin</span><span className="text-white">{costUsdt.toFixed(2)} USDT</span></div>
-              <div className="flex justify-between items-center"><span>Potensi PNL</span><span className="text-primary">+90.00%</span></div>
+              <div className="flex justify-between items-center"><span>Cost (Margin)</span><span className="text-white">{costUsdt.toFixed(2)} USDT</span></div>
+              <div className="flex justify-between items-center"><span>Platform Fee (0.1%)</span><span className="text-primary">{(parseFloat(amountUsdt) * TRADING_FEE_PERCENT || 0).toFixed(4)} USDT</span></div>
             </div>
 
             <Button 
@@ -338,7 +379,7 @@ export default function FuturesPage() {
               onClick={handleOpenPosition}
               className={cn("w-full h-12 text-[#0F1113] font-black italic rounded-xl shadow-lg text-base border-none uppercase transition-all active:scale-95", tradeSide === 'long' ? "bg-green-500 hover:bg-green-600" : "bg-rose-500 hover:bg-rose-600")}
             >
-              {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : `${tradeSide === 'long' ? 'Beli / Long' : 'Jual / Short'}`}
+              {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : `${tradeSide === 'long' ? 'Buy / Long' : 'Sell / Short'}`}
             </Button>
           </div>
 
@@ -378,7 +419,7 @@ export default function FuturesPage() {
 
             <div className="mt-6 p-3 rounded-xl bg-primary/5 border border-primary/10 text-center">
                <ShieldCheck className="w-4 h-4 text-primary mx-auto mb-1" />
-               <p className="text-[7px] font-black uppercase text-primary tracking-widest">AME Security Protocol</p>
+               <p className="text-[7px] font-black uppercase text-primary tracking-widest">AME RIIL PROTOCOL</p>
             </div>
           </div>
         </div>
@@ -388,7 +429,7 @@ export default function FuturesPage() {
           <div className="flex items-center justify-between border-b border-white/5">
             <div className="flex gap-6 pb-2">
               <button className="text-sm font-black italic relative text-white uppercase">Posisi ({activePositions?.length || 0})<div className="absolute -bottom-2.5 left-0 right-0 h-0.5 bg-primary" /></button>
-              <button className="text-sm font-black italic text-white/30 uppercase">Order Terbuka</button>
+              <button className="text-sm font-black italic text-white/30 uppercase">Open Orders</button>
             </div>
             <FileText className="w-5 h-5 text-white/40 cursor-pointer" />
           </div>
@@ -410,7 +451,7 @@ export default function FuturesPage() {
                         </Badge>
                         <span className="text-sm font-black italic uppercase">BTCUSDT Perpetual</span>
                       </div>
-                      <button onClick={() => handleClosePosition(pos)} className="text-[10px] font-black text-primary uppercase bg-primary/10 px-3 py-1 rounded-lg">Close</button>
+                      <button onClick={() => handleClosePosition(pos)} className="text-[10px] font-black text-primary uppercase bg-primary/10 px-3 py-1 rounded-lg">Close Position</button>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4">
@@ -429,7 +470,7 @@ export default function FuturesPage() {
                     <div className="grid grid-cols-3 gap-2 pt-2 text-[9px] font-bold text-white/40 uppercase">
                       <div><span>Entry Price</span><p className="text-white font-black mt-0.5">{pos.entryPrice.toLocaleString()}</p></div>
                       <div><span>Mark Price</span><p className="text-white font-black mt-0.5">{livePrice.toLocaleString()}</p></div>
-                      <div className="text-right"><span>Liq. Price</span><p className="text-rose-500 font-black mt-0.5">{(pos.entryPrice * (pos.side === 'long' ? 0.95 : 1.05)).toFixed(1)}</p></div>
+                      <div className="text-right"><span>Liq. Price</span><p className="text-rose-500 font-black mt-0.5">{(pos.entryPrice * (pos.side === 'long' ? (1 - 1/pos.leverage) : (1 + 1/pos.leverage))).toFixed(1)}</p></div>
                     </div>
                   </Card>
                 );
@@ -439,7 +480,7 @@ export default function FuturesPage() {
                  <div className="w-12 h-12 border-2 border-white rounded-full flex items-center justify-center mb-2">
                     <Zap className="w-6 h-6" />
                  </div>
-                 <p className="text-[10px] font-black uppercase tracking-widest">Belum Ada Posisi Aktif</p>
+                 <p className="text-[10px] font-black uppercase tracking-widest">Tidak ada posisi aktif</p>
               </div>
             )}
           </div>
@@ -449,7 +490,7 @@ export default function FuturesPage() {
         <div className="mt-4 bg-primary/5 border border-primary/10 rounded-xl p-4 flex gap-3">
           <AlertCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
           <p className="text-[10px] font-bold text-primary/80 leading-relaxed italic uppercase">
-            Peringatan Risiko: Futures Trading melibatkan leverage tinggi dan risiko kehilangan modal yang cepat. Gunakan margin dengan bijak. Seluruh transaksi tervalidasi oleh AliBank Node.
+            Peringatan: Seluruh perdagangan Futures diproses secara riil terhadap saldo Anda. Admin memungut biaya 0.1% per posisi. Kerugian margin nasabah akan dikonversi menjadi profit bank.
           </p>
         </div>
       </main>

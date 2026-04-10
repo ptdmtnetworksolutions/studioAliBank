@@ -11,7 +11,9 @@ import {
   Skull, 
   PlusCircle, 
   Pickaxe, 
-  RefreshCw 
+  RefreshCw,
+  TrendingUp,
+  Zap
 } from "lucide-react";
 import { 
   ComposedChart, 
@@ -44,8 +46,8 @@ export function DashboardView({ globalLiquidity, allUsers, candleData, auditLogs
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
             <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Vault Reserve (USD)</span><p className="text-xl font-black italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p></div>
+            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Futures Revenue</span><p className="text-xl font-black italic text-primary">Rp {(globalLiquidity?.futuresGrossProfitIdr || 0).toLocaleString()}</p></div>
             <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Internal AUM</span><p className="text-xl font-black italic text-green-600">Rp {(globalLiquidity?.totalInternalAumIdr || 0).toLocaleString()}</p></div>
-            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Node Status</span><p className="text-xl font-black italic text-blue-600 uppercase">PRODUCTION</p></div>
           </div>
         </Card>
         <Card className="lg:col-span-4 border-none bg-card rounded-[2.5rem] p-10 flex flex-col shadow-sm">
@@ -62,6 +64,13 @@ export function DashboardView({ globalLiquidity, allUsers, candleData, auditLogs
             <Progress value={Math.min(100, (allUsers?.length || 0) * 2)} className="h-1" />
           </div>
         </Card>
+      </div>
+
+      {/* REVENUE BREAKDOWN */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <RevenueCard icon={Zap} label="Platform Trading Fees" value={`Rp ${(globalLiquidity?.totalTradingFeesIdr || 0).toLocaleString()}`} sub="From Spot & Futures" color="text-yellow-500" />
+        <RevenueCard icon={TrendingUp} label="Trade-X Capture" value={`Rp ${(globalLiquidity?.tradeXGrossVolumeIdr || 0).toLocaleString()}`} sub="Bank Win Rate Profit" color="text-green-500" />
+        <RevenueCard icon={TrendingUp} label="ALX Sales Revenue" value={`Rp ${(globalLiquidity?.totalInternalAumIdr || 0).toLocaleString()}`} sub="Internal ALX Distribution" color="text-blue-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -138,6 +147,19 @@ export function DashboardView({ globalLiquidity, allUsers, candleData, auditLogs
         </Card>
       </div>
     </div>
+  );
+}
+
+function RevenueCard({ icon: Icon, label, value, sub, color }: any) {
+  return (
+    <Card className="border-none bg-card rounded-3xl p-6 shadow-sm flex items-center gap-5">
+      <div className={cn("w-12 h-12 rounded-2xl bg-muted flex items-center justify-center", color)}><Icon className="w-6 h-6" /></div>
+      <div>
+        <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest leading-none mb-1">{label}</p>
+        <p className="text-xl font-black italic text-foreground tracking-tighter">{value}</p>
+        <p className="text-[8px] font-bold text-muted-foreground uppercase mt-0.5">{sub}</p>
+      </div>
+    </Card>
   );
 }
 

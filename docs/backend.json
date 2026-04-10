@@ -3,7 +3,7 @@
   "entities": {
     "UserProfile": {
       "title": "UserProfile",
-      "description": "Stores user profile and core identity (Shared with Android App).",
+      "description": "Stores user profile and core identity.",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
@@ -28,7 +28,7 @@
     },
     "FuturesPosition": {
       "title": "FuturesPosition",
-      "description": "Active leveraged trading position.",
+      "description": "Active leveraged trading position with real balance impact.",
       "type": "object",
       "properties": {
         "symbol": { "type": "string" },
@@ -36,21 +36,23 @@
         "leverage": { "type": "number" },
         "entryPrice": { "type": "number" },
         "margin": { "type": "number" },
+        "platformFee": { "type": "number" },
         "size": { "type": "number" },
         "status": { "type": "string", "enum": ["open", "closed"] },
         "createdAt": { "type": "string", "format": "date-time" }
       }
     },
-    "Notification": {
-      "title": "Notification",
-      "description": "System alerts and transaction notices.",
+    "SystemLiquidity": {
+      "title": "SystemLiquidity",
+      "description": "Central bank liquidity tracking and revenue monitoring.",
       "type": "object",
       "properties": {
-        "title": { "type": "string" },
-        "message": { "type": "string" },
-        "type": { "type": "string", "enum": ["info", "success", "alert"] },
-        "read": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "totalFiatInjected": { "type": "number" },
+        "totalUsdInjected": { "type": "number" },
+        "totalTradingFeesIdr": { "type": "number", "description": "Accumulated profit from platform fees." },
+        "futuresGrossProfitIdr": { "type": "number", "description": "Revenue from futures liquidations and fees." },
+        "tradeXGrossVolumeIdr": { "type": "number" },
+        "alixVaultBalance": { "type": "number" }
       }
     }
   },
@@ -65,11 +67,11 @@
       },
       {
         "path": "/users/{userId}/futures_positions/{posId}",
-        "definition": { "entityName": "FuturesPosition", "description": "Leveraged positions." }
+        "definition": { "entityName": "FuturesPosition", "description": "Real leveraged positions." }
       },
       {
         "path": "/system/liquidity",
-        "definition": { "entityName": "SystemLiquidity", "description": "Central bank liquidity tracking." }
+        "definition": { "entityName": "SystemLiquidity", "description": "Central bank liquidity and profit nodes." }
       }
     ]
   }
