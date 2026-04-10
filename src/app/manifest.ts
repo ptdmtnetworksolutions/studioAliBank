@@ -1,10 +1,11 @@
+
 import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'AliBank V3',
+    name: 'AliBank V3 - Financial Infrastructure',
     short_name: 'AliBank',
-    description: 'Infrastruktur perbankan mandiri dan terminal aset digital global.',
+    description: 'Infrastruktur perbankan mandiri dan terminal aset digital global dengan fitur Futures & P2P.',
     start_url: '/',
     id: 'com.alibank.v3.official',
     scope: '/',
@@ -29,16 +30,16 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     shortcuts: [
       {
+        name: 'Futures Trading',
+        short_name: 'Futures',
+        description: 'Buka terminal derivatif leverage 125x',
+        url: '/crypto/trade/futures'
+      },
+      {
         name: 'Transfer Dana',
         short_name: 'Transfer',
         description: 'Kirim dana ke nasabah lain secara riil',
         url: '/transfer'
-      },
-      {
-        name: 'Terminal Kripto',
-        short_name: 'Kripto',
-        description: 'Buka terminal perdagangan aset digital',
-        url: '/crypto'
       }
     ],
     prefer_related_applications: false
