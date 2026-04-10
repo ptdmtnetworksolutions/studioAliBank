@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -217,25 +216,6 @@ export default function AssetsPage() {
           </div>
         </div>
       </main>
-
-      {/* Floating Assistant Icon - Smaller & Precise */}
-      <div className="fixed bottom-24 right-6 z-40">
-        <div className="w-10 h-10 bg-card rounded-xl shadow-xl border border-border flex items-center justify-center text-primary active:scale-90 transition-transform cursor-pointer relative">
-          <SmileIcon className="w-5 h-5" />
-          <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border-2 border-background animate-pulse" />
-        </div>
-      </div>
     </div>
-  );
-}
-
-function SmileIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M12 22c5.523 0 9-4.477 9-10s-3.477-10-9-10-9 4.477-9 10 3.477 10 9 10z" />
-      <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-      <line x1="9" y1="9" x2="9.01" y2="9" />
-      <line x1="15" y1="9" x2="15.01" y2="9" />
-    </svg>
   );
 }

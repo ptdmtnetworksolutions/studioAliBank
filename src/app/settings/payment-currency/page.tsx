@@ -1,13 +1,10 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
 import { 
   ArrowLeft, 
   Search, 
-  Sparkles,
-  X,
-  ChevronRight
+  ChevronRight 
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
@@ -117,14 +114,6 @@ export default function PaymentCurrencyPage() {
               {letter}
             </button>
           ))}
-        </div>
-
-        {/* Floating Help Icon */}
-        <div className="fixed bottom-10 right-6 z-50">
-          <div className="w-12 h-12 bg-muted rounded-2xl shadow-2xl flex items-center justify-center text-primary border border-border active:scale-90 transition-transform cursor-pointer overflow-hidden relative group">
-            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <LogoIcon className="w-6 h-6 relative z-10" />
-          </div>
         </div>
       </main>
     </div>

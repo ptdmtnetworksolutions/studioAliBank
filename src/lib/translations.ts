@@ -1,4 +1,3 @@
-
 export type Language = 'id' | 'en';
 
 export const translations = {
@@ -9,7 +8,6 @@ export const translations = {
     marketplace: 'Pasar',
     deposits: 'Deposito',
     crypto: 'Kripto',
-    ai_assistant: 'AI Insight',
     merchant_console: 'Bisnis',
     command_center: 'Admin',
     logout: 'Keluar',
@@ -40,7 +38,6 @@ export const translations = {
     marketplace: 'Marketplace',
     deposits: 'Deposits',
     crypto: 'Crypto',
-    ai_assistant: 'AI Insight',
     merchant_console: 'Business',
     command_center: 'Admin',
     logout: 'Logout',

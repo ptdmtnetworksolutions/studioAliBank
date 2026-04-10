@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -13,7 +12,6 @@ import {
   TicketPercent, 
   ShoppingBag,
   MessageSquare,
-  Sparkles,
   ArrowLeft,
   Home,
   Loader2,
@@ -194,15 +192,6 @@ export default function MarketplacePage() {
           </div>
         </section>
       </main>
-
-      {/* Floating Assistant */}
-      <div className="fixed bottom-24 right-6 z-[60]">
-        <div className="w-12 h-12 bg-muted rounded-2xl shadow-2xl border border-border flex items-center justify-center text-primary active:scale-90 transition-transform cursor-pointer relative overflow-hidden group">
-          <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100" />
-          <LogoIcon className="w-6 h-6 relative z-10" />
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background animate-pulse" />
-        </div>
-      </div>
 
       {/* Footer Navigation */}
       <footer className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border z-50">

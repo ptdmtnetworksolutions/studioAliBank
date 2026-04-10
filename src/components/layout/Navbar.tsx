@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -12,7 +11,6 @@ import {
   Menu,
   X,
   Bitcoin,
-  Sparkles,
   Store,
   ShoppingBag,
   Languages,
@@ -45,7 +43,6 @@ export function Navbar() {
     { name: t('marketplace'), href: "/marketplace", icon: ShoppingBag },
     { name: t('deposits'), href: "/deposits", icon: PiggyBank },
     { name: t('crypto'), href: "/crypto", icon: Bitcoin },
-    { name: t('ai_assistant'), href: "/ai-assistant", icon: Sparkles },
   ];
 
   const businessItems = [

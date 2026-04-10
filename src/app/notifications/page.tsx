@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -8,13 +7,11 @@ import {
   MessageSquareText, 
   Volume2, 
   Gift, 
-  Sparkles, 
   User, 
   Calendar, 
   LayoutGrid,
   Loader2,
   Brush,
-  Smile,
   ArrowRightLeft,
   ChevronRight,
   Bell,
@@ -22,7 +19,7 @@ import {
   CheckCircle2,
   AlertTriangle
 } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, limit, doc, updateDoc, writeBatch } from "firebase/firestore";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +38,6 @@ const CATEGORIES: NotificationCategory[] = [
   { id: 'akun', name: "Keamanan & Akun", icon: User, color: "bg-blue-500/10 text-blue-600" },
   { id: 'pengumuman', name: "Pengumuman", icon: Volume2, color: "bg-amber-500/10 text-amber-600" },
   { id: 'marketing', name: "Promo & Reward", icon: Gift, color: "bg-rose-500/10 text-rose-600" },
-  { id: 'ai', name: "AliBank AI", icon: Sparkles, color: "bg-primary/10 text-primary" },
 ];
 
 export default function NotificationsPage() {
@@ -76,7 +72,6 @@ export default function NotificationsPage() {
       if (catId === 'akun') return t.includes('akun') || t.includes('device') || t.includes('signature') || t.includes('password') || t.includes('profil') || type === 'alert';
       if (catId === 'marketing') return t.includes('reward') || t.includes('promo') || t.includes('hadiah') || t.includes('turnamen') || t.includes('kampanye');
       if (catId === 'pengumuman') return type === 'info' || t.includes('pengumuman') || t.includes('sistem') || t.includes('mainnet');
-      if (catId === 'ai') return t.includes('ai') || t.includes('insight') || t.includes('dna') || t.includes('sintesis');
       return false;
     });
 
@@ -230,15 +225,6 @@ export default function NotificationsPage() {
           </div>
         </section>
       </main>
-
-      {/* Floating Robot Icon */}
-      <div className="fixed bottom-10 right-6 z-[60]">
-        <div className="w-12 h-12 bg-muted rounded-2xl shadow-2xl border border-border flex items-center justify-center text-primary active:scale-90 transition-transform cursor-pointer relative overflow-hidden group">
-          <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-          <Smile className="w-7 h-7 relative z-10" />
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background animate-pulse" />
-        </div>
-      </div>
     </div>
   );
 }

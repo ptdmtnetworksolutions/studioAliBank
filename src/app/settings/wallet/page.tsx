@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -7,19 +6,18 @@ import {
   Copy, 
   ChevronRight, 
   ShieldCheck, 
-  Smile,
-  Globe,
-  Wallet,
-  Settings,
-  Lock,
-  Network,
-  Users,
-  Smartphone,
-  Scan,
-  BookOpen,
-  Share2
+  Globe, 
+  Wallet, 
+  Settings, 
+  Lock, 
+  Network, 
+  Users, 
+  Smartphone, 
+  Scan, 
+  BookOpen, 
+  Share2 
 } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
@@ -99,14 +97,6 @@ export default function WalletSettingsPage() {
             <MenuItem label="Metode Verifikasi" />
             <MenuItem label="Pusat Keamanan" />
             <MenuItem label="Tanda Tangan Otomatis Aman" />
-          </div>
-
-          {/* Floating Robot Icon */}
-          <div className="absolute right-0 -top-4">
-            <div className="w-10 h-10 bg-muted rounded-xl shadow-2xl border border-border flex items-center justify-center text-primary active:scale-90 transition-transform cursor-pointer relative">
-              <Smile className="w-6 h-6" />
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border-2 border-background animate-pulse" />
-            </div>
           </div>
         </section>
       </main>

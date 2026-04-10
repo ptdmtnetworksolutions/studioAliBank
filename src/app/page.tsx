@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
@@ -47,7 +46,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { useState, useEffect, useMemo, Suspense, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { doc, collection, query, where } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
@@ -989,70 +988,6 @@ function DashboardContent() {
           </div>
         )}
       </main>
-
-      <div className="fixed bottom-24 right-6 z-40">
-        <button 
-          onClick={() => router.push('/ai-assistant')}
-          className="w-14 h-14 gold-gradient rounded-2xl shadow-[0_15px_30px_rgba(252,213,53,0.3)] flex items-center justify-center text-primary-foreground active:scale-90 transition-transform group"
-        >
-          <Card className="border-none bg-transparent shadow-none"><Sparkles className="w-7 h-7 group-hover:rotate-12 transition-transform" /></Card>
-        </button>
-      </div>
-
-      <Sheet open={isTambahDanaOpen} onOpenChange={closeAddFunds}>
-        <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
-          <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
-          <div className="px-6 space-y-8">
-            <div className="flex items-center justify-between">
-              <SheetHeader>
-                <SheetTitle className="text-xl font-black text-foreground tracking-tight italic uppercase">Tambah Dana</SheetTitle>
-                <SheetDescription className="sr-only">Pilih metode penambahan dana.</SheetDescription>
-              </SheetHeader>
-              <div 
-                className="flex items-center gap-1.5 bg-muted px-2.5 py-1.5 rounded-full border border-border cursor-pointer"
-                onClick={() => { router.push('/settings/payment-currency'); }}
-              >
-                <div className={cn(
-                  "w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black text-white",
-                  selectedCurrency.color
-                )}>
-                  {selectedCurrency.symbol.length > 2 ? selectedCurrency.code[0] : selectedCurrency.symbol}
-                </div>
-                <span className="text-xs font-black text-foreground">{selectedCurrency.code}</span>
-                <ChevronDown className="w-3 h-3 text-muted-foreground" />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div 
-                className="p-6 rounded-[1.5rem] border border-border bg-card flex items-center gap-5 active:bg-muted/50 transition-all cursor-pointer group shadow-sm"
-                onClick={() => { setIsTambahDanaOpen(false); router.push('/crypto/buy'); }}
-              >
-                <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center border border-border group-hover:scale-110 transition-transform">
-                  <ShoppingBag className="w-6 h-6 text-foreground" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-foreground italic uppercase tracking-tight leading-none">Beli dengan {selectedCurrency.code}</h3>
-                  <p className="text-xs font-bold text-muted-foreground mt-1.5 leading-tight italic">Manfaatkan berbagai cara pembayaran!</p>
-                </div>
-              </div>
-
-              <div 
-                className="p-6 rounded-[1.5rem] border border-border bg-card flex items-center gap-5 active:bg-muted/50 transition-all cursor-pointer group shadow-sm"
-                onClick={() => { setIsTambahDanaOpen(false); router.push('/crypto/receive'); }}
-              >
-                <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center border border-border group-hover:scale-110 transition-transform">
-                  <Download className="w-6 h-6 text-foreground" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-foreground italic uppercase tracking-tight leading-none">Penyetoran On-Chain</h3>
-                  <p className="text-xs font-bold text-muted-foreground mt-1.5 leading-tight italic">Setor kripto dari bursa/dompet lain ke AliBank</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }
