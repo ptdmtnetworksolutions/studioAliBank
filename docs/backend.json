@@ -13,7 +13,7 @@
         "totalBalance": { "type": "number" },
         "savings": { "type": "number" },
         "walletAddress": { "type": "string" },
-        "privateKey": { "type": "string", "description": "Encrypted on-device for Android, Server-side for Web" },
+        "privateKey": { "type": "string" },
         "cryptoBalances": {
           "type": "object",
           "properties": {
@@ -26,9 +26,24 @@
         "tier": { "type": "string" }
       }
     },
+    "FuturesPosition": {
+      "title": "FuturesPosition",
+      "description": "Active leveraged trading position.",
+      "type": "object",
+      "properties": {
+        "symbol": { "type": "string" },
+        "side": { "type": "string", "enum": ["long", "short"] },
+        "leverage": { "type": "number" },
+        "entryPrice": { "type": "number" },
+        "margin": { "type": "number" },
+        "size": { "type": "number" },
+        "status": { "type": "string", "enum": ["open", "closed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "Notification": {
       "title": "Notification",
-      "description": "System alerts and transaction notices (Triggers Push Notification on Android).",
+      "description": "System alerts and transaction notices.",
       "type": "object",
       "properties": {
         "title": { "type": "string" },
@@ -36,18 +51,6 @@
         "type": { "type": "string", "enum": ["info", "success", "alert"] },
         "read": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "SystemLiquidity": {
-      "title": "SystemLiquidity",
-      "description": "Global bank reserves and stats (Real-time monitoring for Admin).",
-      "type": "object",
-      "properties": {
-        "totalFiatInjected": { "type": "number" },
-        "totalUsdInjected": { "type": "number" },
-        "alixVaultBalance": { "type": "number" },
-        "totalInternalAumIdr": { "type": "number" },
-        "totalAlixSoldInternally": { "type": "number" }
       }
     }
   },
@@ -58,24 +61,15 @@
     "structure": [
       {
         "path": "/users/{userId}",
-        "definition": {
-          "entityName": "UserProfile",
-          "description": "User profile data."
-        }
+        "definition": { "entityName": "UserProfile", "description": "User profile data." }
       },
       {
-        "path": "/users/{userId}/transactions/{txId}",
-        "definition": {
-          "entityName": "Transaction",
-          "description": "Individual transaction history."
-        }
+        "path": "/users/{userId}/futures_positions/{posId}",
+        "definition": { "entityName": "FuturesPosition", "description": "Leveraged positions." }
       },
       {
         "path": "/system/liquidity",
-        "definition": {
-          "entityName": "SystemLiquidity",
-          "description": "Central bank liquidity tracking."
-        }
+        "definition": { "entityName": "SystemLiquidity", "description": "Central bank liquidity tracking." }
       }
     ]
   }
