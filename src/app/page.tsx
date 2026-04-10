@@ -183,12 +183,14 @@ function DashboardContent() {
   const fetchMarketData = useCallback(async () => {
     try {
       const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "USDTIDR"];
-      const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`);
+      const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}`);
       
-      if (!res.ok) throw new Error('Market sync failed');
+      if (!res.ok) throw new Error('Market sync failed via Proxy');
       
       const data = await res.json();
       
+      if (data.error) throw new Error(data.error);
+
       const formatted = data.map((item: any) => {
         let symbol = item.symbol.replace("USDT", "").replace("IDR", "");
         if (symbol === "") symbol = "USDT";
@@ -220,7 +222,6 @@ function DashboardContent() {
       setMarketCoins([alxData, ...formatted.filter((c: any) => c.symbol !== "USDT")].slice(0, 5));
     } catch (e) {
       console.warn("Home Market Sync failed, using fallbacks:", e);
-      // Fallback already in state (INITIAL_COINS)
     } finally {
       setIsMarketLoading(false);
     }

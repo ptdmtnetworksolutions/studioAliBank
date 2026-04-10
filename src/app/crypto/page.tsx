@@ -82,12 +82,13 @@ export default function CryptoMarketPage() {
         "ARBUSDT", "RNDRUSDT", "OPUSDT", "WLDUSDT", "POLUSDT", "USDTIDR"
       ];
       
-      const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`);
+      const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}`);
       
-      if (!res.ok) throw new Error('Failed to fetch from market provider');
+      if (!res.ok) throw new Error('Failed to fetch from proxy node');
       
       const data = await res.json();
       
+      if (data.error) throw new Error(data.error);
       if (!Array.isArray(data)) return;
 
       const formatted = data.map(item => {
@@ -130,15 +131,11 @@ export default function CryptoMarketPage() {
       const sorted = [alxData, ...formatted.filter(c => c.symbol !== "USDT"), formatted.find(c => c.symbol === "USDT")].filter(Boolean);
       setMarketData(sorted);
     } catch (e) {
-      console.warn("Market Sync failed, using current state or fallbacks:", e);
-      // If API fails and we have no data, set fallback
-      if (marketData.length === 0) {
-        setMarketData(FALLBACK_COINS);
-      }
+      console.warn("Market Sync failed, maintaining previous state:", e);
     } finally {
       setIsLoading(false);
     }
-  }, [globalLiquidity, marketData.length]);
+  }, [globalLiquidity]);
 
   useEffect(() => {
     setMounted(true);

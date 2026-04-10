@@ -108,7 +108,7 @@ export default function MarketDetailPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // AliBank Autonomous Market Engine (AME) - SYNC NODE
+  // AliBank Autonomous Market Engine (AME) - SYNC NODE VIA PROXY
   const fetchMarketData = useCallback(async () => {
     if (isAlix || !symbol) {
       setIsLoading(false);
@@ -116,16 +116,15 @@ export default function MarketDetailPage() {
     }
 
     try {
-      // Map timeframe to Binance interval
       const intervalMap: Record<string, string> = {
         "1m": "1m", "5m": "5m", "15m": "15m", "1j": "1h", "4j": "4h", "1H": "1d"
       };
       const interval = intervalMap[timeframe] || "15m";
       const binanceSymbol = symbol === 'USDT' ? 'USDTIDR' : `${symbol}USDT`;
 
-      // 1. Fetch Ticker for 24h stats
-      const tickerRes = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`);
-      if (!tickerRes.ok) throw new Error('Ticker fetch failed');
+      // 1. Fetch Ticker via Proxy
+      const tickerRes = await fetch(`/api/market/ticker?symbol=${binanceSymbol}`);
+      if (!tickerRes.ok) throw new Error('Ticker fetch failed via Proxy');
       const ticker = await tickerRes.json();
 
       if (ticker.lastPrice) {
@@ -139,9 +138,9 @@ export default function MarketDetailPage() {
         setVolume24h(parseFloat(ticker.quoteVolume) || 0);
       }
 
-      // 2. Fetch Klines for Candlestick
-      const klineRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=60`);
-      if (!klineRes.ok) throw new Error('Klines fetch failed');
+      // 2. Fetch Klines via Proxy
+      const klineRes = await fetch(`/api/market/klines?symbol=${binanceSymbol}&interval=${interval}&limit=60`);
+      if (!klineRes.ok) throw new Error('Klines fetch failed via Proxy');
       const klines = await klineRes.json();
 
       if (Array.isArray(klines)) {
@@ -163,7 +162,7 @@ export default function MarketDetailPage() {
         setCandlestickData(formatted);
       }
     } catch (err) {
-      console.warn("AME Detail Sync failed:", err);
+      console.warn("AME Proxy Sync failed, keeping last data:", err);
     } finally {
       setIsLoading(false);
     }
@@ -196,7 +195,6 @@ export default function MarketDetailPage() {
     });
   }, [isAlix, realTrades, candlestickData]);
 
-  // Stable Order Book generation only on client to avoid hydration issues
   useEffect(() => {
     if (!mounted) return;
     const basePrice = currentPrice || 1;
@@ -222,7 +220,6 @@ export default function MarketDetailPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-body transition-colors duration-300">
-      {/* Header */}
       <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background z-50 border-b border-border/50">
         <div className="flex items-center gap-4">
           <button onClick={() => router.back()} className="p-1 hover:bg-muted rounded-full transition-colors">
@@ -242,7 +239,6 @@ export default function MarketDetailPage() {
         </div>
       </header>
 
-      {/* Secondary Tabs */}
       <div className="flex items-center gap-8 px-6 border-b border-border/50 overflow-x-auto no-scrollbar">
         {["Harga", "Info", "Utilitas", "Trade-X"].map((tab) => (
           <button
@@ -261,7 +257,6 @@ export default function MarketDetailPage() {
       <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
         {activeTab === "Harga" ? (
           <>
-            {/* Main Stats Section */}
             <section className="px-6 pt-6 grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <h2 className={cn(
@@ -306,7 +301,6 @@ export default function MarketDetailPage() {
               </div>
             </section>
 
-            {/* Timeframes Bar */}
             <div className="px-6 pt-6 flex items-center justify-between border-b border-border/20">
               <div className="flex gap-5 overflow-x-auto no-scrollbar pb-2">
                 {["1m", "5m", "15m", "1j", "4j", "1H"].map((t) => (
@@ -328,12 +322,11 @@ export default function MarketDetailPage() {
               </div>
             </div>
 
-            {/* Chart Area - Real Candlestick */}
             <div className="h-72 w-full relative pt-4 bg-muted/5">
               {isLoading ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-40">
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  <p className="text-[8px] font-black uppercase tracking-widest">AME Sync Node...</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest">AME Proxy Sync...</p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
@@ -360,7 +353,6 @@ export default function MarketDetailPage() {
               )}
             </div>
 
-            {/* Order Book Section */}
             <section className="mt-4 border-t border-border/50">
               <div className="flex gap-8 px-6 border-b border-border/20">
                 {["Book", "Perdagangan", "Jaringan"].map(tab => (
@@ -411,7 +403,6 @@ export default function MarketDetailPage() {
         )}
       </main>
 
-      {/* FIXED ACTION FOOTER */}
       <footer className="fixed bottom-0 left-0 right-0 z-[60] bg-background border-t border-border px-4 py-4 flex items-center gap-4 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
         <div className="flex gap-6 px-2">
           <div className="flex flex-col items-center gap-1 cursor-pointer hover:text-primary transition-colors">
