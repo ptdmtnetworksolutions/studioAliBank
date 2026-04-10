@@ -1,5 +1,5 @@
-// AliBank WebAPK Service Worker
-const CACHE_NAME = 'alibank-v3-cache';
+// AliBank V3 - Minimal Service Worker for WebAPK
+const CACHE_NAME = 'alibank-cache-v1';
 const ASSETS = [
   '/',
   '/icon.svg',

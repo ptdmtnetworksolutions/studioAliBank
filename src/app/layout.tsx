@@ -46,7 +46,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="mobile-web-app-capable" content="yes" />
         
-        {/* PWA Icons - Black Edition (Physical Files) */}
+        {/* PWA Icons - Official Black Edition */}
         <link rel="icon" type="image/svg+xml" href="/icon.svg" />
         <link rel="apple-touch-icon" href="/icon.svg" />
       </head>
