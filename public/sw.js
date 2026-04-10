@@ -1,23 +1,13 @@
-// AliBank V3 - Minimal Service Worker for WebAPK
-const CACHE_NAME = 'alibank-cache-v1';
-const ASSETS = [
-  '/',
-  '/icon.svg',
-  '/manifest.webmanifest'
-];
-
+// AliBank V3 - Minimalist Service Worker for WebAPK compatibility
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
-    })
-  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(clients.claim());
 });
 
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
-  );
+  // Basic pass-through fetching logic
+  event.respondWith(fetch(event.request));
 });

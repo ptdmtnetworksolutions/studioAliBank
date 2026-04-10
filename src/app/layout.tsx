@@ -10,7 +10,7 @@ import Script from 'next/script';
 import { Suspense } from 'react';
 
 export const metadata: Metadata = {
-  title: 'AliBank',
+  title: 'AliBank V3',
   description: 'Infrastruktur perbankan elit dengan integrasi aset kripto Mainnet.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#000000',
+  themeColor: '#1E2329',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,

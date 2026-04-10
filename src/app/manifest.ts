@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'AliBank',
+    name: 'AliBank V3',
     short_name: 'AliBank',
     description: 'Infrastruktur perbankan mandiri dan terminal aset digital global.',
     start_url: '/',
@@ -11,8 +11,8 @@ export default function manifest(): MetadataRoute.Manifest {
     display: 'standalone',
     display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
     orientation: 'portrait',
-    background_color: '#000000',
-    theme_color: '#000000',
+    background_color: '#1E2329',
+    theme_color: '#FCD535',
     icons: [
       {
         src: "/icon.svg",

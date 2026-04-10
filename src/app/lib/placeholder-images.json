@@ -3,26 +3,20 @@
     {
       "id": "hero-dashboard",
       "description": "Premium banking background",
-      "imageUrl": "https://picsum.photos/seed/finwave-hero/1200/400",
+      "imageUrl": "https://picsum.photos/seed/alibank-hero/1200/400",
       "imageHint": "premium banking"
     },
     {
-      "id": "user-alex",
-      "description": "Profile picture of Alex Thompson",
-      "imageUrl": "https://picsum.photos/seed/alex-thompson/150/150",
+      "id": "user-avatar",
+      "description": "Default user profile picture",
+      "imageUrl": "https://picsum.photos/seed/user-alibank/150/150",
       "imageHint": "businessman portrait"
     },
     {
-      "id": "gold-card",
-      "description": "AliBank Platinum Private Card",
-      "imageUrl": "https://picsum.photos/seed/gold-card/600/400",
-      "imageHint": "gold card"
-    },
-    {
-      "id": "qris-official",
-      "description": "Official QRIS Gateway for AliBank 2026",
-      "imageUrl": "https://picsum.photos/seed/qris/300/300",
-      "imageHint": "qris code"
+      "id": "crypto-card",
+      "description": "AliBank Digital Asset Card",
+      "imageUrl": "https://picsum.photos/seed/crypto-card/600/400",
+      "imageHint": "modern credit card"
     }
   ]
 }
