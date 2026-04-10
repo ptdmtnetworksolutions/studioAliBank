@@ -46,7 +46,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { doc, collection, query, where } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
@@ -968,7 +968,6 @@ function DashboardContent() {
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm font-black text-foreground italic uppercase tracking-tighter">{asset.symbol}</span>
-                          <div className="w-4 h-4 bg-green-500/10 text-green-500 rounded flex items-center justify-center text-[8px] font-black">AI</div>
                         </div>
                         <div className="flex items-center gap-2 text-[9px] font-bold text-muted-foreground uppercase italic">
                           <span>Vol Rp6,24B</span>
