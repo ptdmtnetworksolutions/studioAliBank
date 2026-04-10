@@ -1,4 +1,3 @@
-
 import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -17,13 +16,13 @@ export default function manifest(): MetadataRoute.Manifest {
     icons: [
       {
         src: "/icon.svg",
-        sizes: '192x192',
+        sizes: 'any',
         type: 'image/svg+xml',
         purpose: 'maskable'
       },
       {
         src: "/icon.svg",
-        sizes: '512x512',
+        sizes: 'any',
         type: 'image/svg+xml',
         purpose: 'any'
       }
