@@ -59,7 +59,8 @@ const MARKUP = 1.02; // AliBank 2% Profit Margin
 const USDT_IDR_RATE = 15850;
 
 export default function MarketDetailPage() {
-  const { coinId } = useParams();
+  const params = useParams();
+  const coinId = params?.coinId;
   const router = useRouter();
   const db = useFirestore();
   const { user } = useUser();
@@ -78,8 +79,13 @@ export default function MarketDetailPage() {
   const [candlestickData, setCandlestickData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState("");
+  const [orderBook, setOrderBook] = useState<{ bids: any[], asks: any[] }>({ bids: [], asks: [] });
 
-  const symbol = (coinId as string).toUpperCase();
+  const symbol = useMemo(() => {
+    const s = Array.isArray(coinId) ? coinId[0] : coinId;
+    return (s || "").toUpperCase();
+  }, [coinId]);
+
   const isAlix = symbol === 'ALX';
   const displayPair = symbol === 'USDT' ? 'USDT/IDR' : `${symbol}/USDT`;
 
@@ -104,7 +110,7 @@ export default function MarketDetailPage() {
 
   // AliBank Autonomous Market Engine (AME) - SYNC NODE
   const fetchMarketData = useCallback(async () => {
-    if (isAlix) {
+    if (isAlix || !symbol) {
       setIsLoading(false);
       return;
     }
@@ -124,14 +130,13 @@ export default function MarketDetailPage() {
 
       if (ticker.lastPrice) {
         let basePrice = parseFloat(ticker.lastPrice);
-        // Normalize USDTIDR to "USD" unit for global consistent markup logic
         if (binanceSymbol === 'USDTIDR') basePrice = basePrice / USDT_IDR_RATE;
         
         setLivePrice(basePrice * MARKUP);
-        setPriceChange(parseFloat(ticker.priceChangePercent));
+        setPriceChange(parseFloat(ticker.priceChangePercent) || 0);
         setHigh24h(parseFloat(ticker.highPrice) * (binanceSymbol === 'USDTIDR' ? 1/USDT_IDR_RATE : 1) * MARKUP);
         setLow24h(parseFloat(ticker.lowPrice) * (binanceSymbol === 'USDTIDR' ? 1/USDT_IDR_RATE : 1) * MARKUP);
-        setVolume24h(parseFloat(ticker.quoteVolume));
+        setVolume24h(parseFloat(ticker.quoteVolume) || 0);
       }
 
       // 2. Fetch Klines for Candlestick
@@ -152,14 +157,13 @@ export default function MarketDetailPage() {
             body: [open, close],
             wick: [low, high],
             isUp: close >= open,
-            volume: parseFloat(k[5])
+            volume: parseFloat(k[5]) || 0
           };
         });
         setCandlestickData(formatted);
       }
     } catch (err) {
-      console.warn("AME Detail Sync failed, using fallback data:", err);
-      // Maintain last known data if available
+      console.warn("AME Detail Sync failed:", err);
     } finally {
       setIsLoading(false);
     }
@@ -167,14 +171,14 @@ export default function MarketDetailPage() {
 
   useEffect(() => {
     fetchMarketData();
-    const interval = setInterval(fetchMarketData, 10000); // Sync every 10s
+    const interval = setInterval(fetchMarketData, 10000);
     return () => clearInterval(interval);
   }, [fetchMarketData]);
 
   // DYNAMIC ALX LOGIC
   const currentPrice = useMemo(() => {
     if (!isAlix) return livePrice || 0;
-    if (realTrades && realTrades.length > 0) return realTrades[realTrades.length - 1].price;
+    if (realTrades && realTrades.length > 0) return realTrades[realTrades.length - 1].price || 12.24;
     return globalLiquidity?.lastAlxPriceUsdt || 12.24;
   }, [isAlix, realTrades, globalLiquidity, livePrice]);
 
@@ -182,9 +186,8 @@ export default function MarketDetailPage() {
     if (!isAlix) return candlestickData;
     if (!realTrades || realTrades.length === 0) return [{ time: "Now", open: 12.24, close: 12.24, high: 12.24, low: 12.24, body: [12.24, 12.24], wick: [12.24, 12.24], isUp: true }];
     
-    // Group real trades into mock candles for ALX
-    return realTrades.map((t, i) => {
-      const p = t.price;
+    return realTrades.map((t) => {
+      const p = t.price || 12.24;
       return {
         time: t.timestamp?.toDate ? t.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...',
         open: p, high: p + 0.01, low: p - 0.01, close: p,
@@ -193,10 +196,13 @@ export default function MarketDetailPage() {
     });
   }, [isAlix, realTrades, candlestickData]);
 
-  const orderBook = useMemo(() => {
+  // Stable Order Book generation only on client to avoid hydration issues
+  useEffect(() => {
+    if (!mounted) return;
     const basePrice = currentPrice || 1;
     const vaultInventory = globalLiquidity?.alixVaultBalance || 1000000;
-    return {
+    
+    setOrderBook({
       bids: Array.from({ length: 8 }, (_, i) => ({
         price: (basePrice - (i * 0.0001) - 0.0001).toFixed(4),
         amount: (vaultInventory * (0.01 + Math.random() * 0.05)).toFixed(2),
@@ -207,8 +213,8 @@ export default function MarketDetailPage() {
         amount: (vaultInventory * (0.01 + Math.random() * 0.05)).toFixed(2),
         depth: 20 + Math.random() * 60
       }))
-    };
-  }, [currentPrice, globalLiquidity]);
+    });
+  }, [mounted, currentPrice, globalLiquidity]);
 
   if (!mounted) return null;
 
@@ -420,13 +426,13 @@ export default function MarketDetailPage() {
         
         <div className="flex-1 flex gap-3">
           <Button 
-            onClick={() => router.push(isAlix ? '/crypto/convert' : `/crypto/trade/${coinId}`)}
+            onClick={() => router.push(isAlix ? '/crypto/convert' : `/crypto/trade/${symbol.toLowerCase()}`)}
             className="flex-1 h-12 bg-green-500 hover:bg-green-600 text-white font-black italic uppercase rounded-lg shadow-lg border-none text-base"
           >
             Beli
           </Button>
           <Button 
-            onClick={() => router.push(isAlix ? '/crypto/convert' : `/crypto/trade/${coinId}`)}
+            onClick={() => router.push(isAlix ? '/crypto/convert' : `/crypto/trade/${symbol.toLowerCase()}`)}
             className="flex-1 h-12 bg-rose-500 hover:bg-rose-600 text-white font-black italic uppercase rounded-lg shadow-lg border-none text-base"
           >
             Jual
