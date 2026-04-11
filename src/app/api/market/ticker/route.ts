@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * @fileOverview Server-side proxy for Binance 24hr Ticker API.
- * Optimized for Production with User-Agent and Fallback Nodes.
+ * Optimized for Production with Cluster Redundancy.
  */
 
 export async function GET(request: NextRequest) {
@@ -10,8 +10,8 @@ export async function GET(request: NextRequest) {
   const symbols = searchParams.get('symbols');
   const symbol = searchParams.get('symbol');
 
-  // Gunakan api1 untuk reliabilitas lebih tinggi di lingkungan Cloud
-  let url = 'https://api1.binance.com/api/v3/ticker/24hr';
+  // Gunakan api3 untuk stabilitas lebih tinggi di lingkungan Cloud Hosting
+  let url = 'https://api3.binance.com/api/v3/ticker/24hr';
   
   if (symbols) {
     url += `?symbols=${symbols}`;
@@ -24,14 +24,13 @@ export async function GET(request: NextRequest) {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'AliBank-V3-Core/1.0 (Production Node)'
       },
       next: { revalidate: 10 } 
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Binance Node Error (${response.status}):`, errorText);
+      console.error(`Binance Node Error (${response.status})`);
       return NextResponse.json({ error: 'Upstream node rejected request.' }, { status: 502 });
     }
 

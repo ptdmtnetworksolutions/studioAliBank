@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -131,7 +130,6 @@ export default function KycPage() {
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Mirror the image for selfie if needed, but usually better to save exactly what's seen
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
         canvas.toBlob((blob) => {
@@ -190,7 +188,8 @@ export default function KycPage() {
       return false;
     } catch (err) {
       console.error("Duplicate check error:", err);
-      return false;
+      // Jika error permissions, asumsikan tidak ada duplikat untuk melanjutkan langkah atau berikan peringatan
+      return false; 
     } finally {
       setIsProcessing(false);
     }
@@ -201,8 +200,6 @@ export default function KycPage() {
       const isDuplicate = await checkDuplicates();
       if (isDuplicate) return;
       setStep(2);
-    } else if (step === 2) {
-      setStep(3);
     } else {
       setStep(step + 1);
     }
@@ -394,7 +391,6 @@ export default function KycPage() {
 
             <div className="space-y-6">
               <div className="relative aspect-square max-w-[320px] mx-auto rounded-[3rem] border-4 border-dashed border-primary/20 bg-muted overflow-hidden flex items-center justify-center">
-                {/* Always show video tag irrespective of hasCameraPermission check to prevent race condition */}
                 <video 
                   ref={videoRef} 
                   autoPlay 

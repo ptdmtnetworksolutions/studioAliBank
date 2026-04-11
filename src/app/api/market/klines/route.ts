@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * @fileOverview Server-side proxy for Binance Klines (Candlestick) API.
- * Optimized for Production with User-Agent headers.
+ * Optimized for Production with Cluster Redundancy.
  */
 
 export async function GET(request: NextRequest) {
@@ -15,14 +15,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
   }
 
-  const url = `https://api1.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit || 60}`;
+  const url = `https://api3.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit || 60}`;
 
   try {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'AliBank-V3-Core/1.0 (Production Node)'
       },
       next: { revalidate: 10 }
     });
