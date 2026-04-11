@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -39,7 +38,8 @@ import {
   Coins,
   History as HistoryIcon,
   ExternalLink,
-  ShieldAlert
+  ShieldAlert,
+  Copy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -174,8 +174,8 @@ export default function MarketDetailPage() {
         });
         setCandlestickData(formatted);
       }
-    } catch (err) {
-      console.warn("AME Proxy Sync failed, keeping last data:", err);
+    } catch (error: any) {
+      console.error('Market Proxy Klines Error:', error.message);
     } finally {
       setIsLoading(false);
     }
@@ -500,7 +500,10 @@ export default function MarketDetailPage() {
                   <span className="text-[10px] font-black uppercase text-muted-foreground">Kontrak Pintar</span>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-mono font-bold text-accent">0x8BAF...D1Dd</span>
-                    <Copy className="w-3 h-3 text-primary cursor-pointer" onClick={() => toast({title: "Disalin"})} />
+                    <Copy className="w-3 h-3 text-primary cursor-pointer" onClick={() => {
+                      navigator.clipboard.writeText("0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd");
+                      toast({title: "Alamat Disalin"});
+                    }} />
                   </div>
                 </div>
               </div>
