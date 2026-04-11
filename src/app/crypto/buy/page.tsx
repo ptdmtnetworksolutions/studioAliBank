@@ -30,7 +30,9 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Search,
-  Info
+  Info,
+  AlertCircle,
+  Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -94,6 +96,7 @@ export default function CryptoBuyPage() {
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
   const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS[0]);
+  const [selectedWithdrawalAccount, setSelectedWithdrawalAccount] = useState<any>(null);
   
   const [isPaymentSheetOpen, setIsPaymentSheetOpen] = useState(false);
   const [isAssetSheetOpen, setIsAssetSheetOpen] = useState(false);
@@ -140,7 +143,9 @@ export default function CryptoBuyPage() {
 
   const exchangeRate = 15850; 
 
-  // Auto-populate amount when switching to 'jual' or changing asset in 'jual'
+  const isVerified = userData?.kycStatus === 'verified';
+  const hasWithdrawalMethods = userData?.withdrawalMethods && userData.withdrawalMethods.length > 0;
+
   useEffect(() => {
     if (activeTab === 'jual' && userData?.cryptoBalances) {
       const cryptoBalance = userData.cryptoBalances[selectedAsset.symbol] || 0;
@@ -157,8 +162,12 @@ export default function CryptoBuyPage() {
       } else {
         setAmount("0");
       }
+
+      if (hasWithdrawalMethods && !selectedWithdrawalAccount) {
+        setSelectedWithdrawalAccount(userData.withdrawalMethods[0]);
+      }
     }
-  }, [activeTab, selectedAsset.symbol, userData?.cryptoBalances, selectedCurrency.code, getRateToIdr]);
+  }, [activeTab, selectedAsset.symbol, userData?.cryptoBalances, selectedCurrency.code, getRateToIdr, hasWithdrawalMethods, selectedWithdrawalAccount]);
 
   useEffect(() => {
     if (selectedPayment.id === 'bank' && activeTab === 'beli') {
@@ -444,6 +453,14 @@ export default function CryptoBuyPage() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setProofImage(file);
+      setProofPreview(URL.createObjectURL(file));
+    }
+  };
+
   const filteredCurrencies = useMemo(() => {
     return currencies.filter(c => 
       c.code.toLowerCase().includes(currencySearch.toLowerCase()) || 
@@ -574,25 +591,47 @@ export default function CryptoBuyPage() {
             <div className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" onClick={() => setIsPaymentSheetOpen(true)}>
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 shadow-sm text-primary">
-                  <selectedPayment.icon className="w-5 h-5" />
+                  {activeTab === 'beli' ? <selectedPayment.icon className="w-5 h-5" /> : <Landmark className="w-5 h-5" />}
                 </div>
                 <div>
                   <p className="text-xs font-black italic">{activeTab === 'beli' ? 'Metode pembayaran' : 'Metode penerimaan'}</p>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase">{selectedPayment.name}</p>
+                  <p className={cn(
+                    "text-[10px] font-bold uppercase",
+                    activeTab === 'jual' && !hasWithdrawalMethods ? "text-rose-500" : "text-muted-foreground"
+                  )}>
+                    {activeTab === 'beli' 
+                      ? selectedPayment.name 
+                      : (selectedWithdrawalAccount ? `${selectedWithdrawalAccount.provider} - ${selectedWithdrawalAccount.accountNumber}` : "Pilih Rekening Penerima")}
+                  </p>
                 </div>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
             </div>
           </div>
+
+          {!isVerified && activeTab === 'jual' && (
+            <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 flex gap-3 animate-in fade-in">
+              <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0" />
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-amber-600 uppercase">Verifikasi Diperlukan</p>
+                <p className="text-[9px] font-medium text-muted-foreground leading-relaxed italic">
+                  Akun Anda belum melewati verifikasi KYC. Penjualan aset dan penarikan dana hanya tersedia untuk nasabah yang sudah terverifikasi oleh Admin.
+                </p>
+                <button onClick={() => router.push('/profile')} className="text-[9px] font-black text-primary uppercase underline mt-1">Lengkapi KYC Sekarang</button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="pb-10 space-y-6">
           <Button 
-            disabled={amount === "0" || isProcessing} 
+            disabled={amount === "0" || isProcessing || (activeTab === 'jual' && (!isVerified || !hasWithdrawalMethods))} 
             onClick={() => setIsCheckoutDialogOpen(true)} 
             className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest transition-all"
           >
-            {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (activeTab === 'beli' ? 'LANJUTKAN KE PEMBAYARAN' : 'LANJUTKAN PENJUALAN')}
+            {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : 
+              (!isVerified && activeTab === 'jual' ? 'KYC DIERLUKAN' : (activeTab === 'beli' ? 'LANJUTKAN KE PEMBAYARAN' : 'LANJUTKAN PENJUALAN'))
+            }
           </Button>
           
           <div className="grid grid-cols-3 gap-y-1">
@@ -616,7 +655,7 @@ export default function CryptoBuyPage() {
               <div className="w-12 h-12 rounded-2xl gold-gradient mx-auto flex items-center justify-center shadow-xl p-2.5 mb-2"><LogoIcon className="text-white" /></div>
               <DialogTitle className="text-xl font-black italic uppercase tracking-tight">ALIBANK SECURE GATEWAY</DialogTitle>
               <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                Konfirmasi {activeTab === 'beli' ? 'Pembelian' : 'Penjualan'} - {selectedPayment.name}
+                Konfirmasi {activeTab === 'beli' ? 'Pembelian' : 'Penjualan'} - {activeTab === 'beli' ? selectedPayment.name : selectedWithdrawalAccount?.provider}
               </DialogDescription>
             </DialogHeader>
 
@@ -629,12 +668,35 @@ export default function CryptoBuyPage() {
             </div>
 
             <div className="space-y-4">
-              {selectedPayment.id === 'midtrans' ? (
+              {activeTab === 'jual' ? (
+                <div className="animate-in fade-in duration-500 space-y-6">
+                  <div className="p-6 rounded-[1.5rem] bg-muted/50 border border-border space-y-4">
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-muted-foreground uppercase italic">Rekening Penerima</p>
+                      <p className="text-base font-black italic uppercase">{selectedWithdrawalAccount?.provider}</p>
+                      <p className="text-sm font-bold text-accent font-mono">{selectedWithdrawalAccount?.accountNumber}</p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">AN: {selectedWithdrawalAccount?.accountName}</p>
+                    </div>
+                    <div className="h-px bg-border" />
+                    <div className="flex justify-between items-center">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase">Status Node</p>
+                      <Badge className="bg-green-500 text-white text-[7px] font-black uppercase h-4 px-2 border-none">Verified Payout</Badge>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => finalizeTransaction({ id: `WD-${Date.now()}`, gateway: "AliBank Internal Payout" })} 
+                    disabled={isProcessing} 
+                    className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl"
+                  >
+                    {isProcessing ? <Loader2 className="animate-spin" /> : "KONFIRMASI PENJUALAN RIIL"}
+                  </Button>
+                </div>
+              ) : selectedPayment.id === 'midtrans' ? (
                 <div className="animate-in fade-in zoom-in duration-500 space-y-6">
                   <div className="p-6 rounded-[1.5rem] bg-accent/5 border border-primary/20 flex flex-col items-center gap-4">
                     <QrCode className="w-32 h-32 text-primary opacity-40" />
                     <p className="text-[10px] font-bold text-muted-foreground text-center uppercase italic">
-                      Gunakan Virtual Account atau QRIS untuk penyelesaian {activeTab === 'beli' ? 'pembayaran' : 'penerimaan'} instan.
+                      Gunakan Virtual Account atau QRIS untuk penyelesaian pembayaran instan.
                     </p>
                   </div>
                   <Button onClick={handleMidtransPayment} disabled={isProcessing || !midtransReady} className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl">
@@ -659,24 +721,24 @@ export default function CryptoBuyPage() {
                       <p className="text-[8px] font-black text-muted-foreground uppercase italic">Bank AliBank Center (BCA)</p>
                       <div className="flex justify-between items-center">
                         <span className="text-base font-black italic uppercase">8829 4410 0021</span>
-                        <Copy className="w-4 h-4 text-primary cursor-pointer active:scale-90" onClick={() => { navigator.clipboard.writeText("882944100021"); toast({title: "Rekening Disalin"}); }} />
+                        <Copy className="w-4 h-4 text-primary cursor-pointer active:scale-90 transition-transform" onClick={() => { navigator.clipboard.writeText("882944100021"); toast({title: "Rekening Disalin"}); }} />
                       </div>
                       <p className="text-[10px] font-bold text-muted-foreground">AN: AliBank Vault Center</p>
                     </div>
                     <div className="h-px bg-border" />
                     <div className="space-y-1">
                       <p className="text-[8px] font-black text-muted-foreground uppercase italic">
-                        {activeTab === 'beli' ? 'Jumlah Wajib Transfer' : 'Estimasi Dana Diterima'}
+                        Jumlah Wajib Transfer
                       </p>
                       <div className="flex justify-between items-center">
                         <span className="text-lg font-black text-primary italic">Rp {totalAmountIdr.toLocaleString('id-ID')}</span>
-                        {activeTab === 'beli' && <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">KODE: {uniqueCode}</Badge>}
+                        <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">KODE: {uniqueCode}</Badge>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-3">
-                    <p className="text-[10px] font-black uppercase italic text-muted-foreground ml-1">Unggah Bukti {activeTab === 'beli' ? 'Transfer' : 'Penerimaan'}</p>
+                    <p className="text-[10px] font-black uppercase italic text-muted-foreground ml-1">Unggah Bukti Transfer</p>
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
                     <div 
                       onClick={() => fileInputRef.current?.click()}
@@ -803,21 +865,69 @@ export default function CryptoBuyPage() {
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
           <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
           <div className="px-6 space-y-3">
-            <SheetHeader><SheetTitle className="text-xl font-black italic uppercase tracking-tight">
-              {activeTab === 'beli' ? 'Metode Pembayaran' : 'Metode Penerimaan'}
-            </SheetTitle></SheetHeader>
-            <div className="space-y-3">
-              {PAYMENT_METHODS.map((method) => (
-                <div key={method.id} onClick={() => { setSelectedPayment(method as any); setIsPaymentSheetOpen(false); }} className={cn("p-5 rounded-2xl border-2 flex items-center justify-between transition-all cursor-pointer group", selectedPayment.id === method.id ? "border-primary bg-primary/5 shadow-lg" : "border-muted bg-card hover:border-primary/20")}>
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 overflow-hidden shadow-sm text-primary">
-                      <method.icon className="w-5 h-5" />
+            <SheetHeader>
+              <SheetTitle className="text-xl font-black italic uppercase tracking-tight">
+                {activeTab === 'beli' ? 'Metode Pembayaran' : 'Metode Penerimaan'}
+              </SheetTitle>
+              {activeTab === 'jual' && (
+                <SheetDescription className="text-[10px] font-bold uppercase italic">
+                  Pilih salah satu rekening atau e-wallet yang telah Anda daftarkan di Profil.
+                </SheetDescription>
+              )}
+            </SheetHeader>
+            
+            <div className="space-y-3 pt-4">
+              {activeTab === 'beli' ? (
+                PAYMENT_METHODS.map((method) => (
+                  <div key={method.id} onClick={() => { setSelectedPayment(method as any); setIsPaymentSheetOpen(false); }} className={cn("p-5 rounded-2xl border-2 flex items-center justify-between transition-all cursor-pointer group", selectedPayment.id === method.id ? "border-primary bg-primary/5 shadow-lg" : "border-muted bg-card hover:border-primary/20")}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 overflow-hidden shadow-sm text-primary">
+                        <method.icon className="w-5 h-5" />
+                      </div>
+                      <div><h4 className="text-sm font-black italic uppercase leading-none">{method.name}</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">{method.desc}</p></div>
                     </div>
-                    <div><h4 className="text-sm font-black italic uppercase leading-none">{method.name}</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">{method.desc}</p></div>
+                    {selectedPayment.id === method.id && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                   </div>
-                  {selectedPayment.id === method.id && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                ))
+              ) : (
+                <div className="space-y-3">
+                  {hasWithdrawalMethods ? (
+                    userData.withdrawalMethods.map((method: any, idx: number) => (
+                      <div 
+                        key={idx} 
+                        onClick={() => { setSelectedWithdrawalAccount(method); setIsPaymentSheetOpen(false); }} 
+                        className={cn(
+                          "p-5 rounded-2xl border-2 flex items-center justify-between transition-all cursor-pointer group", 
+                          selectedWithdrawalAccount?.id === method.id ? "border-primary bg-primary/5 shadow-lg" : "border-muted bg-card hover:border-primary/20"
+                        )}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 shadow-sm text-primary">
+                            <Landmark className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-black italic uppercase leading-none">{method.provider}</h4>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">{method.accountNumber} - {method.accountName}</p>
+                          </div>
+                        </div>
+                        {selectedWithdrawalAccount?.id === method.id && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-10 space-y-6">
+                      <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto opacity-20">
+                        <AlertCircle className="w-8 h-8" />
+                      </div>
+                      <p className="text-xs font-bold text-muted-foreground uppercase italic px-10">
+                        Anda belum mendaftarkan metode penerimaan (Bank/eWallet) di pengaturan profil Anda.
+                      </p>
+                      <Button onClick={() => router.push('/settings/wallet')} className="gold-gradient text-white rounded-xl h-12 px-8 font-black uppercase italic text-[10px]">
+                        <Plus className="w-4 h-4 mr-2" /> Tambah Metode Sekarang
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </SheetContent>
