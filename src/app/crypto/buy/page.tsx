@@ -26,7 +26,9 @@ import {
   ImageIcon,
   RefreshCw,
   Zap,
-  QrCode
+  QrCode,
+  ArrowDownLeft,
+  ArrowUpRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -123,12 +125,12 @@ export default function CryptoBuyPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedPayment.id === 'bank') {
+    if (selectedPayment.id === 'bank' && activeTab === 'beli') {
       setUniqueCode(Math.floor(100 + Math.random() * 899));
     } else {
       setUniqueCode(0);
     }
-  }, [selectedPayment]);
+  }, [selectedPayment, activeTab]);
 
   const exchangeRate = 15850; 
   
@@ -140,14 +142,18 @@ export default function CryptoBuyPage() {
     return Math.floor(baseAmountIdr + uniqueCode);
   }, [amount, uniqueCode, selectedCurrency]);
 
-  const estimatedReceive = useMemo(() => {
+  const estimatedCrypto = useMemo(() => {
     const cleanAmount = amount.replace(',', '.');
     const num = parseFloat(cleanAmount);
     if (isNaN(num) || num <= 0) return "0";
     const amountInUsd = selectedCurrency.code === 'USD' ? num : num / exchangeRate;
-    const priceWithMarkup = selectedAsset.isNative ? selectedAsset.priceUsd : selectedAsset.priceUsd * 1.02;
+    
+    // Markup 2% untuk platform fee saat beli
+    const markup = activeTab === 'beli' ? (selectedAsset.isNative ? 1 : 1.02) : 1;
+    const priceWithMarkup = selectedAsset.priceUsd * markup;
+    
     return (amountInUsd / priceWithMarkup).toFixed(selectedAsset.symbol === 'BTC' ? 8 : 4);
-  }, [amount, selectedAsset, selectedCurrency]);
+  }, [amount, selectedAsset, selectedCurrency, activeTab]);
 
   const usdValue = useMemo(() => {
     const cleanAmount = amount.replace(',', '.');
@@ -172,44 +178,42 @@ export default function CryptoBuyPage() {
     setIsProcessing(true);
 
     try {
-      // 1. Upload Proof Image to Firebase Storage
       const fileName = `proof_${Date.now()}.jpg`;
       const storageRef = ref(storage, `payment_proofs/${user.uid}/${fileName}`);
       const uploadResult = await uploadBytes(storageRef, proofImage);
       const downloadUrl = await getDownloadURL(uploadResult.ref);
 
-      // 2. Create Topup Request in Firestore
       await addDoc(collection(db, "topup_requests"), {
         userId: user.uid,
         userName: userData?.name || "Nasabah AliBank",
         userEmail: user.email,
         amount: totalAmountIdr,
         asset: selectedAsset.symbol,
-        estimatedAsset: parseFloat(estimatedReceive),
+        estimatedAsset: parseFloat(estimatedCrypto),
         uniqueCode,
         totalToTransfer: totalAmountIdr,
         proofImage: downloadUrl,
         status: "pending",
+        type: activeTab,
         timestamp: serverTimestamp(),
         createdAt: new Date().toISOString()
       });
 
-      // 3. Create Global Audit Entry
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `TOPUP-REQ-${Date.now()}`,
-        category: "Manual Topup Request",
+        category: activeTab === 'beli' ? "Manual Topup Request" : "Manual Withdraw Request",
         gateway: "BCA Manual",
         amountIdr: totalAmountIdr,
-        description: `Pending top-up request from ${userData?.name}. Unique code: ${uniqueCode}`,
+        description: `Pending ${activeTab} request from ${userData?.name}. Unique code: ${uniqueCode}`,
         status: "pending_verification",
         timestamp: serverTimestamp(),
         userEmail: user.email
       });
 
       setStep('success');
-      toast({ title: "Bukti Terkirim", description: "Admin akan memverifikasi pembayaran Anda segera." });
+      toast({ title: "Permintaan Terkirim", description: "Admin akan memverifikasi transaksi Anda segera." });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Gagal Unggah", description: err.message });
+      toast({ variant: "destructive", title: "Gagal Proses", description: err.message });
     } finally {
       setIsProcessing(false);
     }
@@ -223,7 +227,7 @@ export default function CryptoBuyPage() {
 
     setIsProcessing(true);
     try {
-      const orderId = `ALI-TOPUP-${Date.now()}`;
+      const orderId = `ALI-TRADE-${activeTab.toUpperCase()}-${Date.now()}`;
       const { token } = await createMidtransSnapTokenAction(
         orderId,
         totalAmountIdr,
@@ -235,7 +239,7 @@ export default function CryptoBuyPage() {
       if (window.snap) {
         window.snap.pay(token, {
           onSuccess: async (result: any) => {
-            await finalizePurchase({ id: result.transaction_id, gateway: "Midtrans" });
+            await finalizeTransaction({ id: result.transaction_id, gateway: "Midtrans" });
           },
           onPending: (result: any) => {
             toast({ title: "Pembayaran Tertunda", description: "Silakan selesaikan pembayaran di aplikasi bank Anda." });
@@ -283,7 +287,7 @@ export default function CryptoBuyPage() {
           return actions.order.create({
             purchase_units: [{
               amount: { currency_code: "USD", value: usdValue },
-              description: `AliBank Purchase: ${estimatedReceive} ${selectedAsset.symbol}`
+              description: `AliBank ${activeTab.toUpperCase()}: ${estimatedCrypto} ${selectedAsset.symbol}`
             }]
           });
         },
@@ -292,7 +296,7 @@ export default function CryptoBuyPage() {
           try {
             const details = await actions.order.capture();
             if (details.status === 'COMPLETED') {
-              await finalizePurchase({ id: details.id, gateway: "PayPal" });
+              await finalizeTransaction({ id: details.id, gateway: "PayPal" });
             }
           } catch (err) {
             toast({ variant: "destructive", title: "Kliring Gagal" });
@@ -310,7 +314,7 @@ export default function CryptoBuyPage() {
       renderInProgress.current = false;
       setTimeout(renderPayPalButtons, 1000);
     }
-  }, [isCheckoutDialogOpen, selectedPayment.id, usdValue, estimatedReceive, selectedAsset.symbol, systemKeys?.paypalClientId, toast]);
+  }, [isCheckoutDialogOpen, selectedPayment.id, usdValue, estimatedCrypto, selectedAsset.symbol, systemKeys?.paypalClientId, toast, activeTab]);
 
   useEffect(() => {
     if (isCheckoutDialogOpen && paypalReady && selectedPayment.id === 'card') {
@@ -319,31 +323,75 @@ export default function CryptoBuyPage() {
     }
   }, [isCheckoutDialogOpen, selectedPayment.id, paypalReady, renderPayPalButtons]);
 
-  const finalizePurchase = async (paymentDetails: any) => {
+  const finalizeTransaction = async (paymentDetails: any) => {
     if (!user || !db || !userDocRef || !userData) return;
     setIsProcessing(true);
-    const numReceive = parseFloat(estimatedReceive);
-    const numPayIdr = totalAmountIdr;
+    
+    const cryptoAmount = parseFloat(estimatedCrypto);
+    const fiatAmountIdr = totalAmountIdr;
+
+    // VALIDASI SALDO UNTUK JUAL
+    if (activeTab === 'jual') {
+      const currentCryptoBal = userData.cryptoBalances?.[selectedAsset.symbol] || 0;
+      if (currentCryptoBal < cryptoAmount) {
+        toast({ variant: "destructive", title: "Saldo Aset Tidak Cukup" });
+        setIsProcessing(false);
+        return;
+      }
+    }
+
     try {
-      await updateDoc(userDocRef, { [`cryptoBalances.${selectedAsset.symbol}`]: increment(numReceive) });
+      const userUpdates: any = {};
+      const systemUpdates: any = {
+        totalUsdInjected: increment(activeTab === 'beli' ? parseFloat(usdValue) : -parseFloat(usdValue)),
+        totalFiatInjected: increment(activeTab === 'beli' ? fiatAmountIdr : -fiatAmountIdr)
+      };
+
+      if (activeTab === 'beli') {
+        userUpdates[`cryptoBalances.${selectedAsset.symbol}`] = increment(cryptoAmount);
+      } else {
+        userUpdates[`cryptoBalances.${selectedAsset.symbol}`] = increment(-cryptoAmount);
+        userUpdates.totalBalance = increment(fiatAmountIdr);
+        
+        // Kembalikan ALX ke brankas jika nasabah menjual
+        if (selectedAsset.symbol === 'ALX') {
+          systemUpdates.alixVaultBalance = increment(cryptoAmount);
+        }
+      }
+
+      await updateDoc(userDocRef, userUpdates);
       const sysRef = doc(db, "system", "liquidity");
-      await updateDoc(sysRef, { 
-        totalFiatInjected: increment(numPayIdr), 
-        totalUsdInjected: increment(parseFloat(usdValue)) 
-      });
+      await updateDoc(sysRef, systemUpdates);
+
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
-        id: `BUY-${paymentDetails.id || Date.now()}`,
-        category: "External Settlement",
+        id: `${activeTab.toUpperCase()}-${paymentDetails.id || Date.now()}`,
+        category: "Market Execution",
         gateway: paymentDetails.gateway || selectedPayment.name,
-        amountIdr: numPayIdr,
+        amountIdr: fiatAmountIdr,
+        cryptoAmount: cryptoAmount,
+        cryptoCurrency: selectedAsset.symbol,
         status: "success",
+        type: activeTab,
         timestamp: serverTimestamp(),
         userEmail: user.email
       });
+
+      await addDoc(collection(db, "users", user.uid, "transactions"), {
+        date: new Date().toISOString(),
+        description: `${activeTab === 'beli' ? 'Beli' : 'Jual'} ${selectedAsset.symbol} via ${selectedPayment.name}`,
+        category: "Trading",
+        amount: fiatAmountIdr,
+        cryptoAmount: cryptoAmount,
+        cryptoCurrency: selectedAsset.symbol,
+        type: activeTab === 'beli' ? 'expense' : 'income',
+        status: "success",
+        timestamp: serverTimestamp()
+      });
+
       setIsCheckoutDialogOpen(false);
       setStep('success');
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error Sync" });
+      toast({ variant: "destructive", title: "Sync Error", description: err.message });
     } finally {
       setIsProcessing(false);
     }
@@ -354,7 +402,11 @@ export default function CryptoBuyPage() {
     else if (amount.length < 12) setAmount(amount + num);
   };
 
-  if (!mounted) return null;
+  if (!mounted) return (
+    <div className="h-screen bg-background flex items-center justify-center">
+      <Loader2 className="animate-spin text-primary w-8 h-8" />
+    </div>
+  );
 
   if (step === 'success') {
     return (
@@ -362,20 +414,24 @@ export default function CryptoBuyPage() {
         <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mb-6">
           <CheckCircle2 className="w-10 h-10 text-green-600" />
         </div>
-        <h2 className="text-2xl font-black italic uppercase text-center mb-2">Permintaan Terkirim</h2>
-        <p className="text-xs text-muted-foreground text-center mb-8 italic uppercase tracking-widest">Menunggu konfirmasi node AliBank V3</p>
-        <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 space-y-4 mb-8 text-center">
-          <p className="text-[10px] font-black text-muted-foreground uppercase">Estimasi Diterima</p>
-          <p className="text-3xl font-black text-primary italic">{estimatedReceive} {selectedAsset.symbol}</p>
+        <h2 className="text-2xl font-black italic uppercase text-center mb-2">
+          {activeTab === 'beli' ? 'Pembelian Berhasil' : 'Penjualan Berhasil'}
+        </h2>
+        <p className="text-xs text-muted-foreground text-center mb-8 italic uppercase tracking-widest">Tervalidasi oleh Node AliBank V3</p>
+        <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 space-y-4 mb-8 text-center shadow-2xl">
+          <p className="text-[10px] font-black text-muted-foreground uppercase">
+            {activeTab === 'beli' ? 'Jumlah Diterima' : 'Jumlah Dicairkan'}
+          </p>
+          <p className="text-3xl font-black text-primary italic">
+            {activeTab === 'beli' ? `${estimatedCrypto} ${selectedAsset.symbol}` : `Rp ${totalAmountIdr.toLocaleString('id-ID')}`}
+          </p>
           <div className="pt-4 border-t border-primary/5">
             <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed">
-              {selectedPayment.id === 'bank' 
-                ? "Status: Sedang diverifikasi secara manual oleh Admin melalui bukti transfer."
-                : "Status: Pembayaran Terkonfirmasi secara otomatis."}
+              ID Transaksi: ALI-{activeTab.toUpperCase()}-{Date.now().toString().slice(-8)}
             </p>
           </div>
         </Card>
-        <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl" onClick={() => router.push('/')}>Kembali ke Beranda</Button>
+        <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl" onClick={() => router.push('/')}>Beranda</Button>
       </div>
     );
   }
@@ -407,9 +463,19 @@ export default function CryptoBuyPage() {
         <div className="space-y-6">
           <div className="bg-muted/60 p-1 rounded-full flex w-fit mx-auto mb-2">
             {['Beli', 'Jual', 'Convert'].map((tab) => (
-              <button key={tab} onClick={() => tab === 'Convert' ? router.push('/crypto/convert') : setActiveTab(tab.toLowerCase() as any)} className={cn("px-6 py-1.5 rounded-full text-xs font-black transition-all uppercase italic", activeTab === tab.toLowerCase() ? "bg-foreground text-background shadow-md" : "text-muted-foreground")}>{tab}</button>
+              <button 
+                key={tab} 
+                onClick={() => tab === 'Convert' ? router.push('/crypto/convert') : setActiveTab(tab.toLowerCase() as any)} 
+                className={cn(
+                  "px-8 py-1.5 rounded-full text-xs font-black transition-all uppercase italic", 
+                  activeTab === tab.toLowerCase() ? "bg-background text-foreground shadow-md" : "text-muted-foreground"
+                )}
+              >
+                {tab}
+              </button>
             ))}
           </div>
+
           <div className="flex flex-col items-center justify-center space-y-2">
             <div className="flex items-center gap-2">
               <span className={cn("text-6xl font-black tracking-tighter italic", amount === "0" ? "text-muted-foreground/20" : "text-foreground")}>{amount}</span>
@@ -420,7 +486,7 @@ export default function CryptoBuyPage() {
             </div>
             <div className="flex items-center gap-2 text-muted-foreground font-bold italic">
               <ArrowUpDown className="w-3.5 h-3.5 text-primary" />
-              <span className="text-xs">{estimatedReceive} {selectedAsset.symbol}</span>
+              <span className="text-xs">{estimatedCrypto} {selectedAsset.symbol}</span>
             </div>
           </div>
 
@@ -428,16 +494,20 @@ export default function CryptoBuyPage() {
             <div className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" onClick={() => setIsAssetSheetOpen(true)}>
               <div className="flex items-center gap-4">
                 <div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2", selectedAsset.isNative ? "gold-gradient" : "bg-teal-600")}>{selectedAsset.isNative ? <LogoIcon className="text-white" /> : <div className="w-full h-full bg-white/20 rounded-full flex items-center justify-center font-black text-white text-[10px]">{selectedAsset.symbol[0]}</div>}</div>
-                <div><p className="text-xs font-black italic">Beli</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-600 text-[7px] font-black h-4 px-1.5 border-none uppercase">Premium Node</Badge></div></div>
+                <div><p className="text-xs font-black italic">{activeTab === 'beli' ? 'Beli' : 'Jual'}</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-600 text-[7px] font-black h-4 px-1.5 border-none uppercase">Premium Node</Badge></div></div>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
             </div>
+            
             <div className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" onClick={() => setIsPaymentSheetOpen(true)}>
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 shadow-sm text-primary">
                   <selectedPayment.icon className="w-5 h-5" />
                 </div>
-                <div><p className="text-xs font-black italic">Metode pembayaran</p><p className="text-[10px] font-bold text-muted-foreground uppercase">{selectedPayment.name}</p></div>
+                <div>
+                  <p className="text-xs font-black italic">{activeTab === 'beli' ? 'Metode pembayaran' : 'Metode penerimaan'}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase">{selectedPayment.name}</p>
+                </div>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
             </div>
@@ -445,14 +515,19 @@ export default function CryptoBuyPage() {
         </div>
 
         <div className="pb-10 space-y-6">
-          <Button disabled={amount === "0" || isProcessing} onClick={() => setIsCheckoutDialogOpen(true)} className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest transition-all">
-            {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : "LANJUTKAN KE PEMBAYARAN"}
+          <Button 
+            disabled={amount === "0" || isProcessing} 
+            onClick={() => setIsCheckoutDialogOpen(true)} 
+            className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest transition-all"
+          >
+            {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (activeTab === 'beli' ? 'LANJUTKAN KE PEMBAYARAN' : 'LANJUTKAN PENJUALAN')}
           </Button>
+          
           <div className="grid grid-cols-3 gap-y-1">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (<button key={n} onClick={() => handleKeyPress(n.toString())} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">{n}</button>))}
             <button onClick={() => setAmount(prev => prev.includes(',') ? prev : prev + ',')} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">,</button>
             <button onClick={() => handleKeyPress("0")} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">0</button>
-            <button onClick={() => setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : "0")} className="flex items-center justify-center active:bg-muted py-3 transition-colors"><Delete className="w-7 h-7" /></button>
+            <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-3 transition-colors"><Delete className="w-7 h-7" /></button>
           </div>
         </div>
       </main>
@@ -464,11 +539,15 @@ export default function CryptoBuyPage() {
             <DialogHeader className="text-center space-y-2">
               <div className="w-12 h-12 rounded-2xl gold-gradient mx-auto flex items-center justify-center shadow-xl p-2.5 mb-2"><LogoIcon className="text-white" /></div>
               <DialogTitle className="text-xl font-black italic uppercase tracking-tight">ALIBANK SECURE GATEWAY</DialogTitle>
-              <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Penyelesaian Dana Riil - {selectedPayment.name}</DialogDescription>
+              <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                Konfirmasi {activeTab === 'beli' ? 'Pembelian' : 'Penjualan'} - {selectedPayment.name}
+              </DialogDescription>
             </DialogHeader>
 
             <div className="bg-muted/50 rounded-[2rem] p-6 text-center space-y-2 border border-border">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Bayar</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                {activeTab === 'beli' ? 'Total Bayar' : 'Total Dicairkan'}
+              </p>
               <h3 className="text-3xl font-black italic text-foreground">Rp {totalAmountIdr.toLocaleString('id-ID')}</h3>
               <p className="text-[10px] font-black text-primary uppercase">≈ $ {usdValue}</p>
             </div>
@@ -478,10 +557,12 @@ export default function CryptoBuyPage() {
                 <div className="animate-in fade-in zoom-in duration-500 space-y-6">
                   <div className="p-6 rounded-[1.5rem] bg-accent/5 border border-primary/20 flex flex-col items-center gap-4">
                     <QrCode className="w-32 h-32 text-primary opacity-40" />
-                    <p className="text-[10px] font-bold text-muted-foreground text-center uppercase italic">Gunakan Virtual Account atau QRIS untuk penyelesaian instan.</p>
+                    <p className="text-[10px] font-bold text-muted-foreground text-center uppercase italic">
+                      Gunakan Virtual Account atau QRIS untuk penyelesaian {activeTab === 'beli' ? 'pembayaran' : 'penerimaan'} instan.
+                    </p>
                   </div>
                   <Button onClick={handleMidtransPayment} disabled={isProcessing || !midtransReady} className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl">
-                    {isProcessing ? <Loader2 className="animate-spin" /> : "BAYAR SEKARANG"}
+                    {isProcessing ? <Loader2 className="animate-spin" /> : "KONFIRMASI SEKARANG"}
                   </Button>
                 </div>
               ) : selectedPayment.id === 'card' ? (
@@ -499,7 +580,7 @@ export default function CryptoBuyPage() {
                 <div className="animate-in fade-in duration-500 space-y-6">
                   <div className="p-6 rounded-[1.5rem] bg-muted/50 border border-border space-y-4">
                     <div className="space-y-1">
-                      <p className="text-[8px] font-black text-muted-foreground uppercase italic">Bank Tujuan (BCA)</p>
+                      <p className="text-[8px] font-black text-muted-foreground uppercase italic">Bank AliBank Center (BCA)</p>
                       <div className="flex justify-between items-center">
                         <span className="text-base font-black italic uppercase">8829 4410 0021</span>
                         <Copy className="w-4 h-4 text-primary cursor-pointer active:scale-90" onClick={() => { navigator.clipboard.writeText("882944100021"); toast({title: "Rekening Disalin"}); }} />
@@ -508,16 +589,18 @@ export default function CryptoBuyPage() {
                     </div>
                     <div className="h-px bg-border" />
                     <div className="space-y-1">
-                      <p className="text-[8px] font-black text-muted-foreground uppercase italic">Jumlah Wajib (Termasuk Kode Unik)</p>
+                      <p className="text-[8px] font-black text-muted-foreground uppercase italic">
+                        {activeTab === 'beli' ? 'Jumlah Wajib Transfer' : 'Estimasi Dana Diterima'}
+                      </p>
                       <div className="flex justify-between items-center">
                         <span className="text-lg font-black text-primary italic">Rp {totalAmountIdr.toLocaleString('id-ID')}</span>
-                        <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">UNIK: {uniqueCode}</Badge>
+                        {activeTab === 'beli' && <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">KODE: {uniqueCode}</Badge>}
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-3">
-                    <p className="text-[10px] font-black uppercase italic text-muted-foreground ml-1">Unggah Bukti Transfer</p>
+                    <p className="text-[10px] font-black uppercase italic text-muted-foreground ml-1">Unggah Bukti {activeTab === 'beli' ? 'Transfer' : 'Penerimaan'}</p>
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
                     <div 
                       onClick={() => fileInputRef.current?.click()}
@@ -542,14 +625,14 @@ export default function CryptoBuyPage() {
                     disabled={isProcessing || !proofImage} 
                     className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl"
                   >
-                    {isProcessing ? <Loader2 className="animate-spin" /> : "KONFIRMASI PEMBAYARAN"}
+                    {isProcessing ? <Loader2 className="animate-spin" /> : "KONFIRMASI TRANSAKSI"}
                   </Button>
                 </div>
               )}
               
               <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
                 <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0" />
-                <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">Transaksi ini diproses melalui node keamanan SSL terenkripsi AliBank V3.</p>
+                <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">Node keamanan SSL AliBank V3 melindungi transaksi {activeTab} Anda.</p>
               </div>
             </div>
           </div>
@@ -560,7 +643,7 @@ export default function CryptoBuyPage() {
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
           <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
           <div className="px-6 space-y-6">
-            <SheetHeader><SheetTitle className="text-xl font-black italic uppercase tracking-tight">Pilih Koin</SheetTitle></SheetHeader>
+            <SheetHeader><SheetTitle className="text-xl font-black italic uppercase tracking-tight">Pilih Aset</SheetTitle></SheetHeader>
             <div className="space-y-2">
               {ASSETS.map((asset) => (
                 <div key={asset.symbol} onClick={() => { setSelectedAsset(asset); setIsAssetSheetOpen(false); }} className={cn("p-5 rounded-2xl border-2 flex items-center justify-between transition-all cursor-pointer", selectedAsset.symbol === asset.symbol ? "border-primary bg-primary/5" : "border-muted bg-card hover:border-primary/10")}>
@@ -580,7 +663,9 @@ export default function CryptoBuyPage() {
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
           <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
           <div className="px-6 space-y-3">
-            <SheetHeader><SheetTitle className="text-xl font-black italic uppercase tracking-tight">Metode Pembayaran</SheetTitle></SheetHeader>
+            <SheetHeader><SheetTitle className="text-xl font-black italic uppercase tracking-tight">
+              {activeTab === 'beli' ? 'Metode Pembayaran' : 'Metode Penerimaan'}
+            </SheetTitle></SheetHeader>
             <div className="space-y-3">
               {PAYMENT_METHODS.map((method) => (
                 <div key={method.id} onClick={() => { setSelectedPayment(method as any); setIsPaymentSheetOpen(false); }} className={cn("p-5 rounded-2xl border-2 flex items-center justify-between transition-all cursor-pointer group", selectedPayment.id === method.id ? "border-primary bg-primary/5 shadow-lg" : "border-muted bg-card hover:border-primary/20")}>
