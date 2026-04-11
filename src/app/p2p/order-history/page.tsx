@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -21,13 +20,15 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, limit } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 export default function OrderHistoryPage() {
   const router = useRouter();
   const { user } = useUser();
   const db = useFirestore();
+  const { toast } = useToast();
   const [activeFilter, setActiveFilter] = useState("Semua");
 
   const filters = ["Semua", "Selesai", "Dibatalkan", "Diproses"];
