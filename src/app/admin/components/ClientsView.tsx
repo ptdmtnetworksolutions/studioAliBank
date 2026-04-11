@@ -19,7 +19,16 @@ import {
   Plus, 
   Minus, 
   Loader2,
-  User 
+  User,
+  FileText,
+  MapPin,
+  Hash,
+  Calendar,
+  ExternalLink,
+  Smartphone,
+  CheckCircle2,
+  AlertCircle,
+  Clock
 } from "lucide-react";
 import { 
   Dialog, 
@@ -46,6 +55,7 @@ import { sendPasswordResetEmail } from "firebase/auth";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 export function ClientsView({ allUsers }: any) {
   const db = useFirestore();
@@ -175,7 +185,7 @@ export function ClientsView({ allUsers }: any) {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl rounded-[3rem] p-0 bg-background border-none shadow-2xl overflow-hidden">
+        <DialogContent className="max-w-4xl rounded-[3rem] p-0 bg-background border-none shadow-2xl overflow-hidden overflow-y-auto max-h-[90vh] no-scrollbar">
           <DialogHeader className="sr-only">
             <DialogTitle>Profil Nasabah: {selectedUser?.name}</DialogTitle>
             <DialogDescription>Kelola parameter finansial, saldo koin ALX, dan pengaturan keamanan nasabah AliBank secara riil.</DialogDescription>
@@ -196,12 +206,21 @@ export function ClientsView({ allUsers }: any) {
                 <h2 className="text-2xl font-black italic uppercase tracking-tighter">{selectedUser?.name}</h2>
                 <p className="text-[10px] font-bold text-muted-foreground uppercase">{selectedUser?.email}</p>
               </div>
-              <Badge className="bg-green-500 text-white font-black italic text-[8px] px-3 h-6 uppercase">Active Session</Badge>
+              <div className="flex gap-2">
+                <Badge className={cn(
+                  "font-black italic text-[8px] px-3 h-6 uppercase",
+                  selectedUser?.kycStatus === 'verified' ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"
+                )}>
+                  {selectedUser?.kycStatus === 'verified' ? 'Verified Client' : 'Standard User'}
+                </Badge>
+                <Badge className="bg-muted text-foreground font-black italic text-[8px] px-3 h-6 uppercase">Active Session</Badge>
+              </div>
             </header>
 
             <Tabs defaultValue="finance" className="space-y-6">
               <TabsList className="bg-muted/50 p-1 rounded-2xl h-12 w-full justify-start gap-2 border border-border">
                 <TabsTrigger value="finance" className="rounded-xl px-6 font-black uppercase text-[10px] italic">Financials</TabsTrigger>
+                <TabsTrigger value="kyc" className="rounded-xl px-6 font-black uppercase text-[10px] italic">KYC Data</TabsTrigger>
                 <TabsTrigger value="wallets" className="rounded-xl px-6 font-black uppercase text-[10px] italic">Wallets</TabsTrigger>
                 <TabsTrigger value="security" className="rounded-xl px-6 font-black uppercase text-[10px] italic">Security</TabsTrigger>
               </TabsList>
@@ -233,6 +252,76 @@ export function ClientsView({ allUsers }: any) {
                 </div>
               </TabsContent>
 
+              <TabsContent value="kyc" className="space-y-8 animate-in fade-in duration-300">
+                {selectedUser?.kycData ? (
+                  <div className="space-y-10">
+                    <section className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-black uppercase italic tracking-widest text-primary flex items-center gap-2">
+                          <FileText className="w-4 h-4" /> Identity Details
+                        </h3>
+                        <Badge className={cn(
+                          "text-[8px] font-black uppercase px-2 h-5 border-none",
+                          selectedUser.kycStatus === 'verified' ? "bg-green-500/10 text-green-600" : "bg-amber-500/10 text-amber-600"
+                        )}>
+                          Status: {selectedUser.kycStatus}
+                        </Badge>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <KycDetail icon={Hash} label="NIK" value={selectedUser.kycData.idNumber} isMono />
+                        <KycDetail icon={User} label="Nama Lengkap" value={selectedUser.kycData.nama} />
+                        <KycDetail icon={Calendar} label="Tempat/Tgl Lahir" value={selectedUser.kycData.tempatTglLahir} />
+                        <KycDetail icon={ShieldCheck} label="Jenis Kelamin" value={selectedUser.kycData.jenisKelamin} />
+                        <KycDetail icon={MapPin} label="Alamat KTP" value={selectedUser.kycData.alamat} />
+                        <KycDetail icon={FileText} label="RT/RW" value={selectedUser.kycData.rtRw} />
+                        <KycDetail icon={MapPin} label="Kel/Desa" value={selectedUser.kycData.kelDesa} />
+                        <KycDetail icon={MapPin} label="Kecamatan" value={selectedUser.kycData.kecamatan} />
+                        <KycDetail icon={ShieldCheck} label="Agama" value={selectedUser.kycData.agama} />
+                        <KycDetail icon={User} label="Status Perkawinan" value={selectedUser.kycData.statusPerkawinan} />
+                        <KycDetail icon={Briefcase} label="Pekerjaan" value={selectedUser.kycData.pekerjaan} />
+                        <KycDetail icon={Globe} label="Kewarganegaraan" value={selectedUser.kycData.kewarganegaraan} />
+                        <KycDetail icon={Clock} label="Berlaku Hingga" value={selectedUser.kycData.berlakuHingga} />
+                        <KycDetail icon={MapPin} label="Provinsi" value={selectedUser.kycData.province} />
+                        <KycDetail icon={Hash} label="Kode Pos" value={selectedUser.kycData.postalCode} />
+                        <KycDetail icon={Smartphone} label="WhatsApp" value={selectedUser.kycData.whatsapp} />
+                      </div>
+                    </section>
+
+                    <section className="space-y-6">
+                      <h3 className="text-sm font-black uppercase italic tracking-widest text-primary flex items-center gap-2">
+                        <ExternalLink className="w-4 h-4" /> Submitted Documents
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <p className="text-[9px] font-black uppercase text-muted-foreground ml-1">KTP / ID Card Front</p>
+                          <div className="rounded-[2.5rem] overflow-hidden border border-border aspect-[1.6/1] bg-muted relative group">
+                            {selectedUser.kycData.idCardUrl && <img src={selectedUser.kycData.idCardUrl} alt="ID" className="w-full h-full object-cover" />}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <a href={selectedUser.kycData.idCardUrl} target="_blank" className="p-3 bg-white rounded-full text-black shadow-xl"><ExternalLink className="w-5 h-5" /></a>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-[9px] font-black uppercase text-muted-foreground ml-1">Live Biometric Selfie</p>
+                          <div className="rounded-[2.5rem] overflow-hidden border border-border aspect-[1.6/1] bg-muted relative group">
+                            {selectedUser.kycData.selfieUrl && <img src={selectedUser.kycData.selfieUrl} alt="Selfie" className="w-full h-full object-cover" />}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <a href={selectedUser.kycData.selfieUrl} target="_blank" className="p-3 bg-white rounded-full text-black shadow-xl"><ExternalLink className="w-5 h-5" /></a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                ) : (
+                  <div className="py-20 text-center space-y-4 opacity-20 italic">
+                    <ShieldCheck className="w-16 h-16 mx-auto" />
+                    <p className="text-sm font-black uppercase tracking-widest">Nasabah belum melengkapi proses KYC.</p>
+                  </div>
+                )}
+              </TabsContent>
+
               <TabsContent value="wallets" className="space-y-4 animate-in fade-in duration-300">
                 {userWallets.map((w, i) => (
                   <div key={i} className="p-4 rounded-xl bg-muted/30 border border-border flex justify-between items-center">
@@ -256,6 +345,21 @@ export function ClientsView({ allUsers }: any) {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function KycDetail({ icon: Icon, label, value, isMono = false }: any) {
+  return (
+    <div className="p-4 rounded-xl bg-muted/30 border border-border flex items-center gap-4 group hover:border-primary/30 transition-all">
+      <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center text-primary shadow-sm shrink-0"><Icon className="w-5 h-5" /></div>
+      <div className="min-w-0">
+        <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest leading-none mb-1">{label}</p>
+        <p className={cn(
+          "text-[10px] font-bold uppercase italic truncate",
+          isMono ? "font-mono text-accent" : "text-foreground"
+        )}>{value || "---"}</p>
+      </div>
     </div>
   );
 }
