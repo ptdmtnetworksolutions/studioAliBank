@@ -183,18 +183,18 @@ export default function ProfilePage() {
 
           <div className="grid grid-cols-4 gap-y-8">
             {[
-              { name: "P2P", icon: Users, color: "text-yellow-500" },
-              { name: "Alpha", icon: Smile, color: "text-yellow-500", isSpecial: true },
-              { name: "Hub Reward", icon: Ticket, color: "text-white" },
-              { name: "Konversi", icon: Maximize, color: "text-yellow-500", rotate: 45 },
-              { name: "WOTD", icon: LayoutGrid, color: "text-yellow-500" },
-              { name: "Margin", icon: ArrowRightLeft, color: "text-white", rotate: -45 },
-              { name: "Acara Alpha", icon: CalendarDays, color: "text-yellow-500", hasBadge: true },
-              { name: "Lainnya", icon: LayoutGrid, color: "text-white" },
+              { name: "P2P", icon: Users, color: "text-yellow-500", href: "/p2p/order-history" },
+              { name: "Alpha", icon: Smile, color: "text-yellow-500", isAlpha: true, href: "/alpha" },
+              { name: "Hub Reward", icon: Ticket, color: "text-white", href: "#" },
+              { name: "Konversi", icon: Maximize, color: "text-yellow-500", rotate: 45, href: "/crypto/convert" },
+              { name: "WOTD", icon: LayoutGrid, color: "text-yellow-500", href: "#" },
+              { name: "Margin", icon: ArrowRightLeft, color: "text-white", rotate: -45, href: "/crypto/trade/futures" },
+              { name: "Acara Alpha", icon: CalendarDays, color: "text-yellow-500", hasBadge: true, href: "/alpha" },
+              { name: "Lainnya", icon: LayoutGrid, color: "text-white", href: "/marketplace" },
             ].map((item, idx) => (
-              <div key={idx} className="flex flex-col items-center gap-3 cursor-pointer group active:scale-95 transition-transform">
+              <div key={idx} className="flex flex-col items-center gap-3 cursor-pointer group active:scale-95 transition-transform" onClick={() => item.href !== "#" && router.push(item.href)}>
                 <div className="relative">
-                  {item.isSpecial ? (
+                  {item.isAlpha ? (
                     <div className="w-6 h-6 rounded-full border-2 border-yellow-500 flex items-center justify-center p-0.5">
                       <div className="w-full h-full rounded-full bg-yellow-500 flex items-center justify-center text-background font-black text-[10px]">α</div>
                     </div>

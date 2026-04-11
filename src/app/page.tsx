@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
@@ -671,16 +672,16 @@ function DashboardContent() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer group active:scale-[0.98] transition-transform" onClick={() => router.push('/crypto/market/alx')}>
+              <div className="bg-card rounded-2xl p-4 border border-border shadow-sm h-40 flex flex-col justify-between cursor-pointer group active:scale-[0.98] transition-transform" onClick={() => router.push('/alpha')}>
                 <div className="flex justify-between items-center">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <LogoIcon className="text-primary p-1 w-6 h-6" />
+                  <div className="w-10 h-10 rounded-full gold-gradient flex items-center justify-center p-2 shadow-lg">
+                    <div className="w-full h-full rounded-full border-2 border-white/20 flex items-center justify-center font-black text-[10px] text-white">α</div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:translate-x-1 transition-transform" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-foreground leading-tight italic">Terminal ALX</h4>
-                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-tight italic">Utilitas & Membership</p>
+                  <h4 className="text-sm font-black text-foreground leading-tight italic uppercase tracking-tighter">Alpha Hub</h4>
+                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-tight italic">Intelligence & Copy Trading</p>
                 </div>
               </div>
 
@@ -890,7 +891,7 @@ function DashboardContent() {
 
             <div className="grid grid-cols-5 gap-4">
               {[
-                { name: "Alpha", icon: CalendarDays, href: "/crypto/market/btc" },
+                { name: "Alpha", icon: CalendarDays, href: "/alpha" },
                 { name: "Sekuritas", icon: TrendingUp, href: "/crypto" },
                 { name: "Earn", icon: Briefcase, href: "/deposits" },
                 { name: "Referral", icon: UserPlus, href: "/profile" },
