@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// ALIBANK SECURE STORAGE RULES V1.0
+// ALIBANK SECURE STORAGE RULES V1.1 - PRODUCTION READY
 // Melindungi bukti transfer dan identitas nasabah secara mutlak.
 
 service firebase.storage {
@@ -18,23 +18,26 @@ service firebase.storage {
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.email == 'alidzulfikar075@gmail.com' || 
+        request.auth.token.email == 'dzulfikaraliridlo@gmail.com' ||
         request.auth.uid == 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2'
       );
     }
 
     // --- Aturan Folder Bukti Pembayaran ---
     match /payment_proofs/{userId}/{allPaths=**} {
-      // Nasabah hanya bisa mengunggah dan melihat bukti miliknya sendiri
-      allow read, write: if isOwner(userId);
-      // Admin punya hak akses penuh untuk verifikasi manual
-      allow read, write: if isAdmin();
+      allow read, write: if isOwner(userId) || isAdmin();
     }
 
     // --- Aturan Folder Avatar ---
     match /avatars/{userId}/{allPaths=**} {
-      // Foto profil bisa dilihat semua nasabah yang login tapi hanya bisa diubah pemilik
       allow read: if isSignedIn();
       allow write: if isOwner(userId) || isAdmin();
+    }
+
+    // --- Aturan Folder Dokumen KYC ---
+    match /kyc_documents/{userId}/{allPaths=**} {
+      // Izinkan nasabah mengunggah identitas mereka sendiri
+      allow read, write: if isOwner(userId) || isAdmin();
     }
     
     // Blokir akses publik tanpa otentikasi ke seluruh bucket

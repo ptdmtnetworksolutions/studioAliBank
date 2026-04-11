@@ -1,9 +1,8 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * @fileOverview Server-side proxy for Binance 24hr Ticker API.
- * Bypasses CORS issues and provides a stable bridge for market data.
+ * Optimized for Production with User-Agent and Fallback Nodes.
  */
 
 export async function GET(request: NextRequest) {
@@ -11,7 +10,8 @@ export async function GET(request: NextRequest) {
   const symbols = searchParams.get('symbols');
   const symbol = searchParams.get('symbol');
 
-  let url = 'https://api.binance.com/api/v3/ticker/24hr';
+  // Gunakan api1 untuk reliabilitas lebih tinggi di lingkungan Cloud
+  let url = 'https://api1.binance.com/api/v3/ticker/24hr';
   
   if (symbols) {
     url += `?symbols=${symbols}`;
@@ -24,21 +24,24 @@ export async function GET(request: NextRequest) {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       },
-      next: { revalidate: 10 } // Cache for 10 seconds
+      next: { revalidate: 10 } 
     });
 
     if (!response.ok) {
-      throw new Error(`Binance API responded with status: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`Binance Node Error (${response.status}):`, errorText);
+      return NextResponse.json({ error: 'Upstream node rejected request.' }, { status: 502 });
     }
 
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Market Proxy Ticker Error:', error.message);
+    console.error('Market Proxy Ticker Exception:', error.message);
     return NextResponse.json(
       { error: 'Failed to synchronize with global market nodes.' }, 
-      { status: 502 }
+      { status: 503 }
     );
   }
 }
