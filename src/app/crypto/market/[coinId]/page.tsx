@@ -34,7 +34,12 @@ import {
   Trophy,
   Loader2,
   RefreshCw,
-  Clock
+  Clock,
+  Crown,
+  Coins,
+  History as HistoryIcon,
+  ExternalLink,
+  ShieldAlert
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +59,7 @@ import {
 import { LogoIcon } from "@/components/ui/logo";
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { doc, collection, query, orderBy, limit } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 const MARKUP = 1.02; // AliBank 2% Profit Margin
 const USDT_IDR_RATE = 15850;
@@ -64,6 +70,7 @@ export default function MarketDetailPage() {
   const router = useRouter();
   const db = useFirestore();
   const { user } = useUser();
+  const { toast } = useToast();
   
   const [activeTab, setActiveTab] = useState("Harga");
   const [subTab, setSubTab] = useState("Book");
@@ -108,10 +115,8 @@ export default function MarketDetailPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // AliBank Autonomous Market Engine (AME) - SYNC NODE VIA PROXY
   const fetchMarketData = useCallback(async () => {
     if (isAlix) {
-      // ALX Price Logic: From Admin Liquidty + Small fluctuation
       const base = globalLiquidity?.lastAlxPriceUsdt || 12.24;
       const noise = (Math.random() * 0.002 - 0.001);
       setLivePrice(base + noise);
@@ -132,7 +137,6 @@ export default function MarketDetailPage() {
       const interval = intervalMap[timeframe] || "15m";
       const binanceSymbol = symbol === 'USDT' ? 'USDTIDR' : `${symbol}USDT`;
 
-      // 1. Fetch Ticker via Proxy
       const tickerRes = await fetch(`/api/market/ticker?symbol=${binanceSymbol}`);
       if (!tickerRes.ok) throw new Error('Ticker fetch failed via Proxy');
       const ticker = await tickerRes.json();
@@ -148,7 +152,6 @@ export default function MarketDetailPage() {
         setVolume24h(parseFloat(ticker.quoteVolume) || 0);
       }
 
-      // 2. Fetch Klines via Proxy
       const klineRes = await fetch(`/api/market/klines?symbol=${binanceSymbol}&interval=${interval}&limit=60`);
       if (!klineRes.ok) throw new Error('Klines fetch failed via Proxy');
       const klines = await klineRes.json();
@@ -184,7 +187,6 @@ export default function MarketDetailPage() {
     return () => clearInterval(interval);
   }, [fetchMarketData]);
 
-  // DYNAMIC PRICE LOGIC
   const currentPrice = useMemo(() => {
     if (isAlix) {
       if (realTrades && realTrades.length > 0) return realTrades[realTrades.length - 1].price || 12.24;
@@ -196,7 +198,6 @@ export default function MarketDetailPage() {
   const chartData = useMemo(() => {
     if (!isAlix) return candlestickData;
     
-    // Build ALX Chart from real trades in Firestore + Mock filler for visual
     if (!realTrades || realTrades.length === 0) {
       const base = globalLiquidity?.lastAlxPriceUsdt || 12.24;
       return Array.from({ length: 40 }, (_, i) => {
@@ -223,7 +224,6 @@ export default function MarketDetailPage() {
     
     const basePrice = currentPrice;
     const vaultInventory = Math.abs(globalLiquidity?.alixVaultBalance || 1000000);
-    
     const step = basePrice * 0.0002; 
     
     setOrderBook({
@@ -289,7 +289,7 @@ export default function MarketDetailPage() {
       </div>
 
       <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
-        {activeTab === "Harga" ? (
+        {activeTab === "Harga" && (
           <>
             <section className="px-6 pt-6 grid grid-cols-2 gap-4">
               <div className="space-y-1">
@@ -404,51 +404,216 @@ export default function MarketDetailPage() {
               </div>
 
               <div className="px-6 py-4 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-[8px] font-black text-muted-foreground uppercase mb-2">Liquidity Bids (Real)</p>
-                    {orderBook.bids.map((bid, i) => (
-                      <div key={i} className="flex justify-between items-center relative h-5 px-1 group">
-                        <div className="absolute right-0 top-0 bottom-0 bg-green-500/5 group-hover:bg-green-500/10 transition-colors" style={{ width: `${bid.depth}%` }} />
-                        <span className="text-[10px] font-bold text-foreground relative z-10">{bid.amount}</span>
-                        <span className="text-[10px] font-black text-green-500 relative z-10">{bid.price}</span>
-                      </div>
-                    ))}
+                {subTab === "Book" && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-muted-foreground uppercase mb-2">Liquidity Bids (Real)</p>
+                      {orderBook.bids.map((bid, i) => (
+                        <div key={i} className="flex justify-between items-center relative h-5 px-1 group">
+                          <div className="absolute right-0 top-0 bottom-0 bg-green-500/5 group-hover:bg-green-500/10 transition-colors" style={{ width: `${bid.depth}%` }} />
+                          <span className="text-[10px] font-bold text-foreground relative z-10">{bid.amount}</span>
+                          <span className="text-[10px] font-black text-green-500 relative z-10">{bid.price}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-muted-foreground uppercase mb-2">Liquidity Asks (Real)</p>
+                      {orderBook.asks.map((ask, i) => (
+                        <div key={i} className="flex justify-between items-center relative h-5 px-1 group">
+                          <div className="absolute left-0 top-0 bottom-0 bg-rose-500/5 group-hover:bg-rose-500/10 transition-colors" style={{ width: `${ask.depth}%` }} />
+                          <span className="text-[10px] font-black text-rose-500 relative z-10">{ask.price}</span>
+                          <span className="text-[10px] font-bold text-foreground relative z-10">{ask.amount}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[8px] font-black text-muted-foreground uppercase mb-2">Liquidity Asks (Real)</p>
-                    {orderBook.asks.map((ask, i) => (
-                      <div key={i} className="flex justify-between items-center relative h-5 px-1 group">
-                        <div className="absolute left-0 top-0 bottom-0 bg-rose-500/5 group-hover:bg-rose-500/10 transition-colors" style={{ width: `${ask.depth}%` }} />
-                        <span className="text-[10px] font-black text-rose-500 relative z-10">{ask.price}</span>
-                        <span className="text-[10px] font-bold text-foreground relative z-10">{ask.amount}</span>
+                )}
+                {subTab === "Perdagangan" && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-3 text-[8px] font-black text-muted-foreground uppercase px-1">
+                      <span>Waktu</span>
+                      <span className="text-center">Harga(USDT)</span>
+                      <span className="text-right">Jumlah(ALX)</span>
+                    </div>
+                    {(realTrades || []).slice(-10).reverse().map((t, i) => (
+                      <div key={i} className="grid grid-cols-3 text-[10px] font-bold italic">
+                        <span className="text-muted-foreground">{t.timestamp?.toDate ? t.timestamp.toDate().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'}) : '---'}</span>
+                        <span className={cn("text-center font-black", Math.random() > 0.5 ? "text-green-500" : "text-rose-500")}>{t.price?.toFixed(4) || '12.2400'}</span>
+                        <span className="text-right text-foreground">{t.amount?.toFixed(2) || '100.00'}</span>
                       </div>
                     ))}
+                    {(!realTrades || realTrades.length === 0) && (
+                      <div className="py-10 text-center opacity-20 italic">Belum ada riwayat perdagangan global hari ini.</div>
+                    )}
+                  </div>
+                )}
+                {subTab === "Jaringan" && (
+                  <div className="space-y-4 pt-2">
+                    <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/30 border border-border">
+                      <Activity className="w-8 h-8 text-primary" />
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-muted-foreground">Node Performance</p>
+                        <p className="text-sm font-black italic">14,250 TPS <span className="text-[8px] text-green-500 ml-2">HEALTHY</span></p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-4 rounded-xl bg-muted/20 space-y-1">
+                        <p className="text-[8px] font-black uppercase text-muted-foreground">Total Konfirmasi</p>
+                        <p className="text-xs font-black italic">1,248,992 Blocks</p>
+                      </div>
+                      <div className="p-4 rounded-xl bg-muted/20 space-y-1">
+                        <p className="text-[8px] font-black uppercase text-muted-foreground">Gas Price</p>
+                        <p className="text-xs font-black italic text-primary">0.000001 ALX</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          </>
+        )}
+
+        {activeTab === "Info" && (
+          <div className="px-6 pt-8 space-y-10 animate-in slide-in-from-right-10 duration-500">
+            <header className="flex flex-col items-center text-center space-y-4">
+              <div className="w-20 h-20 gold-gradient rounded-[2rem] flex items-center justify-center p-5 shadow-2xl">
+                <LogoIcon className="text-white" />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-2xl font-black italic uppercase tracking-tighter">Alix Coin (ALX)</h2>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-widest bg-primary/10 px-3 py-1 rounded-full w-fit mx-auto">Aset Berdaulat AliBank V3</p>
+              </div>
+            </header>
+
+            <section className="space-y-4">
+              <h3 className="text-sm font-black uppercase italic tracking-tight flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" /> Detail Fundamental
+              </h3>
+              <div className="grid grid-cols-1 gap-3">
+                <InfoRow label="Nama Aset" value="Alix Token" />
+                <InfoRow label="Simbol" value="ALX" />
+                <InfoRow label="Harga Anchor" value={`$ ${globalLiquidity?.lastAlxPriceUsdt || '12.24'}`} />
+                <InfoRow label="Market Cap" value={`Rp ${(globalLiquidity?.totalInternalAumIdr * 1.5 || 25000000000).toLocaleString()}`} />
+                <InfoRow label="Total Suplai" value="1,000,000,000 ALX" />
+                <InfoRow label="Sirkulasi Riil" value={`${(globalLiquidity?.totalAlixSoldInternally || 1250000).toLocaleString()} ALX`} />
+                <div className="flex justify-between items-center py-3 border-b border-border/50">
+                  <span className="text-[10px] font-black uppercase text-muted-foreground">Kontrak Pintar</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold text-accent">0x8BAF...D1Dd</span>
+                    <Copy className="w-3 h-3 text-primary cursor-pointer" onClick={() => toast({title: "Disalin"})} />
                   </div>
                 </div>
               </div>
             </section>
-          </>
-        ) : (
-          <div className="py-20 text-center space-y-6">
-            <div className="w-20 h-20 gold-gradient rounded-[2rem] mx-auto flex items-center justify-center p-5 shadow-2xl">
-              <LogoIcon className="text-white" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-xl font-black italic uppercase tracking-tight text-primary">ALX Asset Detail</h3>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-10 leading-relaxed italic">
-                Aset berdaulat AliBank V3 yang didukung oleh cadangan kas riil dan sistem buyback otomatis.
+
+            <section className="space-y-4">
+              <h3 className="text-sm font-black uppercase italic tracking-tight flex items-center gap-2">
+                <Rocket className="w-4 h-4 text-primary" /> Visi Proyek
+              </h3>
+              <p className="text-[11px] font-medium text-muted-foreground leading-relaxed italic uppercase">
+                ALX bukan sekadar token spekulatif. Ini adalah unit nilai inti dalam ekosistem AliBank yang didukung oleh cadangan likuiditas riil (fiat dan kripto utama). Setiap koin ALX memberikan hak akses eksklusif ke infrastruktur perbankan Web3 kami yang aman dan otonom.
               </p>
+              <Button variant="outline" className="w-full h-12 rounded-xl border-primary/20 text-primary font-black uppercase italic text-xs">
+                Baca Whitepaper V3 <ExternalLink className="w-4 h-4 ml-2" />
+              </Button>
+            </section>
+          </div>
+        )}
+
+        {activeTab === "Utilitas" && (
+          <div className="px-6 pt-8 space-y-10 animate-in slide-in-from-right-10 duration-500">
+            <h2 className="text-2xl font-black italic uppercase tracking-tighter text-center">Ekosistem & Utilitas</h2>
+            
+            <div className="grid grid-cols-1 gap-6">
+              <UtilityBenefitCard 
+                icon={Crown} 
+                title="Tier Membership" 
+                desc="Hold ALX untuk menaikkan level akun. Platinum VIP (10k+ ALX) menikmati Bebas Biaya Transaksi selamanya."
+              />
+              <UtilityBenefitCard 
+                icon={Trophy} 
+                title="Staking Yield" 
+                desc="Kunci koin ALX Anda di Brankas untuk mendapatkan bagi hasil dari kolam keuntungan perdagangan harian AliBank."
+              />
+              <UtilityBenefitCard 
+                icon={Flame} 
+                title="Buyback & Burn" 
+                desc="20% dari seluruh biaya platform digunakan untuk membeli kembali ALX dari pasar dan membakarnya secara permanen."
+              />
+              <UtilityBenefitCard 
+                icon={ShieldCheck} 
+                title="Akses Infrastruktur" 
+                desc="Gunakan ALX untuk membayar biaya layanan khusus di Marketplace dan peluncuran program mini Anda sendiri."
+              />
             </div>
-            <div className="grid grid-cols-2 gap-4 px-6 pt-10">
-              <Card className="p-6 rounded-[2rem] bg-muted/30 border-none shadow-inner space-y-2">
-                <p className="text-[8px] font-black uppercase text-muted-foreground">Market Cap</p>
-                <p className="text-sm font-black italic">Rp {(globalLiquidity?.totalInternalAumIdr * 1.5 || 25000000000).toLocaleString()}</p>
-              </Card>
-              <Card className="p-6 rounded-[2rem] bg-muted/30 border-none shadow-inner space-y-2">
-                <p className="text-[8px] font-black uppercase text-muted-foreground">Circulating</p>
-                <p className="text-sm font-black italic">{(globalLiquidity?.totalAlixSoldInternally || 1250000).toLocaleString()} ALX</p>
-              </Card>
+
+            <Card className="liquid-glass-dark p-8 rounded-[2.5rem] border-none shadow-2xl relative overflow-hidden text-center space-y-4">
+              <div className="absolute inset-0 gold-gradient opacity-5" />
+              <Coins className="w-12 h-12 text-primary mx-auto relative z-10" />
+              <h4 className="text-lg font-black uppercase italic text-white relative z-10">Miliki Masa Depan</h4>
+              <p className="text-[10px] font-bold text-white/60 uppercase leading-relaxed italic relative z-10">
+                Pertumbuhan ALX berbanding lurus dengan volume transaksi di seluruh jaringan AliBank. Bergabunglah dengan 12,500+ pemegang koin awal hari ini.
+              </p>
+              <Button onClick={() => router.push('/crypto/convert')} className="w-full h-14 gold-gradient text-white rounded-2xl font-black italic uppercase text-xs shadow-xl relative z-10">
+                BELI ALX SEKARANG
+              </Button>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === "Trade-X" && (
+          <div className="px-6 pt-8 space-y-10 animate-in slide-in-from-right-10 duration-500">
+            <div className="text-center space-y-4">
+              <div className="w-20 h-20 bg-primary/10 rounded-full mx-auto flex items-center justify-center border-4 border-primary/20">
+                <Zap className="w-10 h-10 text-primary animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-2xl font-black italic uppercase tracking-tighter">Trade-X Terminal</h2>
+                <Badge className="bg-green-500 text-white border-none font-black text-[8px] uppercase px-3 h-5">90% Instant Yield</Badge>
+              </div>
+            </div>
+
+            <Card className="p-8 rounded-[2.5rem] bg-muted/30 border border-border shadow-inner space-y-6">
+              <div className="flex justify-between items-center border-b border-border pb-4">
+                <div className="flex items-center gap-3">
+                  <Target className="w-5 h-5 text-primary" />
+                  <span className="text-xs font-black uppercase italic">Prediksi Cepat</span>
+                </div>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase">5 Detik - 1 Menit</span>
+              </div>
+              
+              <div className="space-y-4">
+                <p className="text-[11px] font-medium text-muted-foreground leading-relaxed italic uppercase">
+                  Gunakan saldo ALX atau IDR Anda untuk memprediksi arah pasar dalam jangka pendek. Dapatkan keuntungan instan yang dibayarkan langsung dalam koin ALX.
+                </p>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-2xl bg-green-500/5 border border-green-500/10 text-center">
+                    <TrendingUp className="w-5 h-5 text-green-500 mx-auto mb-2" />
+                    <p className="text-[8px] font-black uppercase text-muted-foreground">High Profit</p>
+                    <p className="text-sm font-black italic text-green-600">Up to 90%</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-rose-500/5 border border-rose-500/10 text-center">
+                    <HistoryIcon className="w-5 h-5 text-rose-500 mx-auto mb-2" />
+                    <p className="text-[8px] font-black uppercase text-muted-foreground">Min Stake</p>
+                    <p className="text-sm font-black italic text-rose-600">Rp 10,000</p>
+                  </div>
+                </div>
+              </div>
+
+              <Button 
+                onClick={() => router.push('/crypto/trade-pro/alx')}
+                className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase text-sm shadow-xl tracking-widest group"
+              >
+                LUNCURKAN TERMINAL <Rocket className="w-5 h-5 ml-3 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+              </Button>
+            </Card>
+
+            <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex gap-4">
+              <ShieldAlert className="w-6 h-6 text-amber-500 shrink-0" />
+              <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+                Peringatan Risiko: Perdagangan Trade-X melibatkan spekulasi harga jangka pendek yang tinggi. Pastikan Anda hanya menggunakan dana dingin untuk fitur ini.
+              </p>
             </div>
           </div>
         )}
@@ -456,7 +621,10 @@ export default function MarketDetailPage() {
 
       <footer className="fixed bottom-0 left-0 right-0 z-[60] bg-background border-t border-border px-4 py-4 flex items-center gap-4 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
         <div className="flex gap-6 px-2">
-          <div className="flex flex-col items-center gap-1 cursor-pointer hover:text-primary transition-colors">
+          <div 
+            className="flex flex-col items-center gap-1 cursor-pointer hover:text-primary transition-colors"
+            onClick={() => toast({ title: "Fitur Notifikasi", description: "Atur peringatan harga koin ALX." })}
+          >
             <MoreHorizontal className="w-5 h-5 text-muted-foreground" />
             <span className="text-[8px] font-black uppercase italic">Lainnya</span>
           </div>
@@ -482,5 +650,28 @@ export default function MarketDetailPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between items-center py-3 border-b border-border/50">
+      <span className="text-[10px] font-black uppercase text-muted-foreground">{label}</span>
+      <span className="text-[11px] font-black italic text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function UtilityBenefitCard({ icon: Icon, title, desc }: { icon: any; title: string; desc: string }) {
+  return (
+    <Card className="p-6 rounded-[2rem] bg-card border border-border shadow-sm flex items-start gap-5 group hover:border-primary/30 transition-all">
+      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:gold-gradient group-hover:text-white transition-all shadow-inner">
+        <Icon className="w-6 h-6" />
+      </div>
+      <div className="flex-1 space-y-1">
+        <h4 className="text-sm font-black uppercase italic">{title}</h4>
+        <p className="text-[10px] font-medium text-muted-foreground leading-relaxed uppercase italic">{desc}</p>
+      </div>
+    </Card>
   );
 }
