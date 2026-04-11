@@ -30,7 +30,8 @@ import {
   AlertCircle,
   Clock,
   Briefcase,
-  Globe
+  Globe,
+  Landmark
 } from "lucide-react";
 import { 
   Dialog, 
@@ -68,7 +69,6 @@ export function ClientsView({ allUsers }: any) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [balanceAdjustment, setBalanceAdjustment] = useState("");
   const [alxAdjustment, setAlxAdjustment] = useState("");
-  const [userWallets, setUserWallets] = useState<any[]>([]);
   const [userTxs, setUserTxs] = useState<any[]>([]);
   const [loadingSub, setLoadingSub] = useState(false);
 
@@ -83,11 +83,9 @@ export function ClientsView({ allUsers }: any) {
       if (!selectedUser || !db || !isDialogOpen) return;
       setLoadingSub(true);
       try {
-        const [wSnap, tSnap] = await Promise.all([
-          getDocs(collection(db, "users", selectedUser.id, "wallets")),
+        const [tSnap] = await Promise.all([
           getDocs(query(collection(db, "users", selectedUser.id, "transactions"), orderBy("timestamp", "desc"), limit(10)))
         ]);
-        setUserWallets(wSnap.docs.map(d => ({ id: d.id, ...d.data() })));
         setUserTxs(tSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       } catch (e) {} finally { setLoadingSub(false); }
     }
@@ -325,16 +323,44 @@ export function ClientsView({ allUsers }: any) {
               </TabsContent>
 
               <TabsContent value="wallets" className="space-y-4 animate-in fade-in duration-300">
-                {userWallets.map((w, i) => (
-                  <div key={i} className="p-4 rounded-xl bg-muted/30 border border-border flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center"><Wallet className="w-4 h-4 text-primary" /></div>
-                      <p className="text-xs font-black uppercase italic">{w.name}</p>
+                <div className="flex items-center justify-between px-1 mb-2">
+                  <h3 className="text-sm font-black uppercase italic tracking-widest text-primary flex items-center gap-2">
+                    <Landmark className="w-4 h-4" /> Withdrawal Methods
+                  </h3>
+                  <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black uppercase italic">Verified Sources Only</Badge>
+                </div>
+
+                <div className="space-y-3">
+                  {selectedUser?.withdrawalMethods?.map((method: any, i: number) => (
+                    <div key={i} className="p-6 rounded-[1.5rem] bg-muted/30 border border-border flex justify-between items-center group hover:border-primary/30 transition-all">
+                      <div className="flex items-center gap-5">
+                        <div className="w-12 h-12 rounded-2xl bg-background border border-border flex items-center justify-center text-primary shadow-sm">
+                          {method.type === 'bank' ? <Landmark className="w-6 h-6" /> : <Smartphone className="w-6 h-6" />}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-black italic uppercase leading-none">{method.provider}</p>
+                            <Badge className="bg-primary/10 text-primary border-none text-[7px] font-black h-4 px-1.5 uppercase">
+                              {method.type}
+                            </Badge>
+                          </div>
+                          <p className="text-xs font-mono font-bold text-accent mt-1.5">{method.accountNumber}</p>
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1 tracking-tight">AN: {method.accountName}</p>
+                        </div>
+                      </div>
+                      <div className="text-right flex flex-col items-end gap-2">
+                        <p className="text-[8px] font-bold text-muted-foreground uppercase">Registered</p>
+                        <p className="text-[10px] font-black italic">{method.createdAt ? new Date(method.createdAt).toLocaleDateString() : '---'}</p>
+                      </div>
                     </div>
-                    <p className="text-sm font-black italic">Rp {w.balance?.toLocaleString()}</p>
-                  </div>
-                ))}
-                {userWallets.length === 0 && <p className="text-center text-[10px] font-bold text-muted-foreground py-10 uppercase italic opacity-30">No linked wallets</p>}
+                  ))}
+                  {(!selectedUser?.withdrawalMethods || selectedUser.withdrawalMethods.length === 0) && (
+                    <div className="py-20 text-center space-y-4 opacity-20 italic">
+                      <Wallet className="w-12 h-12 mx-auto" />
+                      <p className="text-sm font-black uppercase tracking-widest">Nasabah belum mendaftarkan metode penarikan.</p>
+                    </div>
+                  )}
+                </div>
               </TabsContent>
 
               <TabsContent value="security" className="space-y-4 animate-in fade-in duration-300">
