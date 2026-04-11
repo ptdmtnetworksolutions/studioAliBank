@@ -23,7 +23,9 @@ import {
   Phone,
   Hash,
   Save,
-  Clock
+  Clock,
+  Smartphone,
+  Check
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useUser, useDoc, useFirestore, useMemoFirebase, useAuth } from "@/firebase";
@@ -44,6 +46,13 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
+
+const EWALLETS = [
+  { id: 'dana', name: 'DANA', color: 'bg-[#008FE2]', logo: 'D' },
+  { id: 'gopay', name: 'GoPay', color: 'bg-[#00AED6]', logo: 'G' },
+  { id: 'ovo', name: 'OVO', color: 'bg-[#4C2A86]', logo: 'O' },
+  { id: 'shopeepay', name: 'ShopeePay', color: 'bg-[#EE4D2D]', logo: 'S' },
+];
 
 export default function SettingsHubPage() {
   const router = useRouter();
@@ -246,7 +255,7 @@ export default function SettingsHubPage() {
               <div key={method.id} className="p-5 rounded-2xl bg-card border border-border flex items-center justify-between group">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                    {method.type === 'bank' ? <Landmark className="w-5 h-5" /> : <CreditCard className="w-5 h-5" />}
+                    {method.type === 'bank' ? <Landmark className="w-5 h-5" /> : <Smartphone className="w-5 h-5" />}
                   </div>
                   <div>
                     <p className="text-sm font-black italic uppercase leading-none">{method.provider}</p>
@@ -435,65 +444,128 @@ export default function SettingsHubPage() {
 
       {/* DIALOG TAMBAH METODE */}
       <Dialog open={isAddMethodOpen} onOpenChange={setIsAddMethodOpen}>
-        <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-8 shadow-2xl">
-          <DialogHeader className="text-center space-y-2">
-            <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">Tambah Rekening</DialogTitle>
-            <DialogDescription className="text-[10px] font-bold uppercase tracking-widest italic">Daftarkan Bank atau e-Wallet penerima dana.</DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-0 overflow-hidden shadow-2xl">
+          <div className="gold-gradient h-2 w-full" />
+          <div className="p-8 space-y-8">
+            <DialogHeader className="text-center space-y-2">
+              <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">Tambah Rekening</DialogTitle>
+              <DialogDescription className="text-[10px] font-bold uppercase tracking-widest italic">Daftarkan Bank atau e-Wallet penerima dana.</DialogDescription>
+            </DialogHeader>
 
-          <div className="space-y-6 pt-4">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="bg-muted/30 p-1 rounded-2xl flex gap-1 h-14 border border-border">
               <button 
-                onClick={() => setNewMethod({...newMethod, type: 'bank'})}
-                className={cn("h-12 rounded-xl font-black uppercase text-[10px] border-2 transition-all", newMethod.type === 'bank' ? "border-primary bg-primary/5 text-primary" : "border-muted text-muted-foreground")}
+                onClick={() => setNewMethod({...newMethod, type: 'bank', provider: ''})}
+                className={cn(
+                  "flex-1 rounded-xl font-black uppercase text-[10px] italic transition-all", 
+                  newMethod.type === 'bank' ? "bg-background text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
               >
                 Bank Lokal
               </button>
               <button 
-                onClick={() => setNewMethod({...newMethod, type: 'ewallet'})}
-                className={cn("h-12 rounded-xl font-black uppercase text-[10px] border-2 transition-all", newMethod.type === 'ewallet' ? "border-primary bg-primary/5 text-primary" : "border-muted text-muted-foreground")}
+                onClick={() => setNewMethod({...newMethod, type: 'ewallet', provider: 'DANA'})}
+                className={cn(
+                  "flex-1 rounded-xl font-black uppercase text-[10px] italic transition-all", 
+                  newMethod.type === 'ewallet' ? "bg-background text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
               >
                 e-Wallet
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[9px] font-black text-muted-foreground uppercase ml-1">Nama Provider (BCA, DANA, dll)</label>
-                <Input 
-                  placeholder="Contoh: BCA" 
-                  value={newMethod.provider}
-                  onChange={(e) => setNewMethod({...newMethod, provider: e.target.value})}
-                  className="h-12 rounded-xl bg-muted/50 border-none font-bold" 
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[9px] font-black text-muted-foreground uppercase ml-1">Nomor Rekening / No HP</label>
-                <Input 
-                  placeholder="0000000000" 
-                  value={newMethod.accountNumber}
-                  onChange={(e) => setNewMethod({...newMethod, accountNumber: e.target.value})}
-                  className="h-12 rounded-xl bg-muted/50 border-none font-mono font-bold" 
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[9px] font-black text-muted-foreground uppercase ml-1">Nama Pemilik (Sesuai ID)</label>
+            <div className="space-y-6 animate-in fade-in duration-500">
+              {newMethod.type === 'bank' ? (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-muted-foreground uppercase ml-1">Nama Provider Bank (BCA, Mandiri, dll)</label>
+                    <div className="relative">
+                      <Landmark className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40" />
+                      <Input 
+                        placeholder="Contoh: BCA" 
+                        value={newMethod.provider}
+                        onChange={(e) => setNewMethod({...newMethod, provider: e.target.value})}
+                        className="h-14 pl-12 rounded-2xl bg-muted/50 border-none font-bold italic" 
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-muted-foreground uppercase ml-1">Nomor Rekening Bank</label>
+                    <Input 
+                      placeholder="0000000000" 
+                      value={newMethod.accountNumber}
+                      onChange={(e) => setNewMethod({...newMethod, accountNumber: e.target.value})}
+                      className="h-14 rounded-2xl bg-muted/50 border-none font-mono font-bold italic" 
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                    <label className="text-[9px] font-black text-muted-foreground uppercase ml-1">Pilih Provider e-Wallet</label>
+                    <div className="grid grid-cols-4 gap-3">
+                      {EWALLETS.map((ew) => (
+                        <button
+                          key={ew.id}
+                          onClick={() => setNewMethod({...newMethod, provider: ew.name})}
+                          className={cn(
+                            "flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all active:scale-95",
+                            newMethod.provider === ew.name ? "border-primary bg-primary/5" : "border-transparent bg-muted/50"
+                          )}
+                        >
+                          <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white font-black shadow-lg", ew.color)}>
+                            {ew.logo}
+                          </div>
+                          <span className="text-[8px] font-black uppercase">{ew.name}</span>
+                          {newMethod.provider === ew.name && (
+                            <div className="absolute -top-1 -right-1 bg-primary rounded-full p-0.5 shadow-sm">
+                              <Check className="w-2.5 h-2.5 text-primary-foreground" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-muted-foreground uppercase ml-1">Nomor HP Terdaftar ({newMethod.provider})</label>
+                    <div className="relative">
+                      <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40" />
+                      <Input 
+                        placeholder="0812xxxxxxxx" 
+                        value={newMethod.accountNumber}
+                        onChange={(e) => setNewMethod({...newMethod, accountNumber: e.target.value})}
+                        className="h-14 pl-12 rounded-2xl bg-muted/50 border-none font-mono font-bold italic" 
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-muted-foreground uppercase ml-1">Nama Pemilik Akun (Sesuai ID/Profil)</label>
                 <Input 
                   placeholder="Contoh: Alex Thompson" 
                   value={newMethod.accountName}
                   onChange={(e) => setNewMethod({...newMethod, accountName: e.target.value})}
-                  className="h-12 rounded-xl bg-muted/50 border-none font-bold" 
+                  className="h-14 rounded-2xl bg-muted/50 border-none font-bold italic" 
                 />
               </div>
-            </div>
 
-            <Button 
-              onClick={handleAddMethod} 
-              disabled={isProcessing || !newMethod.provider || !newMethod.accountNumber}
-              className="w-full h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl"
-            >
-              {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : "SIMPAN REKENING"}
-            </Button>
+              <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
+                <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
+                <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+                  Informasi rekening akan diverifikasi saat Anda melakukan penjualan aset pertama kali. Pastikan data akurat.
+                </p>
+              </div>
+
+              <Button 
+                onClick={handleAddMethod} 
+                disabled={isProcessing || !newMethod.provider || !newMethod.accountNumber || !newMethod.accountName}
+                className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl tracking-widest"
+              >
+                {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : "SIMPAN METODE"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
