@@ -1,10 +1,10 @@
-
 "use client";
 
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { 
   CheckCircle2, 
   XCircle, 
@@ -17,7 +17,9 @@ import {
   Calendar,
   ExternalLink,
   ShieldAlert,
-  Search
+  Search,
+  FileText,
+  CreditCard
 } from "lucide-react";
 import { 
   doc, 
@@ -35,6 +37,7 @@ import {
   DialogTitle, 
   DialogDescription 
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
   const db = useFirestore();
