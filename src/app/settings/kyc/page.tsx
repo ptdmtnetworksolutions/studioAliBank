@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -220,30 +221,47 @@ export default function KycPage() {
   };
 
   const handleSubmitKyc = async () => {
-    if (!user || !db || !storage || !idCardFile || !selfieFile) return;
+    if (!user || !db || !storage || !idCardFile || !selfieFile || !userDocRef) {
+      toast({ variant: "destructive", title: "Data Tidak Lengkap", description: "Mohon ambil ulang foto KTP dan Selfie Anda." });
+      return;
+    }
+
     setIsProcessing(true);
     try {
+      // 1. Upload KTP dengan Jalur Aman
       const idRef = ref(storage, `kyc_documents/${user.uid}/id_card.jpg`);
       await uploadBytes(idRef, idCardFile);
       const idUrl = await getDownloadURL(idRef);
 
+      // 2. Upload Biometrik dengan Jalur Aman
       const sRef = ref(storage, `kyc_documents/${user.uid}/selfie_hold.jpg`);
       await uploadBytes(sRef, selfieFile);
       const sUrl = await getDownloadURL(sRef);
 
-      await updateDoc(userDocRef!, {
+      // 3. Gabungkan dan Bersihkan Data (Sanitization)
+      const finalKycData = {
+        ...kycForm,
+        idNumber: kycForm.nik,
+        idCardUrl: idUrl,
+        selfieUrl: sUrl,
+        submittedAt: new Date().toISOString()
+      };
+
+      // 4. Update Node Firestore
+      await updateDoc(userDocRef, {
         kycStatus: "pending",
-        kycData: {
-          ...kycForm,
-          idNumber: kycForm.nik,
-          idCardUrl: idUrl,
-          selfieUrl: sUrl,
-          submittedAt: new Date().toISOString()
-        }
+        kycData: finalKycData
       });
+
       setStep(4);
+      toast({ title: "Pengajuan Berhasil", description: "Identitas Anda kini sedang ditinjau oleh sistem pusat." });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Submission Gagal" });
+      console.error("KYC Submission Error:", err);
+      toast({ 
+        variant: "destructive", 
+        title: "Submission Gagal", 
+        description: err.message || "Hambatan pada Node AliBank terdeteksi. Silakan coba sesaat lagi." 
+      });
     } finally {
       setIsProcessing(false);
     }
