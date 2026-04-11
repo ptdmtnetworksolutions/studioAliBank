@@ -41,8 +41,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { extractKtpData } from "@/ai/flows/ocr-ktp-flow";
 
 export default function KycPage() {
   const router = useRouter();
@@ -53,7 +52,7 @@ export default function KycPage() {
   
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   // KYC Data State
@@ -98,32 +97,41 @@ export default function KycPage() {
 
   const startCamera = async (mode: 'idCard' | 'selfie') => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
+      // Ensure any existing stream is stopped
+      stopCamera();
+
+      const constraints = {
+        video: {
           facingMode: mode === 'idCard' ? "environment" : "user",
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        } 
-      });
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       setHasCameraPermission(true);
       setIsCameraActive(true);
       setCameraActiveMode(mode);
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      
+      // Delay slightly to ensure ref is attached if component just rendered
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
     } catch (error) {
       console.error('Error accessing camera:', error);
       setHasCameraPermission(false);
       toast({
         variant: 'destructive',
-        title: 'Akses Kamera Ditolak',
-        description: 'Mohon izinkan akses kamera pada browser Anda untuk verifikasi identitas riil.',
+        title: 'Akses Kamera Gagal',
+        description: 'Mohon izinkan akses kamera dan pastikan tidak sedang digunakan aplikasi lain.',
       });
     }
   };
 
-  const capturePhoto = (mode: 'idCard' | 'selfie') => {
+  const capturePhoto = async (mode: 'idCard' | 'selfie') => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -133,38 +141,67 @@ export default function KycPage() {
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        canvas.toBlob((blob) => {
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        
+        canvas.toBlob(async (blob) => {
           if (blob) {
             const file = new File([blob], `${mode}_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            
             if (mode === 'idCard') {
               setIdCardFile(file);
-              setPreviews(p => ({ ...p, idCard: URL.createObjectURL(file) }));
-              processIdCard();
+              setPreviews(p => ({ ...p, idCard: dataUrl }));
+              stopCamera();
+              await runRealOcr(dataUrl);
             } else {
               setSelfieFile(file);
-              setPreviews(p => ({ ...p, selfie: URL.createObjectURL(file) }));
+              setPreviews(p => ({ ...p, selfie: dataUrl }));
+              stopCamera();
             }
-            stopCamera();
           }
-        }, 'image/jpeg', 0.95);
+        }, 'image/jpeg', 0.9);
       }
     }
   };
 
-  const processIdCard = () => {
-    // Simulasi AI OCR Reading
-    setIsScanning(true);
-    setTimeout(() => {
-      setIsScanning(false);
+  const runRealOcr = async (dataUrl: string) => {
+    setIsOcrLoading(true);
+    try {
+      const result = await extractKtpData({ photoDataUri: dataUrl });
+      
+      if (result.isKtp) {
+        setKycData(prev => ({
+          ...prev,
+          fullName: result.fullName || prev.fullName,
+          idNumber: result.idNumber || prev.idNumber,
+          address: result.address || prev.address
+        }));
+        toast({
+          title: "Analisis AI Berhasil",
+          description: "Data identitas berhasil diekstraksi secara otomatis.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Dokumen Tidak Valid",
+          description: "Gambar tidak terdeteksi sebagai KTP. Silakan ambil ulang.",
+        });
+        setIdCardFile(null);
+        setPreviews(p => ({ ...p, idCard: "" }));
+      }
+    } catch (err) {
+      console.error("OCR Error:", err);
       toast({
-        title: "Dokumen Terbaca",
-        description: "Node AI berhasil memvalidasi KTP dan mengekstraksi data identitas.",
+        variant: "destructive",
+        title: "Node AI Gagal",
+        description: "Gagal memproses dokumen secara otomatis. Silakan coba lagi.",
       });
-    }, 2500);
+    } finally {
+      setIsOcrLoading(false);
+    }
   };
 
   const checkDuplicates = async () => {
-    if (!db || !user || !userData) return false;
+    if (!db || !user || !kycForm.idNumber) return false;
     setIsProcessing(true);
     try {
       const nikQuery = query(collection(db, "users"), where("kycData.idNumber", "==", kycForm.idNumber));
@@ -182,7 +219,8 @@ export default function KycPage() {
       }
       return false;
     } catch (err) {
-      return true; 
+      console.error("Duplicate check error:", err);
+      return false; 
     } finally {
       setIsProcessing(false);
     }
@@ -277,22 +315,22 @@ export default function KycPage() {
         {step === 1 && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="text-center space-y-2">
-              <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none">Profil Identitas</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">Node pengecekan duplikasi aktif secara otomatis.</p>
+              <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none">Informasi Awal</h2>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">Data akan divalidasi oleh Node AI pada langkah berikutnya.</p>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Nama Lengkap (Sesuai ID)</label>
+                <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Lengkapi Form Ini (Atau skip untuk Scan Otomatis)</label>
                 <Input 
                   value={kycForm.fullName}
                   onChange={(e) => setKycData({...kycForm, fullName: e.target.value})}
-                  placeholder="Contoh: Alex Thompson"
+                  placeholder="Nama Lengkap"
                   className="h-14 rounded-2xl bg-muted/50 border-none font-bold italic"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Nomor Identitas (NIK)</label>
+                <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Nomor NIK</label>
                 <Input 
                   value={kycForm.idNumber}
                   onChange={(e) => setKycData({...kycForm, idNumber: e.target.value})}
@@ -300,24 +338,15 @@ export default function KycPage() {
                   className="h-14 rounded-2xl bg-muted/50 border-none font-mono font-bold"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Alamat Domisili</label>
-                <Input 
-                  value={kycForm.address}
-                  onChange={(e) => setKycData({...kycForm, address: e.target.value})}
-                  placeholder="Sesuai kartu identitas"
-                  className="h-14 rounded-2xl bg-muted/50 border-none font-bold italic"
-                />
-              </div>
             </div>
 
             <Button 
-              disabled={!kycForm.fullName || !kycForm.idNumber || isProcessing}
+              disabled={isProcessing}
               onClick={handleNextStep}
               className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl group"
             >
               {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : (
-                <span className="flex items-center gap-2">MULAI SCAN DOKUMEN <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></span>
+                <span className="flex items-center gap-2">MULAI SCAN KTP <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></span>
               )}
             </Button>
           </div>
@@ -327,7 +356,7 @@ export default function KycPage() {
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
             <div className="text-center space-y-2">
               <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none">Scan Dokumen</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">Gunakan kamera untuk memvalidasi KTP fisik.</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">Node AI OCR akan mengekstrak identitas Anda.</p>
             </div>
 
             <div className="space-y-6">
@@ -339,18 +368,18 @@ export default function KycPage() {
                     <div className="absolute inset-8 border-2 border-primary rounded-xl border-dashed animate-pulse pointer-events-none" />
                     <button 
                       onClick={() => capturePhoto('idCard')}
-                      className="absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-white border-4 border-primary shadow-2xl active:scale-90 transition-transform"
+                      className="absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-white border-4 border-primary shadow-2xl active:scale-90 transition-transform flex items-center justify-center"
                     >
-                      <div className="w-10 h-10 rounded-full border-2 border-black/5" />
+                      <div className="w-10 h-10 rounded-full border-2 border-black/5 bg-slate-100" />
                     </button>
                   </>
                 ) : previews.idCard ? (
                   <div className="relative w-full h-full">
                     <img src={previews.idCard} alt="ID Preview" className="w-full h-full object-cover" />
-                    {isScanning && (
+                    {isOcrLoading && (
                       <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-4 text-white">
                         <Loader2 className="w-10 h-10 animate-spin text-primary" />
-                        <span className="text-[10px] font-black uppercase tracking-widest animate-pulse">Analisis AI Node...</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest animate-pulse">Ekstraksi AI Node...</span>
                       </div>
                     )}
                     <button 
@@ -375,7 +404,7 @@ export default function KycPage() {
               <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
                 <ShieldCheck className="w-6 h-6 text-blue-500 shrink-0" />
                 <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                  Informasi: Pengunggahan dari galeri dinonaktifkan untuk mencegah penipuan identitas editan atau curian.
+                  Pengecekan validitas dokumen dilakukan secara riil oleh Node AliBank V3. Pastikan KTP berada di area bingkai.
                 </p>
               </div>
             </div>
@@ -383,7 +412,7 @@ export default function KycPage() {
             <div className="flex gap-3">
               <Button variant="ghost" onClick={() => { stopCamera(); setStep(1); }} className="flex-1 h-14 rounded-2xl font-black uppercase italic text-[10px]">Kembali</Button>
               <Button 
-                disabled={!idCardFile || isScanning}
+                disabled={!idCardFile || isOcrLoading}
                 onClick={() => setStep(3)}
                 className="flex-[2] h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl"
               >
@@ -411,7 +440,7 @@ export default function KycPage() {
                       onClick={() => capturePhoto('selfie')}
                       className="absolute bottom-6 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-white border-4 border-primary flex items-center justify-center shadow-2xl active:scale-90 transition-transform"
                     >
-                      <div className="w-12 h-12 rounded-full border-2 border-black/10" />
+                      <div className="w-12 h-12 rounded-full border-2 border-black/10 bg-slate-100" />
                     </button>
                   </>
                 ) : previews.selfie ? (
@@ -435,8 +464,6 @@ export default function KycPage() {
                   </div>
                 )}
               </div>
-
-              <canvas ref={canvasRef} className="hidden" />
 
               <div className="bg-muted/30 p-6 rounded-[2rem] border border-border space-y-4">
                 <div className="flex items-center gap-3">
