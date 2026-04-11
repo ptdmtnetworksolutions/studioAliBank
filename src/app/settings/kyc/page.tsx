@@ -392,7 +392,22 @@ export default function KycPage() {
                 </div>
               </div>
             </div>
-            <Button disabled={!kycForm.province || !kycForm.postalCode || !kycForm.whatsapp} onClick={() => setStep(3)} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl">LANJUT KE BIOMETRIK</Button>
+            <div className="flex gap-4">
+              <Button 
+                variant="ghost" 
+                onClick={() => setStep(1)}
+                className="flex-1 h-16 rounded-[2rem] font-black italic uppercase border border-border"
+              >
+                Kembali
+              </Button>
+              <Button 
+                disabled={!kycForm.province || !kycForm.postalCode || !kycForm.whatsapp} 
+                onClick={() => setStep(3)} 
+                className="flex-[2] h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl"
+              >
+                LANJUT KE BIOMETRIK
+              </Button>
+            </div>
           </div>
         )}
 
@@ -424,9 +439,22 @@ export default function KycPage() {
                 </div>
               )}
             </div>
-            <Button disabled={!selfieFile || isProcessing} onClick={handleSubmitKyc} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl">
-              {isProcessing ? <Loader2 className="animate-spin w-6 h-6" /> : "KIRIM PENGAJUAN FINAL"}
-            </Button>
+            <div className="flex gap-4">
+              <Button 
+                variant="ghost" 
+                onClick={() => { stopCamera(); setStep(2); }}
+                className="flex-1 h-16 rounded-[2rem] font-black italic uppercase border border-border"
+              >
+                Kembali
+              </Button>
+              <Button 
+                disabled={!selfieFile || isProcessing} 
+                onClick={handleSubmitKyc} 
+                className="flex-[2] h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl"
+              >
+                {isProcessing ? <Loader2 className="animate-spin w-6 h-6" /> : "KIRIM PENGAJUAN FINAL"}
+              </Button>
+            </div>
           </div>
         )}
 
