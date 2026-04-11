@@ -94,6 +94,7 @@ export default function CryptoBuyPage() {
   
   const [isPaymentSheetOpen, setIsPaymentSheetOpen] = useState(false);
   const [isAssetSheetOpen, setIsAssetSheetOpen] = useState(false);
+  const [isCurrencySheetOpen, setIsCurrencySheetOpen] = useState(false);
   const [isCheckoutDialogOpen, setIsCheckoutDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paypalReady, setPaypalReady] = useState(false);
@@ -133,35 +134,68 @@ export default function CryptoBuyPage() {
   }, [selectedPayment, activeTab]);
 
   const exchangeRate = 15850; 
+
+  const getRateToIdr = useCallback((code: string) => {
+    if (code === 'IDR') return 1;
+    if (code === 'USD') return 15850;
+    if (code === 'EUR') return 17200;
+    if (code === 'GBP') return 20100;
+    if (code === 'SGD') return 11800;
+    return 1;
+  }, []);
   
   const totalAmountIdr = useMemo(() => {
     const cleanAmount = amount.replace(',', '.');
     const num = parseFloat(cleanAmount);
     if (isNaN(num) || num <= 0) return 0;
-    const baseAmountIdr = selectedCurrency.code === 'USD' ? num * exchangeRate : num;
+    const baseAmountIdr = num * getRateToIdr(selectedCurrency.code);
     return Math.floor(baseAmountIdr + uniqueCode);
-  }, [amount, uniqueCode, selectedCurrency]);
+  }, [amount, uniqueCode, selectedCurrency, getRateToIdr]);
 
   const estimatedCrypto = useMemo(() => {
     const cleanAmount = amount.replace(',', '.');
     const num = parseFloat(cleanAmount);
     if (isNaN(num) || num <= 0) return "0";
-    const amountInUsd = selectedCurrency.code === 'USD' ? num : num / exchangeRate;
+    const amountInIdr = num * getRateToIdr(selectedCurrency.code);
+    const amountInUsd = amountInIdr / exchangeRate;
     
-    // Markup 2% untuk platform fee saat beli
     const markup = activeTab === 'beli' ? (selectedAsset.isNative ? 1 : 1.02) : 1;
     const priceWithMarkup = selectedAsset.priceUsd * markup;
     
     return (amountInUsd / priceWithMarkup).toFixed(selectedAsset.symbol === 'BTC' ? 8 : 4);
-  }, [amount, selectedAsset, selectedCurrency, activeTab]);
+  }, [amount, selectedAsset, selectedCurrency, activeTab, getRateToIdr]);
 
   const usdValue = useMemo(() => {
     const cleanAmount = amount.replace(',', '.');
     const num = parseFloat(cleanAmount);
     if (isNaN(num)) return "0.00";
-    if (selectedCurrency.code === 'USD') return num.toFixed(2);
-    return (num / exchangeRate).toFixed(2);
-  }, [amount, selectedCurrency]);
+    const amountInIdr = num * getRateToIdr(selectedCurrency.code);
+    return (amountInIdr / exchangeRate).toFixed(2);
+  }, [amount, selectedCurrency, getRateToIdr]);
+
+  const handleCurrencySelect = (currency: Currency) => {
+    const oldRate = getRateToIdr(selectedCurrency.code);
+    const newRate = getRateToIdr(currency.code);
+    const currentNum = parseFloat(amount.replace(',', '.')) || 0;
+    
+    if (currentNum > 0) {
+      const converted = (currentNum * oldRate) / newRate;
+      setAmount(converted.toFixed(currency.code === 'IDR' ? 0 : 2).replace('.', ','));
+    }
+    
+    setSelectedCurrency(currency);
+    setIsCurrencySheetOpen(false);
+    localStorage.setItem("alibank-payment-currency", JSON.stringify(currency));
+  };
+
+  const handleKeyPress = (num: string) => {
+    if (amount === "0") setAmount(num);
+    else if (amount.length < 12) setAmount(amount + num);
+  };
+
+  const handleDelete = () => {
+    setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : "0");
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -330,7 +364,6 @@ export default function CryptoBuyPage() {
     const cryptoAmount = parseFloat(estimatedCrypto);
     const fiatAmountIdr = totalAmountIdr;
 
-    // VALIDASI SALDO UNTUK JUAL
     if (activeTab === 'jual') {
       const currentCryptoBal = userData.cryptoBalances?.[selectedAsset.symbol] || 0;
       if (currentCryptoBal < cryptoAmount) {
@@ -353,7 +386,6 @@ export default function CryptoBuyPage() {
         userUpdates[`cryptoBalances.${selectedAsset.symbol}`] = increment(-cryptoAmount);
         userUpdates.totalBalance = increment(fiatAmountIdr);
         
-        // Kembalikan ALX ke brankas jika nasabah menjual
         if (selectedAsset.symbol === 'ALX') {
           systemUpdates.alixVaultBalance = increment(cryptoAmount);
         }
@@ -395,15 +427,6 @@ export default function CryptoBuyPage() {
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const handleKeyPress = (num: string) => {
-    if (amount === "0") setAmount(num);
-    else if (amount.length < 12) setAmount(amount + num);
-  };
-
-  const handleDelete = () => {
-    setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : "0");
   };
 
   if (!mounted) return (
@@ -483,7 +506,10 @@ export default function CryptoBuyPage() {
           <div className="flex flex-col items-center justify-center space-y-2">
             <div className="flex items-center gap-2">
               <span className={cn("text-6xl font-black tracking-tighter italic", amount === "0" ? "text-muted-foreground/20" : "text-foreground")}>{amount}</span>
-              <div className="flex items-center gap-1 cursor-pointer bg-muted/50 px-3 py-1.5 rounded-xl border border-border" onClick={() => router.push('/settings/payment-currency')}>
+              <div 
+                className="flex items-center gap-1 cursor-pointer bg-muted/50 px-3 py-1.5 rounded-xl border border-border transition-all active:scale-95" 
+                onClick={() => setIsCurrencySheetOpen(true)}
+              >
                 <span className="text-sm font-black uppercase tracking-tighter">{selectedCurrency.code}</span>
                 <ChevronDown className="w-4 h-4 text-muted-foreground" />
               </div>
@@ -647,6 +673,7 @@ export default function CryptoBuyPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ASSET SELECTOR */}
       <Sheet open={isAssetSheetOpen} onOpenChange={setIsAssetSheetOpen}>
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
           <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
@@ -667,6 +694,43 @@ export default function CryptoBuyPage() {
         </SheetContent>
       </Sheet>
 
+      {/* CURRENCY SELECTOR */}
+      <Sheet open={isCurrencySheetOpen} onOpenChange={setIsCurrencySheetOpen}>
+        <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-[70vh] overflow-hidden flex flex-col">
+          <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6 shrink-0" />
+          <div className="px-6 pb-6 overflow-y-auto no-scrollbar flex-1">
+            <SheetHeader className="text-left mb-6">
+              <SheetTitle className="text-xl font-black italic uppercase tracking-tight">Pilih Mata Uang</SheetTitle>
+              <SheetDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pilih mata uang pembayaran default Anda.</SheetDescription>
+            </SheetHeader>
+            <div className="space-y-1">
+              {currencies.map((c) => (
+                <div 
+                  key={c.code} 
+                  onClick={() => handleCurrencySelect(c)}
+                  className={cn(
+                    "flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all",
+                    selectedCurrency.code === c.code ? "bg-primary/10 border border-primary/20" : "hover:bg-muted/50"
+                  )}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm", c.color)}>
+                      {c.symbol.length > 2 ? c.code[0] : c.symbol}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black italic uppercase leading-none">{c.code}</h4>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">{c.name}</p>
+                    </div>
+                  </div>
+                  {selectedCurrency.code === c.code && <div className="w-2 h-2 rounded-full bg-primary" />}
+                </div>
+              ))}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* PAYMENT METHOD SELECTOR */}
       <Sheet open={isPaymentSheetOpen} onOpenChange={setIsPaymentSheetOpen}>
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
           <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
