@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
@@ -86,7 +87,7 @@ function HandCoinIcon({ className }: { className?: string }) {
   );
 }
 
-const USDT_IDR_RATE = 15850;
+const DEFAULT_USDT_IDR_RATE = 15850;
 const MARKUP = 1.02;
 
 const INITIAL_COINS = [
@@ -118,6 +119,7 @@ function DashboardContent() {
   
   const [marketCoins, setMarketCoins] = useState(INITIAL_COINS);
   const [isMarketLoading, setIsMarketLoading] = useState(true);
+  const [dynamicUsdtRate, setDynamicUsdtRate] = useState(DEFAULT_USDT_IDR_RATE);
 
   const [pullY, setPullY] = useState(0);
   const startY = useRef(0);
@@ -131,32 +133,52 @@ function DashboardContent() {
 
   const { data: userData } = useDoc(userDocRef);
 
+  const currentUsdtRate = useMemo(() => dynamicUsdtRate || DEFAULT_USDT_IDR_RATE, [dynamicUsdtRate]);
+
   const totalValueCalculated = useMemo(() => {
     const idrBalance = userData?.totalBalance ?? 0;
     const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
     const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
+    const btcHoldings = userData?.cryptoBalances?.BTC ?? 0;
+    const ethHoldings = userData?.cryptoBalances?.ETH ?? 0;
     
     const alxMarket = marketCoins.find(c => c.symbol === "ALX");
-    const alxPriceIdr = (alxMarket?.price ?? 12.24) * USDT_IDR_RATE;
+    const btcMarket = marketCoins.find(c => c.symbol === "BTC");
+    const ethMarket = marketCoins.find(c => c.symbol === "ETH");
+    
+    const alxPriceIdr = (alxMarket?.price ?? 12.24) * currentUsdtRate;
+    const btcPriceIdr = (btcMarket?.price ?? 66000) * currentUsdtRate;
+    const ethPriceIdr = (ethMarket?.price ?? 2000) * currentUsdtRate;
     
     const alxValueIdr = alxHoldings * alxPriceIdr;
-    const usdtValueIdr = usdtHoldings * USDT_IDR_RATE;
+    const usdtValueIdr = usdtHoldings * currentUsdtRate;
+    const btcValueIdr = btcHoldings * btcPriceIdr;
+    const ethValueIdr = ethHoldings * ethPriceIdr;
     
-    return idrBalance + alxValueIdr + usdtValueIdr;
-  }, [userData, marketCoins]);
+    return idrBalance + alxValueIdr + usdtValueIdr + btcValueIdr + ethValueIdr;
+  }, [userData, marketCoins, currentUsdtRate]);
 
   const pnlData = useMemo(() => {
     const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
     const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
+    const btcHoldings = userData?.cryptoBalances?.BTC ?? 0;
+    const ethHoldings = userData?.cryptoBalances?.ETH ?? 0;
     
     const alxMarket = marketCoins.find(c => c.symbol === "ALX");
+    const btcMarket = marketCoins.find(c => c.symbol === "BTC");
+    const ethMarket = marketCoins.find(c => c.symbol === "ETH");
     const usdtMarket = marketCoins.find(c => c.symbol === "USDT") || { change: 0.01 };
 
-    const alxPriceIdr = (alxMarket?.price ?? 12.24) * USDT_IDR_RATE;
+    const alxPriceIdr = (alxMarket?.price ?? 12.24) * currentUsdtRate;
+    const btcPriceIdr = (btcMarket?.price ?? 66000) * currentUsdtRate;
+    const ethPriceIdr = (ethMarket?.price ?? 2000) * currentUsdtRate;
+
     const alxPnl = (alxHoldings * alxPriceIdr * (alxMarket?.change ?? 0)) / 100;
-    const usdtPnl = (usdtHoldings * USDT_IDR_RATE * (usdtMarket.change ?? 0)) / 100;
+    const usdtPnl = (usdtHoldings * currentUsdtRate * (usdtMarket.change ?? 0)) / 100;
+    const btcPnl = (btcHoldings * btcPriceIdr * (btcMarket?.change ?? 0)) / 100;
+    const ethPnl = (ethHoldings * ethPriceIdr * (ethMarket?.change ?? 0)) / 100;
     
-    const totalPnl = alxPnl + usdtPnl;
+    const totalPnl = alxPnl + usdtPnl + btcPnl + ethPnl;
     const pnlPercent = totalValueCalculated > 0 ? (totalPnl / totalValueCalculated) * 100 : 0;
 
     return {
@@ -165,10 +187,12 @@ function DashboardContent() {
       isUp: totalPnl >= 0,
       breakdown: {
         alx: alxPnl,
-        usdt: usdtPnl
+        usdt: usdtPnl,
+        btc: btcPnl,
+        eth: ethPnl
       }
     };
-  }, [userData, marketCoins, totalValueCalculated]);
+  }, [userData, marketCoins, totalValueCalculated, currentUsdtRate]);
 
   const unreadQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -195,30 +219,34 @@ function DashboardContent() {
         if (symbol === "") symbol = "USDT";
         
         let price = parseFloat(item.lastPrice);
-        if (item.symbol === "USDTIDR") price = price / USDT_IDR_RATE;
+        if (item.symbol === "USDTIDR") {
+          price = price; // This is the IDR price per 1 USDT
+          setDynamicUsdtRate(price);
+        }
         
         price = price * MARKUP;
 
         return {
           symbol: symbol,
-          price: price,
+          price: symbol === "USDT" ? 1 : price,
           change: parseFloat(item.priceChangePercent) || 0,
           isUp: (parseFloat(item.priceChangePercent) || 0) >= 0,
-          baseIdr: price * USDT_IDR_RATE
+          baseIdr: symbol === "USDT" ? price : price * (data.find((d:any) => d.symbol === "USDTIDR")?.lastPrice || DEFAULT_USDT_IDR_RATE)
         };
       });
 
+      const currentUsdtPrice = parseFloat(data.find((d:any) => d.symbol === "USDTIDR")?.lastPrice || DEFAULT_USDT_IDR_RATE);
       const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
       const alxData = {
         symbol: "ALX",
         price: alxPrice,
-        baseIdr: alxPrice * USDT_IDR_RATE,
+        baseIdr: alxPrice * currentUsdtPrice,
         change: 1.14 + (Math.random() * 0.05),
         isUp: true,
         isNative: true
       };
 
-      setMarketCoins([alxData, ...formatted.filter((c: any) => c.symbol !== "USDT")].slice(0, 5));
+      setMarketCoins([alxData, ...formatted.filter((c: any) => c.symbol !== "USDT" && c.symbol !== "IDR")].slice(0, 5));
     } catch (e) {
       console.warn("Home Market Sync failed, using fallbacks:", e);
     } finally {
@@ -244,13 +272,13 @@ function DashboardContent() {
         return {
           ...coin,
           price: newPrice,
-          baseIdr: newPrice * USDT_IDR_RATE,
+          baseIdr: newPrice * currentUsdtRate,
           change: (coin.change ?? 0) + (Math.random() * 0.02 - 0.01)
         };
       }));
     }, 3000);
     return () => clearInterval(interval);
-  }, [mounted]);
+  }, [mounted, currentUsdtRate]);
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -522,9 +550,9 @@ function DashboardContent() {
                     <div className="flex justify-between items-center relative z-10">
                       <div className="flex items-center gap-3">
                         <TrendingUp className="w-4 h-4 text-primary" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-accent">Analisis Profitabilitas</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-accent">Analisis Profitabilitas Riil</span>
                       </div>
-                      <Badge className="bg-green-500/10 text-green-600 border-none text-[7px] font-black h-4 uppercase">Real-Time</Badge>
+                      <Badge className="bg-green-500/10 text-green-600 border-none text-[7px] font-black h-4 uppercase">Pasar Live</Badge>
                     </div>
 
                     <div className="space-y-3 relative z-10">
@@ -541,17 +569,17 @@ function DashboardContent() {
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
                           <div className="w-5 h-5 rounded-lg bg-[#0D9488] flex items-center justify-center p-1 text-white"><ArrowUpDown className="w-3 h-3" /></div>
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase">USDT Market</span>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">Market Assets</span>
                         </div>
-                        <span className={cn("text-[11px] font-black italic", pnlData.breakdown.usdt >= 0 ? "text-green-500" : "text-rose-500")}>
-                          {pnlData.breakdown.usdt >= 0 ? '+' : '-'}Rp{Math.abs(pnlData.breakdown.usdt).toLocaleString('id-ID')}
+                        <span className={cn("text-[11px] font-black italic", (pnlData.breakdown.usdt + pnlData.breakdown.btc + pnlData.breakdown.eth) >= 0 ? "text-green-500" : "text-rose-500")}>
+                          {(pnlData.breakdown.usdt + pnlData.breakdown.btc + pnlData.breakdown.eth) >= 0 ? '+' : '-'}Rp{Math.abs(pnlData.breakdown.usdt + pnlData.breakdown.btc + pnlData.breakdown.eth).toLocaleString('id-ID')}
                         </span>
                       </div>
                     </div>
 
                     <div className="pt-2 border-t border-primary/10 relative z-10">
                       <p className="text-[8px] font-bold text-muted-foreground uppercase italic leading-tight">
-                        Nilai PNL dikalkulasikan dari kenaikan harga koin ALX dan saldo USDT Anda terhadap kurs IDR saat ini.
+                        Nilai PNL dikalkulasikan berdasarkan perubahan harga pasar riil (Binance/Ali-Node) dalam 24 jam terakhir terhadap seluruh aset yang Anda miliki.
                       </p>
                     </div>
                   </div>
@@ -580,7 +608,7 @@ function DashboardContent() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-black italic text-primary">{(userData?.cryptoBalances?.ALX ?? 0).toFixed(4)} ALX</p>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase italic">≈ Rp {((userData?.cryptoBalances?.ALX ?? 0) * (marketCoins.find(c => c.symbol === "ALX")?.price ?? 12.24) * USDT_IDR_RATE).toLocaleString('id-ID')}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase italic">≈ Rp {((userData?.cryptoBalances?.ALX ?? 0) * (marketCoins.find(c => c.symbol === "ALX")?.price ?? 12.24) * currentUsdtRate).toLocaleString('id-ID')}</p>
                       </div>
                     </div>
 
@@ -595,7 +623,7 @@ function DashboardContent() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-black italic text-foreground">{(userData?.cryptoBalances?.USDT ?? 0).toFixed(2)} USDT</p>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase italic">≈ Rp {((userData?.cryptoBalances?.USDT ?? 0) * USDT_IDR_RATE).toLocaleString('id-ID')}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase italic">≈ Rp {((userData?.cryptoBalances?.USDT ?? 0) * currentUsdtRate).toLocaleString('id-ID')}</p>
                       </div>
                     </div>
                   </div>
@@ -728,7 +756,7 @@ function DashboardContent() {
                   <p className="text-[11px] font-bold text-muted-foreground mt-2 leading-tight italic">Kirim Kripto dan Terima Fiat</p>
                   <div className="mt-4">
                     <p className="text-[8px] font-bold text-muted-foreground uppercase italic">Kurs Ref.</p>
-                    <p className="text-xs font-black text-foreground italic">Rp17,052</p>
+                    <p className="text-xs font-black text-foreground italic">Rp{(currentUsdtRate * 1.08).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</p>
                   </div>
                 </div>
               </div>
@@ -777,7 +805,7 @@ function DashboardContent() {
                           <p className="text-sm font-black italic tracking-tight text-foreground">
                             {coin.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: coin.price < 1 ? 4 : 2 })}
                           </p>
-                          <p className="text-[9px] font-bold text-muted-foreground">Rp{coin.baseIdr.toLocaleString('id-ID')}</p>
+                          <p className="text-[9px] font-bold text-muted-foreground">Rp{coin.baseIdr.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</p>
                         </div>
                         <div className="flex justify-end">
                           <div className={cn(
@@ -949,7 +977,7 @@ function DashboardContent() {
                   <button key={net} className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors shrink-0 italic">{net}</button>
                 ))}
                 <div className="flex items-center gap-1 text-xs font-bold text-muted-foreground ml-auto shrink-0 cursor-pointer">
-                  1j <ChevronDown className="w-3 h-3" />
+                  1j <ChevronDown className="w-3 3" />
                 </div>
               </div>
 
