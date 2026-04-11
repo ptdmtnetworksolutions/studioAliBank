@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -41,6 +42,21 @@
         "createdAt": { "type": "string", "format": "date-time" }
       }
     },
+    "P2POrder": {
+      "title": "P2POrder",
+      "description": "Fiat-to-crypto peer transaction record.",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string" },
+        "type": { "type": "string", "enum": ["buy", "sell"] },
+        "asset": { "type": "string" },
+        "amountCrypto": { "type": "number" },
+        "amountFiat": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "completed", "cancelled"] },
+        "counterpartyName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "SystemLiquidity": {
       "title": "SystemLiquidity",
       "description": "Central bank liquidity tracking and revenue monitoring.",
@@ -67,6 +83,10 @@
       {
         "path": "/users/{userId}/futures_positions/{posId}",
         "definition": { "entityName": "FuturesPosition", "description": "Real leveraged positions." }
+      },
+      {
+        "path": "/users/{userId}/p2p_orders/{orderId}",
+        "definition": { "entityName": "P2POrder", "description": "User's P2P transaction history." }
       },
       {
         "path": "/system/liquidity",
