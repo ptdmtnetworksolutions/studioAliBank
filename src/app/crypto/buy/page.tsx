@@ -28,11 +28,13 @@ import {
   Zap,
   QrCode,
   ArrowDownLeft,
-  ArrowUpRight
+  ArrowUpRight,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { currencies, type Currency } from "@/lib/currencies";
@@ -101,6 +103,9 @@ export default function CryptoBuyPage() {
   const [midtransReady, setMidtransReady] = useState(false);
   const [gatewayError, setGatewayError] = useState<string | null>(null);
   const [step, setStep] = useState<'input' | 'success'>('input');
+  
+  // Search state for currencies
+  const [currencySearch, setCurrencySearch] = useState("");
   
   const [proofImage, setProofImage] = useState<File | null>(null);
   const [proofPreview, setProofPreview] = useState<string | null>(null);
@@ -185,6 +190,7 @@ export default function CryptoBuyPage() {
     
     setSelectedCurrency(currency);
     setIsCurrencySheetOpen(false);
+    setCurrencySearch(""); // Reset search
     localStorage.setItem("alibank-payment-currency", JSON.stringify(currency));
   };
 
@@ -429,6 +435,13 @@ export default function CryptoBuyPage() {
     }
   };
 
+  const filteredCurrencies = useMemo(() => {
+    return currencies.filter(c => 
+      c.code.toLowerCase().includes(currencySearch.toLowerCase()) || 
+      c.name.toLowerCase().includes(currencySearch.toLowerCase())
+    );
+  }, [currencySearch]);
+
   if (!mounted) return (
     <div className="h-screen bg-background flex items-center justify-center">
       <Loader2 className="animate-spin text-primary w-8 h-8" />
@@ -495,7 +508,7 @@ export default function CryptoBuyPage() {
                 onClick={() => tab === 'Convert' ? router.push('/crypto/convert') : setActiveTab(tab.toLowerCase() as any)} 
                 className={cn(
                   "px-8 py-1.5 rounded-full text-xs font-black transition-all uppercase italic", 
-                  activeTab === tab.toLowerCase() ? "bg-background text-foreground shadow-md" : "text-muted-foreground"
+                  activeTab === tab.toLowerCase() ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
                 )}
               >
                 {tab}
@@ -695,16 +708,32 @@ export default function CryptoBuyPage() {
       </Sheet>
 
       {/* CURRENCY SELECTOR */}
-      <Sheet open={isCurrencySheetOpen} onOpenChange={setIsCurrencySheetOpen}>
-        <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-[70vh] overflow-hidden flex flex-col">
+      <Sheet open={isCurrencySheetOpen} onOpenChange={(open) => {
+        setIsCurrencySheetOpen(open);
+        if (!open) setCurrencySearch("");
+      }}>
+        <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-[80vh] overflow-hidden flex flex-col">
           <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6 shrink-0" />
-          <div className="px-6 pb-6 overflow-y-auto no-scrollbar flex-1">
+          <div className="px-6 pb-2 shrink-0">
             <SheetHeader className="text-left mb-6">
-              <SheetTitle className="text-xl font-black italic uppercase tracking-tight">Pilih Mata Uang</SheetTitle>
+              <SheetTitle className="text-2xl font-black italic uppercase tracking-tight">Pilih Mata Uang</SheetTitle>
               <SheetDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pilih mata uang pembayaran default Anda.</SheetDescription>
             </SheetHeader>
+            
+            <div className="relative mb-4">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="Cari Mata Uang atau Negara..."
+                value={currencySearch}
+                onChange={(e) => setCurrencySearch(e.target.value)}
+                className="h-12 pl-12 bg-muted/50 border-none rounded-xl text-xs font-bold placeholder:text-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-primary/20 shadow-none"
+              />
+            </div>
+          </div>
+
+          <div className="px-6 pb-6 overflow-y-auto no-scrollbar flex-1">
             <div className="space-y-1">
-              {currencies.map((c) => (
+              {filteredCurrencies.map((c) => (
                 <div 
                   key={c.code} 
                   onClick={() => handleCurrencySelect(c)}
@@ -714,17 +743,30 @@ export default function CryptoBuyPage() {
                   )}
                 >
                   <div className="flex items-center gap-4">
-                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm", c.color)}>
+                    <div className={cn(
+                      "w-11 h-11 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm border-2 border-background shrink-0", 
+                      c.color
+                    )}>
                       {c.symbol.length > 2 ? c.code[0] : c.symbol}
                     </div>
                     <div>
-                      <h4 className="text-sm font-black italic uppercase leading-none">{c.code}</h4>
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">{c.name}</p>
+                      <h4 className="text-base font-black italic uppercase leading-none">{c.code}</h4>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 italic">{c.name}</p>
                     </div>
                   </div>
-                  {selectedCurrency.code === c.code && <div className="w-2 h-2 rounded-full bg-primary" />}
+                  {selectedCurrency.code === c.code && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                 </div>
               ))}
+
+              {filteredCurrencies.length === 0 && (
+                <div className="py-20 text-center space-y-4 opacity-30">
+                  <Search className="w-12 h-12 mx-auto text-muted-foreground" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-black uppercase italic">Data Tidak Ditemukan</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest">Coba kata kunci lain.</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </SheetContent>
