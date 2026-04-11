@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -15,13 +16,16 @@ import {
   Lock,
   ChevronRight,
   Fingerprint,
-  FileText
+  FileText,
+  RefreshCw,
+  X
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useUser, useDoc, useFirestore, useMemoFirebase, useStorage } from "@/firebase";
 import { 
   doc, 
@@ -62,23 +66,92 @@ export default function KycPage() {
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [previews, setPreviews] = useState({ idCard: "", selfie: "" });
 
+  // Camera Refs
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const streamRef = useRef<MediaStream | null>(null);
+
   const idInputRef = useRef<HTMLInputElement>(null);
-  const selfieInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'idCard' | 'selfie') => {
+  // Stop camera when leaving the step or unmounting
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: "user",
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } 
+      });
+      setHasCameraPermission(true);
+      setIsCameraActive(true);
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      setHasCameraPermission(false);
+      toast({
+        variant: 'destructive',
+        title: 'Akses Kamera Ditolak',
+        description: 'Mohon izinkan akses kamera pada browser Anda untuk verifikasi biometrik.',
+      });
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Mirror the image for selfie if needed, but usually better to save exactly what's seen
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], `selfie_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            setSelfieFile(file);
+            setPreviews(p => ({ ...p, selfie: URL.createObjectURL(file) }));
+            stopCamera();
+          }
+        }, 'image/jpeg', 0.9);
+      }
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'idCard') => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (type === 'idCard') {
         setIdCardFile(file);
         setPreviews(p => ({ ...p, idCard: URL.createObjectURL(file) }));
-      } else {
-        setSelfieFile(file);
-        setPreviews(p => ({ ...p, selfie: URL.createObjectURL(file) }));
       }
     }
   };
@@ -88,7 +161,6 @@ export default function KycPage() {
     
     setIsProcessing(true);
     try {
-      // 1. Cek Duplikasi NIK di seluruh koleksi users
       const nikQuery = query(
         collection(db, "users"), 
         where("kycData.idNumber", "==", kycForm.idNumber)
@@ -110,34 +182,7 @@ export default function KycPage() {
         toast({
           variant: "destructive",
           title: "NIK Sudah Terdaftar",
-          description: `Nomor NIK ini sudah terdaftar pada akun dengan email: ${dupData.email}. Silakan gunakan akun tersebut.`,
-        });
-        return true;
-      }
-
-      // 2. Cek Duplikasi Nomor Telepon
-      const phoneQuery = query(
-        collection(db, "users"),
-        where("phone", "==", userData.phone)
-      );
-      
-      const phoneSnap = await getDocs(phoneQuery).catch(async (err) => {
-        const permissionError = new FirestorePermissionError({
-          path: 'users',
-          operation: 'list',
-        } satisfies SecurityRuleContext);
-        errorEmitter.emit('permission-error', permissionError);
-        throw err;
-      });
-
-      const phoneDuplicate = phoneSnap.docs.find(d => d.id !== user.uid);
-
-      if (phoneDuplicate) {
-        const dupData = phoneDuplicate.data();
-        toast({
-          variant: "destructive",
-          title: "Nomor Telepon Sudah Terdaftar",
-          description: `Nomor telepon Anda sudah terdaftar pada akun dengan email: ${dupData.email}.`,
+          description: `Nomor NIK ini sudah terdaftar pada akun dengan email: ${dupData.email}.`,
         });
         return true;
       }
@@ -156,6 +201,8 @@ export default function KycPage() {
       const isDuplicate = await checkDuplicates();
       if (isDuplicate) return;
       setStep(2);
+    } else if (step === 2) {
+      setStep(3);
     } else {
       setStep(step + 1);
     }
@@ -166,17 +213,14 @@ export default function KycPage() {
     setIsProcessing(true);
 
     try {
-      // 1. Upload ID Card
       const idRef = ref(storage, `kyc_documents/${user.uid}/id_card_${Date.now()}.jpg`);
       await uploadBytes(idRef, idCardFile);
       const idUrl = await getDownloadURL(idRef);
 
-      // 2. Upload Selfie
       const selfieRef = ref(storage, `kyc_documents/${user.uid}/selfie_${Date.now()}.jpg`);
       await uploadBytes(selfieRef, selfieFile);
       const selfieUrl = await getDownloadURL(selfieRef);
 
-      // 3. Update User Profile in Firestore
       await updateDoc(userDocRef!, {
         kycStatus: "pending",
         kycData: {
@@ -191,7 +235,7 @@ export default function KycPage() {
       });
 
       toast({ title: "KYC Terkirim", description: "Admin akan memverifikasi identitas Anda dalam 24 jam." });
-      setStep(4); // Success state
+      setStep(4);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal Mengunggah", description: err.message });
     } finally {
@@ -217,7 +261,7 @@ export default function KycPage() {
   return (
     <div className="min-h-screen bg-background text-foreground pb-20 flex flex-col font-body">
       <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background z-50 border-b border-border/50">
-        <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors">
+        <button onClick={() => { if(isCameraActive) stopCamera(); router.back(); }} className="p-2 hover:bg-muted rounded-full transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div className="flex flex-col items-center">
@@ -228,7 +272,6 @@ export default function KycPage() {
       </header>
 
       <main className="flex-1 px-6 pt-8 space-y-8 overflow-y-auto no-scrollbar">
-        {/* PROGRESS INDICATOR */}
         {step < 4 && (
           <div className="flex justify-between items-center px-4 relative mb-10">
             <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-muted -translate-y-1/2 z-0" />
@@ -336,7 +379,7 @@ export default function KycPage() {
                 onClick={() => setStep(3)}
                 className="flex-[2] h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl"
               >
-                LANJUT KE SELFIE
+                LANJUT KE BIOMETRIK
               </Button>
             </div>
           </div>
@@ -346,29 +389,73 @@ export default function KycPage() {
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
             <div className="text-center space-y-2">
               <h2 className="text-2xl font-black italic uppercase tracking-tighter">Foto Biometrik</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">Ambil foto selfie sambil memegang KTP Anda.</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">Lakukan pemindaian wajah sambil memegang KTP Anda.</p>
             </div>
 
             <div className="space-y-6">
-              <input type="file" ref={selfieInputRef} className="hidden" accept="image/*" capture="user" onChange={(e) => handleFileChange(e, 'selfie')} />
-              <div 
-                onClick={() => selfieInputRef.current?.click()}
-                className={cn(
-                  "aspect-square max-w-[280px] mx-auto rounded-full border-4 border-dashed flex flex-col items-center justify-center gap-4 cursor-pointer transition-all overflow-hidden relative group",
-                  previews.selfie ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted"
+              <div className="relative aspect-square max-w-[320px] mx-auto rounded-[3rem] border-4 border-dashed border-primary/20 bg-muted overflow-hidden flex items-center justify-center">
+                {/* Always show video tag irrespective of hasCameraPermission check to prevent race condition */}
+                <video 
+                  ref={videoRef} 
+                  autoPlay 
+                  muted 
+                  playsInline 
+                  className={cn(
+                    "w-full h-full object-cover",
+                    !isCameraActive || previews.selfie ? "hidden" : "block"
+                  )} 
+                />
+                
+                {previews.selfie && (
+                  <img src={previews.selfie} alt="Selfie" className="w-full h-full object-cover" />
                 )}
-              >
-                {previews.selfie ? (
-                  <img src={previews.selfie} alt="Selfie Preview" className="w-full h-full object-cover" />
-                ) : (
-                  <>
-                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-primary/40 group-hover:scale-110 transition-transform">
+
+                {!isCameraActive && !previews.selfie && (
+                  <div className="flex flex-col items-center gap-4 text-center p-6">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                       <Camera className="w-8 h-8" />
                     </div>
-                    <p className="text-[10px] font-black uppercase text-foreground">Klik untuk Ambil Foto</p>
+                    <button onClick={startCamera} className="text-xs font-black uppercase text-primary italic tracking-widest hover:underline">
+                      AKTIFKAN KAMERA SCAN
+                    </button>
+                  </div>
+                )}
+
+                {isCameraActive && !previews.selfie && (
+                  <>
+                    <div className="absolute inset-0 border-[40px] border-black/40 pointer-events-none" />
+                    <div className="absolute inset-0 border-2 border-primary rounded-full m-10 border-dashed animate-pulse pointer-events-none" />
+                    <button 
+                      onClick={capturePhoto}
+                      className="absolute bottom-6 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-white border-4 border-primary flex items-center justify-center shadow-2xl active:scale-90 transition-transform"
+                    >
+                      <div className="w-12 h-12 rounded-full border-2 border-black/10" />
+                    </button>
                   </>
                 )}
+
+                {previews.selfie && (
+                  <button 
+                    onClick={() => { setPreviews(p => ({ ...p, selfie: "" })); setSelfieFile(null); startCamera(); }}
+                    className="absolute top-4 right-4 p-2 rounded-full bg-black/60 text-white hover:bg-black transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                )}
               </div>
+
+              <canvas ref={canvasRef} className="hidden" />
+
+              {hasCameraPermission === false && (
+                <Alert variant="destructive" className="rounded-2xl border-rose-500/20 bg-rose-500/5">
+                  <AlertTitle className="text-xs font-black uppercase flex items-center gap-2">
+                    <X className="w-4 h-4" /> Akses Kamera Diperlukan
+                  </AlertTitle>
+                  <AlertDescription className="text-[10px] font-bold uppercase italic mt-1">
+                    Mohon izinkan akses kamera untuk melakukan pemindaian wajah biometrik secara riil.
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <div className="bg-muted/30 p-6 rounded-[2rem] border border-border space-y-4">
                 <div className="flex items-center gap-3">
@@ -377,14 +464,14 @@ export default function KycPage() {
                 </div>
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2 text-[8px] font-bold text-muted-foreground uppercase italic"><CheckCircle2 className="w-3 h-3 text-green-500" /> Wajah menghadap ke depan</li>
-                  <li className="flex items-center gap-2 text-[8px] font-bold text-muted-foreground uppercase italic"><CheckCircle2 className="w-3 h-3 text-green-500" /> KTP tidak menutupi wajah</li>
-                  <li className="flex items-center gap-2 text-[8px] font-bold text-muted-foreground uppercase italic"><CheckCircle2 className="w-3 h-3 text-green-500" /> Latar belakang polos</li>
+                  <li className="flex items-center gap-2 text-[8px] font-bold text-muted-foreground uppercase italic"><CheckCircle2 className="w-3 h-3 text-green-500" /> Pegang KTP di bawah dagu</li>
+                  <li className="flex items-center gap-2 text-[8px] font-bold text-muted-foreground uppercase italic"><CheckCircle2 className="w-3 h-3 text-green-500" /> Pastikan wajah & KTP fokus</li>
                 </ul>
               </div>
             </div>
 
             <div className="flex gap-3">
-              <Button variant="ghost" onClick={() => setStep(2)} className="flex-1 h-14 rounded-2xl font-black uppercase italic text-[10px]">Kembali</Button>
+              <Button variant="ghost" onClick={() => { stopCamera(); setStep(2); }} className="flex-1 h-14 rounded-2xl font-black uppercase italic text-[10px]">Kembali</Button>
               <Button 
                 disabled={!selfieFile || isProcessing}
                 onClick={handleSubmitKyc}
@@ -415,7 +502,6 @@ export default function KycPage() {
         )}
       </main>
 
-      {/* FOOTER SECURITY */}
       {step < 4 && (
         <footer className="px-6 py-10 opacity-30 grayscale flex flex-col items-center gap-4">
           <div className="flex items-center gap-2">
@@ -423,7 +509,7 @@ export default function KycPage() {
             <span className="text-[9px] font-black uppercase tracking-widest italic">Secured by AliBank Encryption</span>
           </div>
           <p className="text-[7px] font-bold text-center uppercase leading-tight max-w-[200px]">
-            Data Anda dilindungi oleh SSL 256-bit dan enkripsi end-to-end pada server node otonom kami.
+            Data biometrik diproses melalui SSL 256-bit dan enkripsi end-to-end pada server node otonom kami.
           </p>
         </footer>
       )}
