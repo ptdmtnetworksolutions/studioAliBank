@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
@@ -538,7 +537,7 @@ function DashboardContent() {
                   </div>
                 </div>
                 <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-black px-4 h-10 rounded-lg shadow-none text-xs uppercase" onClick={openAddFunds}>
-                  Tambah Dana
+                  Top-Up
                 </Button>
               </div>
 

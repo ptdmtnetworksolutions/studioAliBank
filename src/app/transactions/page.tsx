@@ -136,7 +136,7 @@ export default function AssetsPage() {
               className="bg-primary hover:bg-primary/90 text-primary-foreground font-black italic text-[11px] h-10 rounded-xl uppercase tracking-tighter shadow-none"
               onClick={() => router.push('/?open=add_funds')}
             >
-              TAMBAH DANA
+              Top-Up
             </Button>
             <Button className="bg-muted/80 hover:bg-muted text-foreground font-black italic text-[11px] h-10 rounded-xl uppercase tracking-tighter shadow-none">
               KIRIM
