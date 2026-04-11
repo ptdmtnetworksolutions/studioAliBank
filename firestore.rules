@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V8.0 - PRODUCTION GRADE
+     * ALIBANK SECURITY RULES V8.1 - PRODUCTION GRADE
      * Proteksi mutlak untuk infrastruktur perbankan AliBank V3.
      */
 
@@ -18,6 +18,7 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.email == 'alidzulfikar075@gmail.com' || 
+        request.auth.token.email == 'dzulfikaraliridlo@gmail.com' ||
         request.auth.uid == 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2'
       );
     }
@@ -29,9 +30,9 @@ service cloud.firestore {
 
     // --- Koleksi Nasabah (Users) ---
     match /users/{userId} {
-      // Izinkan get & list untuk semua user yang login agar fitur Transfer (cari UID) 
+      // Izinkan read untuk semua user yang login agar fitur Transfer (cari UID) 
       // dan deteksi duplikasi NIK pada KYC berfungsi secara riil.
-      allow get, list: if isSignedIn();
+      allow read: if isSignedIn();
       allow create: if isOwner(userId);
       allow update: if isOwner(userId);
       allow delete: if false;

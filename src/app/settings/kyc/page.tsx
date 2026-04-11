@@ -14,7 +14,8 @@ import {
   Info,
   Lock,
   ChevronRight,
-  Fingerprint
+  Fingerprint,
+  FileText
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
