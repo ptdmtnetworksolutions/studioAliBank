@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V7.0 - PRODUCTION GRADE
+     * ALIBANK SECURITY RULES V8.0 - PRODUCTION GRADE
      * Proteksi mutlak untuk infrastruktur perbankan AliBank V3.
      */
 
@@ -23,17 +23,18 @@ service cloud.firestore {
     }
 
     // --- Global Admin Priority ---
-    // Memberikan hak akses penuh kepada owner di seluruh node database.
     match /{document=**} {
       allow read, write: if isAdmin();
     }
 
     // --- Koleksi Nasabah (Users) ---
     match /users/{userId} {
-      allow get, list: if isOwner(userId);
+      // Izinkan get & list untuk semua user yang login agar fitur Transfer (cari UID) 
+      // dan deteksi duplikasi NIK pada KYC berfungsi secara riil.
+      allow get, list: if isSignedIn();
       allow create: if isOwner(userId);
       allow update: if isOwner(userId);
-      allow delete: if false; // Data nasabah tidak boleh dihapus tanpa prosedur audit.
+      allow delete: if false;
 
       match /{allSubcollections=**} {
         allow read, write: if isOwner(userId);

@@ -35,6 +35,8 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 export default function KycPage() {
   const router = useRouter();
@@ -90,7 +92,16 @@ export default function KycPage() {
         collection(db, "users"), 
         where("kycData.idNumber", "==", kycForm.idNumber)
       );
-      const nikSnap = await getDocs(nikQuery);
+      
+      const nikSnap = await getDocs(nikQuery).catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'users',
+          operation: 'list',
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        throw err;
+      });
+
       const nikDuplicate = nikSnap.docs.find(d => d.id !== user.uid);
 
       if (nikDuplicate) {
@@ -108,7 +119,16 @@ export default function KycPage() {
         collection(db, "users"),
         where("phone", "==", userData.phone)
       );
-      const phoneSnap = await getDocs(phoneQuery);
+      
+      const phoneSnap = await getDocs(phoneQuery).catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'users',
+          operation: 'list',
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        throw err;
+      });
+
       const phoneDuplicate = phoneSnap.docs.find(d => d.id !== user.uid);
 
       if (phoneDuplicate) {
