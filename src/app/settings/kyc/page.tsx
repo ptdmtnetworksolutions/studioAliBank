@@ -55,6 +55,8 @@ export default function KycPage() {
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [isDuplicate, setIsDuplicate] = useState(false);
+  const [linkedEmail, setLinkedEmail] = useState("");
   const [mounted, setMounted] = useState(false);
 
   // Expanded Form State
@@ -153,14 +155,40 @@ export default function KycPage() {
     }
   };
 
+  const checkDuplicates = async (nik: string) => {
+    if (!db || !user || !nik) return false;
+    try {
+      const qry = query(collection(db, "users"), where("kycData.idNumber", "==", nik), limit(1));
+      const snap = await getDocs(qry);
+      
+      const duplicateDoc = snap.docs.find(d => d.id !== user.uid);
+      
+      if (duplicateDoc) {
+        const existingData = duplicateDoc.data();
+        setLinkedEmail(existingData.email || "email nasabah terkait");
+        setIsDuplicate(true);
+        return true;
+      }
+      setIsDuplicate(false);
+      setLinkedEmail("");
+      return false;
+    } catch (e) { 
+      console.error("Duplicate check error:", e);
+      return false; 
+    }
+  };
+
   const runFullOcr = async (dataUrl: string) => {
     setIsOcrLoading(true);
+    setIsDuplicate(false);
+    setLinkedEmail("");
     try {
       const res = await extractKtpData({ photoDataUri: dataUrl });
       if (res.isKtp) {
+        const extractedNik = res.nik || "";
         setKycData(prev => ({
           ...prev,
-          nik: res.nik || "",
+          nik: extractedNik,
           nama: res.nama || "",
           tempatTglLahir: res.tempatTglLahir || "",
           jenisKelamin: res.jenisKelamin || "",
@@ -174,7 +202,12 @@ export default function KycPage() {
           kewarganegaraan: res.kewarganegaraan || "",
           berlakuHingga: res.berlakuHingga || ""
         }));
-        toast({ title: "Node AI Aktif", description: "Seluruh field KTP berhasil diekstraksi." });
+
+        if (extractedNik) {
+          await checkDuplicates(extractedNik);
+        }
+
+        toast({ title: "Otentikasi Node AI Berhasil", description: "Seluruh field KTP berhasil diekstraksi." });
       } else {
         toast({ variant: "destructive", title: "KTP Tidak Valid", description: "Pastikan foto KTP terlihat jelas." });
         setIdCardFile(null); setPreviews(p => ({ ...p, idCard: "" }));
@@ -183,34 +216,6 @@ export default function KycPage() {
       toast({ variant: "destructive", title: "Kegagalan Node AI" });
     } finally {
       setIsOcrLoading(false);
-    }
-  };
-
-  const checkDuplicates = async () => {
-    if (!db || !user || !kycForm.nik) return false;
-    try {
-      // Query ke koleksi users untuk mencari NIK yang sama di kycData.idNumber
-      const qry = query(collection(db, "users"), where("kycData.idNumber", "==", kycForm.nik), limit(1));
-      const snap = await getDocs(qry);
-      
-      // Cari dokumen yang bukan milik user saat ini
-      const duplicateDoc = snap.docs.find(d => d.id !== user.uid);
-      
-      if (duplicateDoc) {
-        const existingData = duplicateDoc.data();
-        const maskedEmail = existingData.email || "email terkait";
-        
-        toast({ 
-          variant: "destructive", 
-          title: "Nomor KTP Sudah Terdaftar", 
-          description: `NIK ini sudah terdaftar dengan akun email: ${maskedEmail}. Silakan masuk (login) kembali menggunakan akun tersebut untuk melanjutkan layanan.` 
-        });
-        return true;
-      }
-      return false;
-    } catch (e) { 
-      console.error("Duplicate check error:", e);
-      return false; 
     }
   };
 
@@ -230,7 +235,7 @@ export default function KycPage() {
         kycStatus: "pending",
         kycData: {
           ...kycForm,
-          idNumber: kycForm.nik, // Map for backward compatibility
+          idNumber: kycForm.nik,
           idCardUrl: idUrl,
           selfieUrl: sUrl,
           submittedAt: new Date().toISOString()
@@ -295,7 +300,7 @@ export default function KycPage() {
                   {isOcrLoading && (
                     <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-4 text-white">
                       <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                      <span className="text-[9px] font-black uppercase tracking-widest animate-pulse">Analisis AI Riil...</span>
+                      <span className="text-[9px] font-black uppercase tracking-widest animate-pulse">Otentikasi Identitas AI Node...</span>
                     </div>
                   )}
                   <button onClick={() => startCamera('idCard')} className="absolute top-4 right-4 p-2 rounded-full bg-black/60 text-white"><RefreshCw className="w-4 h-4" /></button>
@@ -312,10 +317,23 @@ export default function KycPage() {
               <Card className="p-6 rounded-[2.5rem] bg-accent/5 border border-primary/10 space-y-6 shadow-xl animate-in slide-in-from-top-4">
                 <div className="flex items-center justify-between">
                   <Badge className="bg-primary text-black font-black text-[8px] uppercase px-2 h-5">VERIFIKASI DATA KTP</Badge>
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  {!isDuplicate ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <AlertCircle className="w-4 h-4 text-rose-500" />}
                 </div>
+
+                {isDuplicate && (
+                  <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex gap-3 animate-in shake-in duration-500">
+                    <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-rose-600 uppercase italic">Akses Ditolak: Duplikasi NIK</p>
+                      <p className="text-[9px] font-bold text-muted-foreground leading-relaxed italic">
+                        NIK ini sudah terdaftar dengan email: <span className="text-rose-600 font-black">{linkedEmail}</span>. Silakan masuk menggunakan akun tersebut.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 gap-4">
-                  <KtpField label="NIK" value={kycForm.nik} isMono />
+                  <KtpField label="NIK" value={kycForm.nik} isMono isError={isDuplicate} />
                   <KtpField label="Nama" value={kycForm.nama} />
                   <KtpField label="Tempat/Tgl Lahir" value={kycForm.tempatTglLahir} />
                   <KtpField label="Jenis Kelamin" value={kycForm.jenisKelamin} />
@@ -336,13 +354,11 @@ export default function KycPage() {
                   </div>
                 </div>
                 <Button 
-                  onClick={async () => { 
-                    const isDuplicate = await checkDuplicates();
-                    if (!isDuplicate) setStep(2); 
-                  }} 
+                  disabled={isDuplicate}
+                  onClick={() => setStep(2)} 
                   className="w-full h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-lg"
                 >
-                  DATA SUDAH BENAR <ChevronRight className="w-4 h-4 ml-2" />
+                  {isDuplicate ? "NIK SUDAH TERDAFTAR" : "DATA SUDAH BENAR"} <ChevronRight className="w-4 h-4 ml-2" />
                 </Button>
               </Card>
             )}
@@ -433,12 +449,19 @@ export default function KycPage() {
   );
 }
 
-function KtpField({ label, value, isMono = false }: { label: string; value?: string; isMono?: boolean }) {
+function KtpField({ label, value, isMono = false, isError = false }: { label: string; value?: string; isMono?: boolean; isError?: boolean }) {
   return (
     <div className="space-y-1">
       <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">{label}</p>
-      <div className="p-3 rounded-xl bg-background/50 border border-border/50">
-        <p className={cn("text-[10px] font-black italic uppercase text-foreground", isMono && "font-mono font-bold")}>{value || "---"}</p>
+      <div className={cn(
+        "p-3 rounded-xl border transition-all",
+        isError ? "bg-rose-500/10 border-rose-500 shadow-[0_0_15px_rgba(239,68,68,0.1)]" : "bg-background/50 border-border/50"
+      )}>
+        <p className={cn(
+          "text-[10px] font-black italic uppercase",
+          isError ? "text-rose-600" : "text-foreground",
+          isMono && "font-mono font-bold"
+        )}>{value || "---"}</p>
       </div>
     </div>
   );
