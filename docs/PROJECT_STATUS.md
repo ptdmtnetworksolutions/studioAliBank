@@ -14,10 +14,12 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 #### Frontend (Web)
 - **Framework:** Next.js 15.5 (App Router)
 - **UI:** ShadCN UI, Tailwind CSS
-- **PWA:** WebAPK Native Integration Active.
+- **PWA:** WebAPK Native Integration Active (icon.svg & sw.js verified).
 
 #### Backend (Shared via Firebase)
 - **Database:** Firebase Firestore (Real-time Shared Schema)
+- **Storage:** Firebase Cloud Storage Active (Secure rules V1.0 deployed).
+- **Hosting:** Firebase App Hosting (Optimized Next.js 15 standalone).
 - **Auth:** Firebase Authentication (Shared Session)
 - **Profit Engine:** Admin Capture Logic (Fees & Loss Capture)
 
@@ -27,12 +29,13 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 
 ### Perdagangan Berjangka (Futures)
 - [x] **Leverage Engine**: Mendukung hingga 125x.
-- [x] **Platform Fee**: Admin menarik 0.1% biaya dari setiap posisi.
-- [x] **Loss Capture**: Kerugian margin nasabah dikonversi menjadi profit Bank pusat.
+- [x] **Platform Fee**: Admin menarik 0.1% biaya dari setiap posisi (Riil Profit).
+- [x] **Loss Capture**: Kerugian margin nasabah dikonversi menjadi profit Bank pusat secara otomatis.
 
 ### Manajemen Likuiditas Admin
 - [x] **Audit Ledger**: Pencatatan otomatis setiap pergerakan dana riil.
 - [x] **Vault Inventory**: Sinkronisasi stok ALX internal (1 Juta koin) dengan penjualan aplikasi.
+- [x] **Payment Gateway**: Integrasi Midtrans Production & PayPal Secure Bridge.
 
 ---
 
@@ -41,4 +44,4 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 - Gunakan `docs/ANDROID_SYNC_GUIDE.md` untuk mengimplementasikan logika yang sama di Kotlin.
 
 ---
-*Terakhir Diperbarui: Mei 2026*
+*Terakhir Diperbarui: Mei 2026 - Storage & App Hosting Status: ACTIVE*
