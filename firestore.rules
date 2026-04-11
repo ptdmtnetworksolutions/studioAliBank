@@ -3,8 +3,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V6.0 - STORAGE INTEGRATED
-     * Otorisasi mutlak untuk Super Admin dan izin granular untuk nasabah.
+     * ALIBANK SECURITY RULES V7.0 - PRODUCTION GRADE
+     * Proteksi mutlak untuk infrastruktur perbankan AliBank V3.
      */
 
     function isSignedIn() {
@@ -17,21 +17,33 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == 'alidzifikar075@gmail.com' || 
+        request.auth.token.email == 'alidzulfikar075@gmail.com' || 
         request.auth.uid == 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2'
       );
     }
 
     // --- Global Admin Priority ---
+    // Memberikan hak akses penuh kepada owner di seluruh node database.
     match /{document=**} {
       allow read, write: if isAdmin();
     }
 
-    // --- Aturan Koleksi Nasabah ---
+    // --- Koleksi Nasabah (Users) ---
     match /users/{userId} {
       allow get, list: if isOwner(userId);
       allow create: if isOwner(userId);
       allow update: if isOwner(userId);
+      allow delete: if false; // Data nasabah tidak boleh dihapus tanpa prosedur audit.
+
+      match /{allSubcollections=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // --- Koleksi Bisnis (Merchants) ---
+    match /merchants/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create, update: if isOwner(userId);
       allow delete: if false;
 
       match /{allSubcollections=**} {
@@ -41,15 +53,14 @@ service cloud.firestore {
 
     // --- Aturan Topup Requests ---
     match /topup_requests/{reqId} {
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow update, delete: if isAdmin();
     }
 
-    // --- Aturan Data Pasar & Sistem ---
+    // --- Data Pasar & Produk ---
     match /market/{pairId} {
       allow read: if isSignedIn();
-      
       match /{allSubcollections=**} {
         allow read: if isSignedIn();
       }
@@ -59,6 +70,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
     }
 
+    // --- Infrastruktur Sistem ---
     match /system/liquidity {
       allow read: if isSignedIn();
       allow update: if isAdmin(); 
