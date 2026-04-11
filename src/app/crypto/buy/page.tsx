@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -50,8 +49,9 @@ import {
   DialogTitle, 
   DialogDescription 
 } from "@/components/ui/dialog";
-import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
+import { useUser, useFirestore, useDoc, useMemoFirebase, useStorage } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from "@/hooks/use-toast";
 import { createMidtransSnapTokenAction } from "@/app/actions/midtrans-actions";
 import Script from "next/script";
@@ -79,6 +79,7 @@ export default function CryptoBuyPage() {
   const router = useRouter();
   const { user } = useUser();
   const db = useFirestore();
+  const storage = useStorage();
   const { toast } = useToast();
   
   const [mounted, setMounted] = useState(false);
@@ -98,7 +99,8 @@ export default function CryptoBuyPage() {
   const [gatewayError, setGatewayError] = useState<string | null>(null);
   const [step, setStep] = useState<'input' | 'success'>('input');
   
-  const [proofImage, setProofImage] = useState<string | null>(null);
+  const [proofImage, setProofImage] = useState<File | null>(null);
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const paypalContainerRef = useRef<HTMLDivElement>(null);
   const renderInProgress = useRef(false);
@@ -154,6 +156,64 @@ export default function CryptoBuyPage() {
     if (selectedCurrency.code === 'USD') return num.toFixed(2);
     return (num / exchangeRate).toFixed(2);
   }, [amount, selectedCurrency]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProofImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setProofPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleManualBankPayment = async () => {
+    if (!user || !db || !storage || !proofImage) return;
+    setIsProcessing(true);
+
+    try {
+      // 1. Upload Proof Image to Firebase Storage
+      const fileName = `proof_${Date.now()}.jpg`;
+      const storageRef = ref(storage, `payment_proofs/${user.uid}/${fileName}`);
+      const uploadResult = await uploadBytes(storageRef, proofImage);
+      const downloadUrl = await getDownloadURL(uploadResult.ref);
+
+      // 2. Create Topup Request in Firestore
+      await addDoc(collection(db, "topup_requests"), {
+        userId: user.uid,
+        userName: userData?.name || "Nasabah AliBank",
+        userEmail: user.email,
+        amount: totalAmountIdr,
+        asset: selectedAsset.symbol,
+        estimatedAsset: parseFloat(estimatedReceive),
+        uniqueCode,
+        totalToTransfer: totalAmountIdr,
+        proofImage: downloadUrl,
+        status: "pending",
+        timestamp: serverTimestamp(),
+        createdAt: new Date().toISOString()
+      });
+
+      // 3. Create Global Audit Entry
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `TOPUP-REQ-${Date.now()}`,
+        category: "Manual Topup Request",
+        gateway: "BCA Manual",
+        amountIdr: totalAmountIdr,
+        description: `Pending top-up request from ${userData?.name}. Unique code: ${uniqueCode}`,
+        status: "pending_verification",
+        timestamp: serverTimestamp(),
+        userEmail: user.email
+      });
+
+      setStep('success');
+      toast({ title: "Bukti Terkirim", description: "Admin akan memverifikasi pembayaran Anda segera." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Unggah", description: err.message });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleMidtransPayment = async () => {
     if (!user || !userData || !systemKeys?.midtransServerKey) {
@@ -296,6 +356,30 @@ export default function CryptoBuyPage() {
 
   if (!mounted) return null;
 
+  if (step === 'success') {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 animate-in zoom-in duration-500">
+        <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mb-6">
+          <CheckCircle2 className="w-10 h-10 text-green-600" />
+        </div>
+        <h2 className="text-2xl font-black italic uppercase text-center mb-2">Permintaan Terkirim</h2>
+        <p className="text-xs text-muted-foreground text-center mb-8 italic uppercase tracking-widest">Menunggu konfirmasi node AliBank V3</p>
+        <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 space-y-4 mb-8 text-center">
+          <p className="text-[10px] font-black text-muted-foreground uppercase">Estimasi Diterima</p>
+          <p className="text-3xl font-black text-primary italic">{estimatedReceive} {selectedAsset.symbol}</p>
+          <div className="pt-4 border-t border-primary/5">
+            <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed">
+              {selectedPayment.id === 'bank' 
+                ? "Status: Sedang diverifikasi secara manual oleh Admin melalui bukti transfer."
+                : "Status: Pembayaran Terkonfirmasi secara otomatis."}
+            </p>
+          </div>
+        </Card>
+        <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl" onClick={() => router.push('/')}>Kembali ke Beranda</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
       {systemKeys?.paypalClientId && (
@@ -374,7 +458,7 @@ export default function CryptoBuyPage() {
       </main>
 
       <Dialog open={isCheckoutDialogOpen} onOpenChange={setIsCheckoutDialogOpen}>
-        <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-0 overflow-hidden shadow-2xl">
+        <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-0 overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
           <div className="gold-gradient h-3 w-full" />
           <div className="p-8 space-y-8">
             <DialogHeader className="text-center space-y-2">
@@ -412,7 +496,55 @@ export default function CryptoBuyPage() {
                   )}
                 </div>
               ) : (
-                <div className="text-center p-10 opacity-30 italic">Penyelesaian Manual Dipilih</div>
+                <div className="animate-in fade-in duration-500 space-y-6">
+                  <div className="p-6 rounded-[1.5rem] bg-muted/50 border border-border space-y-4">
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-muted-foreground uppercase italic">Bank Tujuan (BCA)</p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-base font-black italic uppercase">8829 4410 0021</span>
+                        <Copy className="w-4 h-4 text-primary cursor-pointer active:scale-90" onClick={() => { navigator.clipboard.writeText("882944100021"); toast({title: "Rekening Disalin"}); }} />
+                      </div>
+                      <p className="text-[10px] font-bold text-muted-foreground">AN: AliBank Vault Center</p>
+                    </div>
+                    <div className="h-px bg-border" />
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-muted-foreground uppercase italic">Jumlah Wajib (Termasuk Kode Unik)</p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-lg font-black text-primary italic">Rp {totalAmountIdr.toLocaleString('id-ID')}</span>
+                        <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">UNIK: {uniqueCode}</Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black uppercase italic text-muted-foreground ml-1">Unggah Bukti Transfer</p>
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+                    <div 
+                      onClick={() => fileInputRef.current?.click()}
+                      className={cn(
+                        "h-32 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all overflow-hidden",
+                        proofPreview ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted"
+                      )}
+                    >
+                      {proofPreview ? (
+                        <img src={proofPreview} alt="proof" className="w-full h-full object-cover" />
+                      ) : (
+                        <>
+                          <Upload className="w-6 h-6 text-muted-foreground" />
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Pilih Gambar Bukti</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={handleManualBankPayment} 
+                    disabled={isProcessing || !proofImage} 
+                    className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl"
+                  >
+                    {isProcessing ? <Loader2 className="animate-spin" /> : "KONFIRMASI PEMBAYARAN"}
+                  </Button>
+                </div>
               )}
               
               <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">

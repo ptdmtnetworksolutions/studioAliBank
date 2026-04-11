@@ -17,6 +17,12 @@
       "description": "AliBank Digital Asset Card",
       "imageUrl": "https://picsum.photos/seed/crypto-card/600/400",
       "imageHint": "modern credit card"
+    },
+    {
+      "id": "qr-placeholder",
+      "description": "Manual transfer QR placeholder",
+      "imageUrl": "https://picsum.photos/seed/alibqr/400/400",
+      "imageHint": "qr code"
     }
   ]
 }
