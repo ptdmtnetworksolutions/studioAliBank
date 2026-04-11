@@ -26,8 +26,9 @@ import {
   Clock
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { useUser, useDoc, useFirestore, useMemoFirebase, useAuth } from "@/firebase";
 import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { updatePassword } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,16 +48,24 @@ import { LogoIcon } from "@/components/ui/logo";
 export default function SettingsHubPage() {
   const router = useRouter();
   const { user } = useUser();
+  const auth = useAuth();
   const db = useFirestore();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
+  
+  // Dialog visibility states
   const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
   const [isPersonalInfoOpen, setIsPersonalInfoOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Profile Edit State
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+
+  // Change Password State
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   // Form State for Withdrawal Method
   const [newMethod, setNewMethod] = useState({
@@ -92,6 +101,40 @@ export default function SettingsHubPage() {
       setIsPersonalInfoOpen(false);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal Memperbarui", description: err.message });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({ variant: "destructive", title: "Konfirmasi Gagal", description: "Kata sandi konfirmasi tidak cocok." });
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast({ variant: "destructive", title: "Terlalu Pendek", description: "Kata sandi minimal harus 6 karakter." });
+      return;
+    }
+    
+    if (!user) return;
+    setIsProcessing(true);
+    try {
+      await updatePassword(user, newPassword);
+      toast({ title: "Berhasil", description: "Kata sandi Anda telah diperbarui secara aman." });
+      setIsChangePasswordOpen(false);
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      console.error("Password update error:", error);
+      if (error.code === 'auth/requires-recent-login') {
+        toast({ 
+          variant: "destructive", 
+          title: "Sesi Kedaluwarsa", 
+          description: "Demi keamanan, silakan keluar dan masuk kembali sebelum mengubah kata sandi." 
+        });
+      } else {
+        toast({ variant: "destructive", title: "Gagal", description: error.message });
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -181,7 +224,7 @@ export default function SettingsHubPage() {
             <SettingsItem 
               icon={Lock} 
               label="Ubah Kata Sandi" 
-              onClick={() => {}} 
+              onClick={() => setIsChangePasswordOpen(true)} 
             />
           </Card>
         </section>
@@ -329,6 +372,62 @@ export default function SettingsHubPage() {
                   <Save className="w-4 h-4" /> SIMPAN PERUBAHAN
                 </span>
               )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG UBAH KATA SANDI */}
+      <Dialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen}>
+        <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-8 shadow-2xl overflow-hidden">
+          <div className="gold-gradient h-2 w-full absolute top-0 left-0" />
+          <DialogHeader className="text-center space-y-2 pt-4">
+            <div className="w-14 h-14 rounded-2xl gold-gradient mx-auto flex items-center justify-center shadow-xl p-3.5 mb-2"><Lock className="text-white w-full h-full" /></div>
+            <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">Ubah Kata Sandi</DialogTitle>
+            <DialogDescription className="text-[10px] font-bold uppercase tracking-widest italic">Perbarui kredensial keamanan Anda.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 pt-6">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-muted-foreground uppercase ml-1 flex items-center gap-2">
+                  <Lock className="w-3 h-3" /> Kata Sandi Baru
+                </label>
+                <Input 
+                  type="password"
+                  placeholder="Min. 6 karakter" 
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="h-12 rounded-xl bg-muted/50 border-none font-bold" 
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-muted-foreground uppercase ml-1 flex items-center gap-2">
+                  <CheckCircle2 className="w-3 h-3" /> Konfirmasi Kata Sandi
+                </label>
+                <Input 
+                  type="password"
+                  placeholder="Ulangi kata sandi baru" 
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="h-12 rounded-xl bg-muted/50 border-none font-bold" 
+                />
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex gap-3">
+              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+              <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+                Peringatan: Jika sesi Anda sudah terlalu lama, Anda mungkin perlu masuk kembali untuk melakukan perubahan ini.
+              </p>
+            </div>
+
+            <Button 
+              onClick={handleChangePassword} 
+              disabled={isProcessing || !newPassword || !confirmPassword}
+              className="w-full h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl"
+            >
+              {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : "PERBARUI KATA SANDI"}
             </Button>
           </div>
         </DialogContent>
