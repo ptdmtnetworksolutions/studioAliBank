@@ -36,7 +36,8 @@ import {
   query, 
   where, 
   getDocs, 
-  collection 
+  collection,
+  limit 
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from "@/hooks/use-toast";
@@ -188,14 +189,29 @@ export default function KycPage() {
   const checkDuplicates = async () => {
     if (!db || !user || !kycForm.nik) return false;
     try {
-      const qry = query(collection(db, "users"), where("kycData.idNumber", "==", kycForm.nik));
+      // Query ke koleksi users untuk mencari NIK yang sama di kycData.idNumber
+      const qry = query(collection(db, "users"), where("kycData.idNumber", "==", kycForm.nik), limit(1));
       const snap = await getDocs(qry);
-      if (snap.docs.find(d => d.id !== user.uid)) {
-        toast({ variant: "destructive", title: "NIK Terdaftar", description: "Nomor NIK ini sudah digunakan akun lain." });
+      
+      // Cari dokumen yang bukan milik user saat ini
+      const duplicateDoc = snap.docs.find(d => d.id !== user.uid);
+      
+      if (duplicateDoc) {
+        const existingData = duplicateDoc.data();
+        const maskedEmail = existingData.email || "email terkait";
+        
+        toast({ 
+          variant: "destructive", 
+          title: "Nomor KTP Sudah Terdaftar", 
+          description: `NIK ini sudah terdaftar dengan akun email: ${maskedEmail}. Silakan masuk (login) kembali menggunakan akun tersebut untuk melanjutkan layanan.` 
+        });
         return true;
       }
       return false;
-    } catch (e) { return false; }
+    } catch (e) { 
+      console.error("Duplicate check error:", e);
+      return false; 
+    }
   };
 
   const handleSubmitKyc = async () => {
@@ -319,7 +335,15 @@ export default function KycPage() {
                     <KtpField label="Berlaku Hingga" value={kycForm.berlakuHingga} />
                   </div>
                 </div>
-                <Button onClick={async () => { if (!(await checkDuplicates())) setStep(2); }} className="w-full h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-lg">DATA SUDAH BENAR <ChevronRight className="w-4 h-4 ml-2" /></Button>
+                <Button 
+                  onClick={async () => { 
+                    const isDuplicate = await checkDuplicates();
+                    if (!isDuplicate) setStep(2); 
+                  }} 
+                  className="w-full h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-lg"
+                >
+                  DATA SUDAH BENAR <ChevronRight className="w-4 h-4 ml-2" />
+                </Button>
               </Card>
             )}
           </div>
