@@ -110,10 +110,20 @@ export default function MarketDetailPage() {
 
   // AliBank Autonomous Market Engine (AME) - SYNC NODE VIA PROXY
   const fetchMarketData = useCallback(async () => {
-    if (isAlix || !symbol) {
+    if (isAlix) {
+      // ALX Price Logic: From Admin Liquidty + Small fluctuation
+      const base = globalLiquidity?.lastAlxPriceUsdt || 12.24;
+      const noise = (Math.random() * 0.002 - 0.001);
+      setLivePrice(base + noise);
+      setPriceChange(1.14 + (Math.random() * 0.1));
+      setHigh24h(base * 1.05);
+      setLow24h(base * 0.98);
+      setVolume24h(globalLiquidity?.totalAlixSoldInternally || 1250000);
       setIsLoading(false);
       return;
     }
+
+    if (!symbol) return;
 
     try {
       const intervalMap: Record<string, string> = {
@@ -166,7 +176,7 @@ export default function MarketDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [symbol, isAlix, timeframe]);
+  }, [symbol, isAlix, timeframe, globalLiquidity]);
 
   useEffect(() => {
     fetchMarketData();
@@ -174,18 +184,29 @@ export default function MarketDetailPage() {
     return () => clearInterval(interval);
   }, [fetchMarketData]);
 
-  // DYNAMIC ALX LOGIC
+  // DYNAMIC PRICE LOGIC
   const currentPrice = useMemo(() => {
     if (isAlix) {
       if (realTrades && realTrades.length > 0) return realTrades[realTrades.length - 1].price || 12.24;
-      return globalLiquidity?.lastAlxPriceUsdt || 12.24;
+      return livePrice || globalLiquidity?.lastAlxPriceUsdt || 12.24;
     }
     return livePrice || 0;
   }, [isAlix, realTrades, globalLiquidity, livePrice]);
 
   const chartData = useMemo(() => {
     if (!isAlix) return candlestickData;
-    if (!realTrades || realTrades.length === 0) return [{ time: "Now", open: 12.24, close: 12.24, high: 12.24, low: 12.24, body: [12.24, 12.24], wick: [12.24, 12.24], isUp: true }];
+    
+    // Build ALX Chart from real trades in Firestore + Mock filler for visual
+    if (!realTrades || realTrades.length === 0) {
+      const base = globalLiquidity?.lastAlxPriceUsdt || 12.24;
+      return Array.from({ length: 40 }, (_, i) => {
+        const p = base + (Math.sin(i/5) * 0.05);
+        return {
+          time: `${i}:00`, open: p, high: p+0.01, low: p-0.01, close: p,
+          body: [p, p], wick: [p-0.01, p+0.01], isUp: true
+        };
+      });
+    }
     
     return realTrades.map((t) => {
       const p = t.price || 12.24;
@@ -195,16 +216,14 @@ export default function MarketDetailPage() {
         body: [p, p], wick: [p-0.01, p+0.01], isUp: true
       };
     });
-  }, [isAlix, realTrades, candlestickData]);
+  }, [isAlix, realTrades, candlestickData, globalLiquidity]);
 
-  // FIX: LOGIKA ORDER BOOK UNTUK MENCEGAH NILAI NEGATIF (-0.00)
   useEffect(() => {
     if (!mounted || currentPrice <= 0) return;
     
     const basePrice = currentPrice;
     const vaultInventory = globalLiquidity?.alixVaultBalance || 1000000;
     
-    // Gunakan step dinamis berdasarkan besarnya harga koin
     const step = basePrice * 0.0002; 
     
     setOrderBook({
@@ -309,7 +328,7 @@ export default function MarketDetailPage() {
                 </div>
                 <div>
                   <p className="uppercase opacity-60">Node Status</p>
-                  <p className="text-green-500 uppercase">AUTONOMOUS</p>
+                  <p className="text-green-500 uppercase">{isAlix ? "SOVEREIGN" : "AUTONOMOUS"}</p>
                 </div>
               </div>
             </section>
@@ -409,9 +428,26 @@ export default function MarketDetailPage() {
             </section>
           </>
         ) : (
-          <div className="py-20 text-center opacity-20 italic font-black uppercase tracking-widest text-sm flex flex-col items-center gap-4">
-            <RefreshCw className="w-10 h-10 animate-spin" />
-            AME NODE SYNC...
+          <div className="py-20 text-center space-y-6">
+            <div className="w-20 h-20 gold-gradient rounded-[2rem] mx-auto flex items-center justify-center p-5 shadow-2xl">
+              <LogoIcon className="text-white" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-black italic uppercase tracking-tight text-primary">ALX Asset Detail</h3>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-10 leading-relaxed italic">
+                Aset berdaulat AliBank V3 yang didukung oleh cadangan kas riil dan sistem buyback otomatis.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4 px-6 pt-10">
+              <Card className="p-6 rounded-[2rem] bg-muted/30 border-none shadow-inner space-y-2">
+                <p className="text-[8px] font-black uppercase text-muted-foreground">Market Cap</p>
+                <p className="text-sm font-black italic">Rp {(globalLiquidity?.totalInternalAumIdr * 1.5 || 25000000000).toLocaleString()}</p>
+              </Card>
+              <Card className="p-6 rounded-[2rem] bg-muted/30 border-none shadow-inner space-y-2">
+                <p className="text-[8px] font-black uppercase text-muted-foreground">Circulating</p>
+                <p className="text-sm font-black italic">{(globalLiquidity?.totalAlixSoldInternally || 1250000).toLocaleString()} ALX</p>
+              </Card>
+            </div>
           </div>
         )}
       </main>
