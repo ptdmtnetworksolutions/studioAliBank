@@ -222,24 +222,26 @@ export default function MarketDetailPage() {
     if (!mounted || currentPrice <= 0) return;
     
     const basePrice = currentPrice;
-    const vaultInventory = globalLiquidity?.alixVaultBalance || 1000000;
+    const vaultInventory = Math.abs(globalLiquidity?.alixVaultBalance || 1000000);
     
     const step = basePrice * 0.0002; 
     
     setOrderBook({
       bids: Array.from({ length: 8 }, (_, i) => {
         const priceValue = basePrice - ((i + 1) * step);
+        const randomAmount = Math.abs(vaultInventory * (0.01 + Math.random() * 0.05));
         return {
           price: Math.max(0.0001, priceValue).toFixed(basePrice < 1 ? 4 : 2),
-          amount: (vaultInventory * (0.01 + Math.random() * 0.05)).toFixed(2),
+          amount: randomAmount.toFixed(2),
           depth: 20 + Math.random() * 60
         };
       }),
       asks: Array.from({ length: 8 }, (_, i) => {
         const priceValue = basePrice + ((i + 1) * step);
+        const randomAmount = Math.abs(vaultInventory * (0.01 + Math.random() * 0.05));
         return {
           price: priceValue.toFixed(basePrice < 1 ? 4 : 2),
-          amount: (vaultInventory * (0.01 + Math.random() * 0.05)).toFixed(2),
+          amount: randomAmount.toFixed(2),
           depth: 20 + Math.random() * 60
         };
       })
