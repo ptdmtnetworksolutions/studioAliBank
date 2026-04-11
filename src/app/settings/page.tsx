@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -17,7 +18,11 @@ import {
   Landmark,
   Trash2,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Mail,
+  Phone,
+  Hash,
+  Save
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
@@ -45,7 +50,12 @@ export default function SettingsHubPage() {
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
+  const [isPersonalInfoOpen, setIsPersonalInfoOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Profile Edit State
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
 
   // Form State for Withdrawal Method
   const [newMethod, setNewMethod] = useState({
@@ -61,6 +71,30 @@ export default function SettingsHubPage() {
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData, loading } = useDoc(userDocRef);
+
+  useEffect(() => {
+    if (userData) {
+      setEditName(userData.name || "");
+      setEditPhone(userData.phone || "");
+    }
+  }, [userData]);
+
+  const handleUpdateProfile = async () => {
+    if (!userDocRef || !editName) return;
+    setIsProcessing(true);
+    try {
+      await updateDoc(userDocRef, {
+        name: editName,
+        phone: editPhone
+      });
+      toast({ title: "Profil Diperbarui", description: "Informasi pribadi Anda telah berhasil disimpan." });
+      setIsPersonalInfoOpen(false);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Memperbarui", description: err.message });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleAddMethod = async () => {
     if (!userDocRef || !newMethod.provider || !newMethod.accountNumber) return;
@@ -124,7 +158,7 @@ export default function SettingsHubPage() {
               icon={User} 
               label="Informasi Pribadi" 
               value={userData?.name} 
-              onClick={() => {}} 
+              onClick={() => setIsPersonalInfoOpen(true)} 
             />
             <div className="h-px bg-border mx-4" />
             <SettingsItem 
@@ -212,6 +246,84 @@ export default function SettingsHubPage() {
         </footer>
       </main>
 
+      {/* DIALOG INFORMASI PRIBADI */}
+      <Dialog open={isPersonalInfoOpen} onOpenChange={setIsPersonalInfoOpen}>
+        <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-8 shadow-2xl overflow-hidden">
+          <div className="gold-gradient h-2 w-full absolute top-0 left-0" />
+          <DialogHeader className="text-center space-y-2 pt-4">
+            <div className="w-14 h-14 rounded-2xl gold-gradient mx-auto flex items-center justify-center shadow-xl p-3.5 mb-2"><User className="text-white w-full h-full" /></div>
+            <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">Informasi Pribadi</DialogTitle>
+            <DialogDescription className="text-[10px] font-bold uppercase tracking-widest italic">Detail identitas nasabah AliBank V3.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 pt-6">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-muted-foreground uppercase ml-1 flex items-center gap-2">
+                  <User className="w-3 h-3" /> Nama Lengkap (Sesuai ID)
+                </label>
+                <Input 
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Nama Lengkap"
+                  className="h-12 rounded-xl bg-muted/50 border-none font-bold" 
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-muted-foreground uppercase ml-1 flex items-center gap-2">
+                  <Mail className="w-3 h-3" /> Alamat Email (Permanen)
+                </label>
+                <div className="h-12 flex items-center px-4 rounded-xl bg-muted/20 border border-border/50 text-muted-foreground font-medium text-sm">
+                  {userData?.email}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-muted-foreground uppercase ml-1 flex items-center gap-2">
+                  <Phone className="w-3 h-3" /> Nomor Telepon
+                </label>
+                <Input 
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="0812xxxx"
+                  className="h-12 rounded-xl bg-muted/50 border-none font-bold" 
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-muted-foreground uppercase ml-1 flex items-center gap-2">
+                  <Hash className="w-3 h-3" /> ID Rekening (UID)
+                </label>
+                <div className="h-12 flex items-center justify-between px-4 rounded-xl bg-muted/20 border border-border/50">
+                  <span className="font-mono font-bold text-xs text-accent">{userData?.accountNumber}</span>
+                  <Badge variant="outline" className="border-primary/20 text-primary text-[7px] font-black h-4 px-1.5">NATIVE</Badge>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
+              <Info className="w-4 h-4 text-blue-500 shrink-0" />
+              <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+                Pastikan nama sesuai dengan ID pemerintah untuk kelancaran proses KYC dan pencairan dana riil.
+              </p>
+            </div>
+
+            <Button 
+              onClick={handleUpdateProfile} 
+              disabled={isProcessing || !editName}
+              className="w-full h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl"
+            >
+              {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                <span className="flex items-center gap-2">
+                  <Save className="w-4 h-4" /> SIMPAN PERUBAHAN
+                </span>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* DIALOG TAMBAH METODE */}
       <Dialog open={isAddMethodOpen} onOpenChange={setIsAddMethodOpen}>
         <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-8 shadow-2xl">
@@ -293,7 +405,7 @@ function SettingsItem({ icon: Icon, label, value, onClick }: any) {
         <span className="text-sm font-black italic uppercase text-foreground">{label}</span>
       </div>
       <div className="flex items-center gap-2">
-        {value && <span className="text-[10px] font-bold text-muted-foreground uppercase italic">{value}</span>}
+        {value && <span className="text-[10px] font-bold text-muted-foreground uppercase italic truncate max-w-[120px]">{value}</span>}
         <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:translate-x-1 transition-transform" />
       </div>
     </div>
