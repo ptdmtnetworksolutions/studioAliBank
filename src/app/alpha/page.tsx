@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -7,6 +6,7 @@ import {
   ArrowLeft, 
   Sparkles, 
   TrendingUp, 
+  TrendingDown,
   Users, 
   Zap, 
   Rocket, 
