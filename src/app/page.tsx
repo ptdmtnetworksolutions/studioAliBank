@@ -1018,6 +1018,68 @@ function DashboardContent() {
           </div>
         )}
       </main>
+
+      <Sheet open={isTambahDanaOpen} onOpenChange={closeAddFunds}>
+        <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
+          <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
+          <div className="px-6 space-y-6">
+            <SheetHeader className="text-left">
+              <SheetTitle className="text-2xl font-black italic uppercase tracking-tighter">Metode Top-Up</SheetTitle>
+              <SheetDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pilih jalur likuiditas untuk menambah saldo Anda.</SheetDescription>
+            </SheetHeader>
+            
+            <div className="grid grid-cols-1 gap-3">
+              <button 
+                onClick={() => { closeAddFunds(false); router.push('/crypto/buy'); }}
+                className="flex items-center justify-between p-5 rounded-2xl bg-muted/50 border border-border hover:border-primary/30 transition-all group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl gold-gradient flex items-center justify-center shadow-lg text-white">
+                    <Zap className="w-6 h-6" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-black italic uppercase">Beli Kripto</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Visa, Mastercard, QRIS, Bank Transfer</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground/30 group-hover:text-primary transition-colors" />
+              </button>
+
+              <button 
+                onClick={() => { closeAddFunds(false); router.push('/p2p/order-history'); }}
+                className="flex items-center justify-between p-5 rounded-2xl bg-muted/50 border border-border hover:border-primary/30 transition-all group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shadow-sm border border-blue-500/20">
+                    <Users className="w-6 h-6" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-black italic uppercase">P2P Express</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Beli dari sesama nasabah AliBank</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground/30 group-hover:text-primary transition-colors" />
+              </button>
+
+              <button 
+                onClick={() => { closeAddFunds(false); router.push('/topup'); }}
+                className="flex items-center justify-between p-5 rounded-2xl bg-muted/50 border border-border hover:border-primary/30 transition-all group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center text-green-600 shadow-sm border border-green-500/20">
+                    <HandCoinIcon className="w-6 h-6" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-black italic uppercase">AliBank Pay</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Gunakan kode unik untuk setoran instan</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground/30 group-hover:text-primary transition-colors" />
+              </button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
