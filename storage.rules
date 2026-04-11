@@ -32,7 +32,7 @@ service firebase.storage {
 
     // --- Aturan Folder Avatar ---
     match /avatars/{userId}/{allPaths=**} {
-      // Foto profil bisa dilihat semua orang (publik) tapi hanya bisa diubah pemilik
+      // Foto profil bisa dilihat semua nasabah yang login tapi hanya bisa diubah pemilik
       allow read: if isSignedIn();
       allow write: if isOwner(userId) || isAdmin();
     }
