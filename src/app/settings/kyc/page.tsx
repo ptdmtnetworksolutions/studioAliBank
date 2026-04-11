@@ -22,7 +22,15 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useUser, useDoc, useFirestore, useMemoFirebase, useStorage } from "@/firebase";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { 
+  doc, 
+  updateDoc, 
+  serverTimestamp, 
+  query, 
+  where, 
+  getDocs, 
+  collection 
+} from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -69,6 +77,66 @@ export default function KycPage() {
         setSelfieFile(file);
         setPreviews(p => ({ ...p, selfie: URL.createObjectURL(file) }));
       }
+    }
+  };
+
+  const checkDuplicates = async () => {
+    if (!db || !user || !userData) return false;
+    
+    setIsProcessing(true);
+    try {
+      // 1. Cek Duplikasi NIK di seluruh koleksi users
+      const nikQuery = query(
+        collection(db, "users"), 
+        where("kycData.idNumber", "==", kycForm.idNumber)
+      );
+      const nikSnap = await getDocs(nikQuery);
+      const nikDuplicate = nikSnap.docs.find(d => d.id !== user.uid);
+
+      if (nikDuplicate) {
+        const dupData = nikDuplicate.data();
+        toast({
+          variant: "destructive",
+          title: "NIK Sudah Terdaftar",
+          description: `Nomor NIK ini sudah terdaftar pada akun dengan email: ${dupData.email}. Silakan gunakan akun tersebut.`,
+        });
+        return true;
+      }
+
+      // 2. Cek Duplikasi Nomor Telepon
+      const phoneQuery = query(
+        collection(db, "users"),
+        where("phone", "==", userData.phone)
+      );
+      const phoneSnap = await getDocs(phoneQuery);
+      const phoneDuplicate = phoneSnap.docs.find(d => d.id !== user.uid);
+
+      if (phoneDuplicate) {
+        const dupData = phoneDuplicate.data();
+        toast({
+          variant: "destructive",
+          title: "Nomor Telepon Sudah Terdaftar",
+          description: `Nomor telepon Anda sudah terdaftar pada akun dengan email: ${dupData.email}.`,
+        });
+        return true;
+      }
+
+      return false;
+    } catch (err) {
+      console.error("Duplicate check error:", err);
+      return false;
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleNextStep = async () => {
+    if (step === 1) {
+      const isDuplicate = await checkDuplicates();
+      if (isDuplicate) return;
+      setStep(2);
+    } else {
+      setStep(step + 1);
     }
   };
 
@@ -190,11 +258,13 @@ export default function KycPage() {
             </div>
 
             <Button 
-              disabled={!kycForm.fullName || !kycForm.idNumber}
-              onClick={() => setStep(2)}
+              disabled={!kycForm.fullName || !kycForm.idNumber || isProcessing}
+              onClick={handleNextStep}
               className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl"
             >
-              LANJUTKAN KE DOKUMEN <ChevronRight className="w-5 h-5 ml-2" />
+              {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : (
+                <>LANJUTKAN KE DOKUMEN <ChevronRight className="w-5 h-5 ml-2" /></>
+              )}
             </Button>
           </div>
         )}
