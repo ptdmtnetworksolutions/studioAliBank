@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// ALIBANK SECURE STORAGE RULES V1.2 - PRODUCTION STABLE
+// ALIBANK SECURE STORAGE RULES V1.3 - PRODUCTION STABLE
 // Proteksi mutlak untuk dokumen identitas dan aset nasabah AliBank V3.
 
 service firebase.storage {
@@ -24,9 +24,10 @@ service firebase.storage {
     }
 
     // --- Jalur Dokumen KYC (Kritis) ---
-    match /kyc_documents/{userId}/{fileName} {
-      // Izinkan nasabah mengunggah (create) dan melihat (get) dokumen mereka sendiri.
-      // Admin memiliki akses penuh untuk verifikasi.
+    // Menggunakan recursive match {allPaths=**} untuk memastikan akses ke file di dalam folder user
+    match /kyc_documents/{userId}/{allPaths=**} {
+      // Nasabah hanya bisa akses folder miliknya sendiri
+      // Admin bisa akses semua untuk verifikasi
       allow read, write: if isOwner(userId) || isAdmin();
     }
 
@@ -36,12 +37,12 @@ service firebase.storage {
     }
 
     // --- Jalur Avatar Profil ---
-    match /avatars/{userId} {
+    match /avatars/{userId}/{allPaths=**} {
       allow read: if isSignedIn();
       allow write: if isOwner(userId) || isAdmin();
     }
     
-    // Proteksi Global: Hanya Admin yang bisa menjelajahi seluruh isi bucket
+    // Proteksi Global: Hanya Admin yang bisa menjelajahi seluruh isi bucket di luar jalur di atas
     match /{allPaths=**} {
       allow read, write: if isAdmin();
     }

@@ -119,11 +119,14 @@ export default function KycPage() {
       streamRef.current = stream;
       setCameraActiveMode(mode);
       setIsCameraActive(true);
+      // Ensure element exists before attaching stream
       setTimeout(() => {
-        if (videoRef.current) videoRef.current.srcObject = stream;
-      }, 150);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 200);
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Akses Kamera Gagal' });
+      toast({ variant: 'destructive', title: 'Akses Kamera Gagal', description: 'Pastikan izin kamera diberikan.' });
     }
   };
 
@@ -208,13 +211,13 @@ export default function KycPage() {
           await checkDuplicates(extractedNik);
         }
 
-        toast({ title: "Otentikasi Node AI Berhasil", description: "Seluruh field KTP berhasil diekstraksi." });
+        toast({ title: "Otentikasi Identitas Berhasil", description: "Data KTP berhasil diekstraksi secara riil." });
       } else {
-        toast({ variant: "destructive", title: "KTP Tidak Valid", description: "Pastikan foto KTP terlihat jelas." });
+        toast({ variant: "destructive", title: "Dokumen Tidak Valid", description: "Sistem tidak mendeteksi format KTP yang benar." });
         setIdCardFile(null); setPreviews(p => ({ ...p, idCard: "" }));
       }
     } catch (err) {
-      toast({ variant: "destructive", title: "Kegagalan Node AI" });
+      toast({ variant: "destructive", title: "Gangguan Node AI", description: "Gagal menghubungkan ke modul ekstraksi data." });
     } finally {
       setIsOcrLoading(false);
     }
@@ -222,23 +225,23 @@ export default function KycPage() {
 
   const handleSubmitKyc = async () => {
     if (!user || !db || !storage || !idCardFile || !selfieFile || !userDocRef) {
-      toast({ variant: "destructive", title: "Data Tidak Lengkap", description: "Mohon ambil ulang foto KTP dan Selfie Anda." });
+      toast({ variant: "destructive", title: "Data Tidak Lengkap", description: "Pastikan foto KTP dan Selfie sudah diambil." });
       return;
     }
 
     setIsProcessing(true);
     try {
-      // 1. Upload KTP dengan Jalur Aman
+      // 1. Upload KTP
       const idRef = ref(storage, `kyc_documents/${user.uid}/id_card.jpg`);
       await uploadBytes(idRef, idCardFile);
       const idUrl = await getDownloadURL(idRef);
 
-      // 2. Upload Biometrik dengan Jalur Aman
+      // 2. Upload Selfie
       const sRef = ref(storage, `kyc_documents/${user.uid}/selfie_hold.jpg`);
       await uploadBytes(sRef, selfieFile);
       const sUrl = await getDownloadURL(sRef);
 
-      // 3. Gabungkan dan Bersihkan Data (Sanitization)
+      // 3. Finalize Data
       const finalKycData = {
         ...kycForm,
         idNumber: kycForm.nik,
@@ -247,20 +250,20 @@ export default function KycPage() {
         submittedAt: new Date().toISOString()
       };
 
-      // 4. Update Node Firestore
+      // 4. Update Database
       await updateDoc(userDocRef, {
         kycStatus: "pending",
         kycData: finalKycData
       });
 
       setStep(4);
-      toast({ title: "Pengajuan Berhasil", description: "Identitas Anda kini sedang ditinjau oleh sistem pusat." });
+      toast({ title: "KYC Terkirim", description: "Pengajuan Anda sedang diproses oleh tim kepatuhan." });
     } catch (err: any) {
       console.error("KYC Submission Error:", err);
       toast({ 
         variant: "destructive", 
-        title: "Submission Gagal", 
-        description: err.message || "Hambatan pada Node AliBank terdeteksi. Silakan coba sesaat lagi." 
+        title: "Gagal Mengunggah", 
+        description: err.message || "Pastikan koneksi internet stabil." 
       });
     } finally {
       setIsProcessing(false);
@@ -277,7 +280,7 @@ export default function KycPage() {
         </button>
         <div className="flex flex-col items-center">
           <h1 className="text-sm font-black italic uppercase">KYC Protocol V3.5</h1>
-          <Badge className="bg-primary/10 text-primary border-none text-[7px] font-black h-4 px-1.5 uppercase mt-1">AI Verified Node</Badge>
+          <Badge className="bg-primary/10 text-primary border-none text-[7px] font-black h-4 px-1.5 uppercase mt-1">Sovereign Node</Badge>
         </div>
         <div className="w-10" />
       </header>
@@ -299,8 +302,8 @@ export default function KycPage() {
         {step === 1 && (
           <div className="space-y-8 animate-in fade-in duration-500">
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter">SCAN KTP ASLI</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Ambil foto KTP Anda dengan pencahayaan terang.</p>
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter">IDENTITAS FISIK</h2>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Pindai KTP asli Anda untuk ekstraksi data otomatis.</p>
             </div>
 
             <div className="relative aspect-[1.6/1] rounded-[2.5rem] border-4 border-dashed border-primary/20 bg-muted overflow-hidden flex items-center justify-center shadow-xl">
@@ -324,27 +327,27 @@ export default function KycPage() {
                   <button onClick={() => startCamera('idCard')} className="absolute top-4 right-4 p-2 rounded-full bg-black/60 text-white"><RefreshCw className="w-4 h-4" /></button>
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-4 text-center p-6" onClick={() => startCamera('idCard')}>
+                <div className="flex flex-col items-center gap-4 text-center p-6 cursor-pointer" onClick={() => startCamera('idCard')}>
                   <Camera className="w-10 h-10 text-primary/40" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-primary italic">KLIK UNTUK AKTIFKAN KAMERA</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-primary italic">AKTIFKAN SENSOR KAMERA KTP</span>
                 </div>
               )}
             </div>
 
-            {previews.idCard && !isCameraActive && kycForm.nik && (
+            {previews.idCard && !isCameraActive && (
               <Card className="p-6 rounded-[2.5rem] bg-accent/5 border border-primary/10 space-y-6 shadow-xl animate-in slide-in-from-top-4">
                 <div className="flex items-center justify-between">
-                  <Badge className="bg-primary text-black font-black text-[8px] uppercase px-2 h-5">VERIFIKASI DATA KTP</Badge>
-                  {!isDuplicate ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <AlertCircle className="w-4 h-4 text-rose-500" />}
+                  <Badge className="bg-primary text-black font-black text-[8px] uppercase px-2 h-5">DATA HASIL SCAN AI</Badge>
+                  {isOcrLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (!isDuplicate ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <AlertCircle className="w-4 h-4 text-rose-500" />)}
                 </div>
 
                 {isDuplicate && (
-                  <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex gap-3 animate-in shake-in duration-500">
+                  <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex gap-3 animate-in shake-in">
                     <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
                     <div className="space-y-1">
-                      <p className="text-[10px] font-black text-rose-600 uppercase italic">Akses Ditolak: Duplikasi NIK</p>
+                      <p className="text-[10px] font-black text-rose-600 uppercase italic">NIK SUDAH TERDAFTAR</p>
                       <p className="text-[9px] font-bold text-muted-foreground leading-relaxed italic">
-                        NIK ini sudah terdaftar dengan email: <span className="text-rose-600 font-black">{linkedEmail}</span>. Silakan masuk menggunakan akun tersebut.
+                        NIK ini tertaut dengan akun: <span className="text-rose-600 font-black">{linkedEmail}</span>. Gunakan akun tersebut untuk login.
                       </p>
                     </div>
                   </div>
@@ -353,31 +356,29 @@ export default function KycPage() {
                 <div className="grid grid-cols-1 gap-4">
                   <KtpField label="NIK" value={kycForm.nik} isMono isError={isDuplicate} />
                   <KtpField label="Nama" value={kycForm.nama} />
-                  <KtpField label="Tempat/Tgl Lahir" value={kycForm.tempatTglLahir} />
-                  <KtpField label="Jenis Kelamin" value={kycForm.jenisKelamin} />
                   <KtpField label="Alamat" value={kycForm.alamat} />
                   <div className="grid grid-cols-2 gap-3">
-                    <KtpField label="RT/RW" value={kycForm.rtRw} />
-                    <KtpField label="Kel/Desa" value={kycForm.kelDesa} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <KtpField label="Kecamatan" value={kycForm.kecamatan} />
+                    <KtpField label="Pekerjaan" value={kycForm.pekerjaan} />
                     <KtpField label="Agama" value={kycForm.agama} />
                   </div>
-                  <KtpField label="Status Perkawinan" value={kycForm.statusPerkawinan} />
-                  <KtpField label="Pekerjaan" value={kycForm.pekerjaan} />
-                  <div className="grid grid-cols-2 gap-3">
-                    <KtpField label="Kewarganegaraan" value={kycForm.kewarganegaraan} />
-                    <KtpField label="Berlaku Hingga" value={kycForm.berlakuHingga} />
-                  </div>
                 </div>
-                <Button 
-                  disabled={isDuplicate}
-                  onClick={() => setStep(2)} 
-                  className="w-full h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-lg"
-                >
-                  {isDuplicate ? "NIK SUDAH TERDAFTAR" : "DATA SUDAH BENAR"} <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
+                
+                <div className="flex gap-3">
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => startCamera('idCard')} 
+                    className="flex-1 h-14 rounded-2xl border border-border font-black text-[10px] uppercase italic"
+                  >
+                    ULANGI SCAN
+                  </Button>
+                  <Button 
+                    disabled={isDuplicate || !kycForm.nik || isOcrLoading}
+                    onClick={() => setStep(2)} 
+                    className="flex-[2] h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-lg"
+                  >
+                    LANJUTKAN <ChevronRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
               </Card>
             )}
           </div>
@@ -387,44 +388,29 @@ export default function KycPage() {
         {step === 2 && (
           <div className="space-y-8 animate-in fade-in duration-500">
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter">DATA TAMBAHAN</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Lengkapi informasi domisili & kontak aktif.</p>
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter">DATA KONTAK</h2>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Informasi pelengkap untuk korespondensi perbankan.</p>
             </div>
             <div className="space-y-5">
               <div className="space-y-1.5">
                 <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Provinsi</label>
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40" />
-                  <Input value={kycForm.province} onChange={(e) => setKycData({...kycForm, province: e.target.value})} placeholder="Contoh: JAWA BARAT" className="h-14 pl-12 rounded-2xl bg-muted/50 border-none font-bold uppercase" />
-                </div>
+                <Input value={kycForm.province} onChange={(e) => setKycData({...kycForm, province: e.target.value.toUpperCase()})} placeholder="Contoh: DKI JAKARTA" className="h-14 rounded-2xl bg-muted/50 border-none font-bold uppercase" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Kode Pos</label>
-                <Input value={kycForm.postalCode} onChange={(e) => setKycData({...kycForm, postalCode: e.target.value})} placeholder="5 Digit Kode Pos" className="h-14 rounded-2xl bg-muted/50 border-none font-mono font-bold" />
+                <Input value={kycForm.postalCode} onChange={(e) => setKycData({...kycForm, postalCode: e.target.value})} placeholder="5 Digit" className="h-14 rounded-2xl bg-muted/50 border-none font-mono font-bold" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Nomor WhatsApp</label>
+                <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Nomor WhatsApp Aktif</label>
                 <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40" />
+                  <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40" />
                   <Input value={kycForm.whatsapp} onChange={(e) => setKycData({...kycForm, whatsapp: e.target.value})} placeholder="0812xxxxxxxx" className="h-14 pl-12 rounded-2xl bg-muted/50 border-none font-bold" />
                 </div>
               </div>
             </div>
             <div className="flex gap-4">
-              <Button 
-                variant="ghost" 
-                onClick={() => setStep(1)}
-                className="flex-1 h-16 rounded-[2rem] font-black italic uppercase border border-border"
-              >
-                Kembali
-              </Button>
-              <Button 
-                disabled={!kycForm.province || !kycForm.postalCode || !kycForm.whatsapp} 
-                onClick={() => setStep(3)} 
-                className="flex-[2] h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl"
-              >
-                LANJUT KE BIOMETRIK
-              </Button>
+              <Button variant="ghost" onClick={() => setStep(1)} className="flex-1 h-16 rounded-[2rem] font-black italic uppercase border border-border">KEMBALI</Button>
+              <Button disabled={!kycForm.province || !kycForm.postalCode || !kycForm.whatsapp} onClick={() => setStep(3)} className="flex-[2] h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl">LANJUTKAN</Button>
             </div>
           </div>
         )}
@@ -433,8 +419,8 @@ export default function KycPage() {
         {step === 3 && (
           <div className="space-y-8 animate-in fade-in duration-500">
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter">BIOMETRIK WAJAH</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Ambil selfie sambil memegang KTP di samping wajah.</p>
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter">VALIDASI BIOMETRIK</h2>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Ambil foto wajah Anda sambil memegang KTP asli.</p>
             </div>
             <div className="relative aspect-square max-w-[320px] mx-auto rounded-[3rem] border-4 border-dashed border-primary/20 bg-muted overflow-hidden flex items-center justify-center shadow-2xl">
               {isCameraActive && cameraMode === 'selfie' ? (
@@ -451,42 +437,34 @@ export default function KycPage() {
                   <button onClick={() => startCamera('selfie')} className="absolute top-4 right-4 p-2 rounded-full bg-black/60 text-white"><RefreshCw className="w-4 h-4" /></button>
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-4 text-center p-6" onClick={() => startCamera('selfie')}>
+                <div className="flex flex-col items-center gap-4 text-center p-6 cursor-pointer" onClick={() => startCamera('selfie')}>
                   <User className="w-12 h-12 text-primary/40" />
-                  <button className="text-[10px] font-black uppercase text-primary italic tracking-widest hover:underline">AKTIFKAN KAMERA BIOMETRIK</button>
+                  <button className="text-[10px] font-black uppercase text-primary italic tracking-widest hover:underline">AKTIFKAN KAMERA SELFIE</button>
                 </div>
               )}
             </div>
             <div className="flex gap-4">
-              <Button 
-                variant="ghost" 
-                onClick={() => { stopCamera(); setStep(2); }}
-                className="flex-1 h-16 rounded-[2rem] font-black italic uppercase border border-border"
-              >
-                Kembali
-              </Button>
-              <Button 
-                disabled={!selfieFile || isProcessing} 
-                onClick={handleSubmitKyc} 
-                className="flex-[2] h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl"
-              >
-                {isProcessing ? <Loader2 className="animate-spin w-6 h-6" /> : "KIRIM PENGAJUAN FINAL"}
+              <Button variant="ghost" onClick={() => { stopCamera(); setStep(2); }} className="flex-1 h-16 rounded-[2rem] font-black italic uppercase border border-border">KEMBALI</Button>
+              <Button disabled={!selfieFile || isProcessing} onClick={handleSubmitKyc} className="flex-[2] h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl">
+                {isProcessing ? <Loader2 className="animate-spin w-6 h-6" /> : "AJUKAN VERIFIKASI"}
               </Button>
             </div>
           </div>
         )}
 
         {step === 4 && (
-          <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-8 text-center animate-in zoom-in duration-700">
+          <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-8 text-center animate-in zoom-in">
             <div className="w-24 h-24 rounded-[2rem] bg-accent/5 flex items-center justify-center relative overflow-hidden">
               <div className="absolute inset-0 gold-gradient opacity-10 animate-pulse" />
               <CheckCircle2 className="w-12 h-12 text-primary relative z-10" />
             </div>
-            <div className="space-y-2">
-              <h2 className="text-3xl font-black italic uppercase tracking-tighter">DATA TERKIRIM</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic max-w-xs mx-auto">Terima kasih. Berkas identitas Anda sedang diverifikasi oleh Node AliBank V3.</p>
+            <div className="space-y-2 px-4">
+              <h2 className="text-3xl font-black italic uppercase tracking-tighter">DATA DITERIMA</h2>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic leading-relaxed">
+                Dokumen Anda telah dienkripsi dan dikirim ke Node AliBank V3. Kami akan memberitahu Anda setelah verifikasi manual selesai.
+              </p>
             </div>
-            <Button onClick={() => router.push('/')} className="w-full max-w-xs h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl">KEMBALI KE BERANDA</Button>
+            <Button onClick={() => router.push('/')} className="w-full max-w-xs h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl">KE BERANDA</Button>
           </div>
         )}
       </main>
@@ -501,10 +479,10 @@ function KtpField({ label, value, isMono = false, isError = false }: { label: st
       <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">{label}</p>
       <div className={cn(
         "p-3 rounded-xl border transition-all",
-        isError ? "bg-rose-500/10 border-rose-500 shadow-[0_0_15px_rgba(239,68,68,0.1)]" : "bg-background/50 border-border/50"
+        isError ? "bg-rose-500/10 border-rose-500" : "bg-background/50 border-border/50"
       )}>
         <p className={cn(
-          "text-[10px] font-black italic uppercase",
+          "text-[10px] font-black italic uppercase truncate",
           isError ? "text-rose-600" : "text-foreground",
           isMono && "font-mono font-bold"
         )}>{value || "---"}</p>
