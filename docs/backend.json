@@ -23,7 +23,21 @@
             "BTC": { "type": "number" }
           }
         },
-        "tier": { "type": "string" }
+        "tier": { "type": "string" },
+        "kycStatus": { 
+          "type": "string", 
+          "enum": ["unverified", "pending", "verified", "rejected"] 
+        },
+        "kycData": {
+          "type": "object",
+          "properties": {
+            "idNumber": { "type": "string" },
+            "idType": { "type": "string" },
+            "idCardUrl": { "type": "string" },
+            "selfieUrl": { "type": "string" },
+            "submittedAt": { "type": "string", "format": "date-time" }
+          }
+        }
       }
     },
     "FuturesPosition": {
@@ -103,6 +117,10 @@
       {
         "path": "avatars/{userId}",
         "description": "Client profile identity images."
+      },
+      {
+        "path": "kyc_documents/{userId}/{fileName}",
+        "description": "Identity documents for KYC verification."
       }
     ]
   }

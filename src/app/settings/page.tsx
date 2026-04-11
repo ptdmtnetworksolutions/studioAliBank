@@ -22,7 +22,8 @@ import {
   Mail,
   Phone,
   Hash,
-  Save
+  Save,
+  Clock
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
@@ -147,9 +148,14 @@ export default function SettingsHubPage() {
             <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest">Akun & Profil</h2>
             <Badge className={cn(
               "text-[8px] font-black uppercase px-2 h-5 border-none",
-              userData?.kycStatus === 'verified' ? "bg-green-500/10 text-green-600" : "bg-amber-500/10 text-amber-600"
+              userData?.kycStatus === 'verified' ? "bg-green-500/10 text-green-600" : 
+              userData?.kycStatus === 'pending' ? "bg-amber-500/10 text-amber-600" :
+              userData?.kycStatus === 'rejected' ? "bg-rose-500/10 text-rose-600" :
+              "bg-muted text-muted-foreground"
             )}>
-              {userData?.kycStatus === 'verified' ? 'Verified' : 'Unverified'}
+              {userData?.kycStatus === 'verified' ? 'Verified' : 
+               userData?.kycStatus === 'pending' ? 'Pending' :
+               userData?.kycStatus === 'rejected' ? 'Rejected' : 'Unverified'}
             </Badge>
           </div>
           
@@ -164,8 +170,12 @@ export default function SettingsHubPage() {
             <SettingsItem 
               icon={ShieldCheck} 
               label="Verifikasi Identitas (KYC)" 
-              value={userData?.kycStatus === 'verified' ? "Selesai" : "Klik untuk Verifikasi"}
-              onClick={() => router.push('/profile')} 
+              value={
+                userData?.kycStatus === 'verified' ? "Selesai" : 
+                userData?.kycStatus === 'pending' ? "Sedang Ditinjau" : 
+                "Klik untuk Verifikasi"
+              }
+              onClick={() => router.push('/settings/kyc')} 
             />
             <div className="h-px bg-border mx-4" />
             <SettingsItem 

@@ -14,7 +14,8 @@ import {
   Moon, 
   LogOut, 
   Loader2,
-  Clock
+  Clock,
+  ShieldCheck
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
@@ -41,6 +42,7 @@ import { ApiManagementView } from "./components/ApiManagementView";
 import { InventoryView } from "./components/InventoryView";
 import { AuditLogsView as AuditLogsMod } from "./components/AuditLogsView";
 import { PendingRequestsView } from "./components/PendingRequestsView";
+import { KycVerificationView } from "./components/KycVerificationView";
 
 import { useAlixCoin } from '@/hooks/useAlixCoin';
 
@@ -141,6 +143,7 @@ function AdminContent() {
         </div>
         <nav className="flex-1 px-4 space-y-2 pt-4 overflow-y-auto no-scrollbar">
           <SidebarItem icon={LayoutGrid} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+          <SidebarItem icon={ShieldCheck} label="KYC Center" active={activeTab === 'kyc'} onClick={() => setActiveTab('kyc')} />
           <SidebarItem icon={Clock} label="Pending Requests" active={activeTab === 'pending'} onClick={() => setActiveTab('pending')} />
           <SidebarItem icon={Users} label="Clients" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
           <SidebarItem icon={Wallet} label="Vault Control" active={activeTab === 'vault'} onClick={() => setActiveTab('vault')} />
@@ -164,7 +167,7 @@ function AdminContent() {
 
       <main className="md:ml-72 flex-1 flex flex-col min-w-0 bg-background">
         <header className="h-20 bg-card border-b border-border flex items-center justify-between px-6 md:px-10 sticky top-0 z-40">
-          <div className="relative w-full max-w-sm hidden sm:block">
+          <div className="relative w-full max-sm hidden sm:block">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Search global data..." className="h-11 pl-12 bg-muted border-none rounded-xl text-xs font-bold w-full" />
           </div>
@@ -195,6 +198,7 @@ function AdminContent() {
               totalSupply={totalSupply}
             />
           )}
+          {activeTab === 'kyc' && <KycVerificationView allUsers={allUsers} />}
           {activeTab === 'pending' && <PendingRequestsView topupRequests={topupRequests} />}
           {activeTab === 'users' && <ClientsView allUsers={allUsers} />}
           {activeTab === 'vault' && <VaultControlView onChainEth={onChainEth} VAULT_CONTRACT={VAULT_CONTRACT} auditLogs={auditLogs} />}
