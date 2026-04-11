@@ -99,7 +99,10 @@ export default function ProfilePage() {
         <div className="flex items-center gap-4">
           <Maximize className="w-5 h-5 text-foreground cursor-pointer" />
           <Headset className="w-5 h-5 text-foreground cursor-pointer" />
-          <Settings className="w-5 h-5 text-foreground cursor-pointer" />
+          <Settings 
+            className="w-5 h-5 text-foreground cursor-pointer hover:text-primary transition-colors" 
+            onClick={() => router.push('/settings')}
+          />
         </div>
       </header>
 
@@ -113,7 +116,7 @@ export default function ProfilePage() {
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black tracking-tight">{userData?.name || "DzulfikarAliRidlo"}</h1>
+                <h1 className="text-xl font-black tracking-tight">{userData?.name || "Nasabah AliBank"}</h1>
                 <Share2 className="w-4 h-4 text-muted-foreground/60 cursor-pointer" />
               </div>
               <div className="flex items-center gap-1.5 text-muted-foreground" onClick={copyUid}>
@@ -121,7 +124,12 @@ export default function ProfilePage() {
                 <Copy className="w-3 h-3 cursor-pointer active:scale-90 transition-transform" />
               </div>
               <div className="flex items-center gap-2 pt-1">
-                <Badge className="bg-green-500/10 text-green-500 text-[10px] font-black h-5 border-none px-2 rounded-md italic">Terverifikasi</Badge>
+                <Badge className={cn(
+                  "text-[10px] font-black h-5 border-none px-2 rounded-md italic",
+                  userData?.kycStatus === 'verified' ? "bg-green-500/10 text-green-500" : "bg-amber-500/10 text-amber-500"
+                )}>
+                  {userData?.kycStatus === 'verified' ? 'Terverifikasi' : 'Belum Verifikasi'}
+                </Badge>
                 <div 
                   className={cn("flex items-center gap-1 px-2 py-0.5 rounded-md cursor-pointer hover:opacity-80 transition-opacity", tierInfo.bg)}
                   onClick={() => router.push('/crypto/market/alx')}
@@ -133,7 +141,7 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-          <ChevronRight className="w-5 h-5 text-muted-foreground/40 mt-6" />
+          <ChevronRight className="w-5 h-5 text-muted-foreground/40 mt-6" onClick={() => router.push('/settings')} />
         </section>
 
         {/* ADMIN ACCESS - SPECIAL BUTTON FOR OWNER */}
