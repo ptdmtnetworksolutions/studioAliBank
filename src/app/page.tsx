@@ -67,6 +67,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import Image from "next/image";
+import { AlphaMarketView } from "@/components/crypto/AlphaMarketView";
 
 function HandCoinIcon({ className }: { className?: string }) {
   return (
@@ -220,7 +221,7 @@ function DashboardContent() {
         
         let price = parseFloat(item.lastPrice);
         if (item.symbol === "USDTIDR") {
-          price = price; // This is the IDR price per 1 USDT
+          price = price; 
           setDynamicUsdtRate(price);
         }
         
@@ -778,7 +779,9 @@ function DashboardContent() {
                 ))}
               </div>
 
-              {marketFilter !== 'Game' ? (
+              {marketFilter === 'Alpha' ? (
+                <AlphaMarketView marketCoins={marketCoins} />
+              ) : marketFilter !== 'Game' ? (
                 <>
                   <div className="grid grid-cols-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">
                     <span>Nama</span>

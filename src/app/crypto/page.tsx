@@ -39,6 +39,7 @@ import {
 import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import Image from "next/image";
+import { AlphaMarketView } from "@/components/crypto/AlphaMarketView";
 
 const MARKUP = 1.02;
 const USDT_IDR_RATE = 15850;
@@ -202,7 +203,9 @@ export default function CryptoMarketPage() {
       </header>
 
       <main className="flex-1 px-4 pt-4 space-y-8 overflow-y-auto no-scrollbar pb-32">
-        {activeTab === "Pasar" && (
+        {activeTab === "Alpha" ? (
+          <AlphaMarketView marketCoins={marketData} />
+        ) : activeTab === "Pasar" && (
           <div className="animate-in slide-in-from-right-4 duration-500 space-y-6">
             <div className="flex items-center justify-between px-1">
               <h3 className="text-base font-black text-foreground italic uppercase">Semua Kripto</h3>
