@@ -51,7 +51,7 @@ import {
   DialogTitle, 
   DialogDescription 
 } from "@/components/ui/dialog";
-import { useUser, useFirestore, useDoc, useMemoFirebase, useStorage } from "@/firebase";
+import { useUser, useDoc, useFirestore, useMemoFirebase, useStorage } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from "@/hooks/use-toast";
@@ -402,6 +402,10 @@ export default function CryptoBuyPage() {
     else if (amount.length < 12) setAmount(amount + num);
   };
 
+  const handleDelete = () => {
+    setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : "0");
+  };
+
   if (!mounted) return (
     <div className="h-screen bg-background flex items-center justify-center">
       <Loader2 className="animate-spin text-primary w-8 h-8" />
@@ -524,10 +528,14 @@ export default function CryptoBuyPage() {
           </Button>
           
           <div className="grid grid-cols-3 gap-y-1">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (<button key={n} onClick={() => handleKeyPress(n.toString())} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">{n}</button>))}
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+              <button key={n} onClick={() => handleKeyPress(n.toString())} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">{n}</button>
+            ))}
             <button onClick={() => setAmount(prev => prev.includes(',') ? prev : prev + ',')} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">,</button>
             <button onClick={() => handleKeyPress("0")} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">0</button>
-            <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-3 transition-colors"><Delete className="w-7 h-7" /></button>
+            <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-3 transition-colors">
+              <Delete className="w-7 h-7" />
+            </button>
           </div>
         </div>
       </main>
