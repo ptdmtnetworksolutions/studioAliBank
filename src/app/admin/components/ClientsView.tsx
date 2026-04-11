@@ -28,7 +28,9 @@ import {
   Smartphone,
   CheckCircle2,
   AlertCircle,
-  Clock
+  Clock,
+  Briefcase,
+  Globe
 } from "lucide-react";
 import { 
   Dialog, 
