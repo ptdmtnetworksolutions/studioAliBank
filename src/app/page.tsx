@@ -411,9 +411,15 @@ function DashboardContent() {
                   className="w-8 h-8 rounded-full bg-muted border border-border overflow-hidden cursor-pointer shrink-0 relative"
                   onClick={() => router.push('/profile')}
                 >
-                  <div className="absolute inset-0 bg-slate-200" />
-                  <div className="absolute top-1 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-yellow-400" />
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-3 rounded-t-full bg-slate-400" />
+                  {userData?.avatarUrl ? (
+                    <Image src={userData.avatarUrl} alt="Avatar" width={32} height={32} className="object-cover w-full h-full" />
+                  ) : (
+                    <>
+                      <div className="absolute inset-0 bg-slate-200" />
+                      <div className="absolute top-1 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-yellow-400" />
+                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-3 rounded-t-full bg-slate-400" />
+                    </>
+                  )}
                 </div>
                 <div 
                   className="relative cursor-pointer shrink-0"
@@ -695,11 +701,11 @@ function DashboardContent() {
                   <p className="text-[10px] font-bold text-muted-foreground mb-4 italic">Beli/Jual Kripto dengan IDR</p>
                   <div className="flex gap-6 mt-2">
                     <div className="flex flex-col items-center gap-1">
-                      <Users className="w-5 h-5 text-foreground" />
+                      <div className="w-8 h-8 flex items-center justify-center"><Users className="w-5 h-5 text-foreground" /></div>
                       <span className="text-[9px] font-bold italic">P2P</span>
                     </div>
                     <div className="flex flex-col items-center gap-1">
-                      <Search className="w-5 h-5 text-foreground" />
+                      <div className="w-8 h-8 flex items-center justify-center"><Search className="w-5 h-5 text-foreground" /></div>
                       <span className="text-[9px] font-bold text-center leading-tight italic">Temukan<br/>Penawaran</span>
                     </div>
                   </div>

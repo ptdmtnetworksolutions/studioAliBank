@@ -25,12 +25,15 @@ import {
   Save,
   Clock,
   Smartphone,
-  Check
+  Check,
+  Camera,
+  Upload
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { useUser, useDoc, useFirestore, useMemoFirebase, useAuth } from "@/firebase";
+import { useState, useEffect, useRef } from "react";
+import { useUser, useDoc, useFirestore, useMemoFirebase, useAuth, useStorage } from "@/firebase";
 import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { updatePassword } from "firebase/auth";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +49,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
+import Image from "next/image";
 
 const EWALLETS = [
   { id: 'dana', name: 'DANA', color: 'bg-[#008FE2]', logo: 'D' },
@@ -59,6 +63,7 @@ export default function SettingsHubPage() {
   const { user } = useUser();
   const auth = useAuth();
   const db = useFirestore();
+  const storage = useStorage();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   
@@ -67,10 +72,12 @@ export default function SettingsHubPage() {
   const [isPersonalInfoOpen, setIsPersonalInfoOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Profile Edit State
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Change Password State
   const [newPassword, setNewPassword] = useState("");
@@ -97,6 +104,29 @@ export default function SettingsHubPage() {
       setEditPhone(userData.phone || "");
     }
   }, [userData]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !user || !storage || !userDocRef) return;
+    
+    const file = e.target.files[0];
+    setIsUploading(true);
+    
+    try {
+      const storageRef = ref(storage, `avatars/${user.uid}`);
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+      
+      await updateDoc(userDocRef, {
+        avatarUrl: downloadUrl
+      });
+      
+      toast({ title: "Foto Profil Diperbarui", description: "Wajah baru Anda kini aktif di seluruh sistem AliBank." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Unggah", description: err.message });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleUpdateProfile = async () => {
     if (!userDocRef || !editName) return;
@@ -313,7 +343,25 @@ export default function SettingsHubPage() {
         <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-8 shadow-2xl overflow-hidden">
           <div className="gold-gradient h-2 w-full absolute top-0 left-0" />
           <DialogHeader className="text-center space-y-2 pt-4">
-            <div className="w-14 h-14 rounded-2xl gold-gradient mx-auto flex items-center justify-center shadow-xl p-3.5 mb-2"><User className="text-white w-full h-full" /></div>
+            <div className="relative w-20 h-20 mx-auto mb-4 group">
+              <div className="w-20 h-20 rounded-3xl bg-muted border-4 border-background shadow-xl overflow-hidden flex items-center justify-center">
+                {isUploading ? (
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                ) : userData?.avatarUrl ? (
+                  <Image src={userData.avatarUrl} alt="Avatar" width={80} height={80} className="object-cover w-full h-full" />
+                ) : (
+                  <User className="w-10 h-10 text-muted-foreground" />
+                )}
+              </div>
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl gold-gradient text-white flex items-center justify-center shadow-lg border-2 border-background active:scale-90 transition-transform"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+              <input type="file" ref={fileInputRef} onChange={handleAvatarUpload} accept="image/*" className="hidden" />
+            </div>
+            
             <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">Informasi Pribadi</DialogTitle>
             <DialogDescription className="text-[10px] font-bold uppercase tracking-widest italic">Detail identitas nasabah AliBank V3.</DialogDescription>
           </DialogHeader>

@@ -18,7 +18,8 @@ import {
   Wallet, 
   Plus, 
   Minus, 
-  Loader2 
+  Loader2,
+  User 
 } from "lucide-react";
 import { 
   Dialog, 
@@ -144,8 +145,12 @@ export function ClientsView({ allUsers }: any) {
                 <tr key={u.id} className="hover:bg-muted/30 transition-colors group">
                   <td className="px-8 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full overflow-hidden border border-border shrink-0">
-                        <Image src={`https://picsum.photos/seed/${u.uid}/100/100`} alt="avatar" width={40} height={40} className="object-cover" />
+                      <div className="w-10 h-10 rounded-xl overflow-hidden border border-border shrink-0 bg-muted flex items-center justify-center">
+                        {u.avatarUrl ? (
+                          <Image src={u.avatarUrl} alt="avatar" width={40} height={40} className="object-cover w-full h-full" />
+                        ) : (
+                          <User className="w-5 h-5 text-muted-foreground" />
+                        )}
                       </div>
                       <div>
                         <p className="text-sm font-black italic uppercase leading-none">{u.name}</p>
@@ -177,8 +182,12 @@ export function ClientsView({ allUsers }: any) {
           </DialogHeader>
           
           <div className="gold-gradient h-32 w-full relative">
-            <div className="absolute -bottom-10 left-10 w-24 h-24 rounded-3xl bg-background border-8 border-background overflow-hidden shadow-xl">
-              <Image src={`https://picsum.photos/seed/${selectedUser?.uid}/200/200`} alt="avatar" width={100} height={100} className="object-cover" />
+            <div className="absolute -bottom-10 left-10 w-24 h-24 rounded-[2rem] bg-background border-8 border-background overflow-hidden shadow-xl flex items-center justify-center">
+              {selectedUser?.avatarUrl ? (
+                <Image src={selectedUser.avatarUrl} alt="avatar" width={100} height={100} className="object-cover w-full h-full" />
+              ) : (
+                <User className="w-10 h-10 text-muted-foreground" />
+              )}
             </div>
           </div>
           <div className="pt-14 px-10 pb-10 space-y-8">

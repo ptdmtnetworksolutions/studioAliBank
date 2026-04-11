@@ -37,6 +37,7 @@ import { useMemo, useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
@@ -110,9 +111,15 @@ export default function ProfilePage() {
         {/* User Info Section */}
         <section className="flex items-start justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-2 border-border relative">
-              <div className="absolute inset-0 bg-yellow-400 rounded-full scale-90" />
-              <User className="w-12 h-12 text-slate-100 dark:text-slate-900 relative z-10 mt-2" />
+            <div className="w-20 h-20 rounded-3xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-2 border-border relative shadow-xl">
+              {userData?.avatarUrl ? (
+                <Image src={userData.avatarUrl} alt="Avatar" width={80} height={80} className="object-cover w-full h-full" />
+              ) : (
+                <>
+                  <div className="absolute inset-0 bg-yellow-400 rounded-full scale-90" />
+                  <User className="w-12 h-12 text-slate-100 dark:text-slate-900 relative z-10 mt-2" />
+                </>
+              )}
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">

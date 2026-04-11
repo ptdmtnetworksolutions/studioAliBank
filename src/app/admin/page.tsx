@@ -176,9 +176,13 @@ function AdminContent() {
               <p className="text-sm font-black leading-none">{user?.displayName || "Super Admin"}</p>
               <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">AliBank Web3 Node</p>
             </div>
-            <div className="w-10 h-10 rounded-full gold-gradient p-[2px]">
-              <div className="w-full h-full rounded-full bg-background flex items-center justify-center overflow-hidden border-2 border-background">
-                <Image src={`https://picsum.photos/seed/${user?.uid}/100/100`} alt="avatar" width={40} height={40} className="object-cover" />
+            <div className="w-10 h-10 rounded-3xl gold-gradient p-[2px]">
+              <div className="w-full h-full rounded-3xl bg-background flex items-center justify-center overflow-hidden border-2 border-background">
+                {user?.photoURL ? (
+                  <Image src={user.photoURL} alt="avatar" width={40} height={40} className="object-cover w-full h-full" />
+                ) : (
+                  <Image src={`https://picsum.photos/seed/${user?.uid}/100/100`} alt="avatar" width={40} height={40} className="object-cover" />
+                )}
               </div>
             </div>
           </div>
