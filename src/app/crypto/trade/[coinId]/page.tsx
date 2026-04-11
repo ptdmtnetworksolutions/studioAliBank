@@ -67,6 +67,7 @@ export default function TradePage() {
   }, [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
+  // FIX: GUNAKAN PROXY NODE UNTUK MENGHINDARI CORS & ERROR "-0.00"
   const fetchMarketPrice = useCallback(async () => {
     if (isAlix) {
       setLivePrice(12.24); 
@@ -76,11 +77,11 @@ export default function TradePage() {
 
     try {
       const binanceSymbol = symbol === 'USDT' ? 'USDTIDR' : `${symbol}USDT`;
-      const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbol}`);
+      const res = await fetch(`/api/market/ticker?symbol=${binanceSymbol}`);
       const data = await res.json();
       
-      if (data.price) {
-        let base = parseFloat(data.price);
+      if (data.lastPrice) {
+        let base = parseFloat(data.lastPrice);
         if (binanceSymbol === 'USDTIDR') base = base / USDT_IDR_RATE;
         setLivePrice(base * MARKUP);
       }

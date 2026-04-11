@@ -176,9 +176,11 @@ export default function MarketDetailPage() {
 
   // DYNAMIC ALX LOGIC
   const currentPrice = useMemo(() => {
-    if (!isAlix) return livePrice || 0;
-    if (realTrades && realTrades.length > 0) return realTrades[realTrades.length - 1].price || 12.24;
-    return globalLiquidity?.lastAlxPriceUsdt || 12.24;
+    if (isAlix) {
+      if (realTrades && realTrades.length > 0) return realTrades[realTrades.length - 1].price || 12.24;
+      return globalLiquidity?.lastAlxPriceUsdt || 12.24;
+    }
+    return livePrice || 0;
   }, [isAlix, realTrades, globalLiquidity, livePrice]);
 
   const chartData = useMemo(() => {
@@ -195,22 +197,33 @@ export default function MarketDetailPage() {
     });
   }, [isAlix, realTrades, candlestickData]);
 
+  // FIX: LOGIKA ORDER BOOK UNTUK MENCEGAH NILAI NEGATIF (-0.00)
   useEffect(() => {
-    if (!mounted) return;
-    const basePrice = currentPrice || 1;
+    if (!mounted || currentPrice <= 0) return;
+    
+    const basePrice = currentPrice;
     const vaultInventory = globalLiquidity?.alixVaultBalance || 1000000;
     
+    // Gunakan step dinamis berdasarkan besarnya harga koin
+    const step = basePrice * 0.0002; 
+    
     setOrderBook({
-      bids: Array.from({ length: 8 }, (_, i) => ({
-        price: (basePrice - (i * 0.0001) - 0.0001).toFixed(4),
-        amount: (vaultInventory * (0.01 + Math.random() * 0.05)).toFixed(2),
-        depth: 20 + Math.random() * 60
-      })),
-      asks: Array.from({ length: 8 }, (_, i) => ({
-        price: (basePrice + (i * 0.0001) + 0.0001).toFixed(4),
-        amount: (vaultInventory * (0.01 + Math.random() * 0.05)).toFixed(2),
-        depth: 20 + Math.random() * 60
-      }))
+      bids: Array.from({ length: 8 }, (_, i) => {
+        const priceValue = basePrice - ((i + 1) * step);
+        return {
+          price: Math.max(0.0001, priceValue).toFixed(basePrice < 1 ? 4 : 2),
+          amount: (vaultInventory * (0.01 + Math.random() * 0.05)).toFixed(2),
+          depth: 20 + Math.random() * 60
+        };
+      }),
+      asks: Array.from({ length: 8 }, (_, i) => {
+        const priceValue = basePrice + ((i + 1) * step);
+        return {
+          price: priceValue.toFixed(basePrice < 1 ? 4 : 2),
+          amount: (vaultInventory * (0.01 + Math.random() * 0.05)).toFixed(2),
+          depth: 20 + Math.random() * 60
+        };
+      })
     });
   }, [mounted, currentPrice, globalLiquidity]);
 

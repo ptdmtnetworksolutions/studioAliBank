@@ -85,19 +85,23 @@ export default function FuturesPage() {
       const tickerRes = await fetch(`/api/market/ticker?symbol=BTCUSDT`);
       if (tickerRes.ok) {
         const ticker = await tickerRes.json();
-        setLivePrice(parseFloat(ticker.lastPrice) * MARKUP);
-        setPriceChange(parseFloat(ticker.priceChangePercent));
+        if (ticker.lastPrice) {
+          setLivePrice(parseFloat(ticker.lastPrice) * MARKUP);
+          setPriceChange(parseFloat(ticker.priceChangePercent));
+        }
       }
 
       const klineRes = await fetch(`/api/market/klines?symbol=BTCUSDT&interval=15m&limit=40`);
       if (klineRes.ok) {
         const klines = await klineRes.json();
-        const formatted = klines.map((k: any) => ({
-          time: new Date(k[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          close: parseFloat(k[4]) * MARKUP,
-          isUp: parseFloat(k[4]) >= parseFloat(k[1])
-        }));
-        setCandlestickData(formatted);
+        if (Array.isArray(klines)) {
+          const formatted = klines.map((k: any) => ({
+            time: new Date(k[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            close: parseFloat(k[4]) * MARKUP,
+            isUp: parseFloat(k[4]) >= parseFloat(k[1])
+          }));
+          setCandlestickData(formatted);
+        }
       }
     } catch (e) {}
   }, []);
@@ -108,12 +112,27 @@ export default function FuturesPage() {
     return () => clearInterval(interval);
   }, [fetchMarketData]);
 
-  // SIMULATED ORDER BOOK DEPTH
+  // FIX: LOGIKA ORDER BOOK UNTUK MENCEGAH NILAI NEGATIF (-0.00)
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || livePrice <= 0) return;
+    
+    // Gunakan step yang wajar untuk koin harga tinggi
+    const step = livePrice > 100 ? 0.5 : 0.001; 
+    
     setOrderBook({
-      asks: Array.from({ length: 5 }, (_, i) => ({ price: (livePrice + (i * 0.5) + 0.1).toFixed(1), amount: (Math.random() * 2).toFixed(3), width: 20 + Math.random() * 60 })),
-      bids: Array.from({ length: 5 }, (_, i) => ({ price: (livePrice - (i * 0.5) - 0.1).toFixed(1), amount: (Math.random() * 2).toFixed(3), width: 20 + Math.random() * 60 }))
+      asks: Array.from({ length: 5 }, (_, i) => ({ 
+        price: (livePrice + (i * step) + 0.1).toFixed(1), 
+        amount: (Math.random() * 2).toFixed(3), 
+        width: 20 + Math.random() * 60 
+      })),
+      bids: Array.from({ length: 5 }, (_, i) => {
+        const priceVal = livePrice - (i * step) - 0.1;
+        return { 
+          price: Math.max(0.1, priceVal).toFixed(1), 
+          amount: (Math.random() * 2).toFixed(3), 
+          width: 20 + Math.random() * 60 
+        };
+      })
     });
   }, [livePrice, mounted]);
 
