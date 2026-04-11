@@ -21,12 +21,11 @@ import {
   Scan,
   Smartphone
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useUser, useDoc, useFirestore, useMemoFirebase, useStorage } from "@/firebase";
 import { 
   doc, 
@@ -55,7 +54,6 @@ export default function KycPage() {
   const [isOcrLoading, setIsOcrLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // KYC Data State
   const [kycForm, setKycData] = useState({
     fullName: "",
     idNumber: "",
@@ -67,37 +65,28 @@ export default function KycPage() {
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [previews, setPreviews] = useState({ idCard: "", selfie: "" });
 
-  // Camera States
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const streamRef = useRef<MediaStream | null>(null);
   const [cameraMode, setCameraActiveMode] = useState<'idCard' | 'selfie' | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
-
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
     setIsCameraActive(false);
     setCameraActiveMode(null);
-  };
+  }, []);
 
   const startCamera = async (mode: 'idCard' | 'selfie') => {
     try {
-      // Ensure any existing stream is stopped
       stopCamera();
 
       const constraints = {
@@ -109,24 +98,22 @@ export default function KycPage() {
       };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      setHasCameraPermission(true);
-      setIsCameraActive(true);
-      setCameraActiveMode(mode);
       streamRef.current = stream;
+      setCameraActiveMode(mode);
+      setIsCameraActive(true);
       
-      // Delay slightly to ensure ref is attached if component just rendered
+      // Ensure video element is connected to stream after state update renders it
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
-      }, 100);
+      }, 150);
     } catch (error) {
       console.error('Error accessing camera:', error);
-      setHasCameraPermission(false);
       toast({
         variant: 'destructive',
         title: 'Akses Kamera Gagal',
-        description: 'Mohon izinkan akses kamera dan pastikan tidak sedang digunakan aplikasi lain.',
+        description: 'Mohon izinkan akses kamera pada pengaturan browser Anda.',
       });
     }
   };
@@ -140,13 +127,11 @@ export default function KycPage() {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         
         canvas.toBlob(async (blob) => {
           if (blob) {
             const file = new File([blob], `${mode}_${Date.now()}.jpg`, { type: 'image/jpeg' });
-            
             if (mode === 'idCard') {
               setIdCardFile(file);
               setPreviews(p => ({ ...p, idCard: dataUrl }));
@@ -167,7 +152,6 @@ export default function KycPage() {
     setIsOcrLoading(true);
     try {
       const result = await extractKtpData({ photoDataUri: dataUrl });
-      
       if (result.isKtp) {
         setKycData(prev => ({
           ...prev,
@@ -175,26 +159,15 @@ export default function KycPage() {
           idNumber: result.idNumber || prev.idNumber,
           address: result.address || prev.address
         }));
-        toast({
-          title: "Analisis AI Berhasil",
-          description: "Data identitas berhasil diekstraksi secara otomatis.",
-        });
+        toast({ title: "Node AI Aktif", description: "Data identitas berhasil diekstraksi secara otomatis." });
       } else {
-        toast({
-          variant: "destructive",
-          title: "Dokumen Tidak Valid",
-          description: "Gambar tidak terdeteksi sebagai KTP. Silakan ambil ulang.",
-        });
+        toast({ variant: "destructive", title: "Dokumen Tidak Valid", description: "Gambar tidak terdeteksi sebagai KTP. Silakan ambil ulang." });
         setIdCardFile(null);
         setPreviews(p => ({ ...p, idCard: "" }));
       }
     } catch (err) {
       console.error("OCR Error:", err);
-      toast({
-        variant: "destructive",
-        title: "Node AI Gagal",
-        description: "Gagal memproses dokumen secara otomatis. Silakan coba lagi.",
-      });
+      toast({ variant: "destructive", title: "Kegagalan Node AI", description: "Gagal memproses dokumen secara riil. Silakan coba lagi." });
     } finally {
       setIsOcrLoading(false);
     }
@@ -207,14 +180,8 @@ export default function KycPage() {
       const nikQuery = query(collection(db, "users"), where("kycData.idNumber", "==", kycForm.idNumber));
       const nikSnap = await getDocs(nikQuery);
       const nikDuplicate = nikSnap.docs.find(d => d.id !== user.uid);
-
       if (nikDuplicate) {
-        const dupData = nikDuplicate.data();
-        toast({
-          variant: "destructive",
-          title: "NIK Sudah Terdaftar",
-          description: `Nomor NIK ini sudah digunakan oleh akun dengan email: ${dupData.email}.`,
-        });
+        toast({ variant: "destructive", title: "NIK Terdaftar", description: "Nomor NIK ini sudah digunakan oleh akun lain." });
         return true;
       }
       return false;
@@ -239,7 +206,6 @@ export default function KycPage() {
   const handleSubmitKyc = async () => {
     if (!user || !db || !storage || !idCardFile || !selfieFile) return;
     setIsProcessing(true);
-
     try {
       const idRef = ref(storage, `kyc_documents/${user.uid}/id_card_${Date.now()}.jpg`);
       await uploadBytes(idRef, idCardFile);
@@ -252,39 +218,25 @@ export default function KycPage() {
       await updateDoc(userDocRef!, {
         kycStatus: "pending",
         kycData: {
-          fullName: kycForm.fullName,
-          idNumber: kycForm.idNumber,
-          idType: kycForm.idType,
-          address: kycForm.address,
+          ...kycForm,
           idCardUrl: idUrl,
           selfieUrl: selfieUrl,
           submittedAt: new Date().toISOString()
         }
       });
-
-      toast({ title: "KYC Terkirim", description: "Identitas Anda sedang dalam tinjauan Node AliBank." });
       setStep(4);
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Gagal Mengunggah", description: err.message });
+      toast({ variant: "destructive", title: "Gagal Unggah", description: err.message });
     } finally {
       setIsProcessing(false);
     }
   };
 
-  if (!mounted) return null;
+  useEffect(() => {
+    return () => stopCamera();
+  }, [stopCamera]);
 
-  if (userData?.kycStatus === 'verified') {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-24 h-24 rounded-full bg-green-500/10 flex items-center justify-center mb-6">
-          <CheckCircle2 className="w-12 h-12 text-green-600" />
-        </div>
-        <h2 className="text-3xl font-black italic uppercase text-accent tracking-tighter mb-2">TERVERIFIKASI</h2>
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest italic mb-8">Identitas Anda telah tervalidasi secara riil.</p>
-        <Button onClick={() => router.push('/settings')} className="w-full max-w-xs h-14 gold-gradient text-white rounded-2xl font-black italic uppercase">Dashboard</Button>
-      </div>
-    );
-  }
+  if (!mounted) return null;
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-20 flex flex-col font-body">
@@ -294,7 +246,7 @@ export default function KycPage() {
         </button>
         <div className="flex flex-col items-center">
           <h1 className="text-base font-black italic uppercase leading-none">KYC Protocol V3.5</h1>
-          <Badge variant="outline" className="bg-primary/10 text-primary border-none text-[7px] font-black h-4 px-1.5 uppercase tracking-widest mt-1">Real-Time Verification</Badge>
+          <Badge variant="outline" className="bg-primary/10 text-primary border-none text-[7px] font-black h-4 px-1.5 uppercase tracking-widest mt-1">AI Verified</Badge>
         </div>
         <div className="w-10" />
       </header>
@@ -316,176 +268,97 @@ export default function KycPage() {
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="text-center space-y-2">
               <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none">Informasi Awal</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">Data akan divalidasi oleh Node AI pada langkah berikutnya.</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">Data akan divalidasi oleh Node AI secara otomatis.</p>
             </div>
-
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Lengkapi Form Ini (Atau skip untuk Scan Otomatis)</label>
-                <Input 
-                  value={kycForm.fullName}
-                  onChange={(e) => setKycData({...kycForm, fullName: e.target.value})}
-                  placeholder="Nama Lengkap"
-                  className="h-14 rounded-2xl bg-muted/50 border-none font-bold italic"
-                />
+                <Input value={kycForm.fullName} onChange={(e) => setKycData({...kycForm, fullName: e.target.value})} placeholder="Nama Lengkap" className="h-14 rounded-2xl bg-muted/50 border-none font-bold italic" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Nomor NIK</label>
-                <Input 
-                  value={kycForm.idNumber}
-                  onChange={(e) => setKycData({...kycForm, idNumber: e.target.value})}
-                  placeholder="16 Digit NIK"
-                  className="h-14 rounded-2xl bg-muted/50 border-none font-mono font-bold"
-                />
+                <Input value={kycForm.idNumber} onChange={(e) => setKycData({...kycForm, idNumber: e.target.value})} placeholder="16 Digit NIK" className="h-14 rounded-2xl bg-muted/50 border-none font-mono font-bold" />
               </div>
             </div>
-
-            <Button 
-              disabled={isProcessing}
-              onClick={handleNextStep}
-              className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl group"
-            >
-              {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : (
-                <span className="flex items-center gap-2">MULAI SCAN KTP <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></span>
-              )}
+            <Button disabled={isProcessing} onClick={handleNextStep} className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl group">
+              {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : <span className="flex items-center gap-2">MULAI SCAN KTP <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></span>}
             </Button>
           </div>
         )}
 
         {step === 2 && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+          <div className="space-y-8 animate-in fade-in duration-500">
             <div className="text-center space-y-2">
               <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none">Scan Dokumen</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">Node AI OCR akan mengekstrak identitas Anda.</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">Node AI OCR akan mengekstrak identitas secara riil.</p>
             </div>
-
-            <div className="space-y-6">
-              <div className="relative aspect-[1.6/1] rounded-[2.5rem] border-4 border-dashed border-primary/20 bg-muted overflow-hidden flex items-center justify-center group shadow-2xl">
-                {isCameraActive && cameraMode === 'idCard' ? (
-                  <>
-                    <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 border-[20px] border-black/40 pointer-events-none" />
-                    <div className="absolute inset-8 border-2 border-primary rounded-xl border-dashed animate-pulse pointer-events-none" />
-                    <button 
-                      onClick={() => capturePhoto('idCard')}
-                      className="absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-white border-4 border-primary shadow-2xl active:scale-90 transition-transform flex items-center justify-center"
-                    >
-                      <div className="w-10 h-10 rounded-full border-2 border-black/5 bg-slate-100" />
-                    </button>
-                  </>
-                ) : previews.idCard ? (
-                  <div className="relative w-full h-full">
-                    <img src={previews.idCard} alt="ID Preview" className="w-full h-full object-cover" />
-                    {isOcrLoading && (
-                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-4 text-white">
-                        <Loader2 className="w-10 h-10 animate-spin text-primary" />
-                        <span className="text-[10px] font-black uppercase tracking-widest animate-pulse">Ekstraksi AI Node...</span>
-                      </div>
-                    )}
-                    <button 
-                      onClick={() => startCamera('idCard')}
-                      className="absolute top-4 right-4 p-2 rounded-full bg-black/60 text-white hover:bg-black transition-colors"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-4 text-center p-6">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                      <CreditCard className="w-8 h-8" />
+            <div className="relative aspect-[1.6/1] rounded-[2.5rem] border-4 border-dashed border-primary/20 bg-muted overflow-hidden flex items-center justify-center group shadow-2xl">
+              {isCameraActive && cameraMode === 'idCard' ? (
+                <>
+                  <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 border-[20px] border-black/40 pointer-events-none" />
+                  <div className="absolute inset-8 border-2 border-primary rounded-xl border-dashed animate-pulse pointer-events-none" />
+                  <button onClick={() => capturePhoto('idCard')} className="absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-white border-4 border-primary shadow-2xl active:scale-90 transition-transform flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full border-2 border-black/5 bg-slate-100" />
+                  </button>
+                </>
+              ) : previews.idCard ? (
+                <div className="relative w-full h-full">
+                  <img src={previews.idCard} alt="ID Preview" className="w-full h-full object-cover" />
+                  {isOcrLoading && (
+                    <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-4 text-white">
+                      <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                      <span className="text-[10px] font-black uppercase tracking-widest animate-pulse">Analisis AI Riil...</span>
                     </div>
-                    <button onClick={() => startCamera('idCard')} className="text-xs font-black uppercase text-primary italic tracking-widest hover:underline">
-                      AKTIFKAN KAMERA SCAN
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
-                <ShieldCheck className="w-6 h-6 text-blue-500 shrink-0" />
-                <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                  Pengecekan validitas dokumen dilakukan secara riil oleh Node AliBank V3. Pastikan KTP berada di area bingkai.
-                </p>
-              </div>
+                  )}
+                  <button onClick={() => startCamera('idCard')} className="absolute top-4 right-4 p-2 rounded-full bg-black/60 text-white hover:bg-black transition-colors"><RefreshCw className="w-4 h-4" /></button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-4 text-center p-6">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary"><CreditCard className="w-8 h-8" /></div>
+                  <button onClick={() => startCamera('idCard')} className="text-xs font-black uppercase text-primary italic tracking-widest hover:underline">AKTIFKAN KAMERA SCAN</button>
+                </div>
+              )}
             </div>
-
             <div className="flex gap-3">
               <Button variant="ghost" onClick={() => { stopCamera(); setStep(1); }} className="flex-1 h-14 rounded-2xl font-black uppercase italic text-[10px]">Kembali</Button>
-              <Button 
-                disabled={!idCardFile || isOcrLoading}
-                onClick={() => setStep(3)}
-                className="flex-[2] h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl"
-              >
-                LANJUT KE BIOMETRIK
-              </Button>
+              <Button disabled={!idCardFile || isOcrLoading} onClick={() => setStep(3)} className="flex-[2] h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl">LANJUT KE BIOMETRIK</Button>
             </div>
           </div>
         )}
 
         {step === 3 && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+          <div className="space-y-8 animate-in fade-in duration-500">
             <div className="text-center space-y-2">
               <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none">Verifikasi Wajah</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">Lakukan pemindaian wajah untuk mencocokkan data.</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">Lakukan pemindaian wajah untuk mencocokkan data biometrik.</p>
             </div>
-
-            <div className="space-y-6">
-              <div className="relative aspect-square max-w-[320px] mx-auto rounded-[3rem] border-4 border-dashed border-primary/20 bg-muted overflow-hidden flex items-center justify-center shadow-2xl">
-                {isCameraActive && cameraMode === 'selfie' ? (
-                  <>
-                    <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 border-[40px] border-black/40 pointer-events-none" />
-                    <div className="absolute inset-0 border-2 border-primary rounded-full m-10 border-dashed animate-pulse pointer-events-none" />
-                    <button 
-                      onClick={() => capturePhoto('selfie')}
-                      className="absolute bottom-6 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-white border-4 border-primary flex items-center justify-center shadow-2xl active:scale-90 transition-transform"
-                    >
-                      <div className="w-12 h-12 rounded-full border-2 border-black/10 bg-slate-100" />
-                    </button>
-                  </>
-                ) : previews.selfie ? (
-                  <div className="relative w-full h-full">
-                    <img src={previews.selfie} alt="Selfie Preview" className="w-full h-full object-cover" />
-                    <button 
-                      onClick={() => startCamera('selfie')}
-                      className="absolute top-4 right-4 p-2 rounded-full bg-black/60 text-white hover:bg-black transition-colors"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-4 text-center p-6">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                      <Camera className="w-8 h-8" />
-                    </div>
-                    <button onClick={() => startCamera('selfie')} className="text-xs font-black uppercase text-primary italic tracking-widest hover:underline">
-                      AKTIFKAN KAMERA BIOMETRIK
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-muted/30 p-6 rounded-[2rem] border border-border space-y-4">
-                <div className="flex items-center gap-3">
-                  <Scan className="w-5 h-5 text-primary" />
-                  <span className="text-[10px] font-black uppercase italic">Panduan Scan Wajah</span>
+            <div className="relative aspect-square max-w-[320px] mx-auto rounded-[3rem] border-4 border-dashed border-primary/20 bg-muted overflow-hidden flex items-center justify-center shadow-2xl">
+              {isCameraActive && cameraMode === 'selfie' ? (
+                <>
+                  <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 border-[40px] border-black/40 pointer-events-none" />
+                  <div className="absolute inset-0 border-2 border-primary rounded-full m-10 border-dashed animate-pulse pointer-events-none" />
+                  <button onClick={() => capturePhoto('selfie')} className="absolute bottom-6 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-white border-4 border-primary flex items-center justify-center shadow-2xl active:scale-90 transition-transform">
+                    <div className="w-12 h-12 rounded-full border-2 border-black/10 bg-slate-100" />
+                  </button>
+                </>
+              ) : previews.selfie ? (
+                <div className="relative w-full h-full">
+                  <img src={previews.selfie} alt="Selfie Preview" className="w-full h-full object-cover" />
+                  <button onClick={() => startCamera('selfie')} className="absolute top-4 right-4 p-2 rounded-full bg-black/60 text-white hover:bg-black transition-colors"><RefreshCw className="w-4 h-4" /></button>
                 </div>
-                <ul className="space-y-2">
-                  <li className="flex items-center gap-2 text-[8px] font-bold text-muted-foreground uppercase italic"><CheckCircle2 className="w-3 h-3 text-green-500" /> Posisi wajah di dalam lingkaran</li>
-                  <li className="flex items-center gap-2 text-[8px] font-bold text-muted-foreground uppercase italic"><CheckCircle2 className="w-3 h-3 text-green-500" /> Pastikan pencahayaan cukup</li>
-                  <li className="flex items-center gap-2 text-[8px] font-bold text-muted-foreground uppercase italic"><CheckCircle2 className="w-3 h-3 text-green-500" /> Tatap kamera selama 2 detik</li>
-                </ul>
-              </div>
+              ) : (
+                <div className="flex flex-col items-center gap-4 text-center p-6">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary"><Camera className="w-8 h-8" /></div>
+                  <button onClick={() => startCamera('selfie')} className="text-xs font-black uppercase text-primary italic tracking-widest hover:underline">AKTIFKAN KAMERA BIOMETRIK</button>
+                </div>
+              )}
             </div>
-
             <div className="flex gap-3">
               <Button variant="ghost" onClick={() => { stopCamera(); setStep(2); }} className="flex-1 h-14 rounded-2xl font-black uppercase italic text-[10px]">Kembali</Button>
-              <Button 
-                disabled={!selfieFile || isProcessing}
-                onClick={handleSubmitKyc}
-                className="flex-[2] h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl"
-              >
-                {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : "KIRIM VERIFIKASI"}
+              <Button disabled={!selfieFile || isProcessing} onClick={handleSubmitKyc} className="flex-[2] h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl">
+                {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : "KIRIM VERIFIKASI"}
               </Button>
             </div>
           </div>
@@ -499,30 +372,13 @@ export default function KycPage() {
             </div>
             <div className="space-y-2">
               <h2 className="text-3xl font-black italic uppercase tracking-tighter">DATA TERKIRIM</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic max-w-xs mx-auto leading-relaxed">
-                Terima kasih. Berkas riil Anda telah masuk ke antrean verifikasi Node AliBank V3. Status akun akan diperbarui dalam waktu maksimal 24 jam.
-              </p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic max-w-xs mx-auto leading-relaxed">Terima kasih. Berkas Anda telah masuk ke antrean verifikasi Node AliBank V3 secara aman.</p>
             </div>
-            <Button onClick={() => router.push('/')} className="w-full max-w-xs h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl">
-              Kembali ke Beranda
-            </Button>
+            <Button onClick={() => router.push('/')} className="w-full max-w-xs h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl">Kembali ke Beranda</Button>
           </div>
         )}
       </main>
-
       <canvas ref={canvasRef} className="hidden" />
-
-      {step < 4 && (
-        <footer className="px-6 py-10 opacity-30 grayscale flex flex-col items-center gap-4">
-          <div className="flex items-center gap-2">
-            <LogoIcon className="w-5 h-5" />
-            <span className="text-[9px] font-black uppercase tracking-widest italic">Secured by AliBank Encryption</span>
-          </div>
-          <p className="text-[7px] font-bold text-center uppercase leading-tight max-w-[200px]">
-            Data diproses melalui SSL 256-bit dan enkripsi end-to-end pada server node otonom kami di Cloud.
-          </p>
-        </footer>
-      )}
     </div>
   );
 }
