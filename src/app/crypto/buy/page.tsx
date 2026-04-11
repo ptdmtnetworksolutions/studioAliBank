@@ -5,7 +5,7 @@ import {
   ArrowLeft, 
   History, 
   ChevronDown, 
-  ChevronRight,
+  ChevronRight, 
   Sparkles,
   Delete,
   X,
@@ -29,7 +29,8 @@ import {
   QrCode,
   ArrowDownLeft,
   ArrowUpRight,
-  Search
+  Search,
+  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -104,9 +105,7 @@ export default function CryptoBuyPage() {
   const [gatewayError, setGatewayError] = useState<string | null>(null);
   const [step, setStep] = useState<'input' | 'success'>('input');
   
-  // Search state for currencies
   const [currencySearch, setCurrencySearch] = useState("");
-  
   const [proofImage, setProofImage] = useState<File | null>(null);
   const [proofPreview, setProofPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -130,16 +129,6 @@ export default function CryptoBuyPage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (selectedPayment.id === 'bank' && activeTab === 'beli') {
-      setUniqueCode(Math.floor(100 + Math.random() * 899));
-    } else {
-      setUniqueCode(0);
-    }
-  }, [selectedPayment, activeTab]);
-
-  const exchangeRate = 15850; 
-
   const getRateToIdr = useCallback((code: string) => {
     if (code === 'IDR') return 1;
     if (code === 'USD') return 15850;
@@ -148,7 +137,37 @@ export default function CryptoBuyPage() {
     if (code === 'SGD') return 11800;
     return 1;
   }, []);
-  
+
+  const exchangeRate = 15850; 
+
+  // Auto-populate amount when switching to 'jual' or changing asset in 'jual'
+  useEffect(() => {
+    if (activeTab === 'jual' && userData?.cryptoBalances) {
+      const cryptoBalance = userData.cryptoBalances[selectedAsset.symbol] || 0;
+      if (cryptoBalance > 0) {
+        const valInUsd = cryptoBalance * selectedAsset.priceUsd;
+        const valInIdr = valInUsd * exchangeRate;
+        const valInFiat = valInIdr / getRateToIdr(selectedCurrency.code);
+        
+        const formatted = selectedCurrency.code === 'IDR' 
+          ? Math.floor(valInFiat).toString()
+          : valInFiat.toFixed(2).replace('.', ',');
+        
+        setAmount(formatted);
+      } else {
+        setAmount("0");
+      }
+    }
+  }, [activeTab, selectedAsset.symbol, userData?.cryptoBalances, selectedCurrency.code, getRateToIdr]);
+
+  useEffect(() => {
+    if (selectedPayment.id === 'bank' && activeTab === 'beli') {
+      setUniqueCode(Math.floor(100 + Math.random() * 899));
+    } else {
+      setUniqueCode(0);
+    }
+  }, [selectedPayment, activeTab]);
+
   const totalAmountIdr = useMemo(() => {
     const cleanAmount = amount.replace(',', '.');
     const num = parseFloat(cleanAmount);
@@ -190,7 +209,7 @@ export default function CryptoBuyPage() {
     
     setSelectedCurrency(currency);
     setIsCurrencySheetOpen(false);
-    setCurrencySearch(""); // Reset search
+    setCurrencySearch("");
     localStorage.setItem("alibank-payment-currency", JSON.stringify(currency));
   };
 
@@ -201,16 +220,6 @@ export default function CryptoBuyPage() {
 
   const handleDelete = () => {
     setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : "0");
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setProofImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setProofPreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
   };
 
   const handleManualBankPayment = async () => {
@@ -442,6 +451,11 @@ export default function CryptoBuyPage() {
     );
   }, [currencySearch]);
 
+  const currentCryptoBalance = useMemo(() => {
+    if (!userData?.cryptoBalances) return 0;
+    return userData.cryptoBalances[selectedAsset.symbol] || 0;
+  }, [userData, selectedAsset]);
+
   if (!mounted) return (
     <div className="h-screen bg-background flex items-center justify-center">
       <Loader2 className="animate-spin text-primary w-8 h-8" />
@@ -527,9 +541,24 @@ export default function CryptoBuyPage() {
                 <ChevronDown className="w-4 h-4 text-muted-foreground" />
               </div>
             </div>
-            <div className="flex items-center gap-2 text-muted-foreground font-bold italic">
-              <ArrowUpDown className="w-3.5 h-3.5 text-primary" />
-              <span className="text-xs">{estimatedCrypto} {selectedAsset.symbol}</span>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-2 text-muted-foreground font-bold italic">
+                <ArrowUpDown className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs">{estimatedCrypto} {selectedAsset.symbol}</span>
+              </div>
+              {activeTab === 'jual' && (
+                <button 
+                  onClick={() => {
+                    const valInUsd = currentCryptoBalance * selectedAsset.priceUsd;
+                    const valInIdr = valInUsd * exchangeRate;
+                    const valInFiat = valInIdr / getRateToIdr(selectedCurrency.code);
+                    setAmount(selectedCurrency.code === 'IDR' ? Math.floor(valInFiat).toString() : valInFiat.toFixed(2).replace('.', ','));
+                  }}
+                  className="flex items-center gap-1.5 text-[10px] font-black text-primary uppercase italic hover:underline animate-in fade-in"
+                >
+                  Saldo: {currentCryptoBalance.toFixed(selectedAsset.symbol === 'BTC' ? 8 : 4)} {selectedAsset.symbol} (MAKS)
+                </button>
+              )}
             </div>
           </div>
 
@@ -677,7 +706,7 @@ export default function CryptoBuyPage() {
                 </div>
               )}
               
-              <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
+              <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3 mt-4">
                 <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0" />
                 <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">Node keamanan SSL AliBank V3 melindungi transaksi {activeTab} Anda.</p>
               </div>
@@ -686,7 +715,6 @@ export default function CryptoBuyPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ASSET SELECTOR */}
       <Sheet open={isAssetSheetOpen} onOpenChange={setIsAssetSheetOpen}>
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
           <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
@@ -707,7 +735,6 @@ export default function CryptoBuyPage() {
         </SheetContent>
       </Sheet>
 
-      {/* CURRENCY SELECTOR */}
       <Sheet open={isCurrencySheetOpen} onOpenChange={(open) => {
         setIsCurrencySheetOpen(open);
         if (!open) setCurrencySearch("");
@@ -772,7 +799,6 @@ export default function CryptoBuyPage() {
         </SheetContent>
       </Sheet>
 
-      {/* PAYMENT METHOD SELECTOR */}
       <Sheet open={isPaymentSheetOpen} onOpenChange={setIsPaymentSheetOpen}>
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
           <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
