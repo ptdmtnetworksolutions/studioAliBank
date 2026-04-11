@@ -1,10 +1,9 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V5.2 - PRODUCTION GRADE
+     * ALIBANK SECURITY RULES V6.0 - STORAGE INTEGRATED
      * Otorisasi mutlak untuk Super Admin dan izin granular untuk nasabah.
      */
 
@@ -18,7 +17,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == 'alidzulfikar075@gmail.com' || 
+        request.auth.token.email == 'alidzifikar075@gmail.com' || 
         request.auth.uid == 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2'
       );
     }
@@ -43,7 +42,7 @@ service cloud.firestore {
     // --- Aturan Topup Requests ---
     match /topup_requests/{reqId} {
       allow create: if isSignedIn();
-      allow read: if isAdmin();
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow update, delete: if isAdmin();
     }
 
@@ -51,7 +50,6 @@ service cloud.firestore {
     match /market/{pairId} {
       allow read: if isSignedIn();
       
-      // Mengizinkan akses ke sub-koleksi trades untuk riwayat transaksi pasar
       match /{allSubcollections=**} {
         allow read: if isSignedIn();
       }
@@ -63,11 +61,11 @@ service cloud.firestore {
 
     match /system/liquidity {
       allow read: if isSignedIn();
-      allow update: if isSignedIn(); 
+      allow update: if isAdmin(); 
     }
     
     match /system/api_keys {
-      allow read: if isSignedIn();
+      allow read: if isAdmin();
     }
     
     match /system/audit/{subPath=**} {

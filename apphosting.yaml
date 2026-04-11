@@ -2,11 +2,15 @@
 # https://firebase.google.com/docs/app-hosting/configure
 
 runConfig:
-  # Increase this value if you'd like to automatically spin up
-  # more instances in response to increased traffic.
-  maxInstances: 1
+  # Optimal configuration for Next.js 15 SSR
+  maxInstances: 5
+  minInstances: 0
   cpu: 1
-  memoryMiB: 512
+  memoryMiB: 1024
 
-# Menetapkan runtime ke Node.js 20 yang direkomendasikan untuk Next.js 15.
+# Node.js 20 environment for modern Next.js 15 support
 runtime: nodejs20
+
+env:
+  - variable: NODE_ENV
+    value: production

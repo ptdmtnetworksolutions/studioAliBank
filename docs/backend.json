@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "UserProfile": {
@@ -72,6 +71,18 @@
       {
         "path": "/system/liquidity",
         "definition": { "entityName": "SystemLiquidity", "description": "Central bank liquidity and profit nodes." }
+      }
+    ]
+  },
+  "storage": {
+    "buckets": [
+      {
+        "path": "payment_proofs/{userId}/{fileName}",
+        "description": "Real-time deposit and transfer verification images."
+      },
+      {
+        "path": "avatars/{userId}",
+        "description": "Client profile identity images."
       }
     ]
   }
