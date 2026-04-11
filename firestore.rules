@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V8.5 - PRODUCTION STABLE
+     * ALIBANK SECURITY RULES V8.6 - PRODUCTION STABLE
      * Proteksi mutlak untuk infrastruktur perbankan AliBank V3.
      */
 
@@ -19,8 +19,7 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.token.email == 'alidzulfikar075@gmail.com' || 
         request.auth.token.email == 'dzulfikaraliridlo@gmail.com' ||
-        request.auth.uid == 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2' ||
-        request.auth.uid == 'Y6sEzvQ767NHxuwwTVxRwrGf5Wy1'
+        request.auth.uid == 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2'
       );
     }
 
@@ -32,9 +31,9 @@ service cloud.firestore {
     // --- Koleksi Nasabah (Users) ---
     match /users/{userId} {
       // Izinkan read (get & list) untuk semua user yang login agar fitur deteksi duplikasi 
-      // dan transfer dana berfungsi secara riil di lingkungan produksi.
+      // dan transfer dana berfungsi secara riil di lingkungan produksi untuk seluruh nasabah.
       allow read: if isSignedIn();
-      allow create: if isOwner(userId);
+      allow create: if isSignedIn();
       allow update: if isOwner(userId);
       allow delete: if false;
 

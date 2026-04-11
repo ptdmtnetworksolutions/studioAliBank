@@ -159,6 +159,7 @@ export default function KycPage() {
     
     setIsProcessing(true);
     try {
+      // 1. Cek Duplikasi NIK
       const nikQuery = query(
         collection(db, "users"), 
         where("kycData.idNumber", "==", kycForm.idNumber)
@@ -180,7 +181,7 @@ export default function KycPage() {
         toast({
           variant: "destructive",
           title: "NIK Sudah Terdaftar",
-          description: `Nomor NIK ini sudah terdaftar pada akun dengan email: ${dupData.email}.`,
+          description: `Nomor NIK ini sudah digunakan oleh akun dengan email: ${dupData.email}.`,
         });
         return true;
       }
@@ -188,8 +189,13 @@ export default function KycPage() {
       return false;
     } catch (err) {
       console.error("Duplicate check error:", err);
-      // Jika error permissions, asumsikan tidak ada duplikat untuk melanjutkan langkah atau berikan peringatan
-      return false; 
+      // Jika terjadi error sistem, berikan informasi kepada nasabah
+      toast({
+        variant: "destructive",
+        title: "Node Sibuk",
+        description: "Gagal memvalidasi data identitas. Silakan coba beberapa saat lagi.",
+      });
+      return true; 
     } finally {
       setIsProcessing(false);
     }
