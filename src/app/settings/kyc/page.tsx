@@ -320,6 +320,44 @@ export default function KycPage() {
                 </div>
               )}
             </div>
+
+            {/* HASIL SCAN AI */}
+            {previews.idCard && !isCameraActive && kycForm.idNumber && (
+              <Card className="p-6 rounded-[2.5rem] bg-accent/5 border border-primary/10 space-y-5 animate-in slide-in-from-top-4 duration-500 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <Badge className="bg-primary text-black font-black text-[8px] uppercase px-2 h-5 italic border-none">Data Hasil Scan AI</Badge>
+                  <div className="flex items-center gap-1 text-green-500 text-[8px] font-black uppercase italic">
+                    <CheckCircle2 className="w-3 h-3" /> Dokumen Terdeteksi
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">Nama Lengkap</p>
+                    <div className="p-3.5 rounded-xl bg-background/50 border border-border/50">
+                      <p className="text-xs font-black italic uppercase text-foreground">{kycForm.fullName || "---"}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">Nomor NIK</p>
+                    <div className="p-3.5 rounded-xl bg-background/50 border border-border/50">
+                      <p className="text-xs font-mono font-bold text-accent">{kycForm.idNumber || "---"}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">Alamat Sesuai KTP</p>
+                    <div className="p-3.5 rounded-xl bg-background/50 border border-border/50">
+                      <p className="text-[10px] font-medium text-foreground leading-relaxed italic uppercase">{kycForm.address || "---"}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-2">
+                  <Info className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+                  <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic">Pastikan data di atas sesuai dengan fisik KTP. Jika ada kesalahan pembacaan, silakan ambil ulang foto dengan pencahayaan yang lebih baik.</p>
+                </div>
+              </Card>
+            )}
+
             <div className="flex gap-3">
               <Button variant="ghost" onClick={() => { stopCamera(); setStep(1); }} className="flex-1 h-14 rounded-2xl font-black uppercase italic text-[10px]">Kembali</Button>
               <Button disabled={!idCardFile || isOcrLoading} onClick={() => setStep(3)} className="flex-[2] h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl">LANJUT KE BIOMETRIK</Button>
