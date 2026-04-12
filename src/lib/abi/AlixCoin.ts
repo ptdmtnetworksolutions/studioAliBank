@@ -17,6 +17,8 @@ export const AlixCoinABI = [
   "function ANCHOR_PRICE_USD_CENTS() view returns (uint256)",
   "function paused() view returns (bool)",
   "function owner() view returns (address)",
+  "function nonces(address owner) view returns (uint256)",
+  "function DOMAIN_SEPARATOR() view returns (bytes32)",
   
   // Write Functions
   "function mint(address to, uint256 amount)",
@@ -25,7 +27,8 @@ export const AlixCoinABI = [
   "function unpause()",
   "function transfer(address to, uint256 amount) returns (bool)",
   "function approve(address spender, uint256 amount) returns (bool)",
-  "function transferFrom(address from, address to, uint256 amount) returns (bool)",
+  "function transferFrom(address from, address to, uint256 value) returns (bool)",
+  "function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)",
   
   // Events
   "event TokensMinted(address indexed to, uint256 amount, uint256 newTotalSupply)",
