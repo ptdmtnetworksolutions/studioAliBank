@@ -45,6 +45,7 @@ export function ApiManagementView({ storedKeys }: any) {
     polygonRpcUrl: "",
     geminiApiKey: "",
     alxContractAddress: "",
+    vaultContractAddress: "",
     vaultPrivateKey: ""
   });
 
@@ -60,6 +61,7 @@ export function ApiManagementView({ storedKeys }: any) {
         polygonRpcUrl: storedKeys.polygonRpcUrl || "",
         geminiApiKey: storedKeys.geminiApiKey || "",
         alxContractAddress: storedKeys.alxContractAddress || "",
+        vaultContractAddress: storedKeys.vaultContractAddress || "",
         vaultPrivateKey: storedKeys.vaultPrivateKey || ""
       });
     }
@@ -113,16 +115,27 @@ export function ApiManagementView({ storedKeys }: any) {
             <h3 className="text-sm font-black italic uppercase tracking-widest text-primary flex items-center gap-2">
               <Wallet className="w-4 h-4" /> Brankas Pusat (Tanda Tangan Privat)
             </h3>
-            <KeyField 
-              label="Kunci Privat Brankas (0x...)" 
-              icon={Lock} 
-              value={keys.vaultPrivateKey} 
-              placeholder="0x..."
-              onChange={(v:any) => setKeys({...keys, vaultPrivateKey: v})} 
-              show={showKeys['vp']} 
-              onToggle={() => toggleShow('vp')}
-              description="Kunci privat MetaMask Anda untuk tanda tangan transaksi on-chain otomatis."
-            />
+            <div className="grid grid-cols-1 gap-6">
+              <KeyField 
+                label="Kontrak Pintar Brankas (Vault)" 
+                icon={ShieldCheck} 
+                value={keys.vaultContractAddress} 
+                placeholder="0x56268032A3B3E64CFeF1916d591087CF8dF40945"
+                onChange={(v: any) => setKeys({...keys, vaultContractAddress: v})}
+                show={true}
+                description="Alamat kontrak Ethereum Mainnet untuk penyimpanan likuiditas utama."
+              />
+              <KeyField 
+                label="Kunci Privat Brankas (0x...)" 
+                icon={Lock} 
+                value={keys.vaultPrivateKey} 
+                placeholder="0x..."
+                onChange={(v:any) => setKeys({...keys, vaultPrivateKey: v})} 
+                show={showKeys['vp']} 
+                onToggle={() => toggleShow('vp')}
+                description="Kunci privat MetaMask Anda untuk tanda tangan transaksi on-chain otomatis."
+              />
+            </div>
           </section>
 
           <div className="h-px bg-border/50 w-full" />
@@ -178,7 +191,7 @@ export function ApiManagementView({ storedKeys }: any) {
                 description="Gunakan node dari Alchemy untuk Operasional Koin ALX."
               />
               <KeyField label="Kunci API Gemini" icon={Lock} value={keys.geminiApiKey} placeholder="AIza..." onChange={(v:any) => setKeys({...keys, geminiApiKey: v})} show={showKeys['gm']} onToggle={() => toggleShow('gm')} />
-              <KeyField label="Kontrak Pintar ALX" icon={ShieldCheck} value={keys.alxContractAddress} placeholder="0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd" onChange={(v:any) => setKeys({...keys, alxContractAddress: v})} show={true} />
+              <KeyField label="Kontrak Pintar Koin ALX" icon={ShieldCheck} value={keys.alxContractAddress} placeholder="0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd" onChange={(v:any) => setKeys({...keys, alxContractAddress: v})} show={true} />
             </div>
           </section>
         </div>

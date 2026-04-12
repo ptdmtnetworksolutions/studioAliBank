@@ -66,6 +66,7 @@ function APIKeysContent() {
     polygonRpcUrl: "",
     geminiApiKey: "",
     alxContractAddress: "",
+    vaultContractAddress: "",
     vaultPrivateKey: "" 
   });
 
@@ -84,6 +85,7 @@ function APIKeysContent() {
         polygonRpcUrl: storedKeys.polygonRpcUrl || "",
         geminiApiKey: storedKeys.geminiApiKey || "",
         alxContractAddress: storedKeys.alxContractAddress || "",
+        vaultContractAddress: storedKeys.vaultContractAddress || "",
         vaultPrivateKey: storedKeys.vaultPrivateKey || ""
       });
     }
@@ -175,16 +177,27 @@ function APIKeysContent() {
                   <Badge className="bg-rose-600 text-white text-[8px] font-black italic uppercase px-2 h-5">Sensitive Data</Badge>
                 </div>
                 
-                <KeyField 
-                  label="Vault Private Key (0x...)" 
-                  icon={Lock} 
-                  value={keys.vaultPrivateKey} 
-                  placeholder="0x..."
-                  onChange={(v) => setKeys({...keys, vaultPrivateKey: v})}
-                  show={showKeys['vault']}
-                  onToggle={() => toggleShow('vault')}
-                  description="Kunci ini digunakan untuk tanda tangan on-chain otomatis oleh sistem."
-                />
+                <div className="grid grid-cols-1 gap-6">
+                  <KeyField 
+                    label="Kontrak Pintar Brankas (Vault)" 
+                    icon={ShieldCheck} 
+                    value={keys.vaultContractAddress} 
+                    placeholder="0x56268032A3B3E64CFeF1916d591087CF8dF40945"
+                    onChange={(v: any) => setKeys({...keys, vaultContractAddress: v})}
+                    show={true}
+                    description="Alamat kontrak Ethereum Mainnet untuk penyimpanan likuiditas utama."
+                  />
+                  <KeyField 
+                    label="Vault Private Key (0x...)" 
+                    icon={Lock} 
+                    value={keys.vaultPrivateKey} 
+                    placeholder="0x..."
+                    onChange={(v: any) => setKeys({...keys, vaultPrivateKey: v})}
+                    show={showKeys['vault']}
+                    onToggle={() => toggleShow('vault')}
+                    description="Kunci privat MetaMask untuk tanda tangan on-chain otomatis oleh sistem."
+                  />
+                </div>
               </section>
 
               <div className="h-px bg-white/5 w-full" />
@@ -202,7 +215,7 @@ function APIKeysContent() {
                   icon={Globe} 
                   value={keys.paypalClientId} 
                   placeholder="AW-..."
-                  onChange={(v) => setKeys({...keys, paypalClientId: v})}
+                  onChange={(v: any) => setKeys({...keys, paypalClientId: v})}
                   show={showKeys['paypal']}
                   onToggle={() => toggleShow('paypal')}
                   description="Digunakan untuk pembayaran Kartu Kredit/Debit internasional."
@@ -225,7 +238,7 @@ function APIKeysContent() {
                     icon={Building2} 
                     value={keys.midtransMerchantId} 
                     placeholder="M287..."
-                    onChange={(v) => setKeys({...keys, midtransMerchantId: v})}
+                    onChange={(v: any) => setKeys({...keys, midtransMerchantId: v})}
                     show={true}
                   />
                   <KeyField 
@@ -233,7 +246,7 @@ function APIKeysContent() {
                     icon={Key} 
                     value={keys.midtransClientKey} 
                     placeholder="Mid-client-..."
-                    onChange={(v) => setKeys({...keys, midtransClientKey: v})}
+                    onChange={(v: any) => setKeys({...keys, midtransClientKey: v})}
                     show={showKeys['mt_client']}
                     onToggle={() => toggleShow('mt_client')}
                   />
@@ -243,7 +256,7 @@ function APIKeysContent() {
                       icon={Lock} 
                       value={keys.midtransServerKey} 
                       placeholder="Mid-server-..."
-                      onChange={(v) => setKeys({...keys, midtransServerKey: v})}
+                      onChange={(v: any) => setKeys({...keys, midtransServerKey: v})}
                       show={showKeys['mt_server']}
                       onToggle={() => toggleShow('mt_server')}
                       description="Server Key digunakan untuk otentikasi aman antar server. Jangan pernah bagikan."
@@ -265,7 +278,7 @@ function APIKeysContent() {
                     icon={Cpu} 
                     value={keys.ethereumRpcUrl} 
                     placeholder="https://eth-mainnet.g.alchemy.com/v2/your-key"
-                    onChange={(v) => setKeys({...keys, ethereumRpcUrl: v})}
+                    onChange={(v: any) => setKeys({...keys, ethereumRpcUrl: v})}
                     show={true}
                     description="Gunakan Endpoint URL dari Alchemy (Mainnet) untuk Brankas ETH."
                   />
@@ -274,18 +287,19 @@ function APIKeysContent() {
                     icon={Zap} 
                     value={keys.polygonRpcUrl} 
                     placeholder="https://polygon-mainnet.g.alchemy.com/v2/your-key"
-                    onChange={(v) => setKeys({...keys, polygonRpcUrl: v})}
+                    onChange={(v: any) => setKeys({...keys, polygonRpcUrl: v})}
                     show={true}
                     description="Gunakan Endpoint URL dari Alchemy (Polygon) untuk Kontrol Koin ALX."
                   />
                   <div className="md:col-span-2">
                     <KeyField 
-                      label="ALX Smart Contract" 
+                      label="Kontrak Pintar Koin ALX" 
                       icon={ShieldCheck} 
                       value={keys.alxContractAddress} 
                       placeholder="0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd"
-                      onChange={(v) => setKeys({...keys, alxContractAddress: v})}
+                      onChange={(v: any) => setKeys({...keys, alxContractAddress: v})}
                       show={true}
+                      description="Alamat kontrak Polygon untuk token ALX V3.1."
                     />
                   </div>
                 </div>
