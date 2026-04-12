@@ -10,7 +10,12 @@ import {
   Globe, 
   QrCode as QrIcon,
   Info,
-  Lock
+  Lock,
+  ChevronDown,
+  Bitcoin,
+  Cpu,
+  Zap,
+  CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,6 +26,19 @@ import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
+import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+const NETWORKS = [
+  { id: 'BTC', name: 'Bitcoin', icon: Bitcoin, color: 'text-orange-500', network: 'Native Network', confirmTime: '10-60m' },
+  { id: 'ETH', name: 'Ethereum', icon: Cpu, color: 'text-blue-500', network: 'ERC-20 / EVM', confirmTime: '1-3m' },
+  { id: 'ALX', name: 'Ali-Chain', icon: Zap, color: 'text-primary', network: 'Mainnet V3', confirmTime: 'Instan' }
+];
 
 export default function CryptoReceivePage() {
   const router = useRouter();
@@ -28,22 +46,33 @@ export default function CryptoReceivePage() {
   const db = useFirestore();
   const { toast } = useToast();
   
+  const [selectedNetwork, setSelectedNetwork] = useState(NETWORKS[0]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  const walletAddress = userData?.walletAddress || "Sedang Menyiapkan Dompet...";
+  const displayAddress = useMemo(() => {
+    if (!userData) return "Sedang Menyiapkan Dompet...";
+    if (selectedNetwork.id === 'BTC') return userData.btcAddress || "Alamat BTC belum diaktifkan.";
+    return userData.walletAddress || "Alamat EVM belum diaktifkan.";
+  }, [userData, selectedNetwork]);
 
   const copyAddress = () => {
-    if (!userData?.walletAddress) return;
-    navigator.clipboard.writeText(userData.walletAddress);
-    toast({ title: "Alamat Disalin", description: "Alamat dompet AliBank Anda telah disalin." });
+    if (displayAddress.includes("Sedang")) return;
+    navigator.clipboard.writeText(displayAddress);
+    toast({ title: "Alamat Disalin", description: `Alamat ${selectedNetwork.name} Anda telah disalin.` });
   };
 
+  if (!mounted) return null;
+
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20 font-body transition-colors duration-300">
       <Navbar />
-      <main className="container mx-auto px-4 max-lg pt-4">
-        <header className="mb-8">
+      <main className="container mx-auto px-4 max-w-lg pt-4 space-y-8">
+        <header>
           <button onClick={() => router.back()} className="flex items-center gap-2 text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors mb-6">
             <ArrowLeft className="w-4 h-4" /> Kembali
           </button>
@@ -53,51 +82,93 @@ export default function CryptoReceivePage() {
             </div>
             <div>
               <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter">Terima Aset</h1>
-              <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">AliBank Native Wallet Address.</p>
+              <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Hub Likuiditas Inbound AliBank.</p>
             </div>
           </div>
         </header>
 
-        <Card className="liquid-glass border-none rounded-[2.5rem] p-10 flex flex-col items-center space-y-8 shadow-2xl">
+        {/* Network Selector */}
+        <div className="space-y-3 px-1">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Pilih Jaringan Penerimaan</label>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="w-full h-16 rounded-2xl liquid-glass border-primary/20 flex items-center justify-between px-6 hover:bg-muted/50 transition-all group shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className={cn("w-10 h-10 rounded-xl bg-background flex items-center justify-center shadow-inner", selectedNetwork.color)}>
+                    <selectedNetwork.icon className="w-6 h-6" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-black italic uppercase">{selectedNetwork.name}</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">{selectedNetwork.network}</p>
+                  </div>
+                </div>
+                <ChevronDown className="w-5 h-5 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-[calc(100vw-2rem)] max-w-md bg-background border-border rounded-2xl p-2 shadow-2xl">
+              {NETWORKS.map((net) => (
+                <DropdownMenuItem 
+                  key={net.id} 
+                  onClick={() => setSelectedNetwork(net)}
+                  className="rounded-xl p-4 flex items-center justify-between cursor-pointer focus:bg-primary/5"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={cn("w-10 h-10 rounded-xl bg-muted flex items-center justify-center", net.color)}>
+                      <net.icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase italic">{net.name}</p>
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase">{net.network}</p>
+                    </div>
+                  </div>
+                  {selectedNetwork.id === net.id && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <Card className="liquid-glass border-none rounded-[2.5rem] p-10 flex flex-col items-center space-y-8 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 gold-gradient opacity-20" />
+          
           <div className="relative">
             <div className="w-64 h-64 bg-white rounded-3xl p-6 shadow-inner border-4 border-primary/10 flex items-center justify-center overflow-hidden">
-              {/* QR CODE PLACEHOLDER - Representing the native wallet address */}
               <div className="w-full h-full bg-slate-50 rounded-xl flex flex-col items-center justify-center text-primary/40 p-4 text-center">
-                <QrIcon className="w-24 h-24 mb-4" />
+                <QrIcon className="w-24 h-24 mb-4 animate-in zoom-in duration-500" />
                 <span className="text-[10px] font-black uppercase tracking-widest leading-tight">
-                  Scan Alamat AliBank V3
+                  Scan Alamat {selectedNetwork.name}
                 </span>
               </div>
             </div>
             <div className="absolute -bottom-4 -right-4 w-12 h-12 rounded-2xl gold-gradient flex items-center justify-center shadow-xl border-4 border-white">
-              <LogoIcon className="text-white w-6 h-6" />
+              {selectedNetwork.id === 'ALX' ? <LogoIcon className="text-white w-6 h-6" /> : <selectedNetwork.icon className="text-white w-6 h-6" />}
             </div>
           </div>
 
           <div className="w-full space-y-4">
             <div className="space-y-2">
               <div className="flex justify-between items-center px-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Alamat Dompet Mandiri</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Alamat Dompet ({selectedNetwork.id})</label>
                 <Lock className="w-3 h-3 text-primary" />
               </div>
               <div className="p-5 rounded-2xl bg-accent/5 border border-primary/10 relative group">
-                <p className="text-[11px] font-black text-accent break-all text-center leading-relaxed">
-                  {walletAddress}
+                <p className="text-[11px] font-black text-accent break-all text-center leading-relaxed font-mono">
+                  {displayAddress}
                 </p>
                 <Button 
                   onClick={copyAddress}
-                  className="w-full mt-4 h-12 bg-primary/10 hover:bg-primary/20 text-primary border-none rounded-xl font-black uppercase italic text-[10px]"
+                  className="w-full mt-4 h-12 bg-primary text-primary-foreground hover:bg-primary/90 border-none rounded-xl font-black uppercase italic text-[10px] shadow-lg"
                 >
-                  <Copy className="w-4 h-4 mr-2" /> Salin Alamat
+                  <Copy className="w-4 h-4 mr-2" /> SALIN ALAMAT RIIL
                 </Button>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Badge variant="outline" className="h-10 justify-center font-black text-[8px] uppercase tracking-widest border-primary/20 text-accent">
-                <Globe className="w-3 h-3 mr-2 text-primary" /> Multi-Chain Node
+              <Badge variant="outline" className="h-10 justify-center font-black text-[8px] uppercase tracking-widest border-primary/20 text-accent bg-background">
+                <Globe className="w-3 h-3 mr-2 text-primary" /> {selectedNetwork.confirmTime} Est.
               </Badge>
-              <Badge variant="outline" className="h-10 justify-center font-black text-[8px] uppercase tracking-widest border-primary/20 text-accent">
+              <Badge variant="outline" className="h-10 justify-center font-black text-[8px] uppercase tracking-widest border-primary/20 text-accent bg-background">
                 <ShieldCheck className="w-3 h-3 mr-2 text-primary" /> Non-Custodial
               </Badge>
             </div>
@@ -105,14 +176,21 @@ export default function CryptoReceivePage() {
 
           <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-4">
             <Info className="w-6 h-6 text-blue-600 shrink-0" />
-            <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-              Ini adalah dompet mandiri AliBank Anda. Anda dapat menerima ETH dan token ERC-20 lainnya langsung ke alamat ini dari dompet eksternal mana pun (MetaMask, Binance, Indodax).
-            </p>
+            <div className="space-y-1">
+              <p className="text-[9px] font-black text-blue-600 uppercase italic">INFORMASI PENTING</p>
+              <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+                Pastikan Anda hanya mengirim <span className="text-foreground">{selectedNetwork.name}</span> melalui jaringan <span className="text-foreground">{selectedNetwork.network}</span>. Pengiriman aset lain dapat menyebabkan hilangnya dana secara permanen di Node AliBank.
+              </p>
+            </div>
           </div>
         </Card>
 
-        <footer className="mt-12 text-center">
-          <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.3em]">Official AliBank Native Wallet System 2026</p>
+        <footer className="mt-12 text-center space-y-4">
+          <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.3em] italic">Official AliBank Native Wallet System 2026</p>
+          <div className="flex items-center justify-center gap-2 opacity-30 grayscale">
+            <LogoIcon className="w-4 h-4" />
+            <span className="text-[7px] font-bold uppercase tracking-widest">ISO8583 COMPLIANT NODE</span>
+          </div>
         </footer>
       </main>
     </div>

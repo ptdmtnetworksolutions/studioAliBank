@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -8,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ShieldCheck, Mail, Lock, Phone, User, ArrowLeft, Wallet } from 'lucide-react';
+import { Loader2, Mail, Lock, Phone, User, ArrowLeft, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { LogoIcon } from '@/components/ui/logo';
@@ -37,6 +38,10 @@ export default function RegisterPage() {
       // Create random internal AliBank Wallet (Metamask equivalent)
       const internalWallet = ethers.Wallet.createRandom();
       
+      // Generate Simulated BTC Address (bc1... SegWit format)
+      const mockBtcSuffix = Array.from({length: 38}, () => "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 36)]).join("");
+      const mockBtcAddress = `bc1q${mockBtcSuffix}`;
+      
       const result = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       const user = result.user;
 
@@ -46,10 +51,12 @@ export default function RegisterPage() {
         email: formData.email,
         phone: formData.phone,
         accountNumber: '88' + Math.floor(1000000000 + Math.random() * 9000000000).toString(),
-        totalBalance: 0, // Mutlak Nol
-        savings: 0,      // Mutlak Nol
-        tier: 'Premium',
+        totalBalance: 0,
+        savings: 0,
+        tier: 'Regular',
+        kycStatus: 'unverified',
         walletAddress: internalWallet.address,
+        btcAddress: mockBtcAddress,
         privateKey: internalWallet.privateKey,
         cryptoBalances: {
           BTC: 0,
@@ -62,7 +69,7 @@ export default function RegisterPage() {
 
       toast({
         title: "Pendaftaran Berhasil",
-        description: "Akun AliBank aktif dengan saldo Rp 0. Silakan deposit untuk memulai.",
+        description: "Akun AliBank aktif. Selamat datang di masa depan perbankan.",
       });
       router.push('/');
     } catch (error: any) {
@@ -81,20 +88,20 @@ export default function RegisterPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 relative overflow-hidden">
       <div className="absolute top-[-10%] left-[-10%] w-64 h-64 bg-primary/10 blur-[100px] rounded-full" />
       
-      <div className="relative z-10 flex flex-col items-center w-full max-w-sm">
+      <div className="relative z-10 flex flex-col items-center w-full max-sm px-2">
         <Link href="/login" className="self-start mb-6">
           <Button variant="ghost" size="sm" className="text-accent/60 hover:text-accent gap-2">
             <ArrowLeft className="w-4 h-4" /> Kembali
           </Button>
         </Link>
 
-        <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center shadow-xl mb-4 p-3">
+        <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center shadow-xl mb-4 p-3.5">
           <LogoIcon className="text-white" />
         </div>
         
         <h1 className="text-2xl font-black text-accent mb-1 tracking-tighter italic uppercase">Buka Rekening Elit</h1>
-        <p className="text-muted-foreground mb-8 text-center text-xs font-medium">
-          Aktifkan layanan perbankan & dompet Web3 mandiri dalam satu langkah.
+        <p className="text-muted-foreground mb-8 text-center text-xs font-medium uppercase tracking-widest">
+          Aktifkan layanan perbankan & dompet Web3 mandiri.
         </p>
 
         <form onSubmit={handleRegister} className="w-full space-y-3">
@@ -107,7 +114,7 @@ export default function RegisterPage() {
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
                 required
-                className="h-12 pl-12 rounded-xl liquid-glass border-none"
+                className="h-12 pl-12 rounded-xl bg-muted/30 border-none"
               />
             </div>
           </div>
@@ -122,7 +129,7 @@ export default function RegisterPage() {
                 value={formData.phone}
                 onChange={(e) => setFormData({...formData, phone: e.target.value})}
                 required
-                className="h-12 pl-12 rounded-xl liquid-glass border-none"
+                className="h-12 pl-12 rounded-xl bg-muted/30 border-none"
               />
             </div>
           </div>
@@ -137,7 +144,7 @@ export default function RegisterPage() {
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
                 required
-                className="h-12 pl-12 rounded-xl liquid-glass border-none"
+                className="h-12 pl-12 rounded-xl bg-muted/30 border-none"
               />
             </div>
           </div>
@@ -153,7 +160,7 @@ export default function RegisterPage() {
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
                 required
                 minLength={6}
-                className="h-12 pl-12 rounded-xl liquid-glass border-none"
+                className="h-12 pl-12 rounded-xl bg-muted/30 border-none"
               />
             </div>
           </div>

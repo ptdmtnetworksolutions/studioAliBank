@@ -12,7 +12,8 @@
         "accountNumber": { "type": "string" },
         "totalBalance": { "type": "number" },
         "savings": { "type": "number" },
-        "walletAddress": { "type": "string" },
+        "walletAddress": { "type": "string", "description": "Ethereum/EVM address" },
+        "btcAddress": { "type": "string", "description": "Native Bitcoin address" },
         "privateKey": { "type": "string" },
         "cryptoBalances": {
           "type": "object",
