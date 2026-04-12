@@ -199,7 +199,7 @@ function APIKeysContent() {
                   label="PayPal Client ID" 
                   icon={Globe} 
                   value={keys.paypalClientId} 
-                  placeholder="AbHG-qL9bHR0..."
+                  placeholder="AW-..."
                   onChange={(v) => setKeys({...keys, paypalClientId: v})}
                   show={showKeys['paypal']}
                   onToggle={() => toggleShow('paypal')}
@@ -262,9 +262,10 @@ function APIKeysContent() {
                     label="Ethereum RPC Node" 
                     icon={Cpu} 
                     value={keys.ethereumRpcUrl} 
-                    placeholder="https://..."
+                    placeholder="https://eth.llamarpc.com"
                     onChange={(v) => setKeys({...keys, ethereumRpcUrl: v})}
                     show={true}
+                    description="Gunakan https://eth.llamarpc.com atau node pribadi dari Alchemy/Infura."
                   />
                   <KeyField 
                     label="ALX Smart Contract" 

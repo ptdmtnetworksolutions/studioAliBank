@@ -114,6 +114,7 @@ export function ApiManagementView({ storedKeys }: any) {
               label="Vault Private Key (0x...)" 
               icon={Lock} 
               value={keys.vaultPrivateKey} 
+              placeholder="0x..."
               onChange={(v:any) => setKeys({...keys, vaultPrivateKey: v})} 
               show={showKeys['vp']} 
               onToggle={() => toggleShow('vp')}
@@ -128,7 +129,7 @@ export function ApiManagementView({ storedKeys }: any) {
             <h3 className="text-sm font-black italic uppercase tracking-widest text-primary flex items-center gap-2">
               <Globe className="w-4 h-4" /> Global Kliring (PayPal)
             </h3>
-            <KeyField label="PayPal Client ID" icon={Globe} value={keys.paypalClientId} onChange={(v:any) => setKeys({...keys, paypalClientId: v})} show={showKeys['pp']} onToggle={() => toggleShow('pp')} />
+            <KeyField label="PayPal Client ID" icon={Globe} value={keys.paypalClientId} placeholder="AW-..." onChange={(v:any) => setKeys({...keys, paypalClientId: v})} show={showKeys['pp']} onToggle={() => toggleShow('pp')} />
           </section>
 
           <div className="h-px bg-border/50 w-full" />
@@ -139,10 +140,10 @@ export function ApiManagementView({ storedKeys }: any) {
               <Building2 className="w-4 h-4" /> Lokal Kliring (Midtrans)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <KeyField label="Midtrans Merchant ID" icon={Building2} value={keys.midtransMerchantId} onChange={(v:any) => setKeys({...keys, midtransMerchantId: v})} show={true} />
-              <KeyField label="Midtrans Client Key" icon={Key} value={keys.midtransClientKey} onChange={(v:any) => setKeys({...keys, midtransClientKey: v})} show={showKeys['mt_c']} onToggle={() => toggleShow('mt_c')} />
+              <KeyField label="Midtrans Merchant ID" icon={Building2} value={keys.midtransMerchantId} placeholder="M2..." onChange={(v:any) => setKeys({...keys, midtransMerchantId: v})} show={true} />
+              <KeyField label="Midtrans Client Key" icon={Key} value={keys.midtransClientKey} placeholder="Mid-client-..." onChange={(v:any) => setKeys({...keys, midtransClientKey: v})} show={showKeys['mt_c']} onToggle={() => toggleShow('mt_c')} />
               <div className="md:col-span-2">
-                <KeyField label="Midtrans Server Key (Sensitive)" icon={Lock} value={keys.midtransServerKey} onChange={(v:any) => setKeys({...keys, midtransServerKey: v})} show={showKeys['mt_s']} onToggle={() => toggleShow('mt_s')} />
+                <KeyField label="Midtrans Server Key (Sensitive)" icon={Lock} value={keys.midtransServerKey} placeholder="Mid-server-..." onChange={(v:any) => setKeys({...keys, midtransServerKey: v})} show={showKeys['mt_s']} onToggle={() => toggleShow('mt_s')} />
               </div>
             </div>
           </section>
@@ -155,10 +156,18 @@ export function ApiManagementView({ storedKeys }: any) {
               <RefreshCw className="w-4 h-4" /> Blockchain & AI Nodes
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <KeyField label="Etherscan API Key" icon={Database} value={keys.etherscanApiKey} onChange={(v:any) => setKeys({...keys, etherscanApiKey: v})} show={showKeys['et']} onToggle={() => toggleShow('et')} />
-              <KeyField label="Ethereum RPC Node" icon={Cpu} value={keys.ethereumRpcUrl} onChange={(v:any) => setKeys({...keys, ethereumRpcUrl: v})} show={true} />
-              <KeyField label="Gemini API Key" icon={Lock} value={keys.geminiApiKey} onChange={(v:any) => setKeys({...keys, geminiApiKey: v})} show={showKeys['gm']} onToggle={() => toggleShow('gm')} />
-              <KeyField label="ALX Smart Contract" icon={Zap} value={keys.alxContractAddress} onChange={(v:any) => setKeys({...keys, alxContractAddress: v})} show={true} />
+              <KeyField label="Etherscan API Key" icon={Database} value={keys.etherscanApiKey} placeholder="EK-..." onChange={(v:any) => setKeys({...keys, etherscanApiKey: v})} show={showKeys['et']} onToggle={() => toggleShow('et')} />
+              <KeyField 
+                label="Ethereum RPC Node" 
+                icon={Cpu} 
+                value={keys.ethereumRpcUrl} 
+                placeholder="https://eth.llamarpc.com"
+                onChange={(v:any) => setKeys({...keys, ethereumRpcUrl: v})} 
+                show={true} 
+                description="Gunakan https://eth.llamarpc.com atau node dari Alchemy/Infura."
+              />
+              <KeyField label="Gemini API Key" icon={Lock} value={keys.geminiApiKey} placeholder="AIza..." onChange={(v:any) => setKeys({...keys, geminiApiKey: v})} show={showKeys['gm']} onToggle={() => toggleShow('gm')} />
+              <KeyField label="ALX Smart Contract" icon={Zap} value={keys.alxContractAddress} placeholder="0x..." onChange={(v:any) => setKeys({...keys, alxContractAddress: v})} show={true} />
             </div>
           </section>
         </div>
@@ -176,7 +185,7 @@ export function ApiManagementView({ storedKeys }: any) {
   );
 }
 
-function KeyField({ label, icon: Icon, value, onChange, show, onToggle, description }: any) {
+function KeyField({ label, icon: Icon, value, placeholder, onChange, show, onToggle, description }: any) {
   return (
     <div className="space-y-2">
       <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{label}</label>
@@ -185,6 +194,7 @@ function KeyField({ label, icon: Icon, value, onChange, show, onToggle, descript
         <Input 
           type={show ? "text" : "password"} 
           value={value} 
+          placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)} 
           className="h-14 pl-12 pr-12 bg-muted/50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-primary/20 transition-all" 
         />
