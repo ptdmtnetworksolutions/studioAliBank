@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { 
   Coins, 
   Zap, 
-  Globe, 
   Activity, 
   Flame, 
   Loader2, 
@@ -25,7 +24,10 @@ import {
   CheckCircle2,
   TrendingDown,
   Pickaxe,
-  ExternalLink
+  ExternalLink,
+  Target,
+  Globe,
+  Award
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -59,7 +61,6 @@ export function TokenomicsView({
   const [burnAmountInput, setBurnAmountInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Fetch Internal Vault Balance (Firestore)
   const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
@@ -243,6 +244,36 @@ export function TokenomicsView({
         </Card>
       </div>
 
+      {/* BRANDING GUIDE SECTION */}
+      <Card className="border-none bg-blue-600 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-10"><Award className="w-48 h-48" /></div>
+        <div className="relative z-10 space-y-6">
+          <Badge className="bg-white text-blue-600 font-black text-[8px] uppercase px-3 h-5 border-none tracking-widest">ON-CHAIN BRANDING GUIDE</Badge>
+          <div className="space-y-2">
+            <h4 className="text-3xl font-black italic uppercase tracking-tighter leading-tight">Optimalkan Profil ALX di PolygonScan</h4>
+            <p className="text-white/70 text-sm font-medium italic leading-relaxed max-w-2xl">Lengkapi identitas visual koin Anda agar tampil prestisius di dompet nasabah dan bursa global.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+            <BrandingStep 
+              icon={Target} 
+              title="Label & Tag" 
+              desc="Gunakan Label 'Token' dan Tag Nama 'AliBank: ALX Token' agar alamat kontrak memiliki identitas nama di daftar transaksi."
+            />
+            <BrandingStep 
+              icon={Globe} 
+              title="Website Link" 
+              desc="Tautkan URL resmi AliBank Anda untuk membangun kepercayaan dan memudahkan audit publik terhadap proyek Anda."
+            />
+            <BrandingStep 
+              icon={ShieldCheck} 
+              title="Logo Update" 
+              desc="Upload ikon Bintang AliBank (PNG 64x64) melalui menu 'Token Update' di PolygonScan agar logo muncul di MetaMask."
+            />
+          </div>
+        </div>
+      </Card>
+
       <section className="space-y-6">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2">
@@ -302,5 +333,15 @@ function TokenStatCard({ label, value, sub, icon: Icon, color = "text-accent" }:
       <p className={cn("text-2xl font-black italic tracking-tighter", color)}>{value}</p>
       <p className="text-[9px] font-bold text-muted-foreground uppercase">{sub}</p>
     </Card>
+  );
+}
+
+function BrandingStep({ icon: Icon, title, desc }: any) {
+  return (
+    <div className="bg-white/10 p-6 rounded-2xl border border-white/10 space-y-3">
+      <Icon className="w-6 h-6 text-primary" />
+      <h5 className="text-sm font-black uppercase italic tracking-tight">{title}</h5>
+      <p className="text-[10px] font-medium text-white/60 leading-relaxed italic">{desc}</p>
+    </div>
   );
 }
