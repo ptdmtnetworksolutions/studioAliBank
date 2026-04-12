@@ -160,7 +160,6 @@ export function TokenomicsView({
         </div>
       </header>
 
-      {/* Internal vs On-Chain Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <TokenStatCard label="Internal Vault Liquidity" value={`${globalLiquidity?.alixVaultBalance?.toLocaleString() || '0'} ALX`} sub="Available for Internal Trade" icon={Database} color="text-primary" />
         <TokenStatCard label="On-Chain Total Supply" value={`${isLoadingAlix ? '...' : Number(totalSupply).toLocaleString()} ALX`} sub={`Max: ${Number(maxSupply).toLocaleString()}`} icon={Zap} />
@@ -265,7 +264,7 @@ export function TokenomicsView({
         </Card>
       </div>
 
-      {/* BRANDING PROGRESS TRACKER - NEW SECTION */}
+      {/* BRANDING PROGRESS TRACKER */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <Card className="lg:col-span-12 border-none bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none"><LogoIcon className="w-64 h-64 text-primary" /></div>
@@ -305,9 +304,9 @@ export function TokenomicsView({
             <div className="p-6 rounded-2xl bg-white/5 border border-white/10 flex gap-4">
               <Info className="w-6 h-6 text-primary shrink-0" />
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-primary uppercase italic">Informasi Moderasi</p>
+                <p className="text-[10px] font-black text-primary uppercase italic">Panduan Langkah Selanjutnya</p>
                 <p className="text-[10px] font-medium text-white/60 leading-relaxed italic uppercase">
-                  Setelah mengirim formulir di PolygonScan, tim mereka akan meninjau logo Anda dalam <span className="text-white font-bold">24-72 jam</span>. Pastikan Anda mencentang checklist di atas jika sudah menyelesaikan langkahnya.
+                  Setelah verifikasi kepemilikan (Signed Message) berhasil, silakan kembali ke halaman <span className="text-white font-bold">Token Update Application</span>. Tombol "Next" akan aktif, lalu Anda dapat mengunggah file gambar logo bintang AliBank.
                 </p>
               </div>
             </div>
@@ -350,7 +349,7 @@ export function TokenomicsView({
                     </td>
                     <td className="px-8 py-4 text-right">
                       <div className="flex items-center justify-end gap-2 text-[9px] font-bold text-green-600 uppercase italic">
-                        <CheckCircle2 className="w-3 h-3" /> Confirmed
+                        <CheckCircle2 className="w-3" /> Confirmed
                       </div>
                     </td>
                   </tr>
