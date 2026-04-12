@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,9 @@ import {
   Globe,
   Award,
   Users,
-  ArrowUpDown
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -62,16 +64,29 @@ export function TokenomicsView({
   const [mintAmount, setMintAmount] = useState("");
   const [burnAmountInput, setBurnAmountInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // PAGINATION STATE
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
-  const alxTransactions = auditLogs?.filter((log: any) => 
-    log.cryptoCurrency === "ALX" || 
-    log.description?.toLowerCase().includes("alx") || 
-    log.category?.toLowerCase().includes("tokenomics") ||
-    log.category === "Ali-Exchange"
-  );
+  // FILTER & PAGINATE LOGS
+  const alxTransactions = useMemo(() => {
+    return auditLogs?.filter((log: any) => 
+      log.cryptoCurrency === "ALX" || 
+      log.description?.toLowerCase().includes("alx") || 
+      log.category?.toLowerCase().includes("tokenomics") ||
+      log.category === "Ali-Exchange"
+    ) || [];
+  }, [auditLogs]);
+
+  const totalPages = Math.ceil(alxTransactions.length / itemsPerPage);
+  const paginatedLogs = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return alxTransactions.slice(start, start + itemsPerPage);
+  }, [alxTransactions, currentPage]);
 
   const handleMint = async () => {
     if (typeof window === 'undefined' || !window.ethereum) {
@@ -124,7 +139,10 @@ export function TokenomicsView({
           <div className="w-16 h-16 rounded-[2rem] gold-gradient flex items-center justify-center shadow-xl p-4 shrink-0"><Coins className="text-white w-full h-full" /></div>
           <div>
             <h3 className="text-3xl font-black italic uppercase tracking-tighter text-foreground">ALX Tokenomics Terminal</h3>
-            <p className="text-xs font-bold text-muted-foreground uppercase mt-1">Sovereign Financial Infrastructure Sync</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase mt-1 flex items-center gap-2">
+              <RefreshCw className={cn("w-3 h-3 text-primary", isLoadingAlix && "animate-spin")} /> 
+              Sovereign Hybrid Infrastructure Sync
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -144,7 +162,7 @@ export function TokenomicsView({
       {/* REAL-TIME ON-CHAIN STATS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <TokenStatCard 
-          label="Total Supply (Current)" 
+          label="Total Supply (On-Chain)" 
           value={`${isLoadingAlix ? '...' : Number(totalSupply).toLocaleString()} ALX`} 
           sub={`Hard Cap: ${Number(maxSupply).toLocaleString()}`} 
           icon={Database} 
@@ -158,16 +176,16 @@ export function TokenomicsView({
           color="text-blue-500" 
         />
         <TokenStatCard 
-          label="Holders Count" 
-          value="1" 
-          sub="Verified On-Chain Addresses" 
-          icon={Users} 
+          label="Remaining Mintable" 
+          value={`${isLoadingAlix ? '...' : Number(remainingMintable).toLocaleString()} ALX`} 
+          sub="Authorized quota left" 
+          icon={Zap} 
           color="text-teal-500" 
         />
         <TokenStatCard 
-          label="Total Transfers" 
-          value="1" 
-          sub="On-Chain Event Ledger" 
+          label="Internal AUM (IDR)" 
+          value={`Rp ${(globalLiquidity?.totalInternalAumIdr || 0).toLocaleString()}`} 
+          sub="Total ALX Sales Value" 
           icon={ArrowUpDown} 
           color="text-orange-500" 
         />
@@ -275,8 +293,32 @@ export function TokenomicsView({
           <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-3">
             <History className="w-5 h-5 text-primary" /> Real-Time Settlement Logs
           </h3>
-          <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase px-2 h-5">On-Chain Ledger</Badge>
+          <div className="flex items-center gap-4">
+            <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase px-2 h-5">Hybrid Ledger</Badge>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 rounded-lg" 
+                disabled={currentPage === 1} 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="text-[10px] font-black text-muted-foreground uppercase italic">Page {currentPage} / {totalPages || 1}</span>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 rounded-lg" 
+                disabled={currentPage === totalPages || totalPages === 0} 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
         </div>
+        
         <Card className="border-none bg-card rounded-[2rem] overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -289,8 +331,8 @@ export function TokenomicsView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {alxTransactions?.map((log: any) => (
-                  <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+                {paginatedLogs.map((log: any) => (
+                  <tr key={log.id} className="hover:bg-muted/30 transition-colors animate-in fade-in duration-300">
                     <td className="px-8 py-4 text-[10px] font-mono font-bold text-muted-foreground italic">
                       {log.timestamp?.toDate?.().toLocaleString() || '---'}
                     </td>
@@ -310,6 +352,13 @@ export function TokenomicsView({
                     </td>
                   </tr>
                 ))}
+                {paginatedLogs.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-20 text-center opacity-20 italic font-black uppercase tracking-widest text-xs">
+                      No transaction records found in the current hybrid node.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
