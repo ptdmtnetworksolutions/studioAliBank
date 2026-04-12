@@ -15,7 +15,8 @@ import {
   Bitcoin,
   Cpu,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  FileSearch
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -76,13 +77,15 @@ export default function CryptoReceivePage() {
           <button onClick={() => router.back()} className="flex items-center gap-2 text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors mb-6">
             <ArrowLeft className="w-4 h-4" /> Kembali
           </button>
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl gold-gradient flex items-center justify-center shadow-xl p-3">
-              <Download className="text-white w-8 h-8" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter">Terima Aset</h1>
-              <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Hub Likuiditas Inbound AliBank.</p>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl gold-gradient flex items-center justify-center shadow-xl p-3">
+                <Download className="text-white w-8 h-8" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter">Terima Aset</h1>
+                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Hub Likuiditas Inbound AliBank.</p>
+              </div>
             </div>
           </div>
         </header>
@@ -179,11 +182,32 @@ export default function CryptoReceivePage() {
             <div className="space-y-1">
               <p className="text-[9px] font-black text-blue-600 uppercase italic">INFORMASI PENTING</p>
               <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                Pastikan Anda hanya mengirim <span className="text-foreground">{selectedNetwork.name}</span> melalui jaringan <span className="text-foreground">{selectedNetwork.network}</span>. Pengiriman aset lain dapat menyebabkan hilangnya dana secara permanen di Node AliBank.
+                Pastikan Anda hanya mengirim <span className="text-foreground">{selectedNetwork.name}</span> melalui jaringan <span className="text-foreground">{selectedNetwork.network}</span>.
               </p>
             </div>
           </div>
         </Card>
+
+        {/* Action Bottom */}
+        <section className="space-y-4">
+          <div className="p-6 rounded-[2rem] bg-muted/50 border border-border space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                <FileSearch className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-black italic uppercase">Sudah Kirim Aset?</h4>
+                <p className="text-[9px] font-bold text-muted-foreground uppercase">Kirim laporan agar saldo segera diproses.</p>
+              </div>
+            </div>
+            <Button 
+              onClick={() => router.push(`/crypto/confirm-deposit?asset=${selectedNetwork.id}`)}
+              className="w-full h-12 bg-accent text-white rounded-xl font-black uppercase italic text-[10px] tracking-widest shadow-lg"
+            >
+              LAPOR PENGIRIMAN SEKARANG
+            </Button>
+          </div>
+        </section>
 
         <footer className="mt-12 text-center space-y-4">
           <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.3em] italic">Official AliBank Native Wallet System 2026</p>
