@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -22,7 +21,10 @@ import {
   Scan,
   Smartphone,
   MapPin,
-  Phone
+  Phone,
+  Hash,
+  Calendar,
+  ShieldAlert
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -60,9 +62,8 @@ export default function KycPage() {
   const [linkedEmail, setLinkedEmail] = useState("");
   const [mounted, setMounted] = useState(false);
 
-  // Expanded Form State
+  // Form State
   const [kycForm, setKycData] = useState({
-    // KTP Data (OCR)
     nik: "",
     nama: "",
     tempatTglLahir: "",
@@ -76,7 +77,6 @@ export default function KycPage() {
     pekerjaan: "",
     kewarganegaraan: "",
     berlakuHingga: "",
-    // Supplementary Data (Manual)
     province: "",
     postalCode: "",
     whatsapp: ""
@@ -119,14 +119,14 @@ export default function KycPage() {
       streamRef.current = stream;
       setCameraActiveMode(mode);
       setIsCameraActive(true);
-      // Ensure element exists before attaching stream
+      
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
-      }, 200);
+      }, 300);
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Akses Kamera Gagal', description: 'Pastikan izin kamera diberikan.' });
+      toast({ variant: 'destructive', title: 'Akses Kamera Gagal', description: 'Pastikan izin kamera diberikan di browser Anda.' });
     }
   };
 
@@ -164,28 +164,23 @@ export default function KycPage() {
     try {
       const qry = query(collection(db, "users"), where("kycData.idNumber", "==", nik), limit(1));
       const snap = await getDocs(qry);
-      
       const duplicateDoc = snap.docs.find(d => d.id !== user.uid);
       
       if (duplicateDoc) {
         const existingData = duplicateDoc.data();
-        setLinkedEmail(existingData.email || "email nasabah terkait");
+        setLinkedEmail(existingData.email || "akun lain");
         setIsDuplicate(true);
         return true;
       }
       setIsDuplicate(false);
       setLinkedEmail("");
       return false;
-    } catch (e) { 
-      console.error("Duplicate check error:", e);
-      return false; 
-    }
+    } catch (e) { return false; }
   };
 
   const runFullOcr = async (dataUrl: string) => {
     setIsOcrLoading(true);
     setIsDuplicate(false);
-    setLinkedEmail("");
     try {
       const res = await extractKtpData({ photoDataUri: dataUrl });
       if (res.isKtp) {
@@ -210,14 +205,13 @@ export default function KycPage() {
         if (extractedNik) {
           await checkDuplicates(extractedNik);
         }
-
-        toast({ title: "Otentikasi Identitas Berhasil", description: "Data KTP berhasil diekstraksi secara riil." });
+        toast({ title: "Otentikasi Berhasil", description: "Data identitas berhasil diekstraksi." });
       } else {
-        toast({ variant: "destructive", title: "Dokumen Tidak Valid", description: "Sistem tidak mendeteksi format KTP yang benar." });
+        toast({ variant: "destructive", title: "Bukan KTP Valid", description: "Sistem gagal mendeteksi format KTP Indonesia." });
         setIdCardFile(null); setPreviews(p => ({ ...p, idCard: "" }));
       }
     } catch (err) {
-      toast({ variant: "destructive", title: "Gangguan Node AI", description: "Gagal menghubungkan ke modul ekstraksi data." });
+      toast({ variant: "destructive", title: "Node AI Sibuk", description: "Gagal mengekstrak data identitas." });
     } finally {
       setIsOcrLoading(false);
     }
@@ -225,46 +219,34 @@ export default function KycPage() {
 
   const handleSubmitKyc = async () => {
     if (!user || !db || !storage || !idCardFile || !selfieFile || !userDocRef) {
-      toast({ variant: "destructive", title: "Data Tidak Lengkap", description: "Pastikan foto KTP dan Selfie sudah diambil." });
+      toast({ variant: "destructive", title: "Dokumen Tidak Lengkap" });
       return;
     }
 
     setIsProcessing(true);
     try {
-      // 1. Upload KTP
       const idRef = ref(storage, `kyc_documents/${user.uid}/id_card.jpg`);
       await uploadBytes(idRef, idCardFile);
       const idUrl = await getDownloadURL(idRef);
 
-      // 2. Upload Selfie
-      const sRef = ref(storage, `kyc_documents/${user.uid}/selfie_hold.jpg`);
+      const sRef = ref(storage, `kyc_documents/${user.uid}/selfie_biometric.jpg`);
       await uploadBytes(sRef, selfieFile);
       const sUrl = await getDownloadURL(sRef);
 
-      // 3. Finalize Data
-      const finalKycData = {
-        ...kycForm,
-        idNumber: kycForm.nik,
-        idCardUrl: idUrl,
-        selfieUrl: sUrl,
-        submittedAt: new Date().toISOString()
-      };
-
-      // 4. Update Database
       await updateDoc(userDocRef, {
         kycStatus: "pending",
-        kycData: finalKycData
+        kycData: {
+          ...kycForm,
+          idNumber: kycForm.nik,
+          idCardUrl: idUrl,
+          selfieUrl: sUrl,
+          submittedAt: new Date().toISOString()
+        }
       });
 
       setStep(4);
-      toast({ title: "KYC Terkirim", description: "Pengajuan Anda sedang diproses oleh tim kepatuhan." });
     } catch (err: any) {
-      console.error("KYC Submission Error:", err);
-      toast({ 
-        variant: "destructive", 
-        title: "Gagal Mengunggah", 
-        description: err.message || "Pastikan koneksi internet stabil." 
-      });
+      toast({ variant: "destructive", title: "Gagal Mengirim", description: err.message });
     } finally {
       setIsProcessing(false);
     }
@@ -279,8 +261,8 @@ export default function KycPage() {
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div className="flex flex-col items-center">
-          <h1 className="text-sm font-black italic uppercase">KYC Protocol V3.5</h1>
-          <Badge className="bg-primary/10 text-primary border-none text-[7px] font-black h-4 px-1.5 uppercase mt-1">Sovereign Node</Badge>
+          <h1 className="text-sm font-black italic uppercase tracking-widest">AliBank KYC V3</h1>
+          <Badge className="bg-primary/10 text-primary border-none text-[7px] font-black h-4 px-1.5 uppercase mt-1">Encrypted Node</Badge>
         </div>
         <div className="w-10" />
       </header>
@@ -302,8 +284,8 @@ export default function KycPage() {
         {step === 1 && (
           <div className="space-y-8 animate-in fade-in duration-500">
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter">IDENTITAS FISIK</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Pindai KTP asli Anda untuk ekstraksi data otomatis.</p>
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter">SCAN KTP ASLI</h2>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase italic leading-relaxed">Letakkan KTP di dalam bingkai untuk otentikasi identitas AI Node.</p>
             </div>
 
             <div className="relative aspect-[1.6/1] rounded-[2.5rem] border-4 border-dashed border-primary/20 bg-muted overflow-hidden flex items-center justify-center shadow-xl">
@@ -329,7 +311,7 @@ export default function KycPage() {
               ) : (
                 <div className="flex flex-col items-center gap-4 text-center p-6 cursor-pointer" onClick={() => startCamera('idCard')}>
                   <Camera className="w-10 h-10 text-primary/40" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-primary italic">AKTIFKAN SENSOR KAMERA KTP</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-primary italic">AKTIFKAN KAMERA KTP</span>
                 </div>
               )}
             </div>
@@ -337,8 +319,8 @@ export default function KycPage() {
             {previews.idCard && !isCameraActive && (
               <Card className="p-6 rounded-[2.5rem] bg-accent/5 border border-primary/10 space-y-6 shadow-xl animate-in slide-in-from-top-4">
                 <div className="flex items-center justify-between">
-                  <Badge className="bg-primary text-black font-black text-[8px] uppercase px-2 h-5">DATA HASIL SCAN AI</Badge>
-                  {isOcrLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (!isDuplicate ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <AlertCircle className="w-4 h-4 text-rose-500" />)}
+                  <Badge className="bg-primary text-black font-black text-[8px] uppercase px-2 h-5">Otentikasi Identitas AI Node</Badge>
+                  {isOcrLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (!isDuplicate ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <ShieldAlert className="w-4 h-4 text-rose-500" />)}
                 </div>
 
                 {isDuplicate && (
@@ -347,7 +329,7 @@ export default function KycPage() {
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-rose-600 uppercase italic">NIK SUDAH TERDAFTAR</p>
                       <p className="text-[9px] font-bold text-muted-foreground leading-relaxed italic">
-                        NIK ini tertaut dengan akun: <span className="text-rose-600 font-black">{linkedEmail}</span>. Gunakan akun tersebut untuk login.
+                        NIK ini telah diverifikasi oleh akun: <span className="text-rose-600 font-black">{linkedEmail}</span>. Silakan login menggunakan akun tersebut.
                       </p>
                     </div>
                   </div>
@@ -355,29 +337,17 @@ export default function KycPage() {
 
                 <div className="grid grid-cols-1 gap-4">
                   <KtpField label="NIK" value={kycForm.nik} isMono isError={isDuplicate} />
-                  <KtpField label="Nama" value={kycForm.nama} />
-                  <KtpField label="Alamat" value={kycForm.alamat} />
+                  <KtpField label="Nama Lengkap" value={kycForm.nama} />
                   <div className="grid grid-cols-2 gap-3">
                     <KtpField label="Pekerjaan" value={kycForm.pekerjaan} />
                     <KtpField label="Agama" value={kycForm.agama} />
                   </div>
+                  <KtpField label="Alamat" value={kycForm.alamat} />
                 </div>
                 
                 <div className="flex gap-3">
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => startCamera('idCard')} 
-                    className="flex-1 h-14 rounded-2xl border border-border font-black text-[10px] uppercase italic"
-                  >
-                    ULANGI SCAN
-                  </Button>
-                  <Button 
-                    disabled={isDuplicate || !kycForm.nik || isOcrLoading}
-                    onClick={() => setStep(2)} 
-                    className="flex-[2] h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-lg"
-                  >
-                    LANJUTKAN <ChevronRight className="w-4 h-4 ml-2" />
-                  </Button>
+                  <Button variant="ghost" onClick={() => startCamera('idCard')} className="flex-1 h-14 rounded-2xl border border-border font-black text-[10px] uppercase italic">RE-SCAN</Button>
+                  <Button disabled={isDuplicate || !kycForm.nik || isOcrLoading} onClick={() => setStep(2)} className="flex-[2] h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-lg">LANJUTKAN <ChevronRight className="w-4 h-4 ml-2" /></Button>
                 </div>
               </Card>
             )}
@@ -388,20 +358,20 @@ export default function KycPage() {
         {step === 2 && (
           <div className="space-y-8 animate-in fade-in duration-500">
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter">DATA KONTAK</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Informasi pelengkap untuk korespondensi perbankan.</p>
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter">DATA KORESPONDENSI</h2>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Input data pelengkap untuk verifikasi akun perbankan.</p>
             </div>
             <div className="space-y-5">
               <div className="space-y-1.5">
                 <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Provinsi</label>
-                <Input value={kycForm.province} onChange={(e) => setKycData({...kycForm, province: e.target.value.toUpperCase()})} placeholder="Contoh: DKI JAKARTA" className="h-14 rounded-2xl bg-muted/50 border-none font-bold uppercase" />
+                <Input value={kycForm.province} onChange={(e) => setKycData({...kycForm, province: e.target.value.toUpperCase()})} placeholder="DKI JAKARTA" className="h-14 rounded-2xl bg-muted/50 border-none font-bold uppercase" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Kode Pos</label>
                 <Input value={kycForm.postalCode} onChange={(e) => setKycData({...kycForm, postalCode: e.target.value})} placeholder="5 Digit" className="h-14 rounded-2xl bg-muted/50 border-none font-mono font-bold" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Nomor WhatsApp Aktif</label>
+                <label className="text-[9px] font-black uppercase text-muted-foreground ml-1">WhatsApp Aktif</label>
                 <div className="relative">
                   <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40" />
                   <Input value={kycForm.whatsapp} onChange={(e) => setKycData({...kycForm, whatsapp: e.target.value})} placeholder="0812xxxxxxxx" className="h-14 pl-12 rounded-2xl bg-muted/50 border-none font-bold" />
@@ -415,12 +385,12 @@ export default function KycPage() {
           </div>
         )}
 
-        {/* STEP 3: BIOMETRIC SELFIE + KTP */}
+        {/* STEP 3: BIOMETRIC SELFIE */}
         {step === 3 && (
           <div className="space-y-8 animate-in fade-in duration-500">
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter">VALIDASI BIOMETRIK</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Ambil foto wajah Anda sambil memegang KTP asli.</p>
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter">SELFIE BIOMETRIK</h2>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Pegang KTP asli di dekat wajah Anda untuk validasi biometric pro.</p>
             </div>
             <div className="relative aspect-square max-w-[320px] mx-auto rounded-[3rem] border-4 border-dashed border-primary/20 bg-muted overflow-hidden flex items-center justify-center shadow-2xl">
               {isCameraActive && cameraMode === 'selfie' ? (
@@ -439,14 +409,14 @@ export default function KycPage() {
               ) : (
                 <div className="flex flex-col items-center gap-4 text-center p-6 cursor-pointer" onClick={() => startCamera('selfie')}>
                   <User className="w-12 h-12 text-primary/40" />
-                  <button className="text-[10px] font-black uppercase text-primary italic tracking-widest hover:underline">AKTIFKAN KAMERA SELFIE</button>
+                  <button className="text-[10px] font-black uppercase text-primary italic tracking-widest hover:underline">AKTIFKAN KAMERA DEPAN</button>
                 </div>
               )}
             </div>
             <div className="flex gap-4">
               <Button variant="ghost" onClick={() => { stopCamera(); setStep(2); }} className="flex-1 h-16 rounded-[2rem] font-black italic uppercase border border-border">KEMBALI</Button>
               <Button disabled={!selfieFile || isProcessing} onClick={handleSubmitKyc} className="flex-[2] h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl">
-                {isProcessing ? <Loader2 className="animate-spin w-6 h-6" /> : "AJUKAN VERIFIKASI"}
+                {isProcessing ? <Loader2 className="animate-spin w-6 h-6" /> : "AJUKAN KYC RIIL"}
               </Button>
             </div>
           </div>
@@ -459,12 +429,10 @@ export default function KycPage() {
               <CheckCircle2 className="w-12 h-12 text-primary relative z-10" />
             </div>
             <div className="space-y-2 px-4">
-              <h2 className="text-3xl font-black italic uppercase tracking-tighter">DATA DITERIMA</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic leading-relaxed">
-                Dokumen Anda telah dienkripsi dan dikirim ke Node AliBank V3. Kami akan memberitahu Anda setelah verifikasi manual selesai.
-              </p>
+              <h2 className="text-3xl font-black italic uppercase tracking-tighter">PERMINTAAN TERKIRIM</h2>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic leading-relaxed">Data Anda telah dienkripsi dan dikirim ke Node AliBank V3. Verifikasi manual estimasi selesai dalam 1x24 jam.</p>
             </div>
-            <Button onClick={() => router.push('/')} className="w-full max-w-xs h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl">KE BERANDA</Button>
+            <Button onClick={() => router.push('/')} className="w-full max-w-xs h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl">KE DASHBOARD</Button>
           </div>
         )}
       </main>
@@ -485,7 +453,7 @@ function KtpField({ label, value, isMono = false, isError = false }: { label: st
           "text-[10px] font-black italic uppercase truncate",
           isError ? "text-rose-600" : "text-foreground",
           isMono && "font-mono font-bold"
-        )}>{value || "---"}</p>
+        )}>{value || "MEMPROSES..."}</p>
       </div>
     </div>
   );

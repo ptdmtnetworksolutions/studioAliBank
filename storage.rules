@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// ALIBANK SECURE STORAGE RULES V1.3 - PRODUCTION STABLE
+// ALIBANK SECURE STORAGE RULES V1.4 - PRODUCTION STABLE
 // Proteksi mutlak untuk dokumen identitas dan aset nasabah AliBank V3.
 
 service firebase.storage {
@@ -19,14 +19,14 @@ service firebase.storage {
       return isSignedIn() && (
         request.auth.token.email == 'alidzulfikar075@gmail.com' || 
         request.auth.token.email == 'dzulfikaraliridlo@gmail.com' ||
-        request.auth.uid == 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2'
+        request.auth.uid == 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2' ||
+        request.auth.uid == 'Y6sEzvQ767NHxuwwTVxRwrGf5Wy1'
       );
     }
 
     // --- Jalur Dokumen KYC (Kritis) ---
-    // Menggunakan recursive match {allPaths=**} untuk memastikan akses ke file di dalam folder user
     match /kyc_documents/{userId}/{allPaths=**} {
-      // Nasabah hanya bisa akses folder miliknya sendiri
+      // Nasabah hanya bisa akses folder miliknya sendiri untuk upload dan read
       // Admin bisa akses semua untuk verifikasi
       allow read, write: if isOwner(userId) || isAdmin();
     }

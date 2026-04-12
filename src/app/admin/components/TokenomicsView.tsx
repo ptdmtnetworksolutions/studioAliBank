@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -70,19 +69,35 @@ export function TokenomicsView({
 
   const handleMint = async () => {
     if (typeof window === 'undefined' || !window.ethereum) {
-      toast({ variant: "destructive", title: "MetaMask Required" });
+      toast({ variant: "destructive", title: "MetaMask Tidak Terdeteksi", description: "Gunakan browser dengan ekstensi Web3." });
       return;
     }
+    
     if (isProcessing || !mintAmount) return;
     setIsProcessing(true);
+    
     try {
+      // Pastikan MetaMask siap & terhubung
       const provider = new BrowserProvider(window.ethereum as any);
+      
+      // Cek apakah extension merespons
+      try {
+        await (window.ethereum as any).request({ method: 'eth_accounts' });
+      } catch (e) {
+        throw new Error("MetaMask terkunci atau tidak merespons.");
+      }
+
       const signer = await provider.getSigner();
       await mintALX(await signer.getAddress(), mintAmount, signer);
-      toast({ title: "Mint Success" });
+      toast({ title: "Mint Berhasil", description: `${mintAmount} ALX telah dicetak on-chain.` });
       setMintAmount("");
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Mint Failed", description: err.message });
+      console.error("MetaMask Error:", err);
+      toast({ 
+        variant: "destructive", 
+        title: "Koneksi MetaMask Gagal", 
+        description: err.message || "Pastikan Anda sudah login ke dompet MetaMask Anda." 
+      });
     } finally { setIsProcessing(false); }
   };
 
@@ -145,10 +160,14 @@ export function TokenomicsView({
             </div>
             <Button onClick={async () => {
               if (typeof window === 'undefined' || !window.ethereum) return;
-              const provider = new BrowserProvider(window.ethereum as any);
-              const signer = await provider.getSigner();
-              await togglePause(signer);
-              toast({ title: "Status Updated" });
+              try {
+                const provider = new BrowserProvider(window.ethereum as any);
+                const signer = await provider.getSigner();
+                await togglePause(signer);
+                toast({ title: "Status Kontrak Diperbarui" });
+              } catch (e) {
+                toast({ variant: "destructive", title: "Gagal Menghubungkan MetaMask" });
+              }
             }} variant="outline" className="w-full text-[10px] font-black uppercase italic h-10 border-primary/20">TOGGLE EMERGENCY PAUSE</Button>
           </div>
         </Card>
