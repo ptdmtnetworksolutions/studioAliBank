@@ -29,7 +29,9 @@ import {
   Globe,
   Award,
   Image as ImageIcon,
-  Check
+  Check,
+  CheckCircle,
+  Circle
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -43,7 +45,7 @@ import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { doc, updateDoc, setDoc } from "firebase/firestore";
 
 export function TokenomicsView({ 
   totalSupply, 
@@ -112,6 +114,19 @@ export function TokenomicsView({
       toast({ variant: "destructive", title: "Burn Gagal", description: err.message });
     } finally { setIsProcessing(false); }
   };
+
+  const toggleBrandingStep = async (field: string, currentVal: boolean) => {
+    if (!db) return;
+    try {
+      await setDoc(doc(db, "system", "branding_status"), {
+        [field]: !currentVal
+      }, { merge: true });
+      toast({ title: "Status Diperbarui" });
+    } catch (e) {}
+  };
+
+  const brandingRef = useMemoFirebase(() => (db ? doc(db, "system", "branding_status") : null), [db]);
+  const { data: brandingStatus } = useDoc(brandingRef);
 
   const openPolygonScan = () => {
     window.open("https://polygonscan.com/token/0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd", "_blank");
@@ -250,69 +265,52 @@ export function TokenomicsView({
         </Card>
       </div>
 
-      {/* BRANDING & LOGO CENTER - NEW SECTION */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="border-none bg-blue-600 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-10"><Award className="w-48 h-48" /></div>
-          <div className="relative z-10 space-y-6">
-            <Badge className="bg-white text-blue-600 font-black text-[8px] uppercase px-3 h-5 border-none tracking-widest">ON-CHAIN BRANDING GUIDE</Badge>
-            <div className="space-y-2">
-              <h4 className="text-3xl font-black italic uppercase tracking-tighter leading-tight">Optimalkan Profil ALX di PolygonScan</h4>
-              <p className="text-white/70 text-sm font-medium italic leading-relaxed max-w-2xl">Lengkapi identitas visual koin Anda agar tampil prestisius di dompet nasabah dan bursa global.</p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
-              <BrandingStep 
-                icon={Target} 
-                title="Label & Tag" 
-                desc="Gunakan Label 'Token' dan Tag Nama 'AliBank: ALX Token' agar alamat kontrak memiliki identitas nama."
-              />
-              <BrandingStep 
-                icon={Globe} 
-                title="Website Link" 
-                desc="Tautkan URL resmi AliBank Anda untuk membangun kepercayaan dan memudahkan audit publik."
-              />
-              <BrandingStep 
-                icon={ImageIcon} 
-                title="Logo Update" 
-                desc="Gunakan menu 'Token Update' untuk mengunggah Ikon Bintang AliBank (PNG 64x64)."
-              />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="border-none bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
-          <div className="absolute inset-0 gold-gradient opacity-5" />
-          <div className="relative z-10 space-y-8">
-            <header className="space-y-2">
-              <Badge className="bg-primary text-black font-black text-[8px] uppercase px-3 h-5 border-none">LOGO SUBMISSION PROTOCOL</Badge>
-              <h4 className="text-2xl font-black italic uppercase tracking-tight">Verifikasi Kepemilikan (Kotak Merah)</h4>
+      {/* BRANDING PROGRESS TRACKER - NEW SECTION */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <Card className="lg:col-span-12 border-none bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none"><LogoIcon className="w-64 h-64 text-primary" /></div>
+          
+          <div className="relative z-10 space-y-10">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div>
+                <Badge className="bg-primary text-black font-black text-[8px] uppercase px-3 h-5 border-none tracking-widest mb-2">ALX BRANDING COMMAND CENTER</Badge>
+                <h4 className="text-3xl font-black italic uppercase tracking-tighter">Branding & Identity Status</h4>
+              </div>
+              <Button onClick={openUpdateToken} className="h-12 px-8 gold-gradient text-white rounded-xl font-black uppercase italic text-xs shadow-lg">
+                MANAGE ON POLYGONSCAN <ExternalLink className="w-4 h-4 ml-2" />
+              </Button>
             </header>
 
-            <div className="space-y-4">
-              <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0 font-black italic text-primary">1</div>
-                <p className="text-[11px] font-medium text-white/70 leading-relaxed italic uppercase">
-                  Klik tautan <span className="text-primary font-black">"tool"</span> di kotak merah PolygonScan untuk membuka halaman <span className="text-white font-bold">"Verify Address Ownership"</span>.
-                </p>
-              </div>
-              <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0 font-black italic text-primary">2</div>
-                <p className="text-[11px] font-medium text-white/70 leading-relaxed italic uppercase">
-                  Hubungkan MetaMask Anda (Akun Owner) dan klik tombol <span className="text-white font-bold">"Sign Message"</span>.
-                </p>
-              </div>
-              <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0 font-black italic text-primary">3</div>
-                <p className="text-[11px] font-medium text-white/70 leading-relaxed italic uppercase">
-                  Setelah verifikasi selesai, kembali ke formulir utama dan tombol <span className="text-primary font-black">"NEXT"</span> akan aktif untuk mengunggah logo.
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <BrandingStatusItem 
+                title="Verify Ownership" 
+                desc="Buktikan kepemilikan dompet via Signed Message di PolygonScan."
+                isDone={brandingStatus?.ownershipVerified}
+                onToggle={() => toggleBrandingStep('ownershipVerified', !!brandingStatus?.ownershipVerified)}
+              />
+              <BrandingStatusItem 
+                title="Upload Logo Icon" 
+                desc="Unggah Ikon Bintang AliBank (64x64 PNG) agar tampil di dompet."
+                isDone={brandingStatus?.logoUploaded}
+                onToggle={() => toggleBrandingStep('logoUploaded', !!brandingStatus?.logoUploaded)}
+              />
+              <BrandingStatusItem 
+                title="Social Info Sync" 
+                desc="Tautkan website, Twitter, dan deskripsi koin secara resmi."
+                isDone={brandingStatus?.socialsSynced}
+                onToggle={() => toggleBrandingStep('socialsSynced', !!brandingStatus?.socialsSynced)}
+              />
+            </div>
+
+            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 flex gap-4">
+              <Info className="w-6 h-6 text-primary shrink-0" />
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-primary uppercase italic">Informasi Moderasi</p>
+                <p className="text-[10px] font-medium text-white/60 leading-relaxed italic uppercase">
+                  Setelah mengirim formulir di PolygonScan, tim mereka akan meninjau logo Anda dalam <span className="text-white font-bold">24-72 jam</span>. Pastikan Anda mencentang checklist di atas jika sudah menyelesaikan langkahnya.
                 </p>
               </div>
             </div>
-
-            <Button onClick={openUpdateToken} className="w-full h-14 gold-gradient text-white rounded-2xl font-black italic uppercase tracking-widest shadow-xl border-none">
-              BUKA FORMULIR LOGO <ExternalLink className="w-4 h-4 ml-2" />
-            </Button>
           </div>
         </Card>
       </section>
@@ -379,12 +377,25 @@ function TokenStatCard({ label, value, sub, icon: Icon, color = "text-accent" }:
   );
 }
 
-function BrandingStep({ icon: Icon, title, desc }: any) {
+function BrandingStatusItem({ title, desc, isDone, onToggle }: any) {
   return (
-    <div className="bg-white/10 p-6 rounded-2xl border border-white/10 space-y-3">
-      <Icon className="w-6 h-6 text-primary" />
-      <h5 className="text-sm font-black uppercase italic tracking-tight">{title}</h5>
-      <p className="text-[10px] font-medium text-white/60 leading-relaxed italic">{desc}</p>
-    </div>
+    <button 
+      onClick={onToggle}
+      className={cn(
+        "p-6 rounded-2xl border transition-all text-left space-y-3 active:scale-95 group",
+        isDone ? "bg-green-500/10 border-green-500/30" : "bg-white/5 border-white/10 hover:border-primary/30"
+      )}
+    >
+      <div className="flex justify-between items-center">
+        {isDone ? <CheckCircle className="w-6 h-6 text-green-500" /> : <Circle className="w-6 h-6 text-white/20 group-hover:text-primary/40" />}
+        <Badge className={cn("text-[7px] font-black uppercase", isDone ? "bg-green-500 text-white" : "bg-white/10 text-white/40")}>
+          {isDone ? "COMPLETE" : "PENDING"}
+        </Badge>
+      </div>
+      <div>
+        <h5 className={cn("text-sm font-black uppercase italic tracking-tight", isDone ? "text-green-400" : "text-white")}>{title}</h5>
+        <p className="text-[10px] font-medium text-white/40 leading-tight italic uppercase mt-1">{desc}</p>
+      </div>
+    </button>
   );
 }
