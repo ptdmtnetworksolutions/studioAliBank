@@ -20,7 +20,8 @@ import {
   AlertCircle,
   Zap,
   Building2,
-  Wallet
+  Wallet,
+  ShieldCheck
 } from "lucide-react";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useFirestore, useUser } from "@/firebase";
@@ -41,6 +42,7 @@ export function ApiManagementView({ storedKeys }: any) {
     midtransServerKey: "",
     etherscanApiKey: "",
     ethereumRpcUrl: "",
+    polygonRpcUrl: "",
     geminiApiKey: "",
     alxContractAddress: "",
     vaultPrivateKey: ""
@@ -55,6 +57,7 @@ export function ApiManagementView({ storedKeys }: any) {
         midtransServerKey: storedKeys.midtransServerKey || "",
         etherscanApiKey: storedKeys.etherscanApiKey || "",
         ethereumRpcUrl: storedKeys.ethereumRpcUrl || "",
+        polygonRpcUrl: storedKeys.polygonRpcUrl || "",
         geminiApiKey: storedKeys.geminiApiKey || "",
         alxContractAddress: storedKeys.alxContractAddress || "",
         vaultPrivateKey: storedKeys.vaultPrivateKey || ""
@@ -118,7 +121,7 @@ export function ApiManagementView({ storedKeys }: any) {
               onChange={(v:any) => setKeys({...keys, vaultPrivateKey: v})} 
               show={showKeys['vp']} 
               onToggle={() => toggleShow('vp')}
-              description="Salin satu baris kunci saja (Ethereum/Polygon) dari MetaMask. Kunci ini identik untuk seluruh jaringan EVM di akun Anda."
+              description="Kunci privat MetaMask Anda untuk tanda tangan transaksi on-chain otomatis."
             />
           </section>
 
@@ -156,18 +159,26 @@ export function ApiManagementView({ storedKeys }: any) {
               <RefreshCw className="w-4 h-4" /> Blockchain & AI Nodes
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <KeyField label="Etherscan API Key" icon={Database} value={keys.etherscanApiKey} placeholder="EK-..." onChange={(v:any) => setKeys({...keys, etherscanApiKey: v})} show={showKeys['et']} onToggle={() => toggleShow('et')} />
               <KeyField 
-                label="Ethereum RPC Node" 
+                label="Ethereum RPC Node (Mainnet)" 
                 icon={Cpu} 
                 value={keys.ethereumRpcUrl} 
-                placeholder="https://eth.llamarpc.com"
+                placeholder="https://eth-mainnet.g.alchemy.com/v2/..."
                 onChange={(v:any) => setKeys({...keys, ethereumRpcUrl: v})} 
                 show={true} 
-                description="Gunakan https://eth.llamarpc.com atau node dari Alchemy/Infura."
+                description="Gunakan node dari Alchemy untuk Brankas ETH."
+              />
+              <KeyField 
+                label="Polygon RPC Node (ALX Control)" 
+                icon={Zap} 
+                value={keys.polygonRpcUrl} 
+                placeholder="https://polygon-mainnet.g.alchemy.com/v2/..."
+                onChange={(v:any) => setKeys({...keys, polygonRpcUrl: v})} 
+                show={true} 
+                description="Gunakan node dari Alchemy untuk Operasional Koin ALX."
               />
               <KeyField label="Gemini API Key" icon={Lock} value={keys.geminiApiKey} placeholder="AIza..." onChange={(v:any) => setKeys({...keys, geminiApiKey: v})} show={showKeys['gm']} onToggle={() => toggleShow('gm')} />
-              <KeyField label="ALX Smart Contract" icon={Zap} value={keys.alxContractAddress} placeholder="0x..." onChange={(v:any) => setKeys({...keys, alxContractAddress: v})} show={true} />
+              <KeyField label="ALX Smart Contract" icon={ShieldCheck} value={keys.alxContractAddress} placeholder="0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd" onChange={(v:any) => setKeys({...keys, alxContractAddress: v})} show={true} />
             </div>
           </section>
         </div>

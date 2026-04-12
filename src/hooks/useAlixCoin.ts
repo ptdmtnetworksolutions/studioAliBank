@@ -1,10 +1,14 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { AlixCoinABI } from '@/lib/abi/AlixCoin';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { firebaseConfig } from '@/firebase/config';
 
-const ALX_ADDRESS = process.env.NEXT_PUBLIC_ALX_ADDRESS || "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
+const ALX_ADDRESS_DEFAULT = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
 
 // Daftar RPC Fallback untuk stabilitas tinggi di jaringan Polygon
 const FALLBACK_RPCS = [
@@ -25,8 +29,27 @@ export function useAlixCoin() {
   const fetchData = useCallback(async () => {
     let success = false;
     
+    // 1. Ambil URL RPC & Alamat Kontrak dari Firestore (Prioritas)
+    let dynamicRpc = "";
+    let dynamicAddress = ALX_ADDRESS_DEFAULT;
+
+    try {
+      const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+      const db = getFirestore(app);
+      const keySnap = await getDoc(doc(db, "system", "api_keys"));
+      if (keySnap.exists()) {
+        const data = keySnap.data();
+        if (data.polygonRpcUrl) dynamicRpc = data.polygonRpcUrl;
+        if (data.alxContractAddress) dynamicAddress = data.alxContractAddress;
+      }
+    } catch (e) {
+      console.warn("Firestore RPC fetch failed, using fallbacks.");
+    }
+
+    const rpcsToTry = dynamicRpc ? [dynamicRpc, ...FALLBACK_RPCS] : FALLBACK_RPCS;
+
     // Iterasi melalui RPC fallback jika terjadi gangguan koneksi
-    for (const rpcUrl of FALLBACK_RPCS) {
+    for (const rpcUrl of rpcsToTry) {
       if (success) break;
       
       try {
@@ -34,7 +57,7 @@ export function useAlixCoin() {
           staticNetwork: ethers.Network.from(137)
         });
         
-        const contract = new ethers.Contract(ALX_ADDRESS, AlixCoinABI, provider);
+        const contract = new ethers.Contract(dynamicAddress, AlixCoinABI, provider);
 
         const [supply, max, remaining, rate, paused] = await Promise.all([
           contract.totalSupply(),
@@ -52,7 +75,7 @@ export function useAlixCoin() {
         
         success = true;
       } catch (error) {
-        console.warn(`Failed to fetch from RPC ${rpcUrl}, trying next...`);
+        console.warn(`Failed to fetch ALX from RPC ${rpcUrl}, trying next...`);
       }
     }
 
@@ -64,8 +87,24 @@ export function useAlixCoin() {
     amount: string,
     signer: ethers.Signer
   ) => {
-    const contract = new ethers.Contract(ALX_ADDRESS, AlixCoinABI, signer);
+    // Ambil Alamat Kontrak Dinamis
+    let dynamicAddress = ALX_ADDRESS_DEFAULT;
+    try {
+      const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+      const db = getFirestore(app);
+      const keySnap = await getDoc(doc(db, "system", "api_keys"));
+      if (keySnap.exists()) dynamicAddress = keySnap.data().alxContractAddress || ALX_ADDRESS_DEFAULT;
+    } catch (e) {}
+
+    const contract = new ethers.Contract(dynamicAddress, AlixCoinABI, signer);
     const amountWei = ethers.parseEther(amount);
+    
+    // Pastikan jaringan adalah Polygon (Chain ID 137)
+    const network = await signer.provider?.getNetwork();
+    if (network?.chainId !== 137n) {
+      throw new Error("MetaMask harus berada di jaringan Polygon Mainnet.");
+    }
+
     const tx = await contract.mint(toAddress, amountWei);
     await tx.wait();
     await fetchData();
@@ -76,8 +115,20 @@ export function useAlixCoin() {
     amount: string,
     signer: ethers.Signer
   ) => {
-    const contract = new ethers.Contract(ALX_ADDRESS, AlixCoinABI, signer);
+    let dynamicAddress = ALX_ADDRESS_DEFAULT;
+    try {
+      const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+      const db = getFirestore(app);
+      const keySnap = await getDoc(doc(db, "system", "api_keys"));
+      if (keySnap.exists()) dynamicAddress = keySnap.data().alxContractAddress || ALX_ADDRESS_DEFAULT;
+    } catch (e) {}
+
+    const contract = new ethers.Contract(dynamicAddress, AlixCoinABI, signer);
     const amountWei = ethers.parseEther(amount);
+    
+    const network = await signer.provider?.getNetwork();
+    if (network?.chainId !== 137n) throw new Error("Gunakan jaringan Polygon.");
+
     const tx = await contract.burn(amountWei);
     await tx.wait();
     await fetchData();
@@ -85,7 +136,19 @@ export function useAlixCoin() {
   }, [fetchData]);
 
   const togglePause = useCallback(async (signer: ethers.Signer) => {
-    const contract = new ethers.Contract(ALX_ADDRESS, AlixCoinABI, signer);
+    let dynamicAddress = ALX_ADDRESS_DEFAULT;
+    try {
+      const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+      const db = getFirestore(app);
+      const keySnap = await getDoc(doc(db, "system", "api_keys"));
+      if (keySnap.exists()) dynamicAddress = keySnap.data().alxContractAddress || ALX_ADDRESS_DEFAULT;
+    } catch (e) {}
+
+    const contract = new ethers.Contract(dynamicAddress, AlixCoinABI, signer);
+    
+    const network = await signer.provider?.getNetwork();
+    if (network?.chainId !== 137n) throw new Error("Gunakan jaringan Polygon.");
+
     const tx = isPaused 
       ? await contract.unpause()
       : await contract.pause();

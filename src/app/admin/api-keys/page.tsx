@@ -63,6 +63,7 @@ function APIKeysContent() {
     midtransServerKey: "",
     etherscanApiKey: "",
     ethereumRpcUrl: "",
+    polygonRpcUrl: "",
     geminiApiKey: "",
     alxContractAddress: "",
     vaultPrivateKey: "" 
@@ -80,6 +81,7 @@ function APIKeysContent() {
         midtransServerKey: storedKeys.midtransServerKey || "",
         etherscanApiKey: storedKeys.etherscanApiKey || "",
         ethereumRpcUrl: storedKeys.ethereumRpcUrl || "",
+        polygonRpcUrl: storedKeys.polygonRpcUrl || "",
         geminiApiKey: storedKeys.geminiApiKey || "",
         alxContractAddress: storedKeys.alxContractAddress || "",
         vaultPrivateKey: storedKeys.vaultPrivateKey || ""
@@ -181,7 +183,7 @@ function APIKeysContent() {
                   onChange={(v) => setKeys({...keys, vaultPrivateKey: v})}
                   show={showKeys['vault']}
                   onToggle={() => toggleShow('vault')}
-                  description="Kunci ini digunakan untuk tanda tangan on-chain. Ambil dari MetaMask -> Account Details -> Show Private Key."
+                  description="Kunci ini digunakan untuk tanda tangan on-chain otomatis oleh sistem."
                 />
               </section>
 
@@ -259,29 +261,40 @@ function APIKeysContent() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <KeyField 
-                    label="Ethereum RPC Node (Alchemy/Infura)" 
+                    label="Ethereum RPC Node (Alchemy)" 
                     icon={Cpu} 
                     value={keys.ethereumRpcUrl} 
                     placeholder="https://eth-mainnet.g.alchemy.com/v2/your-key"
                     onChange={(v) => setKeys({...keys, ethereumRpcUrl: v})}
                     show={true}
-                    description="Tempelkan Endpoint URL dari Alchemy (Mainnet) di sini."
+                    description="Gunakan Endpoint URL dari Alchemy (Mainnet) untuk Brankas ETH."
                   />
                   <KeyField 
-                    label="ALX Smart Contract" 
+                    label="Polygon RPC Node (Alchemy)" 
                     icon={Zap} 
-                    value={keys.alxContractAddress} 
-                    placeholder="0x..."
-                    onChange={(v) => setKeys({...keys, alxContractAddress: v})}
+                    value={keys.polygonRpcUrl} 
+                    placeholder="https://polygon-mainnet.g.alchemy.com/v2/your-key"
+                    onChange={(v) => setKeys({...keys, polygonRpcUrl: v})}
                     show={true}
+                    description="Gunakan Endpoint URL dari Alchemy (Polygon) untuk Kontrol Koin ALX."
                   />
+                  <div className="md:col-span-2">
+                    <KeyField 
+                      label="ALX Smart Contract" 
+                      icon={ShieldCheck} 
+                      value={keys.alxContractAddress} 
+                      placeholder="0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd"
+                      onChange={(v) => setKeys({...keys, alxContractAddress: v})}
+                      show={true}
+                    />
+                  </div>
                 </div>
               </section>
 
               <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex gap-4">
                 <AlertCircle className="w-6 h-6 text-amber-500 shrink-0" />
                 <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                  Peringatan Keamanan: Perubahan kredensial bersifat instan. Kegagalan konfigurasi pada field Vault Private Key akan menyebabkan kegagalan sistem penarikan saldo dari Smart Contract.
+                  Peringatan Keamanan: Perubahan kredensial bersifat instan. Kesalahan input pada RPC Node dapat menyebabkan kegagalan sinkronisasi saldo on-chain dan fungsi penarikan.
                 </p>
               </div>
 

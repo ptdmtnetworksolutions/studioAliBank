@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -22,7 +23,8 @@ import {
   Clock,
   History,
   CheckCircle2,
-  TrendingDown
+  TrendingDown,
+  Pickaxe
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -53,6 +55,7 @@ export function TokenomicsView({
   const { toast } = useToast();
   const db = useFirestore();
   const [mintAmount, setMintAmount] = useState("");
+  const [burnAmountInput, setBurnAmountInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Fatch Internal Vault Balance (Firestore)
@@ -63,8 +66,7 @@ export function TokenomicsView({
     log.cryptoCurrency === "ALX" || 
     log.description?.toLowerCase().includes("alx") || 
     log.category?.toLowerCase().includes("tokenomics") ||
-    log.category === "Ali-Exchange" ||
-    log.description?.includes("ALX")
+    log.category === "Ali-Exchange"
   );
 
   const handleMint = async () => {
@@ -77,27 +79,33 @@ export function TokenomicsView({
     setIsProcessing(true);
     
     try {
-      // Pastikan MetaMask siap & terhubung
       const provider = new BrowserProvider(window.ethereum as any);
-      
-      // Cek apakah extension merespons
-      try {
-        await (window.ethereum as any).request({ method: 'eth_accounts' });
-      } catch (e) {
-        throw new Error("MetaMask terkunci atau tidak merespons.");
-      }
-
       const signer = await provider.getSigner();
-      await mintALX(await signer.getAddress(), mintAmount, signer);
-      toast({ title: "Mint Berhasil", description: `${mintAmount} ALX telah dicetak on-chain.` });
+      
+      const hash = await mintALX(await signer.getAddress(), mintAmount, signer);
+      toast({ title: "Mint Berhasil", description: `${mintAmount} ALX telah dicetak on-chain. Hash: ${hash.slice(0,10)}...` });
       setMintAmount("");
     } catch (err: any) {
       console.error("MetaMask Error:", err);
       toast({ 
         variant: "destructive", 
-        title: "Koneksi MetaMask Gagal", 
-        description: err.message || "Pastikan Anda sudah login ke dompet MetaMask Anda." 
+        title: "Operasi Gagal", 
+        description: err.message || "Pastikan Anda adalah pemilik kontrak dan MetaMask berada di jaringan Polygon." 
       });
+    } finally { setIsProcessing(false); }
+  };
+
+  const handleBurn = async () => {
+    if (typeof window === 'undefined' || !window.ethereum || !burnAmountInput) return;
+    setIsProcessing(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum as any);
+      const signer = await provider.getSigner();
+      const hash = await burnALX(burnAmountInput, signer);
+      toast({ title: "Burn Berhasil", description: `${burnAmountInput} ALX dibakar. Hash: ${hash.slice(0,10)}...` });
+      setBurnAmountInput("");
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Burn Gagal", description: err.message });
     } finally { setIsProcessing(false); }
   };
 
@@ -106,9 +114,9 @@ export function TokenomicsView({
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="flex items-center gap-6">
           <div className="w-16 h-16 rounded-[2rem] gold-gradient flex items-center justify-center shadow-xl p-4 shrink-0"><Coins className="text-white w-full h-full" /></div>
-          <div><h3 className="text-3xl font-black italic uppercase tracking-tighter">ALX Tokenomics Terminal</h3><p className="text-xs font-bold text-muted-foreground uppercase mt-1">Contract logic synchronized with V3.1 Protocol</p></div>
+          <div><h3 className="text-3xl font-black italic uppercase tracking-tighter">ALX Tokenomics Terminal</h3><p className="text-xs font-bold text-muted-foreground uppercase mt-1">Contract logic synchronized with Polygon Mainnet</p></div>
         </div>
-        <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg">V3.1 PROTOCOL ACTIVE</Badge>
+        <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg">V3.1 ON-CHAIN PROTOCOL ACTIVE</Badge>
       </header>
 
       {/* Internal vs On-Chain Summary */}
@@ -122,22 +130,40 @@ export function TokenomicsView({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <Card className="lg:col-span-7 border-none bg-card rounded-[3rem] p-10 space-y-10 shadow-sm">
           <div className="flex items-center justify-between">
-            <h4 className="text-xl font-black italic uppercase tracking-tight">Authorized Minting Terminal</h4>
-            <Badge variant="outline" className="border-green-500/20 text-green-600 font-black text-[8px] px-3 h-6 uppercase italic">OnlyOwner Protection</Badge>
+            <h4 className="text-xl font-black italic uppercase tracking-tight">Authorized Operations</h4>
+            <Badge variant="outline" className="border-green-500/20 text-green-600 font-black text-[8px] px-3 h-6 uppercase italic">Owner Signature Required</Badge>
           </div>
-          <div className="p-10 rounded-[2.5rem] bg-muted/50 border border-border space-y-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Mint Amount (ALX)</label>
-              <div className="relative">
-                <Input type="number" placeholder="0.00" value={mintAmount} onChange={(e) => setMintAmount(e.target.value)} className="h-20 bg-background border-none rounded-3xl font-black italic text-4xl pl-10 pr-24" />
-                <div className="absolute right-6 top-1/2 -translate-y-1/2 text-xl font-black text-primary italic">ALX</div>
+          
+          <div className="space-y-8">
+            <div className="p-8 rounded-[2.5rem] bg-muted/50 border border-border space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Mint Amount (ALX)</label>
+                <div className="relative">
+                  <Input type="number" placeholder="0.00" value={mintAmount} onChange={(e) => setAmount(e.target.value)} className="hidden" />
+                  <Input type="number" placeholder="0.00" value={mintAmount} onChange={(e) => setMintAmount(e.target.value)} className="h-16 bg-background border-none rounded-2xl font-black italic text-2xl pl-8 pr-20" />
+                  <div className="absolute right-6 top-1/2 -translate-y-1/2 text-sm font-black text-primary italic">ALX</div>
+                </div>
               </div>
+              <Button onClick={handleMint} disabled={!mintAmount || isProcessing} className="w-full h-14 gold-gradient text-white rounded-xl font-black uppercase italic tracking-widest shadow-xl border-none">
+                {isProcessing ? <Loader2 className="animate-spin" /> : "EXECUTE ON-CHAIN MINT"}
+              </Button>
             </div>
-            <Button onClick={handleMint} disabled={!mintAmount || isProcessing} className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none text-base">
-              {isProcessing ? <Loader2 className="animate-spin" /> : "EXECUTE ON-CHAIN MINT"}
-            </Button>
+
+            <div className="p-8 rounded-[2.5rem] bg-rose-500/5 border border-rose-500/10 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-rose-600/60 ml-2">Burn Amount (Deflation)</label>
+                <div className="relative">
+                  <Input type="number" placeholder="0.00" value={burnAmountInput} onChange={(e) => setBurnAmountInput(e.target.value)} className="h-16 bg-background border-none rounded-2xl font-black italic text-2xl pl-8 pr-20" />
+                  <div className="absolute right-6 top-1/2 -translate-y-1/2 text-sm font-black text-rose-500 italic">ALX</div>
+                </div>
+              </div>
+              <Button onClick={handleBurn} disabled={!burnAmountInput || isProcessing} className="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black uppercase italic tracking-widest shadow-xl border-none">
+                {isProcessing ? <Loader2 className="animate-spin" /> : <span className="flex items-center gap-2"><Pickaxe className="w-4 h-4" /> EXECUTE TOKEN BURN</span>}
+              </Button>
+            </div>
           </div>
         </Card>
+
         <Card className="lg:col-span-5 border-none bg-card rounded-[3rem] p-10 flex flex-col justify-center space-y-8 shadow-sm">
           <h4 className="text-xl font-black italic uppercase tracking-tight text-center">Supply Distribution</h4>
           <div className="h-64">
@@ -160,15 +186,18 @@ export function TokenomicsView({
             </div>
             <Button onClick={async () => {
               if (typeof window === 'undefined' || !window.ethereum) return;
+              setIsProcessing(true);
               try {
                 const provider = new BrowserProvider(window.ethereum as any);
                 const signer = await provider.getSigner();
                 await togglePause(signer);
                 toast({ title: "Status Kontrak Diperbarui" });
-              } catch (e) {
-                toast({ variant: "destructive", title: "Gagal Menghubungkan MetaMask" });
-              }
-            }} variant="outline" className="w-full text-[10px] font-black uppercase italic h-10 border-primary/20">TOGGLE EMERGENCY PAUSE</Button>
+              } catch (e: any) {
+                toast({ variant: "destructive", title: "Operasi Gagal", description: e.message });
+              } finally { setIsProcessing(false); }
+            }} variant="outline" className="w-full text-[10px] font-black uppercase italic h-12 border-primary/20">
+              {isProcessing ? <Loader2 className="animate-spin" /> : "TOGGLE EMERGENCY PAUSE"}
+            </Button>
           </div>
         </Card>
       </div>
@@ -178,7 +207,7 @@ export function TokenomicsView({
           <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2">
             <History className="w-4 h-4 text-primary" /> Recent ALX Operations
           </h3>
-          <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase px-2 h-5">Internal & On-Chain</Badge>
+          <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase px-2 h-5">On-Chain Ledger</Badge>
         </div>
         <Card className="border-none bg-card rounded-[2rem] overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
@@ -213,11 +242,6 @@ export function TokenomicsView({
                     </td>
                   </tr>
                 ))}
-                {(!alxTransactions || alxTransactions.length === 0) && (
-                  <tr>
-                    <td colSpan={4} className="px-8 py-10 text-center opacity-30 italic text-xs font-bold uppercase tracking-widest">No ALX records found</td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
