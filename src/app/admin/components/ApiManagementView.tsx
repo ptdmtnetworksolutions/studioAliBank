@@ -110,7 +110,15 @@ export function ApiManagementView({ storedKeys }: any) {
             <h3 className="text-sm font-black italic uppercase tracking-widest text-primary flex items-center gap-2">
               <Wallet className="w-4 h-4" /> Brankas Pusat (Private Signature)
             </h3>
-            <KeyField label="Vault Private Key (0x...)" icon={Lock} value={keys.vaultPrivateKey} onChange={(v:any) => setKeys({...keys, vaultPrivateKey: v})} show={showKeys['vp']} onToggle={() => toggleShow('vp')} />
+            <KeyField 
+              label="Vault Private Key (0x...)" 
+              icon={Lock} 
+              value={keys.vaultPrivateKey} 
+              onChange={(v:any) => setKeys({...keys, vaultPrivateKey: v})} 
+              show={showKeys['vp']} 
+              onToggle={() => toggleShow('vp')}
+              description="Di MetaMask: Detail Akun > Show Private Key. Kunci ini digunakan untuk Disbursement otomatis."
+            />
           </section>
 
           <div className="h-px bg-border/50 w-full" />
@@ -168,7 +176,7 @@ export function ApiManagementView({ storedKeys }: any) {
   );
 }
 
-function KeyField({ label, icon: Icon, value, onChange, show, onToggle }: any) {
+function KeyField({ label, icon: Icon, value, onChange, show, onToggle, description }: any) {
   return (
     <div className="space-y-2">
       <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{label}</label>
@@ -182,6 +190,7 @@ function KeyField({ label, icon: Icon, value, onChange, show, onToggle }: any) {
         />
         {onToggle && <button onClick={onToggle} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">{show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>}
       </div>
+      {description && <p className="text-[8px] font-bold text-muted-foreground/60 uppercase italic px-2">{description}</p>}
     </div>
   );
 }

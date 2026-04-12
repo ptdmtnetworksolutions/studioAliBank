@@ -65,7 +65,7 @@ function APIKeysContent() {
     ethereumRpcUrl: "",
     geminiApiKey: "",
     alxContractAddress: "",
-    vaultPrivateKey: "" // Field baru untuk fallback kunci privat
+    vaultPrivateKey: "" 
   });
 
   const apiKeysRef = useMemoFirebase(() => (db && user ? doc(db, "system", "api_keys") : null), [db, user]);
@@ -181,7 +181,7 @@ function APIKeysContent() {
                   onChange={(v) => setKeys({...keys, vaultPrivateKey: v})}
                   show={showKeys['vault']}
                   onToggle={() => toggleShow('vault')}
-                  description="Kunci ini digunakan untuk menandatangani transaksi pencairan (withdraw) dari Smart Contract Brankas Pusat. Sangat rahasia."
+                  description="Kunci ini digunakan untuk menandatangani transaksi pencairan (withdraw) dari Smart Contract Brankas Pusat. Di MetaMask: Klik Tiga Titik > Account Details > Show Private Key."
                 />
               </section>
 
