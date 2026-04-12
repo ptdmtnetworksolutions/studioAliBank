@@ -11,12 +11,12 @@ export function AuditLogsView({ auditLogs }: any) {
     <div className="animate-in fade-in duration-700 space-y-8">
       <header className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-black italic uppercase tracking-tighter">System Audit Ledger</h2>
+          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Buku Besar Audit Sistem</h2>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Log Transaksi & Operasi Keamanan Real-Time</p>
         </div>
         <div className="flex gap-3">
           <button className="h-11 px-6 rounded-xl bg-card border border-border flex items-center gap-2 text-xs font-bold uppercase italic shadow-sm hover:bg-muted transition-all"><Filter className="w-4 h-4" /> Filter</button>
-          <button className="h-11 px-6 rounded-xl gold-gradient text-white flex items-center gap-2 text-xs font-black uppercase italic shadow-lg"><Download className="w-4 h-4" /> Export CSV</button>
+          <button className="h-11 px-6 rounded-xl gold-gradient text-white flex items-center gap-2 text-xs font-black uppercase italic shadow-lg"><Download className="w-4 h-4" /> Ekspor CSV</button>
         </div>
       </header>
 
@@ -24,17 +24,17 @@ export function AuditLogsView({ auditLogs }: any) {
         <div className="p-6 border-b border-border bg-muted/30">
           <div className="relative max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search logs by ID, user, or category..." className="h-11 pl-12 bg-background border-none rounded-xl text-xs font-bold" />
+            <Input placeholder="Cari log berdasarkan ID, nasabah, atau kategori..." className="h-11 pl-12 bg-background border-none rounded-xl text-xs font-bold" />
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-muted/50 text-[9px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
               <tr>
-                <th className="px-8 py-5">Timestamp</th>
-                <th className="px-8 py-5">Category</th>
-                <th className="px-8 py-5">Description</th>
-                <th className="px-8 py-5 text-right">Synchronization</th>
+                <th className="px-8 py-5">Waktu</th>
+                <th className="px-8 py-5">Kategori</th>
+                <th className="px-8 py-5">Deskripsi</th>
+                <th className="px-8 py-5 text-right">Sinkronisasi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">

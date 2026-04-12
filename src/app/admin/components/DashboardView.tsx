@@ -36,22 +36,22 @@ export function DashboardView({ globalLiquidity, allUsers, candleData, auditLogs
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-600"><Database className="w-6 h-6" /></div>
-              <h3 className="text-lg font-black italic uppercase tracking-tight">AliBank Global Liquidity</h3>
+              <h3 className="text-lg font-black italic uppercase tracking-tight">Likuiditas Global AliBank</h3>
             </div>
             <Badge className="bg-green-100 text-green-600 font-black text-[8px] px-3 h-6 rounded uppercase">LIVE SINKRON</Badge>
           </div>
           <div className="space-y-2">
-            <p className="text-sm font-bold text-muted-foreground uppercase">Total Net Capital (IDR)</p>
+            <p className="text-sm font-bold text-muted-foreground uppercase">Total Modal Bersih (IDR)</p>
             <h2 className="text-4xl md:text-6xl font-black tracking-tighter italic">Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString('id-ID')}</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
-            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Vault Reserve (USD)</span><p className="text-xl font-black italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p></div>
-            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Futures Revenue</span><p className="text-xl font-black italic text-primary">Rp {(globalLiquidity?.futuresGrossProfitIdr || 0).toLocaleString()}</p></div>
-            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Internal AUM</span><p className="text-xl font-black italic text-green-600">Rp {(globalLiquidity?.totalInternalAumIdr || 0).toLocaleString()}</p></div>
+            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Cadangan Brankas (USD)</span><p className="text-xl font-black italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p></div>
+            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Pendapatan Futures</span><p className="text-xl font-black italic text-primary">Rp {(globalLiquidity?.futuresGrossProfitIdr || 0).toLocaleString()}</p></div>
+            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">AUM Internal</span><p className="text-xl font-black italic text-green-600">Rp {(globalLiquidity?.totalInternalAumIdr || 0).toLocaleString()}</p></div>
           </div>
         </Card>
         <Card className="lg:col-span-4 border-none bg-card rounded-[2.5rem] p-10 flex flex-col shadow-sm">
-          <h3 className="text-base font-black italic uppercase mb-8">Verified Clients</h3>
+          <h3 className="text-base font-black italic uppercase mb-8">Nasabah Terverifikasi</h3>
           <div className="flex -space-x-3 mb-10">
             {allUsers?.slice(0, 5).map((u: any, i: number) => (
               <div key={i} className="h-12 w-12 rounded-full ring-4 ring-card overflow-hidden border border-border">
@@ -60,7 +60,7 @@ export function DashboardView({ globalLiquidity, allUsers, candleData, auditLogs
             ))}
           </div>
           <div className="mt-auto space-y-2">
-            <div className="flex justify-between items-center text-[10px] font-black uppercase text-muted-foreground"><span>Active Accounts</span><span>{allUsers?.length || 0}</span></div>
+            <div className="flex justify-between items-center text-[10px] font-black uppercase text-muted-foreground"><span>Akun Aktif</span><span>{allUsers?.length || 0}</span></div>
             <Progress value={Math.min(100, (allUsers?.length || 0) * 2)} className="h-1" />
           </div>
         </Card>
@@ -68,16 +68,16 @@ export function DashboardView({ globalLiquidity, allUsers, candleData, auditLogs
 
       {/* REVENUE BREAKDOWN */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <RevenueCard icon={Zap} label="Platform Trading Fees" value={`Rp ${(globalLiquidity?.totalTradingFeesIdr || 0).toLocaleString()}`} sub="From Spot & Futures" color="text-yellow-500" />
-        <RevenueCard icon={TrendingUp} label="Trade-X Capture" value={`Rp ${(globalLiquidity?.tradeXGrossVolumeIdr || 0).toLocaleString()}`} sub="Bank Win Rate Profit" color="text-green-500" />
-        <RevenueCard icon={TrendingUp} label="ALX Sales Revenue" value={`Rp ${(globalLiquidity?.totalInternalAumIdr || 0).toLocaleString()}`} sub="Internal ALX Distribution" color="text-blue-500" />
+        <RevenueCard icon={Zap} label="Biaya Trading Platform" value={`Rp ${(globalLiquidity?.totalTradingFeesIdr || 0).toLocaleString()}`} sub="Dari Spot & Futures" color="text-yellow-500" />
+        <RevenueCard icon={TrendingUp} label="Tangkapan Trade-X" value={`Rp ${(globalLiquidity?.tradeXGrossVolumeIdr || 0).toLocaleString()}`} sub="Profit Win Rate Bank" color="text-green-500" />
+        <RevenueCard icon={TrendingUp} label="Pendapatan Penjualan ALX" value={`Rp ${(globalLiquidity?.totalInternalAumIdr || 0).toLocaleString()}`} sub="Distribusi ALX Internal" color="text-blue-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <Card className="lg:col-span-8 border-none bg-card rounded-[2.5rem] p-10 space-y-8 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2"><CandlestickChart className="w-4 h-4 text-primary" /> Revenue Dynamics Pro</h3>
-            <Badge className="bg-muted text-muted-foreground text-[8px] font-black uppercase">24H Activity</Badge>
+            <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2"><CandlestickChart className="w-4 h-4 text-primary" /> Dinamika Pendapatan Pro</h3>
+            <Badge className="bg-muted text-muted-foreground text-[8px] font-black uppercase">Aktivitas 24J</Badge>
           </div>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -95,19 +95,19 @@ export function DashboardView({ globalLiquidity, allUsers, candleData, auditLogs
         <Card className="lg:col-span-4 border-none bg-[#1A1D1F] rounded-[2.5rem] p-10 flex flex-col justify-between text-white relative overflow-hidden shadow-sm">
           <div className="absolute top-0 right-0 p-8 opacity-10"><LogoIcon className="w-32 h-32 text-primary" /></div>
           <div className="relative z-10">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-2">Sovereign Asset</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-2">Aset Berdaulat</p>
             <h3 className="text-3xl font-black italic uppercase tracking-tighter">ALIX TOKEN (ALX)</h3>
-            <p className="text-[9px] font-bold text-white/30 uppercase mt-2">ALX V3 PROTOCOL</p>
+            <p className="text-[9px] font-bold text-white/30 uppercase mt-2">PROTOKOL ALX V3</p>
           </div>
           <div className="relative z-10 flex justify-between items-end">
             <div>
-              <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Vault Inventory</p>
+              <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Inventaris Brankas</p>
               <p className="text-xl font-black italic">
                 {globalLiquidity?.alixVaultBalance?.toLocaleString() || '0'} ALX
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Anchor Price</p>
+              <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Harga Jangkar</p>
               <p className="text-xl font-black italic text-primary">$ 12.24</p>
             </div>
           </div>
@@ -115,22 +115,22 @@ export function DashboardView({ globalLiquidity, allUsers, candleData, auditLogs
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <QuickOpButton icon={Skull} label="Reset All Clients" sub="Production Wipe" color="text-rose-500" onClick={() => setActiveTab('users')} />
-        <QuickOpButton icon={PlusCircle} label="Mint ALX" sub="Authorized Supply" color="text-green-500" onClick={() => setActiveTab('tokenomics')} />
-        <QuickOpButton icon={Pickaxe} label="Burn ALX" sub="Deflation Protocol" color="text-orange-500" onClick={() => setActiveTab('tokenomics')} />
-        <QuickOpButton icon={RefreshCw} label="Sync Vault" sub="Etherscan Hook" color="text-blue-500" onClick={() => syncOnChainData(true)} syncing={syncingVault} />
+        <QuickOpButton icon={Skull} label="Reset Semua Nasabah" sub="Pembersihan Produksi" color="text-rose-500" onClick={() => setActiveTab('users')} />
+        <QuickOpButton icon={PlusCircle} label="Cetak ALX" sub="Pasokan Sah" color="text-green-500" onClick={() => setActiveTab('tokenomics')} />
+        <QuickOpButton icon={Pickaxe} label="Bakar ALX" sub="Protokol Deflasi" color="text-orange-500" onClick={() => setActiveTab('tokenomics')} />
+        <QuickOpButton icon={RefreshCw} label="Sinkron Brankas" sub="Koneksi Etherscan" color="text-blue-500" onClick={() => syncOnChainData(true)} syncing={syncingVault} />
       </div>
 
       <div className="space-y-6">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-sm font-black italic uppercase tracking-widest">Recent Activity Ledger</h3>
-          <button onClick={() => setActiveTab('audit')} className="text-[10px] font-black text-primary uppercase flex items-center gap-1 hover:underline">View All Logs <ArrowUpRight className="w-3 h-3" /></button>
+          <h3 className="text-sm font-black italic uppercase tracking-widest">Log Aktivitas Terbaru</h3>
+          <button onClick={() => setActiveTab('audit')} className="text-[10px] font-black text-primary uppercase flex items-center gap-1 hover:underline">Lihat Semua Log <ArrowUpRight className="w-3 h-3" /></button>
         </div>
         <Card className="border-none bg-card rounded-[2rem] overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[600px]">
               <thead className="bg-muted/50 text-[9px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
-                <tr><th className="px-8 py-5">Operation ID</th><th className="px-8 py-5">Context</th><th className="px-8 py-5">Value</th><th className="px-8 py-5 text-right">Synchronization</th></tr>
+                <tr><th className="px-8 py-5">ID Operasi</th><th className="px-8 py-5">Konteks</th><th className="px-8 py-5">Nilai</th><th className="px-8 py-5 text-right">Sinkronisasi</th></tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {auditLogs?.slice(0, 5).map((log: any) => (

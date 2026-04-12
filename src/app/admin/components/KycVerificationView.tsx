@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -67,9 +68,9 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
 
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `KYC-APP-${Date.now()}`,
-        category: "Identity Verification",
-        description: `Super Admin approved KYC for ${user.name}. Account status: VERIFIED.`,
-        status: "success",
+        category: "Verifikasi Identitas",
+        description: `Super Admin menyetujui KYC untuk ${user.name}. Status akun: TERVERIFIKASI.`,
+        status: "berhasil",
         timestamp: serverTimestamp(),
         userEmail: user.email
       });
@@ -82,17 +83,17 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
         createdAt: new Date().toISOString()
       });
 
-      toast({ title: "KYC Approved", description: `User ${user.name} is now verified.` });
+      toast({ title: "KYC Disetujui", description: `Nasabah ${user.name} kini terverifikasi.` });
       setSelectedKyc(null);
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Approval Failed", description: err.message });
+      toast({ variant: "destructive", title: "Persetujuan Gagal", description: err.message });
     } finally {
       setIsProcessing(null);
     }
   };
 
   const handleReject = async (user: any) => {
-    if (!db || !confirm("Reject this KYC submission?")) return;
+    if (!db || !confirm("Tolak pengajuan KYC ini?")) return;
     setIsProcessing(user.id);
     
     try {
@@ -107,7 +108,7 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
         createdAt: new Date().toISOString()
       });
 
-      toast({ title: "KYC Rejected" });
+      toast({ title: "KYC Ditolak" });
       setSelectedKyc(null);
     } catch (err) {} finally {
       setIsProcessing(null);
@@ -118,13 +119,13 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
     <div className="animate-in fade-in duration-700 space-y-8">
       <header className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-black italic uppercase tracking-tighter">KYC Verification Center</h2>
+          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Pusat Verifikasi KYC</h2>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Validasi Identitas & Kepatuhan Perbankan</p>
         </div>
         <div className="relative w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
-            placeholder="Search pending..." 
+            placeholder="Cari yang tertunda..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="h-10 pl-10 rounded-xl bg-card border-none text-xs font-bold shadow-sm"
@@ -144,7 +145,7 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
                   <h4 className="text-base font-black italic uppercase">{u.kycData?.fullName || u.name}</h4>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{u.email}</p>
                   <div className="flex gap-2 mt-1">
-                    <Badge variant="outline" className="bg-amber-100 text-amber-600 border-none text-[7px] font-black h-4 px-1.5 uppercase">PENDING REVIEW</Badge>
+                    <Badge variant="outline" className="bg-amber-100 text-amber-600 border-none text-[7px] font-black h-4 px-1.5 uppercase">MENUNGGU TINJAUAN</Badge>
                     <span className="text-[8px] font-mono text-muted-foreground">ID: {u.id.slice(-8)}</span>
                   </div>
                 </div>
@@ -156,7 +157,7 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
                   variant="outline" 
                   className="h-12 px-6 rounded-xl border-primary/20 text-primary font-black uppercase italic text-xs"
                 >
-                  <Eye className="w-4 h-4 mr-2" /> Review Documents
+                  <Eye className="w-4 h-4 mr-2" /> Tinjau Dokumen
                 </Button>
                 <div className="flex gap-2">
                   <Button variant="ghost" className="h-12 w-12 rounded-xl hover:bg-rose-100 text-rose-600" onClick={() => handleReject(u)}><XCircle className="w-5 h-5" /></Button>
@@ -165,7 +166,7 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
                     disabled={isProcessing === u.id}
                     className="h-12 px-6 gold-gradient text-white rounded-xl font-black uppercase italic shadow-lg"
                   >
-                    {isProcessing === u.id ? <Loader2 className="animate-spin w-4 h-4" /> : <><CheckCircle2 className="w-4 h-4 mr-2" /> Quick Approve</>}
+                    {isProcessing === u.id ? <Loader2 className="animate-spin w-4 h-4" /> : <><CheckCircle2 className="w-4 h-4 mr-2" /> Setujui Cepat</>}
                   </Button>
                 </div>
               </div>
@@ -176,7 +177,7 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
         {filteredPending.length === 0 && (
           <div className="py-20 text-center space-y-4 opacity-20 italic">
             <ShieldCheck className="w-16 h-16 mx-auto" />
-            <p className="text-sm font-black uppercase tracking-widest">No pending KYC submissions.</p>
+            <p className="text-sm font-black uppercase tracking-widest">Tidak ada pengajuan KYC yang tertunda.</p>
           </div>
         )}
       </div>
@@ -201,37 +202,37 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
                   <p className="text-xs font-bold text-muted-foreground uppercase">{selectedKyc?.email}</p>
                 </div>
               </div>
-              <Badge className="bg-amber-500 text-white font-black italic text-[8px] h-6 px-3 uppercase">Verification Required</Badge>
+              <Badge className="bg-amber-500 text-white font-black italic text-[8px] h-6 px-3 uppercase">Verifikasi Diperlukan</Badge>
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
               <section className="space-y-6">
                 <h3 className="text-sm font-black uppercase italic tracking-widest text-primary flex items-center gap-2">
-                  <FileText className="w-4 h-4" /> Personal Information
+                  <FileText className="w-4 h-4" /> Informasi Pribadi
                 </h3>
                 <div className="space-y-4">
-                  <DetailItem icon={Hash} label="ID Number (NIK)" value={selectedKyc?.kycData?.idNumber} isMono />
-                  <DetailItem icon={MapPin} label="Residential Address" value={selectedKyc?.kycData?.address} />
-                  <DetailItem icon={Calendar} label="Submitted At" value={new Date(selectedKyc?.kycData?.submittedAt).toLocaleString()} />
+                  <DetailItem icon={Hash} label="Nomor ID (NIK)" value={selectedKyc?.kycData?.idNumber} isMono />
+                  <DetailItem icon={MapPin} label="Alamat Tempat Tinggal" value={selectedKyc?.kycData?.address} />
+                  <DetailItem icon={Calendar} label="Dikirim Pada" value={new Date(selectedKyc?.kycData?.submittedAt).toLocaleString()} />
                 </div>
               </section>
 
               <section className="space-y-6">
                 <h3 className="text-sm font-black uppercase italic tracking-widest text-primary flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4" /> Automated Risk Check
+                  <ShieldAlert className="w-4 h-4" /> Pemeriksaan Risiko Otomatis
                 </h3>
                 <div className="p-6 rounded-2xl bg-muted/50 border border-border space-y-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Duplicate ID Check</span>
-                    <Badge className="bg-green-500/10 text-green-600 border-none text-[7px] font-black h-4 px-1.5 uppercase">PASS</Badge>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Cek ID Duplikat</span>
+                    <Badge className="bg-green-500/10 text-green-600 border-none text-[7px] font-black h-4 px-1.5 uppercase">LOLOS</Badge>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Anti-Fraud Screening</span>
-                    <Badge className="bg-green-500/10 text-green-600 border-none text-[7px] font-black h-4 px-1.5 uppercase">CLEAR</Badge>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Skrining Anti-Fraud</span>
+                    <Badge className="bg-green-500/10 text-green-600 border-none text-[7px] font-black h-4 px-1.5 uppercase">BERSIH</Badge>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Sanctions List (AML)</span>
-                    <Badge className="bg-green-500/10 text-green-600 border-none text-[7px] font-black h-4 px-1.5 uppercase">NO MATCH</Badge>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Daftar Sanksi (AML)</span>
+                    <Badge className="bg-green-500/10 text-green-600 border-none text-[7px] font-black h-4 px-1.5 uppercase">TIDAK ADA COCOK</Badge>
                   </div>
                 </div>
               </section>
@@ -239,11 +240,11 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
 
             <div className="space-y-6">
               <h3 className="text-sm font-black uppercase italic tracking-widest text-primary flex items-center gap-2">
-                <CreditCard className="w-4 h-4" /> Identity Documents
+                <CreditCard className="w-4 h-4" /> Dokumen Identitas
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <p className="text-[9px] font-black uppercase text-muted-foreground ml-1">KTP / ID Card Front</p>
+                  <p className="text-[9px] font-black uppercase text-muted-foreground ml-1">KTP / Kartu ID Depan</p>
                   <div className="rounded-[2.5rem] overflow-hidden border border-border aspect-[1.6/1] bg-muted relative group">
                     <img src={selectedKyc?.kycData?.idCardUrl} alt="ID" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -252,7 +253,7 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[9px] font-black uppercase text-muted-foreground ml-1">Live Selfie / Biometric</p>
+                  <p className="text-[9px] font-black uppercase text-muted-foreground ml-1">Selfie Langsung / Biometrik</p>
                   <div className="rounded-[2.5rem] overflow-hidden border border-border aspect-[1.6/1] bg-muted relative group">
                     <img src={selectedKyc?.kycData?.selfieUrl} alt="Selfie" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -269,14 +270,14 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
                 variant="outline" 
                 className="flex-1 h-16 rounded-2xl border-rose-500/20 text-rose-500 font-black uppercase italic tracking-widest"
               >
-                REJECT SUBMISSION
+                TOLAK PENGAJUAN
               </Button>
               <Button 
                 onClick={() => handleApprove(selectedKyc)}
                 disabled={isProcessing === selectedKyc?.id}
                 className="flex-[2] h-16 gold-gradient text-white rounded-2xl font-black italic uppercase tracking-widest shadow-xl"
               >
-                {isProcessing === selectedKyc?.id ? <Loader2 className="animate-spin" /> : "APPROVE IDENTITY"}
+                {isProcessing === selectedKyc?.id ? <Loader2 className="animate-spin" /> : "SETUJUI IDENTITAS"}
               </Button>
             </div>
           </div>

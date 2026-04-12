@@ -142,25 +142,25 @@ function AdminContent() {
           <span className="font-bold text-xl tracking-tighter italic uppercase">AliBank</span>
         </div>
         <nav className="flex-1 px-4 space-y-2 pt-4 overflow-y-auto no-scrollbar">
-          <SidebarItem icon={LayoutGrid} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-          <SidebarItem icon={ShieldCheck} label="KYC Center" active={activeTab === 'kyc'} onClick={() => setActiveTab('kyc')} />
-          <SidebarItem icon={Clock} label="Pending Requests" active={activeTab === 'pending'} onClick={() => setActiveTab('pending')} />
-          <SidebarItem icon={Users} label="Clients" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
-          <SidebarItem icon={Wallet} label="Vault Control" active={activeTab === 'vault'} onClick={() => setActiveTab('vault')} />
-          <SidebarItem icon={Coins} label="Tokenomics" active={activeTab === 'tokenomics'} onClick={() => setActiveTab('tokenomics')} />
-          <SidebarItem icon={Key} label="API Management" active={activeTab === 'api'} onClick={() => setActiveTab('api')} />
-          <SidebarItem icon={Box} label="Inventory" active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} />
-          <SidebarItem icon={FileText} label="Audit Logs" active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} />
+          <SidebarItem icon={LayoutGrid} label="Dasbor" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+          <SidebarItem icon={ShieldCheck} label="Pusat KYC" active={activeTab === 'kyc'} onClick={() => setActiveTab('kyc')} />
+          <SidebarItem icon={Clock} label="Permintaan Tertunda" active={activeTab === 'pending'} onClick={() => setActiveTab('pending')} />
+          <SidebarItem icon={Users} label="Nasabah" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
+          <SidebarItem icon={Wallet} label="Kontrol Brankas" active={activeTab === 'vault'} onClick={() => setActiveTab('vault')} />
+          <SidebarItem icon={Coins} label="Tokenomik" active={activeTab === 'tokenomics'} onClick={() => setActiveTab('tokenomics')} />
+          <SidebarItem icon={Key} label="Manajemen API" active={activeTab === 'api'} onClick={() => setActiveTab('api')} />
+          <SidebarItem icon={Box} label="Inventaris" active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} />
+          <SidebarItem icon={FileText} label="Log Audit" active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} />
         </nav>
         <div className="p-6 mt-auto space-y-6 hidden md:block">
           <div className="bg-muted/50 rounded-2xl p-4 border border-border">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-[10px] font-black uppercase text-muted-foreground">Theme</span>
+              <span className="text-[10px] font-black uppercase text-muted-foreground">Tema</span>
               <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center">
                 {theme === 'dark' ? <Sun className="w-4 h-4 text-primary" /> : <Moon className="w-4 h-4" />}
               </button>
             </div>
-            <SidebarItem icon={LogOut} label="Logout" className="text-rose-500" onClick={() => auth?.signOut()} />
+            <SidebarItem icon={LogOut} label="Keluar" className="text-rose-500" onClick={() => auth?.signOut()} />
           </div>
         </div>
       </aside>
@@ -169,7 +169,7 @@ function AdminContent() {
         <header className="h-20 bg-card border-b border-border flex items-center justify-between px-6 md:px-10 sticky top-0 z-40">
           <div className="relative w-full max-sm hidden sm:block">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search global data..." className="h-11 pl-12 bg-muted border-none rounded-xl text-xs font-bold w-full" />
+            <Input placeholder="Cari data global..." className="h-11 pl-12 bg-muted border-none rounded-xl text-xs font-bold w-full" />
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">

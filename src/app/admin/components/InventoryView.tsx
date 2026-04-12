@@ -45,7 +45,7 @@ export function InventoryView({ marketplaceProducts }: any) {
         createdAt: serverTimestamp(),
         id: `MKT-${Date.now()}`
       });
-      toast({ title: "Product Added" });
+      toast({ title: "Produk Ditambahkan" });
       setName(""); setPrice("");
     } catch (e) {} finally { setIsAdding(false); }
   };
@@ -53,25 +53,25 @@ export function InventoryView({ marketplaceProducts }: any) {
   const handleDelete = async (id: string) => {
     if (!confirm("Hapus produk?")) return;
     await deleteDoc(doc(db!, "marketplace", id));
-    toast({ title: "Product Deleted" });
+    toast({ title: "Produk Dihapus" });
   };
 
   return (
     <div className="animate-in slide-in-from-right-10 duration-700 space-y-10">
       <header className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Inventory Hub</h2>
+          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Pusat Inventaris</h2>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Manajemen Katalog Produk Marketplace</p>
         </div>
-        <Button className="rounded-xl gold-gradient text-white font-black h-12 px-6 italic uppercase shadow-lg"><PackagePlus className="w-4 h-4 mr-2" /> New Catalog</Button>
+        <Button className="rounded-xl gold-gradient text-white font-black h-12 px-6 italic uppercase shadow-lg"><PackagePlus className="w-4 h-4 mr-2" /> Katalog Baru</Button>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <Card className="lg:col-span-4 border-none bg-card rounded-[2.5rem] p-8 space-y-6 shadow-sm h-fit">
-          <h4 className="text-sm font-black italic uppercase">Add Product</h4>
+          <h4 className="text-sm font-black italic uppercase">Tambah Produk</h4>
           <div className="space-y-4">
-            <Input placeholder="Product Name" value={name} onChange={(e) => setName(e.target.value)} className="h-12 bg-muted border-none rounded-xl text-xs font-bold" />
-            <Input type="number" placeholder="Price (IDR)" value={price} onChange={(e) => setPrice(e.target.value)} className="h-12 bg-muted border-none rounded-xl text-xs font-bold" />
+            <Input placeholder="Nama Produk" value={name} onChange={(e) => setName(e.target.value)} className="h-12 bg-muted border-none rounded-xl text-xs font-bold" />
+            <Input type="number" placeholder="Harga (IDR)" value={price} onChange={(e) => setPrice(e.target.value)} className="h-12 bg-muted border-none rounded-xl text-xs font-bold" />
             <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full h-12 bg-muted border-none rounded-xl text-xs font-bold px-4 outline-none">
               <option>Kartu Hadiah</option>
               <option>Game</option>
@@ -79,13 +79,13 @@ export function InventoryView({ marketplaceProducts }: any) {
               <option>Layanan Seluler</option>
             </select>
             <Button onClick={handleAdd} disabled={isAdding} className="w-full h-12 gold-gradient text-white rounded-xl font-black uppercase italic text-xs shadow-md">
-              {isAdding ? <Loader2 className="animate-spin" /> : "Deploy to Market"}
+              {isAdding ? <Loader2 className="animate-spin" /> : "Deploy ke Pasar"}
             </Button>
           </div>
         </Card>
 
         <div className="lg:col-span-8 space-y-4">
-          <h4 className="text-sm font-black italic uppercase ml-2">Market Listing</h4>
+          <h4 className="text-sm font-black italic uppercase ml-2">Listing Pasar</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {marketplaceProducts?.map((p: any) => (
               <Card key={p.id} className="p-6 rounded-[2rem] bg-card border border-border shadow-sm group">

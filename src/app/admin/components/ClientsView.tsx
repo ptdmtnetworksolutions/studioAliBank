@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -103,27 +104,27 @@ export function ClientsView({ allUsers }: any) {
     await updateDoc(ref, { [key]: increment(val) });
     await addDoc(collection(db, "system", "audit", "global_transactions"), {
       id: `ADJ-${Date.now()}`,
-      category: "Manual Adjustment",
+      category: "Penyesuaian Manual",
       amountIdr: type === 'idr' ? val : 0,
-      description: `Manual ${op} ${amt} ${type.toUpperCase()} for ${selectedUser.name}`,
+      description: `${op === 'add' ? 'Tambah' : 'Kurang'} manual ${amt} ${type.toUpperCase()} untuk ${selectedUser.name}`,
       timestamp: serverTimestamp(),
-      status: "success"
+      status: "berhasil"
     });
-    toast({ title: "Update Success" });
+    toast({ title: "Pembaruan Berhasil" });
     setBalanceAdjustment(""); setAlxAdjustment("");
   };
 
   const handleDelete = async (uid: string) => {
     if (!confirm("Hapus nasabah permanen?")) return;
     await deleteDoc(doc(db!, "users", uid));
-    toast({ title: "User Deleted" });
+    toast({ title: "Nasabah Dihapus" });
   };
 
   return (
     <div className="animate-in fade-in slide-in-from-right-10 duration-700 space-y-8">
       <header className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Client Hub</h2>
+          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Pusat Nasabah</h2>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Manajemen Database Nasabah AliBank</p>
         </div>
         <div className="relative w-72">
@@ -210,35 +211,35 @@ export function ClientsView({ allUsers }: any) {
                   "font-black italic text-[8px] px-3 h-6 uppercase",
                   selectedUser?.kycStatus === 'verified' ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"
                 )}>
-                  {selectedUser?.kycStatus === 'verified' ? 'Verified Client' : 'Standard User'}
+                  {selectedUser?.kycStatus === 'verified' ? 'Nasabah Terverifikasi' : 'Pengguna Standar'}
                 </Badge>
-                <Badge className="bg-muted text-foreground font-black italic text-[8px] px-3 h-6 uppercase">Active Session</Badge>
+                <Badge className="bg-muted text-foreground font-black italic text-[8px] px-3 h-6 uppercase">Sesi Aktif</Badge>
               </div>
             </header>
 
             <Tabs defaultValue="finance" className="space-y-6">
               <TabsList className="bg-muted/50 p-1 rounded-2xl h-12 w-full justify-start gap-2 border border-border">
-                <TabsTrigger value="finance" className="rounded-xl px-6 font-black uppercase text-[10px] italic">Financials</TabsTrigger>
-                <TabsTrigger value="kyc" className="rounded-xl px-6 font-black uppercase text-[10px] italic">KYC Data</TabsTrigger>
-                <TabsTrigger value="wallets" className="rounded-xl px-6 font-black uppercase text-[10px] italic">Wallets</TabsTrigger>
-                <TabsTrigger value="security" className="rounded-xl px-6 font-black uppercase text-[10px] italic">Security</TabsTrigger>
+                <TabsTrigger value="finance" className="rounded-xl px-6 font-black uppercase text-[10px] italic">Keuangan</TabsTrigger>
+                <TabsTrigger value="kyc" className="rounded-xl px-6 font-black uppercase text-[10px] italic">Data KYC</TabsTrigger>
+                <TabsTrigger value="wallets" className="rounded-xl px-6 font-black uppercase text-[10px] italic">Dompet</TabsTrigger>
+                <TabsTrigger value="security" className="rounded-xl px-6 font-black uppercase text-[10px] italic">Keamanan</TabsTrigger>
               </TabsList>
 
               <TabsContent value="finance" className="space-y-6 animate-in fade-in duration-300">
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">IDR Pool</label>
+                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Pool IDR</label>
                     <div className="p-5 rounded-2xl bg-muted/50 border border-border flex flex-col gap-4">
                       <p className="text-xl font-black italic">Rp {selectedUser?.totalBalance?.toLocaleString()}</p>
                       <div className="flex gap-2">
-                        <Input placeholder="Amt" type="number" value={balanceAdjustment} onChange={(e) => setBalanceAdjustment(e.target.value)} className="h-10 bg-background border-none text-xs font-black" />
+                        <Input placeholder="Jumlah" type="number" value={balanceAdjustment} onChange={(e) => setBalanceAdjustment(e.target.value)} className="h-10 bg-background border-none text-xs font-black" />
                         <button onClick={() => handleAdjust('idr', 'add')} className="w-10 h-10 rounded-lg bg-green-600 text-white flex items-center justify-center"><Plus className="w-4 h-4" /></button>
                         <button onClick={() => handleAdjust('idr', 'sub')} className="w-10 h-10 rounded-lg bg-rose-600 text-white flex items-center justify-center"><Minus className="w-4 h-4" /></button>
                       </div>
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">ALX Holdings</label>
+                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Kepemilikan ALX</label>
                     <div className="p-5 rounded-2xl bg-muted/50 border border-border flex flex-col gap-4">
                       <p className="text-xl font-black italic text-primary">{selectedUser?.cryptoBalances?.ALX?.toFixed(4)} ALX</p>
                       <div className="flex gap-2">
@@ -257,7 +258,7 @@ export function ClientsView({ allUsers }: any) {
                     <section className="space-y-6">
                       <div className="flex items-center justify-between">
                         <h3 className="text-sm font-black uppercase italic tracking-widest text-primary flex items-center gap-2">
-                          <FileText className="w-4 h-4" /> Identity Details
+                          <FileText className="w-4 h-4" /> Detail Identitas
                         </h3>
                         <Badge className={cn(
                           "text-[8px] font-black uppercase px-2 h-5 border-none",
@@ -289,11 +290,11 @@ export function ClientsView({ allUsers }: any) {
 
                     <section className="space-y-6">
                       <h3 className="text-sm font-black uppercase italic tracking-widest text-primary flex items-center gap-2">
-                        <ExternalLink className="w-4 h-4" /> Submitted Documents
+                        <ExternalLink className="w-4 h-4" /> Dokumen Terkirim
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                          <p className="text-[9px] font-black uppercase text-muted-foreground ml-1">KTP / ID Card Front</p>
+                          <p className="text-[9px] font-black uppercase text-muted-foreground ml-1">KTP / Kartu Identitas Depan</p>
                           <div className="rounded-[2.5rem] overflow-hidden border border-border aspect-[1.6/1] bg-muted relative group">
                             {selectedUser.kycData.idCardUrl && <img src={selectedUser.kycData.idCardUrl} alt="ID" className="w-full h-full object-cover" />}
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -302,7 +303,7 @@ export function ClientsView({ allUsers }: any) {
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <p className="text-[9px] font-black uppercase text-muted-foreground ml-1">Live Biometric Selfie</p>
+                          <p className="text-[9px] font-black uppercase text-muted-foreground ml-1">Selfie Biometrik Langsung</p>
                           <div className="rounded-[2.5rem] overflow-hidden border border-border aspect-[1.6/1] bg-muted relative group">
                             {selectedUser.kycData.selfieUrl && <img src={selectedUser.kycData.selfieUrl} alt="Selfie" className="w-full h-full object-cover" />}
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -324,9 +325,9 @@ export function ClientsView({ allUsers }: any) {
               <TabsContent value="wallets" className="space-y-4 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between px-1 mb-2">
                   <h3 className="text-sm font-black uppercase italic tracking-widest text-primary flex items-center gap-2">
-                    <Landmark className="w-4 h-4" /> Withdrawal Methods
+                    <Landmark className="w-4 h-4" /> Metode Penarikan
                   </h3>
-                  <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black uppercase italic">Verified Sources Only</Badge>
+                  <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black uppercase italic">Hanya Sumber Terverifikasi</Badge>
                 </div>
 
                 <div className="space-y-3">
@@ -348,7 +349,7 @@ export function ClientsView({ allUsers }: any) {
                         </div>
                       </div>
                       <div className="text-right flex flex-col items-end gap-2">
-                        <p className="text-[8px] font-bold text-muted-foreground uppercase">Registered</p>
+                        <p className="text-[8px] font-bold text-muted-foreground uppercase">Terdaftar</p>
                         <p className="text-[10px] font-black italic">{method.createdAt ? new Date(method.createdAt).toLocaleDateString() : '---'}</p>
                       </div>
                     </div>
@@ -365,7 +366,7 @@ export function ClientsView({ allUsers }: any) {
               <TabsContent value="security" className="space-y-4 animate-in fade-in duration-300">
                 <Button variant="outline" className="w-full h-12 rounded-xl border-primary/20 text-primary font-black uppercase italic text-xs" onClick={() => sendPasswordResetEmail(auth!, selectedUser.email)}>Kirim Reset Password</Button>
                 <div className="p-4 rounded-xl bg-accent/5 border border-primary/10">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">Native Address: <span className="text-accent font-mono ml-2 break-all">{selectedUser?.walletAddress}</span></p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">Alamat Native: <span className="text-accent font-mono ml-2 break-all">{selectedUser?.walletAddress}</span></p>
                 </div>
               </TabsContent>
             </Tabs>

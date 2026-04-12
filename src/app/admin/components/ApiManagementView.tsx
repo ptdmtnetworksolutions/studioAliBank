@@ -77,7 +77,7 @@ export function ApiManagementView({ storedKeys }: any) {
       updatedBy: user?.email
     }, { merge: true })
       .then(() => {
-        toast({ title: "Credential Vault Updated", description: "Node kliring AliBank telah disinkronkan." });
+        toast({ title: "Brankas Kredensial Diperbarui", description: "Node kliring AliBank telah disinkronkan." });
       })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -98,10 +98,10 @@ export function ApiManagementView({ storedKeys }: any) {
     <div className="animate-in fade-in slide-in-from-top-10 duration-700 space-y-10">
       <header className="flex justify-between items-end px-2">
         <div>
-          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Credential Vault</h2>
+          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Brankas Kredensial</h2>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Pusat Kendali Gateway & Infrastruktur Node</p>
         </div>
-        <Badge className="bg-primary/10 text-primary border-none font-black italic text-[8px] h-6 px-3 uppercase">Security Layer V3.5 Active</Badge>
+        <Badge className="bg-primary/10 text-primary border-none font-black italic text-[8px] h-6 px-3 uppercase">Lapisan Keamanan V3.5 Aktif</Badge>
       </header>
 
       <Card className="border-none bg-card rounded-[3rem] p-10 space-y-10 shadow-sm relative overflow-hidden">
@@ -111,10 +111,10 @@ export function ApiManagementView({ storedKeys }: any) {
           {/* VAULT SECTION */}
           <section className="space-y-6">
             <h3 className="text-sm font-black italic uppercase tracking-widest text-primary flex items-center gap-2">
-              <Wallet className="w-4 h-4" /> Brankas Pusat (Private Signature)
+              <Wallet className="w-4 h-4" /> Brankas Pusat (Tanda Tangan Privat)
             </h3>
             <KeyField 
-              label="Vault Private Key (0x...)" 
+              label="Kunci Privat Brankas (0x...)" 
               icon={Lock} 
               value={keys.vaultPrivateKey} 
               placeholder="0x..."
@@ -130,7 +130,7 @@ export function ApiManagementView({ storedKeys }: any) {
           {/* PAYPAL SECTION */}
           <section className="space-y-6">
             <h3 className="text-sm font-black italic uppercase tracking-widest text-primary flex items-center gap-2">
-              <Globe className="w-4 h-4" /> Global Kliring (PayPal)
+              <Globe className="w-4 h-4" /> Kliring Global (PayPal)
             </h3>
             <KeyField label="PayPal Client ID" icon={Globe} value={keys.paypalClientId} placeholder="AW-..." onChange={(v:any) => setKeys({...keys, paypalClientId: v})} show={showKeys['pp']} onToggle={() => toggleShow('pp')} />
           </section>
@@ -140,13 +140,13 @@ export function ApiManagementView({ storedKeys }: any) {
           {/* MIDTRANS SECTION */}
           <section className="space-y-6">
             <h3 className="text-sm font-black italic uppercase tracking-widest text-primary flex items-center gap-2">
-              <Building2 className="w-4 h-4" /> Lokal Kliring (Midtrans)
+              <Building2 className="w-4 h-4" /> Kliring Lokal (Midtrans)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <KeyField label="Midtrans Merchant ID" icon={Building2} value={keys.midtransMerchantId} placeholder="M2..." onChange={(v:any) => setKeys({...keys, midtransMerchantId: v})} show={true} />
               <KeyField label="Midtrans Client Key" icon={Key} value={keys.midtransClientKey} placeholder="Mid-client-..." onChange={(v:any) => setKeys({...keys, midtransClientKey: v})} show={showKeys['mt_c']} onToggle={() => toggleShow('mt_c')} />
               <div className="md:col-span-2">
-                <KeyField label="Midtrans Server Key (Sensitive)" icon={Lock} value={keys.midtransServerKey} placeholder="Mid-server-..." onChange={(v:any) => setKeys({...keys, midtransServerKey: v})} show={showKeys['mt_s']} onToggle={() => toggleShow('mt_s')} />
+                <KeyField label="Midtrans Server Key (Sensitif)" icon={Lock} value={keys.midtransServerKey} placeholder="Mid-server-..." onChange={(v:any) => setKeys({...keys, midtransServerKey: v})} show={showKeys['mt_s']} onToggle={() => toggleShow('mt_s')} description="Server Key digunakan untuk otentikasi aman antar server. Jangan pernah bagikan." />
               </div>
             </div>
           </section>
@@ -156,11 +156,11 @@ export function ApiManagementView({ storedKeys }: any) {
           {/* BLOCKCHAIN & AI SECTION */}
           <section className="space-y-6">
             <h3 className="text-sm font-black italic uppercase tracking-widest text-primary flex items-center gap-2">
-              <RefreshCw className="w-4 h-4" /> Blockchain & AI Nodes
+              <RefreshCw className="w-4 h-4" /> Node Blockchain & AI
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <KeyField 
-                label="Ethereum RPC Node (Mainnet)" 
+                label="Node RPC Ethereum (Mainnet)" 
                 icon={Cpu} 
                 value={keys.ethereumRpcUrl} 
                 placeholder="https://eth-mainnet.g.alchemy.com/v2/..."
@@ -169,7 +169,7 @@ export function ApiManagementView({ storedKeys }: any) {
                 description="Gunakan node dari Alchemy untuk Brankas ETH."
               />
               <KeyField 
-                label="Polygon RPC Node (ALX Control)" 
+                label="Node RPC Polygon (Kontrol ALX)" 
                 icon={Zap} 
                 value={keys.polygonRpcUrl} 
                 placeholder="https://polygon-mainnet.g.alchemy.com/v2/..."
@@ -177,19 +177,19 @@ export function ApiManagementView({ storedKeys }: any) {
                 show={true} 
                 description="Gunakan node dari Alchemy untuk Operasional Koin ALX."
               />
-              <KeyField label="Gemini API Key" icon={Lock} value={keys.geminiApiKey} placeholder="AIza..." onChange={(v:any) => setKeys({...keys, geminiApiKey: v})} show={showKeys['gm']} onToggle={() => toggleShow('gm')} />
-              <KeyField label="ALX Smart Contract" icon={ShieldCheck} value={keys.alxContractAddress} placeholder="0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd" onChange={(v:any) => setKeys({...keys, alxContractAddress: v})} show={true} />
+              <KeyField label="Kunci API Gemini" icon={Lock} value={keys.geminiApiKey} placeholder="AIza..." onChange={(v:any) => setKeys({...keys, geminiApiKey: v})} show={showKeys['gm']} onToggle={() => toggleShow('gm')} />
+              <KeyField label="Kontrak Pintar ALX" icon={ShieldCheck} value={keys.alxContractAddress} placeholder="0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd" onChange={(v:any) => setKeys({...keys, alxContractAddress: v})} show={true} />
             </div>
           </section>
         </div>
 
         <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex gap-4">
           <AlertCircle className="w-6 h-6 text-amber-500 shrink-0" />
-          <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">Pastikan seluruh kredensial bersifat PRODUCTION. Perubahan di sini akan segera mengubah perilaku terminal pembayaran nasabah secara global.</p>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">Pastikan seluruh kredensial bersifat PRODUKSI. Perubahan di sini akan segera mengubah perilaku terminal pembayaran nasabah secara global.</p>
         </div>
 
         <Button onClick={handleSave} disabled={isSaving} className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none text-base">
-          {isSaving ? <Loader2 className="animate-spin" /> : <span className="flex items-center gap-3"><Save className="w-5 h-5" /> SYNCHRONIZE GLOBAL VAULT</span>}
+          {isSaving ? <Loader2 className="animate-spin" /> : <span className="flex items-center gap-3"><Save className="w-5 h-5" /> SINKRONISASI BRANKAS GLOBAL</span>}
         </Button>
       </Card>
     </div>

@@ -92,11 +92,11 @@ export function VaultControlView({ auditLogs }: any) {
     <div className="animate-in slide-in-from-bottom-10 duration-700 space-y-10">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Vault Management System</h2>
+          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Manajemen Brankas</h2>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Pusat Kliring Node & Brankas ETH Mainnet AliBank</p>
         </div>
         <div className="flex gap-2">
-          <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg">MAINNET V3 ACTIVE</Badge>
+          <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg">MAINNET V3 AKTIF</Badge>
           <button onClick={syncVaultBalance} disabled={isSyncing} className="p-2 bg-muted rounded-full hover:bg-primary/10 transition-colors">
             <RefreshCw className={cn("w-5 h-5 text-primary", isSyncing && "animate-spin")} />
           </button>
@@ -109,17 +109,17 @@ export function VaultControlView({ auditLogs }: any) {
           
           <div className="space-y-6 relative z-10">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-2">Total Managed Liquidity</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-2">Total Likuiditas Terkelola</p>
               <h3 className="text-5xl font-black italic tracking-tighter text-blue-400">
                 {parseFloat(onChainEth).toFixed(6)} <span className="text-xl text-white/30">ETH</span>
               </h3>
-              <p className="text-[10px] font-bold text-white/20 mt-2">≈ Rp {(parseFloat(onChainEth) * 15850 * 2000).toLocaleString()} (Contract Value)</p>
+              <p className="text-[10px] font-bold text-white/20 mt-2">≈ Rp {(parseFloat(onChainEth) * 15850 * 2000).toLocaleString()} (Nilai Kontrak)</p>
             </div>
 
             <div className="space-y-4">
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
                 <p className="text-[8px] font-black uppercase text-white/40 mb-1 flex items-center gap-2">
-                  <ServerCog className="w-3 h-3" /> Contract Address
+                  <ServerCog className="w-3 h-3" /> Alamat Kontrak
                 </p>
                 <div className="flex items-center justify-between">
                   <p className="text-[9px] font-mono font-bold break-all opacity-60">{VAULT_CONTRACT}</p>
@@ -128,7 +128,7 @@ export function VaultControlView({ auditLogs }: any) {
               </div>
               <div className="flex items-center gap-3 text-green-500 bg-green-500/5 p-3 rounded-xl border border-green-500/10">
                 <ShieldCheck className="w-5 h-5 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Verified by Owner Signature</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Terverifikasi Tanda Tangan Pemilik</span>
               </div>
             </div>
           </div>
@@ -139,7 +139,7 @@ export function VaultControlView({ auditLogs }: any) {
             <div className="w-12 h-12 rounded-2xl gold-gradient flex items-center justify-center shadow-lg">
               <ArrowUpFromLine className="w-6 h-6 text-white" />
             </div>
-            <h4 className="text-xl font-black italic uppercase tracking-tight">Withdrawal Terminal</h4>
+            <h4 className="text-xl font-black italic uppercase tracking-tight">Terminal Penarikan</h4>
           </div>
           
           <div className="grid grid-cols-1 gap-6">
@@ -156,7 +156,7 @@ export function VaultControlView({ auditLogs }: any) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Amount to Withdraw (ETH)</label>
+              <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Jumlah untuk Ditarik (ETH)</label>
               <div className="relative">
                 <Zap className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
                 <Input 
@@ -173,11 +173,11 @@ export function VaultControlView({ auditLogs }: any) {
           <Button 
             onClick={handleWithdraw} 
             disabled={isExecuting || !amount}
-            className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic tracking-widest shadow-xl border-none hover:scale-[1.01] transition-all"
+            className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase tracking-widest shadow-xl border-none hover:scale-[1.01] transition-all"
           >
             {isExecuting ? <Loader2 className="animate-spin" /> : (
               <span className="flex items-center gap-3">
-                EXECUTE WITHDRAWAL <ArrowRightLeft className="w-5 h-5" />
+                EKSEKUSI PENARIKAN <ArrowRightLeft className="w-5 h-5" />
               </span>
             )}
           </Button>
@@ -186,16 +186,16 @@ export function VaultControlView({ auditLogs }: any) {
 
       <section className="space-y-6">
         <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-3">
-          <History className="w-5 h-5 text-primary" /> Real-Time Settlement Logs
+          <History className="w-5 h-5 text-primary" /> Log Penyelesaian Real-Time
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {auditLogs?.filter((l:any) => l.category === "External Settlement" || l.txHash).slice(0, 6).map((log: any) => (
             <Card key={log.id} className="p-6 rounded-3xl bg-card border border-border shadow-sm space-y-4 hover:border-primary/30 transition-all group">
-              <Badge className="bg-blue-100 text-blue-600 border-none text-[7px] font-black h-5 uppercase px-2">On-Chain Tx</Badge>
+              <Badge className="bg-blue-100 text-blue-600 border-none text-[7px] font-black h-5 uppercase px-2">Transaksi On-Chain</Badge>
               <p className="text-[10px] font-black uppercase italic truncate text-accent">{log.description || log.category}</p>
               <div className="flex justify-between items-end border-t border-border pt-4">
                 <div>
-                  <p className="text-[8px] font-bold text-muted-foreground uppercase">Value</p>
+                  <p className="text-[8px] font-bold text-muted-foreground uppercase">Nilai</p>
                   <p className="text-sm font-black italic text-foreground">Rp {log.amountIdr?.toLocaleString()}</p>
                 </div>
                 <CheckCircle2 className="w-4 h-4 text-green-600" />

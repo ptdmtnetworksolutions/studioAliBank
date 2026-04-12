@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -138,10 +139,10 @@ export function TokenomicsView({
         <div className="flex items-center gap-6">
           <div className="w-16 h-16 rounded-[2rem] gold-gradient flex items-center justify-center shadow-xl p-4 shrink-0"><Coins className="text-white w-full h-full" /></div>
           <div>
-            <h3 className="text-3xl font-black italic uppercase tracking-tighter text-foreground">ALX Tokenomics Terminal</h3>
+            <h3 className="text-3xl font-black italic uppercase tracking-tighter text-foreground">Terminal Tokenomik ALX</h3>
             <p className="text-xs font-bold text-muted-foreground uppercase mt-1 flex items-center gap-2">
               <RefreshCw className={cn("w-3 h-3 text-primary", isLoadingAlix && "animate-spin")} /> 
-              Sovereign Hybrid Infrastructure Sync
+              Sinkronisasi Infrastruktur Hybrid Berdaulat
             </p>
           </div>
         </div>
@@ -151,10 +152,10 @@ export function TokenomicsView({
             onClick={openPolygonScan}
             className="rounded-full h-10 px-6 border-primary/20 text-primary font-black uppercase text-[10px] italic shadow-sm hover:bg-primary/5"
           >
-            VIEW ON POLYGONSCAN <ExternalLink className="w-3.5 h-3.5 ml-2" />
+            LIHAT DI POLYGONSCAN <ExternalLink className="w-3.5 h-3.5 ml-2" />
           </Button>
           <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg border-none flex items-center">
-            V3.1 ON-CHAIN PROTOCOL ACTIVE
+            PROTOKOL ON-CHAIN V3.1 AKTIF
           </Badge>
         </div>
       </header>
@@ -162,30 +163,30 @@ export function TokenomicsView({
       {/* REAL-TIME ON-CHAIN STATS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <TokenStatCard 
-          label="Total Supply (On-Chain)" 
+          label="Total Suplai (On-Chain)" 
           value={`${isLoadingAlix ? '...' : Number(totalSupply).toLocaleString()} ALX`} 
-          sub={`Hard Cap: ${Number(maxSupply).toLocaleString()}`} 
+          sub={`Batas Maks: ${Number(maxSupply).toLocaleString()}`} 
           icon={Database} 
           color="text-primary" 
         />
         <TokenStatCard 
-          label="Circulation Rate" 
+          label="Tingkat Sirkulasi" 
           value={`${circulationRate.toFixed(2)}%`} 
-          sub="Supply absorption index" 
+          sub="Indeks penyerapan pasokan" 
           icon={Activity} 
           color="text-blue-500" 
         />
         <TokenStatCard 
-          label="Remaining Mintable" 
+          label="Sisa Kuota Cetak" 
           value={`${isLoadingAlix ? '...' : Number(remainingMintable).toLocaleString()} ALX`} 
-          sub="Authorized quota left" 
+          sub="Kuota sah tersisa" 
           icon={Zap} 
           color="text-teal-500" 
         />
         <TokenStatCard 
-          label="Internal AUM (IDR)" 
+          label="AUM Internal (IDR)" 
           value={`Rp ${(globalLiquidity?.totalInternalAumIdr || 0).toLocaleString()}`} 
-          sub="Total ALX Sales Value" 
+          sub="Total Nilai Penjualan ALX" 
           icon={ArrowUpDown} 
           color="text-orange-500" 
         />
@@ -194,14 +195,14 @@ export function TokenomicsView({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <Card className="lg:col-span-7 border-none bg-card rounded-[3rem] p-10 space-y-10 shadow-sm">
           <div className="flex items-center justify-between">
-            <h4 className="text-xl font-black italic uppercase tracking-tight">Authorized Operations</h4>
-            <Badge variant="outline" className="border-green-500/20 text-green-600 font-black text-[8px] px-3 h-6 uppercase italic">Owner Signature Required</Badge>
+            <h4 className="text-xl font-black italic uppercase tracking-tight">Operasi Berwenang</h4>
+            <Badge variant="outline" className="border-green-500/20 text-green-600 font-black text-[8px] px-3 h-6 uppercase italic">Butuh Tanda Tangan Pemilik</Badge>
           </div>
           
           <div className="space-y-8">
             <div className="p-8 rounded-[2.5rem] bg-muted/50 border border-border space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Mint Amount (ALX)</label>
+                <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Jumlah Cetak (ALX)</label>
                 <div className="relative">
                   <Input 
                     type="number" 
@@ -214,13 +215,13 @@ export function TokenomicsView({
                 </div>
               </div>
               <Button onClick={handleMint} disabled={!mintAmount || isProcessing} className="w-full h-14 gold-gradient text-white rounded-xl font-black uppercase italic tracking-widest shadow-xl border-none active:scale-[0.98] transition-transform">
-                {isProcessing ? <Loader2 className="animate-spin" /> : "EXECUTE ON-CHAIN MINT"}
+                {isProcessing ? <Loader2 className="animate-spin" /> : "EKSEKUSI CETAK ON-CHAIN"}
               </Button>
             </div>
 
             <div className="p-8 rounded-[2.5rem] bg-rose-500/5 border border-rose-500/10 space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-rose-600/60 ml-2">Burn Amount (Deflation)</label>
+                <label className="text-[10px] font-black uppercase text-rose-600/60 ml-2">Jumlah Bakar (Deflasi)</label>
                 <div className="relative">
                   <Input 
                     type="number" 
@@ -233,21 +234,21 @@ export function TokenomicsView({
                 </div>
               </div>
               <Button onClick={handleBurn} disabled={!burnAmountInput || isProcessing} className="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black uppercase italic tracking-widest shadow-xl border-none active:scale-[0.98] transition-transform">
-                {isProcessing ? <Loader2 className="animate-spin" /> : <span className="flex items-center gap-2"><Pickaxe className="w-4 h-4" /> EXECUTE TOKEN BURN</span>}
+                {isProcessing ? <Loader2 className="animate-spin" /> : <span className="flex items-center gap-2"><Pickaxe className="w-4 h-4" /> EKSEKUSI BAKAR TOKEN</span>}
               </Button>
             </div>
           </div>
         </Card>
 
         <Card className="lg:col-span-5 border-none bg-card rounded-[3rem] p-10 flex flex-col justify-center space-y-8 shadow-sm">
-          <h4 className="text-xl font-black italic uppercase tracking-tight text-center">Supply Distribution</h4>
+          <h4 className="text-xl font-black italic uppercase tracking-tight text-center">Distribusi Pasokan</h4>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie 
                   data={[
-                    { name: 'In Circulation', value: Number(totalSupply) }, 
-                    { name: 'Remaining Mintable', value: Number(remainingMintable) }
+                    { name: 'Dalam Sirkulasi', value: Number(totalSupply) }, 
+                    { name: 'Sisa Kuota Cetak', value: Number(remainingMintable) }
                   ]} 
                   cx="50%" 
                   cy="50%" 
@@ -265,9 +266,9 @@ export function TokenomicsView({
           </div>
           <div className="space-y-4">
             <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase">
-              <span>Contract Status</span>
+              <span>Status Kontrak</span>
               <Badge className={cn("text-[8px] font-black h-5 uppercase border-none", isPaused ? "bg-rose-500 text-white" : "bg-green-500 text-white")}>
-                {isPaused ? "Paused" : "Active"}
+                {isPaused ? "Berhenti" : "Aktif"}
               </Badge>
             </div>
             <Button onClick={async () => {
@@ -282,7 +283,7 @@ export function TokenomicsView({
                 toast({ variant: "destructive", title: "Operasi Gagal", description: e.message });
               } finally { setIsProcessing(false); }
             }} variant="outline" className="w-full text-[10px] font-black uppercase italic h-12 border-primary/20">
-              {isProcessing ? <Loader2 className="animate-spin" /> : "TOGGLE EMERGENCY PAUSE"}
+              {isProcessing ? <Loader2 className="animate-spin" /> : "TOGGLE JEDA DARURAT"}
             </Button>
           </div>
         </Card>
@@ -291,10 +292,10 @@ export function TokenomicsView({
       <section className="space-y-6">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-3">
-            <History className="w-5 h-5 text-primary" /> Real-Time Settlement Logs
+            <History className="w-5 h-5 text-primary" /> Log Penyelesaian Real-Time
           </h3>
           <div className="flex items-center gap-4">
-            <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase px-2 h-5">Hybrid Ledger</Badge>
+            <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase px-2 h-5">Buku Besar Hybrid</Badge>
             <div className="flex items-center gap-2">
               <Button 
                 variant="ghost" 
@@ -305,7 +306,7 @@ export function TokenomicsView({
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <span className="text-[10px] font-black text-muted-foreground uppercase italic">Page {currentPage} / {totalPages || 1}</span>
+              <span className="text-[10px] font-black text-muted-foreground uppercase italic">Halaman {currentPage} / {totalPages || 1}</span>
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -325,9 +326,9 @@ export function TokenomicsView({
               <thead className="bg-muted/50 text-[9px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
                 <tr>
                   <th className="px-8 py-5">Timestamp</th>
-                  <th className="px-8 py-5">Activity</th>
-                  <th className="px-8 py-5">Value (IDR)</th>
-                  <th className="px-8 py-5 text-right">Settlement</th>
+                  <th className="px-8 py-5">Aktivitas</th>
+                  <th className="px-8 py-5">Nilai (IDR)</th>
+                  <th className="px-8 py-5 text-right">Penyelesaian</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -347,7 +348,7 @@ export function TokenomicsView({
                     </td>
                     <td className="px-8 py-4 text-right">
                       <div className="flex items-center justify-end gap-2 text-[9px] font-bold text-green-600 uppercase italic">
-                        <CheckCircle2 className="w-3" /> Confirmed
+                        <CheckCircle2 className="w-3" /> Terkonfirmasi
                       </div>
                     </td>
                   </tr>
@@ -355,7 +356,7 @@ export function TokenomicsView({
                 {paginatedLogs.length === 0 && (
                   <tr>
                     <td colSpan={4} className="py-20 text-center opacity-20 italic font-black uppercase tracking-widest text-xs">
-                      No transaction records found in the current hybrid node.
+                      Tidak ada catatan transaksi ditemukan di node hybrid saat ini.
                     </td>
                   </tr>
                 )}

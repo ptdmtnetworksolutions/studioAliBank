@@ -67,12 +67,12 @@ export function PendingRequestsView({ topupRequests }: any) {
       // Audit Ledger Global
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `TOPUP-APP-${Date.now()}`,
-        category: req.type === 'crypto_deposit' ? "On-Chain Clearance" : "Manual Clearance",
+        category: req.type === 'crypto_deposit' ? "Kliring On-Chain" : "Kliring Manual",
         amountIdr: req.asset === 'IDR' ? req.amount : 0,
         cryptoAmount: req.asset !== 'IDR' ? req.estimatedAsset : 0,
         cryptoCurrency: req.asset !== 'IDR' ? req.asset : null,
-        description: `Admin approved ${req.asset} deposit for ${req.userName}. ${req.txid ? `Hash: ${req.txid}` : `Unique Code: ${req.uniqueCode}`}`,
-        status: "success",
+        description: `Admin menyetujui setoran ${req.asset} untuk ${req.userName}. ${req.txid ? `Hash: ${req.txid}` : `Kode Unik: ${req.uniqueCode}`}`,
+        status: "berhasil",
         timestamp: serverTimestamp(),
         userEmail: req.userEmail
       });
@@ -87,18 +87,18 @@ export function PendingRequestsView({ topupRequests }: any) {
 
       await updateDoc(doc(db, "topup_requests", req.id), { status: "approved" });
       
-      toast({ title: "Request Approved", description: `Assets credited to ${req.userName}` });
+      toast({ title: "Permintaan Disetujui", description: `Aset dikreditkan ke ${req.userName}` });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Approval Failed", description: err.message });
+      toast({ variant: "destructive", title: "Persetujuan Gagal", description: err.message });
     } finally {
       setIsProcessing(null);
     }
   };
 
   const handleReject = async (id: string) => {
-    if (!db || !confirm("Reject this request?")) return;
+    if (!db || !confirm("Tolak permintaan ini?")) return;
     await updateDoc(doc(db, "topup_requests", id), { status: "rejected" });
-    toast({ title: "Request Rejected" });
+    toast({ title: "Permintaan Ditolak" });
   };
 
   const pending = topupRequests?.filter((r: any) => r.status === 'pending') || [];
@@ -107,10 +107,10 @@ export function PendingRequestsView({ topupRequests }: any) {
     <div className="animate-in fade-in duration-700 space-y-8">
       <header className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Clearance Center</h2>
+          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Pusat Kliring</h2>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Verifikasi Dana Masuk (Bank & Blockchain)</p>
         </div>
-        <Badge className="bg-amber-100 text-amber-600 font-black px-4 h-8 rounded-full uppercase italic">{pending.length} Pending</Badge>
+        <Badge className="bg-amber-100 text-amber-600 font-black px-4 h-8 rounded-full uppercase italic">{pending.length} Tertunda</Badge>
       </header>
 
       <div className="grid grid-cols-1 gap-4">
@@ -123,7 +123,7 @@ export function PendingRequestsView({ topupRequests }: any) {
                   onClick={() => setSelectedImage(req.proofImage)}
                 >
                   {req.proofImage ? (
-                    <img src={req.proofImage} alt="proof" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                    <img src={req.proofImage} alt="bukti" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
                   ) : <ImageIcon className="w-6 h-6 text-muted-foreground" />}
                   <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Eye className="w-4 h-4 text-white" /></div>
                 </div>
@@ -157,7 +157,7 @@ export function PendingRequestsView({ topupRequests }: any) {
 
               <div className="flex flex-wrap items-center gap-6">
                 <div className="text-right hidden sm:block">
-                  <p className="text-[8px] font-black uppercase text-muted-foreground">User Email</p>
+                  <p className="text-[8px] font-black uppercase text-muted-foreground">Email Nasabah</p>
                   <p className="text-[10px] font-bold text-accent italic">{req.userEmail}</p>
                 </div>
                 <div className="flex gap-2">
@@ -167,7 +167,7 @@ export function PendingRequestsView({ topupRequests }: any) {
                     disabled={isProcessing === req.id}
                     className="h-12 px-6 gold-gradient text-white rounded-xl font-black uppercase italic shadow-lg"
                   >
-                    {isProcessing === req.id ? <Loader2 className="animate-spin w-4 h-4" /> : <><CheckCircle2 className="w-4 h-4 mr-2" /> Approve & Credit</>}
+                    {isProcessing === req.id ? <Loader2 className="animate-spin w-4 h-4" /> : <><CheckCircle2 className="w-4 h-4 mr-2" /> Setujui & Kreditkan</>}
                   </Button>
                 </div>
               </div>
@@ -178,7 +178,7 @@ export function PendingRequestsView({ topupRequests }: any) {
         {pending.length === 0 && (
           <div className="py-20 text-center space-y-4 opacity-20 italic">
             <CheckCircle2 className="w-16 h-16 mx-auto" />
-            <p className="text-sm font-black uppercase tracking-widest">All Clear. No pending requests.</p>
+            <p className="text-sm font-black uppercase tracking-widest">Semua Bersih. Tidak ada permintaan tertunda.</p>
           </div>
         )}
       </div>
