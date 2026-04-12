@@ -65,6 +65,7 @@ function AdminContent() {
     circulationRate,
     isPaused,
     isLoading: isLoadingAlix,
+    isNodeError,
     mintALX,
     burnALX,
     togglePause,
@@ -214,6 +215,7 @@ function AdminContent() {
               circulationRate={circulationRate}
               isPaused={isPaused}
               isLoadingAlix={isLoadingAlix}
+              isNodeError={isNodeError}
               mintALX={mintALX}
               burnALX={burnALX}
               togglePause={togglePause}

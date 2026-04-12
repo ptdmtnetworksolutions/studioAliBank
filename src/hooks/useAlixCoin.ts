@@ -24,6 +24,7 @@ export function useAlixCoin() {
   const [circulationRate, setCirculationRate]   = useState<number>(0);
   const [isPaused, setIsPaused]                 = useState<boolean>(false);
   const [isLoading, setIsLoading]               = useState<boolean>(true);
+  const [isNodeError, setIsNodeError]           = useState<boolean>(false);
 
   const fetchData = useCallback(async () => {
     let dynamicRpc = "";
@@ -66,16 +67,17 @@ export function useAlixCoin() {
         setTotalSupply(ethers.formatEther(supply));
         setMaxSupply(ethers.formatEther(max));
         setRemaining(ethers.formatEther(remaining));
-        // Kontrak V3.1 menggunakan basis points (10000 = 100%)
         setCirculationRate(Number(rate) / 100);
         setIsPaused(paused);
         
         success = true;
+        setIsNodeError(false);
       } catch (error) {
         console.warn(`Failed to fetch ALX from RPC ${rpcUrl}, trying next...`);
       }
     }
 
+    if (!success) setIsNodeError(true);
     setIsLoading(false);
   }, []);
 
@@ -165,6 +167,7 @@ export function useAlixCoin() {
     circulationRate,
     isPaused,
     isLoading,
+    isNodeError,
     mintALX,
     burnALX,
     togglePause,

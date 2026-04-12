@@ -32,7 +32,10 @@ import {
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
-  RefreshCw
+  RefreshCw,
+  ServerCog,
+  Wifi,
+  WifiOff
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -55,6 +58,7 @@ export function TokenomicsView({
   circulationRate, 
   isPaused, 
   isLoadingAlix, 
+  isNodeError,
   mintALX, 
   burnALX, 
   togglePause,
@@ -140,10 +144,18 @@ export function TokenomicsView({
           <div className="w-16 h-16 rounded-[2rem] gold-gradient flex items-center justify-center shadow-xl p-4 shrink-0"><Coins className="text-white w-full h-full" /></div>
           <div>
             <h3 className="text-3xl font-black italic uppercase tracking-tighter text-foreground">Terminal Tokenomik ALX</h3>
-            <p className="text-xs font-bold text-muted-foreground uppercase mt-1 flex items-center gap-2">
-              <RefreshCw className={cn("w-3 h-3 text-primary", isLoadingAlix && "animate-spin")} /> 
-              Sinkronisasi Infrastruktur Hybrid Berdaulat
-            </p>
+            <div className="mt-1 flex items-center gap-3">
+              <p className="text-[10px] font-black text-muted-foreground uppercase flex items-center gap-2">
+                <RefreshCw className={cn("w-3 h-3 text-primary", isLoadingAlix && "animate-spin")} /> 
+                Sinkronisasi Node Hybrid
+              </p>
+              <Badge className={cn(
+                "text-[7px] font-black h-4 px-2 uppercase border-none",
+                isNodeError ? "bg-rose-500/10 text-rose-600" : "bg-green-500/10 text-green-600"
+              )}>
+                {isNodeError ? <><WifiOff className="w-2.5 h-2.5 mr-1" /> Node Off</> : <><Wifi className="w-2.5 h-2.5 mr-1" /> Node On</>}
+              </Badge>
+            </div>
           </div>
         </div>
         <div className="flex gap-2">
@@ -214,7 +226,7 @@ export function TokenomicsView({
                   <div className="absolute right-6 top-1/2 -translate-y-1/2 text-sm font-black text-primary italic">ALX</div>
                 </div>
               </div>
-              <Button onClick={handleMint} disabled={!mintAmount || isProcessing} className="w-full h-14 gold-gradient text-white rounded-xl font-black uppercase italic tracking-widest shadow-xl border-none active:scale-[0.98] transition-transform">
+              <Button onClick={handleMint} disabled={!mintAmount || isProcessing || isNodeError} className="w-full h-14 gold-gradient text-white rounded-xl font-black uppercase italic tracking-widest shadow-xl border-none active:scale-[0.98] transition-transform">
                 {isProcessing ? <Loader2 className="animate-spin" /> : "EKSEKUSI CETAK ON-CHAIN"}
               </Button>
             </div>
@@ -233,7 +245,7 @@ export function TokenomicsView({
                   <div className="absolute right-6 top-1/2 -translate-y-1/2 text-sm font-black text-rose-500 italic">ALX</div>
                 </div>
               </div>
-              <Button onClick={handleBurn} disabled={!burnAmountInput || isProcessing} className="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black uppercase italic tracking-widest shadow-xl border-none active:scale-[0.98] transition-transform">
+              <Button onClick={handleBurn} disabled={!burnAmountInput || isProcessing || isNodeError} className="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black uppercase italic tracking-widest shadow-xl border-none active:scale-[0.98] transition-transform">
                 {isProcessing ? <Loader2 className="animate-spin" /> : <span className="flex items-center gap-2"><Pickaxe className="w-4 h-4" /> EKSEKUSI BAKAR TOKEN</span>}
               </Button>
             </div>
