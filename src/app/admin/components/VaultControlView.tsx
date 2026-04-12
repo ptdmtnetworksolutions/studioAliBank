@@ -42,16 +42,19 @@ export function VaultControlView({ auditLogs }: any) {
   const [amount, setAmount] = useState("");
   const [isExecuting, setIsExecuting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [nodeError, setNodeError] = useState<string | null>(null);
 
   const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
   const { data: config } = useDoc(apiKeysRef);
 
+  // MENGGUNAKAN KUNCI DARI FIREBASE (YANG ANDA PASTE) SEBAGAI PRIORITAS UTAMA
   const VAULT_CONTRACT = config?.vaultContractAddress || "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
   const ETH_RPC = config?.ethereumRpcUrl || "https://ethereum-rpc.publicnode.com";
 
   const syncVaultBalance = useCallback(async () => {
     if (!VAULT_CONTRACT || !ETH_RPC) return;
     setIsSyncing(true);
+    setNodeError(null);
     try {
       const provider = new JsonRpcProvider(ETH_RPC);
       const contract = new ethers.Contract(VAULT_CONTRACT, AliBankVaultABI, provider);
@@ -60,8 +63,9 @@ export function VaultControlView({ auditLogs }: any) {
         return await provider.getBalance(VAULT_CONTRACT);
       });
       setOnChainEth(formatEther(balance));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Sync failed:", err);
+      setNodeError("Gagal terhubung ke RPC Node. Pastikan Alchemy URL benar.");
     } finally {
       setIsSyncing(false);
     }
@@ -96,7 +100,12 @@ export function VaultControlView({ auditLogs }: any) {
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Pusat Kliring Node & Brankas ETH Mainnet AliBank</p>
         </div>
         <div className="flex gap-2">
-          <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg">MAINNET V3 AKTIF</Badge>
+          <Badge className={cn(
+            "font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg border-none flex items-center",
+            nodeError ? "bg-rose-600 text-white" : "bg-primary text-primary-foreground"
+          )}>
+            {nodeError ? "NODE ERROR" : "MAINNET V3 AKTIF"}
+          </Badge>
           <button onClick={syncVaultBalance} disabled={isSyncing} className="p-2 bg-muted rounded-full hover:bg-primary/10 transition-colors">
             <RefreshCw className={cn("w-5 h-5 text-primary", isSyncing && "animate-spin")} />
           </button>
@@ -143,6 +152,15 @@ export function VaultControlView({ auditLogs }: any) {
           </div>
           
           <div className="grid grid-cols-1 gap-6">
+            {nodeError && (
+              <div className="p-4 rounded-xl bg-rose-600/10 border border-rose-600/20 flex gap-3 animate-in shake-in">
+                <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+                <p className="text-[10px] font-black text-rose-600 uppercase italic leading-relaxed">
+                  {nodeError}
+                </p>
+              </div>
+            )}
+
             <div className="p-6 rounded-[2rem] bg-rose-500/5 border border-rose-500/10 space-y-4">
               <div className="flex gap-4">
                 <AlertTriangle className="w-6 h-6 text-rose-500 shrink-0" />
@@ -172,7 +190,7 @@ export function VaultControlView({ auditLogs }: any) {
 
           <Button 
             onClick={handleWithdraw} 
-            disabled={isExecuting || !amount}
+            disabled={isExecuting || !amount || !!nodeError}
             className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase tracking-widest shadow-xl border-none hover:scale-[1.01] transition-all"
           >
             {isExecuting ? <Loader2 className="animate-spin" /> : (
@@ -191,7 +209,7 @@ export function VaultControlView({ auditLogs }: any) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {auditLogs?.filter((l:any) => l.category === "External Settlement" || l.txHash).slice(0, 6).map((log: any) => (
             <Card key={log.id} className="p-6 rounded-3xl bg-card border border-border shadow-sm space-y-4 hover:border-primary/30 transition-all group">
-              <Badge className="bg-blue-100 text-blue-600 border-none text-[7px] font-black h-5 uppercase px-2">Transaksi On-Chain</Badge>
+              <Badge className="bg-blue-100 text-blue-600 border-none text-[7px] font-black h-4 px-2 uppercase italic">Transaksi On-Chain</Badge>
               <p className="text-[10px] font-black uppercase italic truncate text-accent">{log.description || log.category}</p>
               <div className="flex justify-between items-end border-t border-border pt-4">
                 <div>

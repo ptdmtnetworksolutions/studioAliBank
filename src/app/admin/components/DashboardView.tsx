@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -14,7 +14,13 @@ import {
   Pickaxe, 
   RefreshCw, 
   TrendingUp, 
-  Zap 
+  Zap,
+  ShieldCheck,
+  Globe,
+  Wifi,
+  WifiOff,
+  Cpu,
+  Smartphone
 } from "lucide-react";
 import { 
   ComposedChart, 
@@ -28,6 +34,8 @@ import {
 import { LogoIcon } from "@/components/ui/logo";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
 
 export function DashboardView({ 
   globalLiquidity, 
@@ -40,40 +48,65 @@ export function DashboardView({
   isLoadingAlix, 
   totalSupply 
 }: any) {
-  
+  const db = useFirestore();
+  const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
+  const { data: storedKeys } = useDoc(apiKeysRef);
+
   // LOGIKA AGREGASI PENDAPATAN RIIL DARI AUDIT LEDGER
   const aggregatedStats = useMemo(() => {
     if (!auditLogs) return { tradingFees: 0, profitCapture: 0, alxSales: 0 };
 
     return auditLogs.reduce((acc: any, log: any) => {
       const amount = log.amountIdr || 0;
-      
-      // 1. Biaya Trading (Dari Futures Entry, Market Execution, dll)
-      if (log.category === "Futures Entry" || log.category === "Market Execution" || log.category === "Market Trade") {
-        acc.tradingFees += amount;
+      if (log.status === 'success' || log.status === 'berhasil') {
+        if (log.category === "Futures Entry" || log.category === "Market Execution" || log.category === "Market Trade") {
+          acc.tradingFees += amount;
+        }
+        if (log.category === "Trade-X Capture" || log.category === "Ali-Spin Capture") {
+          acc.profitCapture += amount;
+        }
+        if (log.category === "Ali-Exchange") {
+          acc.alxSales += amount;
+        }
       }
-      
-      // 2. Profit Capture (Bank Profit dari kekalahan nasabah di Trade-X atau Ali-Spin)
-      if (log.category === "Trade-X Capture" || log.category === "Ali-Spin Capture") {
-        acc.profitCapture += amount;
-      }
-      
-      // 3. Pendapatan Penjualan ALX (Internal Exchange)
-      if (log.category === "Ali-Exchange") {
-        acc.alxSales += amount;
-      }
-
       return acc;
     }, { tradingFees: 0, profitCapture: 0, alxSales: 0 });
   }, [auditLogs]);
 
-  // Gunakan data dari dokumen likuiditas sebagai basis utama, fallback ke agregasi log
   const tradingFeesDisplay = globalLiquidity?.totalTradingFeesIdr || aggregatedStats.tradingFees;
   const profitCaptureDisplay = globalLiquidity?.tradeXGrossVolumeIdr || aggregatedStats.profitCapture;
   const alxSalesDisplay = globalLiquidity?.totalInternalAumIdr || aggregatedStats.alxSales;
 
   return (
     <div className="animate-in fade-in duration-700 space-y-10">
+      {/* NODE HEALTH STATUS - BARU: MEMANTAU KUNCI YANG ANDA MASUKKAN */}
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <NodeStatusCard 
+          label="Polygon Node (ALX)" 
+          status={storedKeys?.polygonRpcUrl ? "Online" : "Offline"} 
+          icon={Zap} 
+          color="text-primary" 
+        />
+        <NodeStatusCard 
+          label="Ethereum Node (Vault)" 
+          status={storedKeys?.ethereumRpcUrl ? "Online" : "Offline"} 
+          icon={Cpu} 
+          color="text-blue-500" 
+        />
+        <NodeStatusCard 
+          label="PayPal Gateway" 
+          status={storedKeys?.paypalClientId ? "Online" : "Offline"} 
+          icon={Globe} 
+          color="text-indigo-500" 
+        />
+        <NodeStatusCard 
+          label="Midtrans Gateway" 
+          status={storedKeys?.midtransServerKey ? "Online" : "Offline"} 
+          icon={Smartphone} 
+          color="text-emerald-500" 
+        />
+      </section>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <Card className="lg:col-span-8 border-none bg-card rounded-[2.5rem] p-10 space-y-10 shadow-sm">
           <div className="flex items-center justify-between">
@@ -81,7 +114,7 @@ export function DashboardView({
               <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-600"><Database className="w-6 h-6" /></div>
               <h3 className="text-lg font-black italic uppercase tracking-tight">Likuiditas Global AliBank</h3>
             </div>
-            <Badge className="bg-green-100 text-green-600 font-black text-[8px] px-3 h-6 rounded uppercase">LIVE SINKRON</Badge>
+            <Badge className="bg-green-100 text-green-600 font-black text-[8px] px-3 h-6 rounded uppercase italic">Live Reconciled</Badge>
           </div>
           <div className="space-y-2">
             <p className="text-sm font-bold text-muted-foreground uppercase">Total Modal Bersih (IDR)</p>
@@ -113,7 +146,7 @@ export function DashboardView({
         </Card>
       </div>
 
-      {/* REVENUE BREAKDOWN - DENGAN DATA AGREGASI RIIL */}
+      {/* REVENUE BREAKDOWN */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <RevenueCard 
           icon={Zap} 
@@ -124,9 +157,9 @@ export function DashboardView({
         />
         <RevenueCard 
           icon={TrendingUp} 
-          label="Tangkapan Profit (Loss Capture)" 
+          label="Tangkapan Profit" 
           value={`Rp ${profitCaptureDisplay.toLocaleString()}`} 
-          sub="Keuntungan Trade-X & Ali-Spin" 
+          sub="Game Capture & Liquidations" 
           color="text-green-500" 
         />
         <RevenueCard 
@@ -186,7 +219,7 @@ export function DashboardView({
         <QuickOpButton icon={Skull} label="Reset Semua Nasabah" sub="Pembersihan Produksi" color="text-rose-500" onClick={() => setActiveTab('users')} />
         <QuickOpButton icon={PlusCircle} label="Cetak ALX" sub="Pasokan Sah" color="text-green-500" onClick={() => setActiveTab('tokenomics')} />
         <QuickOpButton icon={Pickaxe} label="Bakar ALX" sub="Protokol Deflasi" color="text-orange-500" onClick={() => setActiveTab('tokenomics')} />
-        <QuickOpButton icon={RefreshCw} label="Sinkron Brankas" sub="Koneksi Etherscan" color="text-blue-500" onClick={() => syncOnChainData(true)} syncing={syncingVault} />
+        <QuickOpButton icon={RefreshCw} label="Sinkron Brankas" sub="Koneksi Node" color="text-blue-500" onClick={() => syncOnChainData(true)} syncing={syncingVault} />
       </div>
 
       <div className="space-y-6">
@@ -211,7 +244,7 @@ export function DashboardView({
                 {auditLogs?.slice(0, 10).map((log: any) => (
                   <tr key={log.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-8 py-4 text-[10px] font-mono font-bold text-accent">{log.id?.slice(0, 15)}...</td>
-                    <td className="px-8 py-4"><Badge className="bg-muted text-foreground border-none text-[8px] font-black h-5 uppercase px-2">{log.category}</Badge></td>
+                    <td className="px-8 py-4"><Badge className="bg-muted text-foreground border-none text-[7px] font-black h-5 uppercase px-2">{log.category}</Badge></td>
                     <td className="px-8 py-4 text-[10px] font-black italic">
                       {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : '---'}
                     </td>
@@ -226,6 +259,26 @@ export function DashboardView({
         </Card>
       </div>
     </div>
+  );
+}
+
+function NodeStatusCard({ label, status, icon: Icon, color }: any) {
+  const isOnline = status === "Online";
+  return (
+    <Card className="border-none bg-card rounded-2xl p-4 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+      <div className="flex items-center gap-3">
+        <div className={cn("w-8 h-8 rounded-lg bg-muted flex items-center justify-center", color)}>
+          <Icon className="w-4 h-4" />
+        </div>
+        <div>
+          <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">{label}</p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            {isOnline ? <Wifi className="w-3 h-3 text-green-500" /> : <WifiOff className="w-3 h-3 text-rose-500" />}
+            <span className={cn("text-[9px] font-black uppercase italic", isOnline ? "text-green-600" : "text-rose-600")}>{status}</span>
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 
