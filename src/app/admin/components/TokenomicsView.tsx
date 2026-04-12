@@ -58,7 +58,7 @@ export function TokenomicsView({
   const [burnAmountInput, setBurnAmountInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Fatch Internal Vault Balance (Firestore)
+  // Fetch Internal Vault Balance (Firestore)
   const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
@@ -124,7 +124,7 @@ export function TokenomicsView({
         <TokenStatCard label="Internal Vault Liquidity" value={`${globalLiquidity?.alixVaultBalance?.toLocaleString() || '0'} ALX`} sub="Available for Internal Trade" icon={Database} color="text-primary" />
         <TokenStatCard label="On-Chain Total Supply" value={`${isLoadingAlix ? '...' : Number(totalSupply).toLocaleString()} ALX`} sub={`Max: ${Number(maxSupply).toLocaleString()}`} icon={Zap} />
         <TokenStatCard label="Circulation Rate" value={`${circulationRate.toFixed(2)}%`} sub="Supply vs Max Cap" icon={Activity} color="text-blue-500" />
-        <TokenStatCard label="Internal Gross Sales" value={`Rp ${globalLiquidity?.totalInternalAumIdr?.toLocaleString() || '0'}`} sub="Revenue from ALX Sales" icon={TrendingDown} color="text-green-600" />
+        <TokenStatCard label="Remaining Mintable" value={`${isLoadingAlix ? '...' : Number(remainingMintable).toLocaleString()}`} sub="Available Mint Quota" icon={TrendingDown} color="text-green-600" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -139,8 +139,13 @@ export function TokenomicsView({
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Mint Amount (ALX)</label>
                 <div className="relative">
-                  <Input type="number" placeholder="0.00" value={mintAmount} onChange={(e) => setAmount(e.target.value)} className="hidden" />
-                  <Input type="number" placeholder="0.00" value={mintAmount} onChange={(e) => setMintAmount(e.target.value)} className="h-16 bg-background border-none rounded-2xl font-black italic text-2xl pl-8 pr-20" />
+                  <Input 
+                    type="number" 
+                    placeholder="0.00" 
+                    value={mintAmount} 
+                    onChange={(e) => setMintAmount(e.target.value)} 
+                    className="h-16 bg-background border-none rounded-2xl font-black italic text-2xl pl-8 pr-20" 
+                  />
                   <div className="absolute right-6 top-1/2 -translate-y-1/2 text-sm font-black text-primary italic">ALX</div>
                 </div>
               </div>
@@ -153,7 +158,13 @@ export function TokenomicsView({
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-rose-600/60 ml-2">Burn Amount (Deflation)</label>
                 <div className="relative">
-                  <Input type="number" placeholder="0.00" value={burnAmountInput} onChange={(e) => setBurnAmountInput(e.target.value)} className="h-16 bg-background border-none rounded-2xl font-black italic text-2xl pl-8 pr-20" />
+                  <Input 
+                    type="number" 
+                    placeholder="0.00" 
+                    value={burnAmountInput} 
+                    onChange={(e) => setBurnAmountInput(e.target.value)} 
+                    className="h-16 bg-background border-none rounded-2xl font-black italic text-2xl pl-8 pr-20" 
+                  />
                   <div className="absolute right-6 top-1/2 -translate-y-1/2 text-sm font-black text-rose-500 italic">ALX</div>
                 </div>
               </div>
@@ -169,7 +180,18 @@ export function TokenomicsView({
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={[{ name: 'Supply', value: Number(totalSupply) }, { name: 'Unminted', value: Number(remainingMintable) }]} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                <Pie 
+                  data={[
+                    { name: 'In Circulation', value: Number(totalSupply) }, 
+                    { name: 'Remaining Mintable', value: Number(remainingMintable) }
+                  ]} 
+                  cx="50%" 
+                  cy="50%" 
+                  innerRadius={60} 
+                  outerRadius={80} 
+                  paddingAngle={5} 
+                  dataKey="value"
+                >
                   <Cell fill="hsl(var(--primary))" />
                   <Cell fill="hsl(var(--muted))" />
                 </Pie>
