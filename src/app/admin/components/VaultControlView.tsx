@@ -84,7 +84,6 @@ export function VaultControlView({ auditLogs }: any) {
     } catch (err: any) {
       toast({ variant: "destructive", title: "Eksekusi Gagal", description: err.message });
     } finally {
-      setIsProcessing(false);
       setIsExecuting(false);
     }
   };
@@ -144,11 +143,16 @@ export function VaultControlView({ auditLogs }: any) {
           </div>
           
           <div className="grid grid-cols-1 gap-6">
-            <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex gap-4">
-              <AlertTriangle className="w-6 h-6 text-amber-500 shrink-0" />
-              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                PENTING: Dana akan dikirim ke alamat MetaMask yang memegang Private Key di Vault (msg.sender). Pastikan dompet tersebut memiliki saldo ETH (GAS) untuk eksekusi.
-              </p>
+            <div className="p-6 rounded-[2rem] bg-rose-500/5 border border-rose-500/10 space-y-4">
+              <div className="flex gap-4">
+                <AlertTriangle className="w-6 h-6 text-rose-500 shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black text-rose-600 uppercase italic">Persyaratan Saldo GAS</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+                    Dompet MetaMask Anda WAJIB memiliki minimal 0.005 ETH untuk membayar biaya GAS Mainnet. Tanpa saldo Gas, transaksi akan gagal dengan pesan "insufficient funds".
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">

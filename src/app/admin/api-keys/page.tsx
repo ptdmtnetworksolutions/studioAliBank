@@ -181,7 +181,7 @@ function APIKeysContent() {
                   onChange={(v) => setKeys({...keys, vaultPrivateKey: v})}
                   show={showKeys['vault']}
                   onToggle={() => toggleShow('vault')}
-                  description="Kunci ini digunakan untuk tanda tangan on-chain. Cukup salin satu kunci (Ethereum/Polygon) dari MetaMask karena kuncinya sama untuk satu akun."
+                  description="Kunci ini digunakan untuk tanda tangan on-chain. Ambil dari MetaMask -> Account Details -> Show Private Key."
                 />
               </section>
 
@@ -259,13 +259,13 @@ function APIKeysContent() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <KeyField 
-                    label="Ethereum RPC Node" 
+                    label="Ethereum RPC Node (Alchemy/Infura)" 
                     icon={Cpu} 
                     value={keys.ethereumRpcUrl} 
-                    placeholder="https://eth.llamarpc.com"
+                    placeholder="https://eth-mainnet.g.alchemy.com/v2/your-key"
                     onChange={(v) => setKeys({...keys, ethereumRpcUrl: v})}
                     show={true}
-                    description="Gunakan https://eth.llamarpc.com atau node pribadi dari Alchemy/Infura."
+                    description="Tempelkan Endpoint URL dari Alchemy (Mainnet) di sini."
                   />
                   <KeyField 
                     label="ALX Smart Contract" 
