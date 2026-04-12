@@ -19,7 +19,8 @@ import {
   EyeOff,
   Zap,
   CreditCard,
-  Building2
+  Building2,
+  Wallet
 } from "lucide-react";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -63,7 +64,8 @@ function APIKeysContent() {
     etherscanApiKey: "",
     ethereumRpcUrl: "",
     geminiApiKey: "",
-    alxContractAddress: ""
+    alxContractAddress: "",
+    vaultPrivateKey: "" // Field baru untuk fallback kunci privat
   });
 
   const apiKeysRef = useMemoFirebase(() => (db && user ? doc(db, "system", "api_keys") : null), [db, user]);
@@ -79,7 +81,8 @@ function APIKeysContent() {
         etherscanApiKey: storedKeys.etherscanApiKey || "",
         ethereumRpcUrl: storedKeys.ethereumRpcUrl || "",
         geminiApiKey: storedKeys.geminiApiKey || "",
-        alxContractAddress: storedKeys.alxContractAddress || ""
+        alxContractAddress: storedKeys.alxContractAddress || "",
+        vaultPrivateKey: storedKeys.vaultPrivateKey || ""
       });
     }
   }, [storedKeys]);
@@ -162,6 +165,28 @@ function APIKeysContent() {
             <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none"><LogoIcon className="w-64 h-64 text-primary" /></div>
             
             <div className="space-y-10 relative z-10">
+              <section className="space-y-8">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-black italic uppercase tracking-tight flex items-center gap-3">
+                    <Wallet className="w-5 h-5 text-primary" /> AliBank Central Vault
+                  </h3>
+                  <Badge className="bg-rose-600 text-white text-[8px] font-black italic uppercase px-2 h-5">Sensitive Data</Badge>
+                </div>
+                
+                <KeyField 
+                  label="Vault Private Key (0x...)" 
+                  icon={Lock} 
+                  value={keys.vaultPrivateKey} 
+                  placeholder="0x..."
+                  onChange={(v) => setKeys({...keys, vaultPrivateKey: v})}
+                  show={showKeys['vault']}
+                  onToggle={() => toggleShow('vault')}
+                  description="Kunci ini digunakan untuk menandatangani transaksi pencairan (withdraw) dari Smart Contract Brankas Pusat. Sangat rahasia."
+                />
+              </section>
+
+              <div className="h-px bg-white/5 w-full" />
+
               <section className="space-y-8">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-black italic uppercase tracking-tight flex items-center gap-3">
@@ -255,7 +280,7 @@ function APIKeysContent() {
               <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex gap-4">
                 <AlertCircle className="w-6 h-6 text-amber-500 shrink-0" />
                 <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                  Peringatan Keamanan: Perubahan kredensial bersifat instan. Kegagalan konfigurasi pada field Midtrans akan menyebabkan seluruh nasabah AliBank tidak dapat melakukan top-up IDR secara otomatis.
+                  Peringatan Keamanan: Perubahan kredensial bersifat instan. Kegagalan konfigurasi pada field Vault Private Key akan menyebabkan kegagalan sistem penarikan saldo dari Smart Contract.
                 </p>
               </div>
 

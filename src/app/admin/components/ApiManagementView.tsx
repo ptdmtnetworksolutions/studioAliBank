@@ -19,7 +19,8 @@ import {
   EyeOff, 
   AlertCircle,
   Zap,
-  Building2
+  Building2,
+  Wallet
 } from "lucide-react";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useFirestore, useUser } from "@/firebase";
@@ -41,7 +42,8 @@ export function ApiManagementView({ storedKeys }: any) {
     etherscanApiKey: "",
     ethereumRpcUrl: "",
     geminiApiKey: "",
-    alxContractAddress: ""
+    alxContractAddress: "",
+    vaultPrivateKey: ""
   });
 
   useEffect(() => {
@@ -54,7 +56,8 @@ export function ApiManagementView({ storedKeys }: any) {
         etherscanApiKey: storedKeys.etherscanApiKey || "",
         ethereumRpcUrl: storedKeys.ethereumRpcUrl || "",
         geminiApiKey: storedKeys.geminiApiKey || "",
-        alxContractAddress: storedKeys.alxContractAddress || ""
+        alxContractAddress: storedKeys.alxContractAddress || "",
+        vaultPrivateKey: storedKeys.vaultPrivateKey || ""
       });
     }
   }, [storedKeys]);
@@ -102,6 +105,16 @@ export function ApiManagementView({ storedKeys }: any) {
         <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none"><Key className="w-64 h-64 text-primary" /></div>
         
         <div className="space-y-10 relative z-10">
+          {/* VAULT SECTION */}
+          <section className="space-y-6">
+            <h3 className="text-sm font-black italic uppercase tracking-widest text-primary flex items-center gap-2">
+              <Wallet className="w-4 h-4" /> Brankas Pusat (Private Signature)
+            </h3>
+            <KeyField label="Vault Private Key (0x...)" icon={Lock} value={keys.vaultPrivateKey} onChange={(v:any) => setKeys({...keys, vaultPrivateKey: v})} show={showKeys['vp']} onToggle={() => toggleShow('vp')} />
+          </section>
+
+          <div className="h-px bg-border/50 w-full" />
+
           {/* PAYPAL SECTION */}
           <section className="space-y-6">
             <h3 className="text-sm font-black italic uppercase tracking-widest text-primary flex items-center gap-2">
