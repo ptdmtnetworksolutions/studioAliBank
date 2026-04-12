@@ -43,7 +43,7 @@ export function DashboardView({
   
   // LOGIKA AGREGASI PENDAPATAN RIIL DARI AUDIT LEDGER
   const aggregatedStats = useMemo(() => {
-    if (!auditLogs) return { tradingFees: 0, tradeXProfit: 0, alxSales: 0 };
+    if (!auditLogs) return { tradingFees: 0, profitCapture: 0, alxSales: 0 };
 
     return auditLogs.reduce((acc: any, log: any) => {
       const amount = log.amountIdr || 0;
@@ -53,9 +53,9 @@ export function DashboardView({
         acc.tradingFees += amount;
       }
       
-      // 2. Tangkapan Trade-X (Profit Bank dari kekalahan nasabah)
-      if (log.category === "Trade-X Capture") {
-        acc.tradeXProfit += amount;
+      // 2. Profit Capture (Bank Profit dari kekalahan nasabah di Trade-X atau Ali-Spin)
+      if (log.category === "Trade-X Capture" || log.category === "Ali-Spin Capture") {
+        acc.profitCapture += amount;
       }
       
       // 3. Pendapatan Penjualan ALX (Internal Exchange)
@@ -64,12 +64,12 @@ export function DashboardView({
       }
 
       return acc;
-    }, { tradingFees: 0, tradeXProfit: 0, alxSales: 0 });
+    }, { tradingFees: 0, profitCapture: 0, alxSales: 0 });
   }, [auditLogs]);
 
   // Gunakan data dari dokumen likuiditas sebagai basis utama, fallback ke agregasi log
   const tradingFeesDisplay = globalLiquidity?.totalTradingFeesIdr || aggregatedStats.tradingFees;
-  const tradeXProfitDisplay = globalLiquidity?.tradeXGrossVolumeIdr || aggregatedStats.tradeXProfit;
+  const profitCaptureDisplay = globalLiquidity?.tradeXGrossVolumeIdr || aggregatedStats.profitCapture;
   const alxSalesDisplay = globalLiquidity?.totalInternalAumIdr || aggregatedStats.alxSales;
 
   return (
@@ -124,9 +124,9 @@ export function DashboardView({
         />
         <RevenueCard 
           icon={TrendingUp} 
-          label="Tangkapan Trade-X" 
-          value={`Rp ${tradeXProfitDisplay.toLocaleString()}`} 
-          sub="Profit Win Rate Bank" 
+          label="Tangkapan Profit (Loss Capture)" 
+          value={`Rp ${profitCaptureDisplay.toLocaleString()}`} 
+          sub="Keuntungan Trade-X & Ali-Spin" 
           color="text-green-500" 
         />
         <RevenueCard 

@@ -14,12 +14,9 @@ import {
   History,
   TrendingUp,
   ArrowDownLeft,
-  ArrowUpRight,
   Zap,
-  Activity,
   ShieldCheck,
-  Briefcase,
-  Wallet
+  Activity
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -33,7 +30,7 @@ export function AuditLogsView({ auditLogs }: any) {
 
   // LOGIKA ANALITIK UNTUK PEMILIK APLIKASI
   const stats = useMemo(() => {
-    if (!auditLogs) return { inflow: 0, outflow: 0, fees: 0, tradeX: 0, successRate: 0 };
+    if (!auditLogs) return { inflow: 0, outflow: 0, fees: 0, captures: 0, successRate: 0 };
     
     let successCount = 0;
     const data = auditLogs.reduce((acc: any, log: any) => {
@@ -43,7 +40,7 @@ export function AuditLogsView({ auditLogs }: any) {
       if (isSuccess) {
         successCount++;
         // Arus Kas Masuk (Topup & Settlement)
-        if (log.category === 'External Settlement' || log.category === 'Kliring Manual' || log.category === 'Kliring On-Chain') {
+        if (log.category === 'External Settlement' || log.category === 'Kliring Manual' || log.category === 'Kliring On-Chain' || log.category === 'External Inflow') {
           acc.inflow += amt;
         }
         // Arus Kas Keluar (Penarikan)
@@ -54,13 +51,13 @@ export function AuditLogsView({ auditLogs }: any) {
         if (log.category === 'Futures Entry' || log.category === 'Market Execution' || log.category === 'Market Trade') {
           acc.fees += amt;
         }
-        // Keuntungan Trade-X (Loss Capture)
-        if (log.category === 'Trade-X Capture') {
-          acc.tradeX += amt;
+        // Profit Captures (Loss dari Trade-X & Ali-Spin)
+        if (log.category === 'Trade-X Capture' || log.category === 'Ali-Spin Capture') {
+          acc.captures += amt;
         }
       }
       return acc;
-    }, { inflow: 0, outflow: 0, fees: 0, tradeX: 0 });
+    }, { inflow: 0, outflow: 0, fees: 0, captures: 0 });
 
     return {
       ...data,
@@ -125,9 +122,9 @@ export function AuditLogsView({ auditLogs }: any) {
         />
         <AnalyticCard 
           icon={TrendingUp} 
-          label="Trade-X P&L (Bank)" 
-          value={`Rp ${stats.tradeX.toLocaleString()}`} 
-          sub="Keuntungan Capture Margin" 
+          label="Profit Capture (Net)" 
+          value={`Rp ${stats.captures.toLocaleString()}`} 
+          sub="Keuntungan Trade-X & Ali-Spin" 
           color="text-blue-500" 
         />
         <AnalyticCard 
@@ -224,7 +221,7 @@ export function AuditLogsView({ auditLogs }: any) {
                       </p>
                       {log.txHash && (
                         <div className="flex items-center gap-1.5 text-[8px] font-mono text-blue-500 cursor-pointer hover:underline">
-                          <Zap className="w-2.5 h-2.5" /> Hash: {log.txHash.slice(0, 20)}...
+                          <Activity className="w-2.5 h-2.5" /> Hash: {log.txHash.slice(0, 20)}...
                         </div>
                       )}
                     </div>
@@ -364,20 +361,6 @@ function UserIcon({ className }: { className?: string }) {
     >
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
-
-function LogoIcon({ className }: { className?: string }) {
-  return (
-    <svg 
-      viewBox="0 0 100 100" 
-      fill="none" 
-      xmlns="http://www.w3.org/2000/svg" 
-      className={cn("w-full h-full", className)}
-    >
-      <rect x="10" y="10" width="80" height="80" rx="22" stroke="currentColor" strokeWidth="6" fill="none" />
-      <path d="M50 20C52 48 80 50 80 50C80 50 52 52 50 80C48 52 20 50 20 50C20 50 48 48 50 20Z" fill="currentColor" />
     </svg>
   );
 }
