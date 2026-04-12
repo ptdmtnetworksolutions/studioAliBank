@@ -181,7 +181,7 @@ function APIKeysContent() {
                   onChange={(v) => setKeys({...keys, vaultPrivateKey: v})}
                   show={showKeys['vault']}
                   onToggle={() => toggleShow('vault')}
-                  description="Kunci ini digunakan untuk menandatangani transaksi pencairan (withdraw) dari Smart Contract Brankas Pusat. Di MetaMask: Klik Tiga Titik > Account Details > Show Private Key."
+                  description="Kunci ini digunakan untuk tanda tangan on-chain. Cukup salin satu kunci (Ethereum/Polygon) dari MetaMask karena kuncinya sama untuk satu akun."
                 />
               </section>
 

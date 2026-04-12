@@ -117,7 +117,7 @@ export function ApiManagementView({ storedKeys }: any) {
               onChange={(v:any) => setKeys({...keys, vaultPrivateKey: v})} 
               show={showKeys['vp']} 
               onToggle={() => toggleShow('vp')}
-              description="Di MetaMask: Detail Akun > Show Private Key. Kunci ini digunakan untuk Disbursement otomatis."
+              description="Salin satu baris kunci saja (Ethereum/Polygon) dari MetaMask. Kunci ini identik untuk seluruh jaringan EVM di akun Anda."
             />
           </section>
 
