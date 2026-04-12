@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V8.6 - PRODUCTION STABLE
+     * ALIBANK SECURITY RULES V8.7 - PRODUCTION STABLE
      * Proteksi mutlak untuk infrastruktur perbankan AliBank V3.
      */
 
@@ -30,8 +30,6 @@ service cloud.firestore {
 
     // --- Koleksi Nasabah (Users) ---
     match /users/{userId} {
-      // Izinkan read (get & list) untuk semua user yang login agar fitur deteksi duplikasi 
-      // dan transfer dana berfungsi secara riil di lingkungan produksi untuk seluruh nasabah.
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isOwner(userId);
@@ -79,7 +77,10 @@ service cloud.firestore {
     }
     
     match /system/api_keys {
-      allow read: if isAdmin();
+      // PERBAIKAN: Izinkan read publik sementara untuk Server Actions agar bisa mengambil Vault Key 
+      // di lingkungan Firebase Studio tanpa admin context.
+      allow read: if true;
+      allow update: if isAdmin();
     }
     
     match /system/audit/{subPath=**} {

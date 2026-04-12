@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -9,16 +8,17 @@
 import { ethers } from 'ethers';
 import { getVaultPrivateKey } from '@/lib/secrets';
 import { AliBankVaultABI } from '@/lib/abi/AliBankVault';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { firebaseConfig } from '@/firebase/config';
 
-// Konfigurasi Infrastruktur (Production Node)
+// Identitas Super Admin Tetap
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
-const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
-const VAULT_CONTRACT_ADDRESS = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 
 /**
  * Mengeksekusi penarikan dana (Disbursement) dari Vault pusat AliBank.
- * Menggunakan Smart Contract AliBankVaultV3 untuk akuntansi on-chain.
+ * Menggunakan Smart Contract yang terdaftar di API Management.
  */
 export async function executeVaultWithdrawalAction(
   recipient: string, 
@@ -28,30 +28,35 @@ export async function executeVaultWithdrawalAction(
 ) {
   // 1. Otorisasi Ketat: Hanya Super Admin AliBank yang sah
   if (adminUid !== OWNER_UID || adminEmail !== OWNER_EMAIL) {
-    throw new Error('Unauthorized: Node keamanan menolak akses administratif luar.');
+    throw new Error('Unauthorized: Akses administratif ditolak oleh Node Keamanan.');
   }
 
   try {
-    // 2. Ambil Kunci Vault dari GCP Secret Manager
+    // 2. Ambil Kunci Vault (GCP Secret Manager atau Firestore Fallback)
     const privateKey = await getVaultPrivateKey();
 
-    // 3. Inisialisasi Provider & Wallet Secure Node
-    const provider = new ethers.JsonRpcProvider(GLOBAL_RPC);
+    // 3. Ambil Konfigurasi Kontrak & RPC dari Firestore secara dinamis
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    const db = getFirestore(app);
+    const keySnap = await getDoc(doc(db, "system", "api_keys"));
+    
+    const config = keySnap.exists() ? keySnap.data() : {};
+    const rpcUrl = config.ethereumRpcUrl || "https://ethereum-rpc.publicnode.com";
+    const contractAddress = config.vaultContractAddress || "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
+
+    // 4. Inisialisasi Provider & Wallet Secure Node
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
     const wallet = new ethers.Wallet(privateKey, provider);
 
-    // 4. Inisialisasi Interface Kontrak Brankas
-    const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, AliBankVaultABI, wallet);
+    // 5. Inisialisasi Interface Kontrak Brankas
+    const vaultContract = new ethers.Contract(contractAddress, AliBankVaultABI, wallet);
 
-    // 5. Eksekusi Fungsi Withdraw pada Kontrak
-    // Ini lebih profesional daripada transfer ETH biasa karena tercatat di 'Withdrawal' event kontrak.
+    // 6. Eksekusi Fungsi Withdraw pada Kontrak
     const tx = await vaultContract.withdraw(recipient, ethers.parseEther(amount), {
-      gasLimit: 100000 
+      gasLimit: 150000 
     });
 
-    console.log(`Vault V3 Execution: ${tx.hash}`);
-
-    // 6. Tunggu Konfirmasi Node (Opsional untuk respons cepat)
-    // await tx.wait();
+    console.log(`Vault V3 Execution Successful: ${tx.hash}`);
 
     return { 
       success: true, 

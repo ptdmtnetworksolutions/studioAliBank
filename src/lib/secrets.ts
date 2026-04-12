@@ -1,16 +1,12 @@
-
 /**
- * @fileOverview Modul Server-Side untuk mengakses GCP Secret Manager.
- * Digunakan untuk mengambil kredensial sensitif seperti Vault Private Key.
- * Mendukung fallback ke Firestore untuk kemudahan konfigurasi di Firebase Studio.
+ * @fileOverview Modul Server-Side untuk mengakses kredensial sensitif.
+ * Diperbarui untuk mendukung pengambilan kunci yang lebih stabil di Firebase Studio.
  */
 
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { firebaseConfig } from '@/firebase/config';
-
-const client = new SecretManagerServiceClient();
 
 /**
  * Mengambil Private Key Vault AliBank.
@@ -20,31 +16,34 @@ const client = new SecretManagerServiceClient();
 export async function getVaultPrivateKey(): Promise<string> {
   const projectId = process.env.GCP_PROJECT_ID || 'darmedia-pos';
   
+  // 1. Upayakan akses melalui GCP Secret Manager (Standard Produksi)
   try {
-    // 1. Upayakan akses melalui GCP Secret Manager (Standard Produksi)
+    const client = new SecretManagerServiceClient();
     const [version] = await client.accessSecretVersion({
       name: `projects/${projectId}/secrets/ALIBANK_VAULT_PRIVATE_KEY/versions/latest`,
     });
 
     const payload = version.payload?.data?.toString();
     if (payload) return payload;
-    throw new Error('Empty payload');
   } catch (error: any) {
-    console.warn('Secret Manager tidak tersedia atau belum dikonfigurasi. Menggunakan fallback Firestore...');
-    
-    try {
-      // 2. Fallback: Ambil dari Firestore (Memudahkan setup di Firebase Studio)
-      const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-      const db = getFirestore(app);
-      const snap = await getDoc(doc(db, "system", "api_keys"));
-      
-      if (snap.exists() && snap.data().vaultPrivateKey) {
-        return snap.data().vaultPrivateKey;
-      }
-    } catch (fsError) {
-      console.error('Gagal mengambil kunci dari Firestore:', fsError);
-    }
-
-    throw new Error(`Vault key tidak ditemukan di project '${projectId}'. Silakan masukkan Private Key dompet MetaMask Anda pada menu 'Credential Vault' di Dashboard Admin.`);
+    console.warn('Secret Manager tidak tersedia. Mencoba fallback Firestore...');
   }
+  
+  // 2. Fallback: Ambil dari Firestore (system/api_keys)
+  try {
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    const db = getFirestore(app);
+    const snap = await getDoc(doc(db, "system", "api_keys"));
+    
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data.vaultPrivateKey) {
+        return data.vaultPrivateKey;
+      }
+    }
+  } catch (fsError) {
+    console.error('Gagal mengambil kunci dari Firestore:', fsError);
+  }
+
+  throw new Error(`Vault key tidak ditemukan di project '${projectId}'. Pastikan Anda sudah memasukkan Private Key MetaMask di menu 'API Management' pada Dashboard Admin.`);
 }
