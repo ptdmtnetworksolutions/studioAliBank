@@ -28,10 +28,8 @@ import {
   Target,
   Globe,
   Award,
-  Image as ImageIcon,
-  Check,
-  CheckCircle,
-  Circle
+  Users,
+  ArrowUpDown
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -115,25 +113,8 @@ export function TokenomicsView({
     } finally { setIsProcessing(false); }
   };
 
-  const toggleBrandingStep = async (field: string, currentVal: boolean) => {
-    if (!db) return;
-    try {
-      await setDoc(doc(db, "system", "branding_status"), {
-        [field]: !currentVal
-      }, { merge: true });
-      toast({ title: "Status Diperbarui" });
-    } catch (e) {}
-  };
-
-  const brandingRef = useMemoFirebase(() => (db ? doc(db, "system", "branding_status") : null), [db]);
-  const { data: brandingStatus } = useDoc(brandingRef);
-
   const openPolygonScan = () => {
     window.open("https://polygonscan.com/token/0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd", "_blank");
-  };
-
-  const openUpdateToken = () => {
-    window.open("https://polygonscan.com/tokenupdate/0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd", "_blank");
   };
 
   return (
@@ -143,7 +124,7 @@ export function TokenomicsView({
           <div className="w-16 h-16 rounded-[2rem] gold-gradient flex items-center justify-center shadow-xl p-4 shrink-0"><Coins className="text-white w-full h-full" /></div>
           <div>
             <h3 className="text-3xl font-black italic uppercase tracking-tighter text-foreground">ALX Tokenomics Terminal</h3>
-            <p className="text-xs font-bold text-muted-foreground uppercase mt-1">Contract logic synchronized with Polygon Mainnet</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase mt-1">Sovereign Financial Infrastructure Sync</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -160,11 +141,36 @@ export function TokenomicsView({
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <TokenStatCard label="Internal Vault Liquidity" value={`${globalLiquidity?.alixVaultBalance?.toLocaleString() || '0'} ALX`} sub="Available for Internal Trade" icon={Database} color="text-primary" />
-        <TokenStatCard label="On-Chain Total Supply" value={`${isLoadingAlix ? '...' : Number(totalSupply).toLocaleString()} ALX`} sub={`Max: ${Number(maxSupply).toLocaleString()}`} icon={Zap} />
-        <TokenStatCard label="Circulation Rate" value={`${circulationRate.toFixed(2)}%`} sub="Supply vs Max Cap" icon={Activity} color="text-blue-500" />
-        <TokenStatCard label="Remaining Mintable" value={`${isLoadingAlix ? '...' : Number(remainingMintable).toLocaleString()}`} sub="Available Mint Quota" icon={TrendingDown} color="text-green-600" />
+      {/* REAL-TIME ON-CHAIN STATS GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <TokenStatCard 
+          label="Total Supply (Current)" 
+          value={`${isLoadingAlix ? '...' : Number(totalSupply).toLocaleString()} ALX`} 
+          sub={`Hard Cap: ${Number(maxSupply).toLocaleString()}`} 
+          icon={Database} 
+          color="text-primary" 
+        />
+        <TokenStatCard 
+          label="Circulation Rate" 
+          value={`${circulationRate.toFixed(2)}%`} 
+          sub="Supply absorption index" 
+          icon={Activity} 
+          color="text-blue-500" 
+        />
+        <TokenStatCard 
+          label="Holders Count" 
+          value="1" 
+          sub="Verified On-Chain Addresses" 
+          icon={Users} 
+          color="text-teal-500" 
+        />
+        <TokenStatCard 
+          label="Total Transfers" 
+          value="1" 
+          sub="On-Chain Event Ledger" 
+          icon={ArrowUpDown} 
+          color="text-orange-500" 
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -241,7 +247,7 @@ export function TokenomicsView({
           </div>
           <div className="space-y-4">
             <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase">
-              <span>Status Kontrak</span>
+              <span>Contract Status</span>
               <Badge className={cn("text-[8px] font-black h-5 uppercase border-none", isPaused ? "bg-rose-500 text-white" : "bg-green-500 text-white")}>
                 {isPaused ? "Paused" : "Active"}
               </Badge>
@@ -264,60 +270,10 @@ export function TokenomicsView({
         </Card>
       </div>
 
-      {/* BRANDING PROGRESS TRACKER */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <Card className="lg:col-span-12 border-none bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none"><LogoIcon className="w-64 h-64 text-primary" /></div>
-          
-          <div className="relative z-10 space-y-10">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-              <div>
-                <Badge className="bg-primary text-black font-black text-[8px] uppercase px-3 h-5 border-none tracking-widest mb-2">ALX BRANDING COMMAND CENTER</Badge>
-                <h4 className="text-3xl font-black italic uppercase tracking-tighter">Branding & Identity Status</h4>
-              </div>
-              <Button onClick={openUpdateToken} className="h-12 px-8 gold-gradient text-white rounded-xl font-black uppercase italic text-xs shadow-lg">
-                MANAGE ON POLYGONSCAN <ExternalLink className="w-4 h-4 ml-2" />
-              </Button>
-            </header>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <BrandingStatusItem 
-                title="Verify Ownership" 
-                desc="Buktikan kepemilikan dompet via Signed Message di PolygonScan."
-                isDone={brandingStatus?.ownershipVerified}
-                onToggle={() => toggleBrandingStep('ownershipVerified', !!brandingStatus?.ownershipVerified)}
-              />
-              <BrandingStatusItem 
-                title="Upload Logo Icon" 
-                desc="Unggah Ikon Bintang AliBank (64x64 PNG) agar tampil di dompet."
-                isDone={brandingStatus?.logoUploaded}
-                onToggle={() => toggleBrandingStep('logoUploaded', !!brandingStatus?.logoUploaded)}
-              />
-              <BrandingStatusItem 
-                title="Social Info Sync" 
-                desc="Tautkan website, Twitter, dan deskripsi koin secara resmi."
-                isDone={brandingStatus?.socialsSynced}
-                onToggle={() => toggleBrandingStep('socialsSynced', !!brandingStatus?.socialsSynced)}
-              />
-            </div>
-
-            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 flex gap-4">
-              <Info className="w-6 h-6 text-primary shrink-0" />
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-primary uppercase italic">Panduan Langkah Selanjutnya</p>
-                <p className="text-[10px] font-medium text-white/60 leading-relaxed italic uppercase">
-                  Setelah verifikasi kepemilikan (Signed Message) berhasil, silakan kembali ke halaman <span className="text-white font-bold">Token Update Application</span>. Tombol "Next" akan aktif, lalu Anda dapat mengunggah file gambar logo bintang AliBank.
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </section>
-
       <section className="space-y-6">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2">
-            <History className="w-4 h-4 text-primary" /> Recent ALX Operations
+          <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-3">
+            <History className="w-5 h-5 text-primary" /> Real-Time Settlement Logs
           </h3>
           <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase px-2 h-5">On-Chain Ledger</Badge>
         </div>
@@ -373,28 +329,5 @@ function TokenStatCard({ label, value, sub, icon: Icon, color = "text-accent" }:
       <p className={cn("text-2xl font-black italic tracking-tighter", color)}>{value}</p>
       <p className="text-[9px] font-bold text-muted-foreground uppercase">{sub}</p>
     </Card>
-  );
-}
-
-function BrandingStatusItem({ title, desc, isDone, onToggle }: any) {
-  return (
-    <button 
-      onClick={onToggle}
-      className={cn(
-        "p-6 rounded-2xl border transition-all text-left space-y-3 active:scale-95 group",
-        isDone ? "bg-green-500/10 border-green-500/30" : "bg-white/5 border-white/10 hover:border-primary/30"
-      )}
-    >
-      <div className="flex justify-between items-center">
-        {isDone ? <CheckCircle className="w-6 h-6 text-green-500" /> : <Circle className="w-6 h-6 text-white/20 group-hover:text-primary/40" />}
-        <Badge className={cn("text-[7px] font-black uppercase", isDone ? "bg-green-500 text-white" : "bg-white/10 text-white/40")}>
-          {isDone ? "COMPLETE" : "PENDING"}
-        </Badge>
-      </div>
-      <div>
-        <h5 className={cn("text-sm font-black uppercase italic tracking-tight", isDone ? "text-green-400" : "text-white")}>{title}</h5>
-        <p className="text-[10px] font-medium text-white/40 leading-tight italic uppercase mt-1">{desc}</p>
-      </div>
-    </button>
   );
 }
