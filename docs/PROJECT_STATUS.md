@@ -39,9 +39,10 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 
 ---
 
-## 4. PETUNJUK SINKRONISASI ANDROID STUDIO
-- **Android Studio** bertindak sebagai klien native yang menggunakan skema data dari `/docs/backend.json`.
-- Gunakan `docs/ANDROID_SYNC_GUIDE.md` untuk mengimplementasikan logika yang sama di Kotlin.
+## 4. STATUS BRANDING & ON-CHAIN (ONGOING)
+- [x] **Smart Contract Verified**: AlixCoin V3.1 resmi diverifikasi di PolygonScan.
+- [x] **Ownership Verified**: Verifikasi kepemilikan alamat (Signature) selesai.
+- [ ] **Token Update Submission**: Sedang dalam proses pengajuan logo dan info project di PolygonScan (Estimasi 24-72 jam).
 
 ---
-*Terakhir Diperbarui: Mei 2026 - Storage & App Hosting Status: ACTIVE*
+*Terakhir Diperbarui: Mei 2026 - Branding Status: SUBMITTING*
