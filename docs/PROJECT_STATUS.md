@@ -39,10 +39,11 @@ AliBank V3 adalah platform perbankan hibrida yang menggabungkan kemudahan layana
 
 ---
 
-## 4. STATUS BRANDING & ON-CHAIN (ONGOING)
+## 4. STATUS BRANDING & ON-CHAIN (VERIFIED)
 - [x] **Smart Contract Verified**: AlixCoin V3.1 resmi diverifikasi di PolygonScan.
 - [x] **Ownership Verified**: Verifikasi kepemilikan alamat (Signature) selesai.
-- [ ] **Token Update Submission**: Sedang dalam proses pengajuan logo dan info project di PolygonScan (Estimasi 24-72 jam).
+- [x] **Logo & Info Submission**: Form pengajuan branding telah dikirim ke PolygonScan.
+- [ ] **Branding Display Active**: Menunggu persetujuan moderator PolygonScan (Estimasi 24-72 jam).
 
 ---
-*Terakhir Diperbarui: Mei 2026 - Branding Status: SUBMITTING*
+*Terakhir Diperbarui: Mei 2026 - Branding Status: SUBMITTED (Reviewing)*
