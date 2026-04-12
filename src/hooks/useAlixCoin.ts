@@ -10,7 +10,6 @@ import { firebaseConfig } from '@/firebase/config';
 
 const ALX_ADDRESS_DEFAULT = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
 
-// Daftar RPC Fallback untuk stabilitas tinggi di jaringan Polygon
 const FALLBACK_RPCS = [
   "https://rpc.ankr.com/polygon",
   "https://polygon-bor-rpc.publicnode.com",
@@ -27,9 +26,6 @@ export function useAlixCoin() {
   const [isLoading, setIsLoading]               = useState<boolean>(true);
 
   const fetchData = useCallback(async () => {
-    let success = false;
-    
-    // 1. Ambil URL RPC & Alamat Kontrak dari Firestore (Prioritas)
     let dynamicRpc = "";
     let dynamicAddress = ALX_ADDRESS_DEFAULT;
 
@@ -47,8 +43,8 @@ export function useAlixCoin() {
     }
 
     const rpcsToTry = dynamicRpc ? [dynamicRpc, ...FALLBACK_RPCS] : FALLBACK_RPCS;
+    let success = false;
 
-    // Iterasi melalui RPC fallback jika terjadi gangguan koneksi
     for (const rpcUrl of rpcsToTry) {
       if (success) break;
       
@@ -70,6 +66,7 @@ export function useAlixCoin() {
         setTotalSupply(ethers.formatEther(supply));
         setMaxSupply(ethers.formatEther(max));
         setRemaining(ethers.formatEther(remaining));
+        // Kontrak V3.1 menggunakan basis points (10000 = 100%)
         setCirculationRate(Number(rate) / 100);
         setIsPaused(paused);
         
@@ -87,7 +84,6 @@ export function useAlixCoin() {
     amount: string,
     signer: ethers.Signer
   ) => {
-    // Ambil Alamat Kontrak Dinamis
     let dynamicAddress = ALX_ADDRESS_DEFAULT;
     try {
       const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -99,7 +95,6 @@ export function useAlixCoin() {
     const contract = new ethers.Contract(dynamicAddress, AlixCoinABI, signer);
     const amountWei = ethers.parseEther(amount);
     
-    // Pastikan jaringan adalah Polygon (Chain ID 137)
     const network = await signer.provider?.getNetwork();
     if (network?.chainId !== 137n) {
       throw new Error("MetaMask harus berada di jaringan Polygon Mainnet.");
