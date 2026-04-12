@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -21,14 +20,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { LogoIcon } from "@/components/ui/logo";
 
 export function AuditLogsView({ auditLogs }: any) {
-  // PAGINATION & SEARCH STATE
+  // PAGINASI & PENCARIAN
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const itemsPerPage = 10;
 
-  // LOGIKA ANALITIK UNTUK PEMILIK APLIKASI
+  // LOGIKA ANALITIK UNTUK PEMILIK APLIKASI (Agregasi Data Riil)
   const stats = useMemo(() => {
     if (!auditLogs) return { inflow: 0, outflow: 0, fees: 0, captures: 0, successRate: 0 };
     
@@ -65,7 +65,7 @@ export function AuditLogsView({ auditLogs }: any) {
     };
   }, [auditLogs]);
 
-  // FILTER LOGS BERDASARKAN PENCARIAN
+  // FILTER LOG BERDASARKAN PENCARIAN
   const filteredLogs = useMemo(() => {
     if (!auditLogs) return [];
     if (!searchTerm) return auditLogs;
@@ -104,7 +104,7 @@ export function AuditLogsView({ auditLogs }: any) {
         </div>
       </header>
 
-      {/* ANALYTIC CARDS - FINANCIAL INSIGHTS */}
+      {/* KARTU ANALITIK - WAWASAN PEMILIK */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <AnalyticCard 
           icon={ArrowDownLeft} 
@@ -115,7 +115,7 @@ export function AuditLogsView({ auditLogs }: any) {
         />
         <AnalyticCard 
           icon={Zap} 
-          label="Pendapatan Fee" 
+          label="Pendapatan Biaya" 
           value={`Rp ${stats.fees.toLocaleString()}`} 
           sub="Biaya Operasional Bursa" 
           color="text-primary" 
@@ -129,14 +129,14 @@ export function AuditLogsView({ auditLogs }: any) {
         />
         <AnalyticCard 
           icon={ShieldCheck} 
-          label="Node Efficiency" 
+          label="Efisiensi Node" 
           value={`${stats.successRate.toFixed(1)}%`} 
           sub="Skor Keberhasilan Sistem" 
           color="text-purple-500" 
         />
       </div>
 
-      {/* LEDGER TABLE CONTAINER */}
+      {/* CONTAINER TABEL BUKU BESAR */}
       <Card className="border-none bg-card rounded-[3rem] overflow-hidden shadow-sm">
         <div className="p-8 border-b border-border bg-muted/30 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="relative w-full max-w-md">
@@ -151,7 +151,7 @@ export function AuditLogsView({ auditLogs }: any) {
           
           <div className="flex items-center gap-6">
             <Badge className="bg-primary/10 text-primary border-none text-[9px] font-black uppercase px-3 h-6 flex items-center">
-              Record: {filteredLogs.length} Entri
+              Rekaman: {filteredLogs.length} Entri
             </Badge>
             <div className="flex items-center gap-2">
               <Button 
@@ -183,7 +183,7 @@ export function AuditLogsView({ auditLogs }: any) {
           <table className="w-full text-left">
             <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
               <tr>
-                <th className="px-8 py-6">Timestamp & Status</th>
+                <th className="px-8 py-6">Waktu & Status</th>
                 <th className="px-8 py-6">Konteks Operasi</th>
                 <th className="px-8 py-6">Entitas Nasabah</th>
                 <th className="px-8 py-6 text-right">Nilai Eksekusi</th>
@@ -203,7 +203,7 @@ export function AuditLogsView({ auditLogs }: any) {
                           log.status === 'success' || log.status === 'berhasil' ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-amber-500"
                         )} />
                         <span className="text-[9px] font-black uppercase italic tracking-tighter opacity-60">
-                          {log.status || 'Pending'}
+                          {log.status || 'Tertunda'}
                         </span>
                       </div>
                     </div>
@@ -214,13 +214,13 @@ export function AuditLogsView({ auditLogs }: any) {
                         <Badge className="bg-muted text-foreground border-none text-[8px] font-black h-5 uppercase px-2">
                           {log.category}
                         </Badge>
-                        <span className="text-[8px] font-bold text-primary uppercase">{log.gateway || 'Core Node'}</span>
+                        <span className="text-[8px] font-bold text-primary uppercase">{log.gateway || 'Node Inti'}</span>
                       </div>
                       <p className="text-[11px] font-black uppercase italic text-accent leading-tight max-w-xs truncate">
                         {log.description}
                       </p>
                       {log.txHash && (
-                        <div className="flex items-center gap-1.5 text-[8px] font-mono text-blue-500 cursor-pointer hover:underline">
+                        <div className="flex items-center gap-1.5 text-[8px] font-mono text-blue-500 cursor-pointer hover:underline" onClick={() => window.open(`https://polygonscan.com/tx/${log.txHash}`, '_blank')}>
                           <Activity className="w-2.5 h-2.5" /> Hash: {log.txHash.slice(0, 20)}...
                         </div>
                       )}
@@ -232,8 +232,8 @@ export function AuditLogsView({ auditLogs }: any) {
                         <UserIcon className="w-4 h-4 text-muted-foreground" />
                       </div>
                       <div>
-                        <p className="text-[10px] font-black italic uppercase text-foreground">{log.userEmail?.split('@')[0] || 'System'}</p>
-                        <p className="text-[8px] font-bold text-muted-foreground uppercase">{log.userEmail || 'Internal Operation'}</p>
+                        <p className="text-[10px] font-black italic uppercase text-foreground">{log.userEmail?.split('@')[0] || 'Sistem'}</p>
+                        <p className="text-[8px] font-bold text-muted-foreground uppercase">{log.userEmail || 'Operasi Internal'}</p>
                       </div>
                     </div>
                   </td>
@@ -270,7 +270,7 @@ export function AuditLogsView({ auditLogs }: any) {
           </table>
         </div>
 
-        {/* BOTTOM PAGINATION CONTROLS */}
+        {/* KONTROL PAGINASI BAWAH */}
         <div className="p-8 bg-muted/30 border-t border-border flex flex-col md:flex-row justify-between items-center gap-6">
           <p className="text-[10px] font-bold text-muted-foreground uppercase italic">
             Menampilkan {paginatedLogs.length} dari {filteredLogs.length} rekaman audit sistem
@@ -314,7 +314,7 @@ export function AuditLogsView({ auditLogs }: any) {
         </div>
       </Card>
 
-      {/* FOOTER INFO - PROFESSIONAL COMPLIANCE */}
+      {/* INFO KEPATUHAN */}
       <div className="p-8 rounded-[2.5rem] bg-accent/5 border border-primary/10 flex flex-col md:flex-row items-center gap-6">
         <div className="w-16 h-16 rounded-3xl gold-gradient flex items-center justify-center shrink-0 shadow-xl p-4">
           <LogoIcon className="text-white" />
@@ -337,7 +337,7 @@ function AnalyticCard({ icon: Icon, label, value, sub, color }: any) {
         <div className={cn("w-12 h-12 rounded-2xl bg-muted flex items-center justify-center transition-transform group-hover:scale-110", color)}>
           <Icon className="w-6 h-6" />
         </div>
-        <Badge variant="outline" className="border-border text-[7px] font-black uppercase tracking-widest px-2 h-5">Live Stats</Badge>
+        <Badge variant="outline" className="border-border text-[7px] font-black uppercase tracking-widest px-2 h-5">Statistik Live</Badge>
       </div>
       <div>
         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest leading-none mb-1.5">{label}</p>
