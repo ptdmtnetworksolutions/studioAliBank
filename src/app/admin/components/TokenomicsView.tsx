@@ -24,7 +24,8 @@ import {
   History,
   CheckCircle2,
   TrendingDown,
-  Pickaxe
+  Pickaxe,
+  ExternalLink
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -109,14 +110,32 @@ export function TokenomicsView({
     } finally { setIsProcessing(false); }
   };
 
+  const openPolygonScan = () => {
+    window.open("https://polygonscan.com/token/0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd", "_blank");
+  };
+
   return (
     <div className="animate-in slide-in-from-bottom-10 duration-700 space-y-10">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="flex items-center gap-6">
           <div className="w-16 h-16 rounded-[2rem] gold-gradient flex items-center justify-center shadow-xl p-4 shrink-0"><Coins className="text-white w-full h-full" /></div>
-          <div><h3 className="text-3xl font-black italic uppercase tracking-tighter">ALX Tokenomics Terminal</h3><p className="text-xs font-bold text-muted-foreground uppercase mt-1">Contract logic synchronized with Polygon Mainnet</p></div>
+          <div>
+            <h3 className="text-3xl font-black italic uppercase tracking-tighter text-foreground">ALX Tokenomics Terminal</h3>
+            <p className="text-xs font-bold text-muted-foreground uppercase mt-1">Contract logic synchronized with Polygon Mainnet</p>
+          </div>
         </div>
-        <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg">V3.1 ON-CHAIN PROTOCOL ACTIVE</Badge>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={openPolygonScan}
+            className="rounded-full h-10 px-6 border-primary/20 text-primary font-black uppercase text-[10px] italic shadow-sm hover:bg-primary/5"
+          >
+            VIEW ON POLYGONSCAN <ExternalLink className="w-3.5 h-3.5 ml-2" />
+          </Button>
+          <Badge className="bg-primary text-primary-foreground font-black uppercase text-[10px] px-6 h-10 rounded-full italic tracking-widest shadow-lg border-none flex items-center">
+            V3.1 ON-CHAIN PROTOCOL ACTIVE
+          </Badge>
+        </div>
       </header>
 
       {/* Internal vs On-Chain Summary */}
@@ -144,12 +163,12 @@ export function TokenomicsView({
                     placeholder="0.00" 
                     value={mintAmount} 
                     onChange={(e) => setMintAmount(e.target.value)} 
-                    className="h-16 bg-background border-none rounded-2xl font-black italic text-2xl pl-8 pr-20" 
+                    className="h-16 bg-background border-none rounded-2xl font-black italic text-2xl pl-8 pr-20 focus:ring-2 focus:ring-primary/20" 
                   />
                   <div className="absolute right-6 top-1/2 -translate-y-1/2 text-sm font-black text-primary italic">ALX</div>
                 </div>
               </div>
-              <Button onClick={handleMint} disabled={!mintAmount || isProcessing} className="w-full h-14 gold-gradient text-white rounded-xl font-black uppercase italic tracking-widest shadow-xl border-none">
+              <Button onClick={handleMint} disabled={!mintAmount || isProcessing} className="w-full h-14 gold-gradient text-white rounded-xl font-black uppercase italic tracking-widest shadow-xl border-none active:scale-[0.98] transition-transform">
                 {isProcessing ? <Loader2 className="animate-spin" /> : "EXECUTE ON-CHAIN MINT"}
               </Button>
             </div>
@@ -163,12 +182,12 @@ export function TokenomicsView({
                     placeholder="0.00" 
                     value={burnAmountInput} 
                     onChange={(e) => setBurnAmountInput(e.target.value)} 
-                    className="h-16 bg-background border-none rounded-2xl font-black italic text-2xl pl-8 pr-20" 
+                    className="h-16 bg-background border-none rounded-2xl font-black italic text-2xl pl-8 pr-20 focus:ring-2 focus:ring-rose-500/20" 
                   />
                   <div className="absolute right-6 top-1/2 -translate-y-1/2 text-sm font-black text-rose-500 italic">ALX</div>
                 </div>
               </div>
-              <Button onClick={handleBurn} disabled={!burnAmountInput || isProcessing} className="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black uppercase italic tracking-widest shadow-xl border-none">
+              <Button onClick={handleBurn} disabled={!burnAmountInput || isProcessing} className="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black uppercase italic tracking-widest shadow-xl border-none active:scale-[0.98] transition-transform">
                 {isProcessing ? <Loader2 className="animate-spin" /> : <span className="flex items-center gap-2"><Pickaxe className="w-4 h-4" /> EXECUTE TOKEN BURN</span>}
               </Button>
             </div>
@@ -202,7 +221,7 @@ export function TokenomicsView({
           <div className="space-y-4">
             <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase">
               <span>Status Kontrak</span>
-              <Badge className={cn("text-[8px] font-black h-5 uppercase", isPaused ? "bg-rose-500" : "bg-green-500")}>
+              <Badge className={cn("text-[8px] font-black h-5 uppercase border-none", isPaused ? "bg-rose-500 text-white" : "bg-green-500 text-white")}>
                 {isPaused ? "Paused" : "Active"}
               </Badge>
             </div>
@@ -275,8 +294,11 @@ export function TokenomicsView({
 
 function TokenStatCard({ label, value, sub, icon: Icon, color = "text-accent" }: any) {
   return (
-    <Card className="border-none bg-card rounded-[2.5rem] p-8 space-y-4 shadow-sm">
-      <div className="flex justify-between items-start"><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{label}</p><Icon className={cn("w-4 h-4 opacity-20", color)} /></div>
+    <Card className="border-none bg-card rounded-[2.5rem] p-8 space-y-4 shadow-sm border border-border/50">
+      <div className="flex justify-between items-start">
+        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{label}</p>
+        <Icon className={cn("w-4 h-4 opacity-20", color)} />
+      </div>
       <p className={cn("text-2xl font-black italic tracking-tighter", color)}>{value}</p>
       <p className="text-[9px] font-bold text-muted-foreground uppercase">{sub}</p>
     </Card>
