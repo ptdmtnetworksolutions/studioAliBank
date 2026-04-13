@@ -113,11 +113,12 @@ export default function ConvertPage() {
   }, [fetchPrices]);
 
   const gasFee = useMemo(() => {
-    // Simulasi Biaya Gas berdasarkan target network
+    // Simulasi Biaya Gas berdasarkan target network (perbaikan: tidak nol untuk USDT)
     if (toAsset === 'BTC') return 0.00005;
     if (toAsset === 'ETH') return 0.0006;
     if (toAsset === 'ALX') return 0.000001;
-    return 0; // USDT/IDR internal
+    if (toAsset === 'USDT') return 0.5; // Biaya kliring bridge stablecoin
+    return 0; // IDR internal diproses tanpa gas
   }, [toAsset]);
 
   const convertedValue = useMemo(() => {
