@@ -27,7 +27,8 @@ import {
   AlertCircle,
   Plus,
   Search,
-  Wifi
+  Wifi,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -91,7 +92,6 @@ export default function CryptoBuyPage() {
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
   const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS[0]);
-  const [selectedWithdrawalAccount, setSelectedWithdrawalAccount] = useState<any>(null);
   const [dynamicUsdtRate, setDynamicUsdtRate] = useState(15850);
   const [isRateLoading, setIsRateLoading] = useState(true);
   const [lastSync, setLastSync] = useState<string>("");
@@ -102,14 +102,10 @@ export default function CryptoBuyPage() {
   const [isCheckoutDialogOpen, setIsCheckoutDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paypalReady, setPaypalReady] = useState(false);
-  const [midtransReady, setMidtransReady] = useState(false);
   const [gatewayError, setGatewayError] = useState<string | null>(null);
   const [step, setStep] = useState<'input' | 'success'>('input');
   
   const [currencySearch, setCurrencySearch] = useState("");
-  const [proofImage, setProofImage] = useState<File | null>(null);
-  const [proofPreview, setProofPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const paypalContainerRef = useRef<HTMLDivElement>(null);
   const renderInProgress = useRef(false);
   const retryCount = useRef(0);
@@ -120,12 +116,11 @@ export default function CryptoBuyPage() {
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  // FIX: Sinkronisasi Kurs USD/IDR Real-Time dengan header anti-cache sangat ketat
+  // KRITIS: Menambahkan timestamp untuk memecah cache jaringan di mode Publish
   const fetchRealTimeRate = useCallback(async () => {
     try {
       setIsRateLoading(true);
-      // Gunakan timestamp unik untuk memecahkan cache browser apa pun
-      const res = await fetch(`/api/market/ticker?symbol=USDTIDR&_t=${Date.now()}`, { 
+      const res = await fetch(`/api/market/ticker?symbol=USDTIDR&t=${Date.now()}`, { 
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
       });
@@ -135,11 +130,11 @@ export default function CryptoBuyPage() {
           const newRate = parseFloat(data.lastPrice);
           setDynamicUsdtRate(newRate);
           setLastSync(new Date().toLocaleTimeString());
+          setIsRateLoading(false);
         }
       }
     } catch (e) {
       console.warn("Real-time rate sync failed, using bank fallback:", e);
-    } finally {
       setIsRateLoading(false);
     }
   }, []);
@@ -147,21 +142,13 @@ export default function CryptoBuyPage() {
   useEffect(() => {
     setMounted(true);
     fetchRealTimeRate();
-    const interval = setInterval(fetchRealTimeRate, 10000); // Sinkronisasi setiap 10 detik
-
-    const savedCurrency = localStorage.getItem("alibank-payment-currency");
-    if (savedCurrency) {
-      try {
-        setSelectedCurrency(JSON.parse(savedCurrency));
-      } catch (e) {}
-    }
+    const interval = setInterval(fetchRealTimeRate, 10000);
     return () => clearInterval(interval);
   }, [fetchRealTimeRate]);
 
   const getRateToIdr = useCallback((code: string) => {
     if (code === 'IDR') return 1;
     if (code === 'USD') return dynamicUsdtRate;
-    // Multi-currency mapping via stable rates relative to dynamic USDT/IDR
     const rates: Record<string, number> = {
       'EUR': dynamicUsdtRate * 1.08,
       'GBP': dynamicUsdtRate * 1.26,
@@ -178,8 +165,8 @@ export default function CryptoBuyPage() {
     const num = parseFloat(cleanAmount);
     if (isNaN(num) || num <= 0) return 0;
     const baseAmountIdr = num * getRateToIdr(selectedCurrency.code);
-    return Math.floor(baseAmountIdr + uniqueCode);
-  }, [amount, uniqueCode, selectedCurrency, getRateToIdr]);
+    return Math.floor(baseAmountIdr);
+  }, [amount, selectedCurrency, getRateToIdr]);
 
   const estimatedCrypto = useMemo(() => {
     const cleanAmount = amount.replace(',', '.');
@@ -187,12 +174,9 @@ export default function CryptoBuyPage() {
     if (isNaN(num) || num <= 0) return "0";
     const amountInIdr = num * getRateToIdr(selectedCurrency.code);
     const amountInUsd = amountInIdr / dynamicUsdtRate;
-    
-    const markup = activeTab === 'beli' ? (selectedAsset.isNative ? 1 : 1.02) : 1;
-    const priceWithMarkup = selectedAsset.priceUsd * markup;
-    
+    const priceWithMarkup = selectedAsset.priceUsd * (selectedAsset.isNative ? 1 : 1.02);
     return (amountInUsd / priceWithMarkup).toFixed(selectedAsset.symbol === 'BTC' ? 8 : 4);
-  }, [amount, selectedAsset, selectedCurrency, activeTab, getRateToIdr, dynamicUsdtRate]);
+  }, [amount, selectedAsset, selectedCurrency, getRateToIdr, dynamicUsdtRate]);
 
   const usdValue = useMemo(() => {
     const cleanAmount = amount.replace(',', '.');
@@ -201,22 +185,6 @@ export default function CryptoBuyPage() {
     const amountInIdr = num * getRateToIdr(selectedCurrency.code);
     return (amountInIdr / dynamicUsdtRate).toFixed(2);
   }, [amount, selectedCurrency, getRateToIdr, dynamicUsdtRate]);
-
-  const handleCurrencySelect = (currency: Currency) => {
-    const oldRate = getRateToIdr(selectedCurrency.code);
-    const newRate = getRateToIdr(currency.code);
-    const currentNum = parseFloat(amount.replace(',', '.')) || 0;
-    
-    if (currentNum > 0) {
-      const converted = (currentNum * oldRate) / newRate;
-      setAmount(converted.toFixed(currency.code === 'IDR' ? 0 : 2).replace('.', ','));
-    }
-    
-    setSelectedCurrency(currency);
-    setIsCurrencySheetOpen(false);
-    setCurrencySearch("");
-    localStorage.setItem("alibank-payment-currency", JSON.stringify(currency));
-  };
 
   const handleKeyPress = (num: string) => {
     if (amount === "0") setAmount(num);
@@ -236,24 +204,16 @@ export default function CryptoBuyPage() {
 
     try {
       const userUpdates: any = {};
-      const systemUpdates: any = {
-        totalUsdInjected: increment(activeTab === 'beli' ? parseFloat(usdValue) : -parseFloat(usdValue)),
-        totalFiatInjected: increment(activeTab === 'beli' ? fiatAmountIdr : -fiatAmountIdr)
-      };
-
-      if (activeTab === 'beli') {
-        userUpdates[`cryptoBalances.${selectedAsset.symbol}`] = increment(cryptoAmount);
-      } else {
-        userUpdates[`cryptoBalances.${selectedAsset.symbol}`] = increment(-cryptoAmount);
-        userUpdates.totalBalance = increment(fiatAmountIdr);
-        if (selectedAsset.symbol === 'ALX') systemUpdates.alixVaultBalance = increment(cryptoAmount);
-      }
+      userUpdates[`cryptoBalances.${selectedAsset.symbol}`] = increment(cryptoAmount);
 
       await updateDoc(userDocRef, userUpdates);
-      await updateDoc(doc(db, "system", "liquidity"), systemUpdates);
+      await updateDoc(doc(db, "system", "liquidity"), {
+        totalUsdInjected: increment(parseFloat(usdValue)),
+        totalFiatInjected: increment(fiatAmountIdr)
+      });
 
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
-        id: `${activeTab.toUpperCase()}-${paymentDetails.id || Date.now()}`,
+        id: `BUY-${paymentDetails.id || Date.now()}`,
         category: "Market Execution",
         gateway: paymentDetails.gateway || selectedPayment.name,
         amountIdr: fiatAmountIdr,
@@ -262,18 +222,6 @@ export default function CryptoBuyPage() {
         status: "success",
         timestamp: serverTimestamp(),
         userEmail: user.email
-      });
-
-      await addDoc(collection(db, "users", user.uid, "transactions"), {
-        date: new Date().toISOString(),
-        description: `${activeTab === 'beli' ? 'Beli' : 'Jual'} ${selectedAsset.symbol}`,
-        category: "Trading",
-        amount: fiatAmountIdr,
-        cryptoAmount: cryptoAmount,
-        cryptoCurrency: selectedAsset.symbol,
-        type: activeTab === 'beli' ? 'expense' : 'income',
-        status: "success",
-        timestamp: serverTimestamp()
       });
 
       setIsCheckoutDialogOpen(false);
@@ -285,7 +233,6 @@ export default function CryptoBuyPage() {
     }
   };
 
-  // FIX: Logika Rendering PayPal yang lebih stabil
   const renderPayPalButtons = useCallback(async () => {
     if (!paypalContainerRef.current || !isCheckoutDialogOpen || !systemKeys?.paypalClientId) return;
     if (selectedPayment.id !== 'card') return;
@@ -303,7 +250,6 @@ export default function CryptoBuyPage() {
     if (renderInProgress.current) return;
     renderInProgress.current = true;
     setGatewayError(null);
-
     paypalContainerRef.current.innerHTML = "";
 
     try {
@@ -313,7 +259,7 @@ export default function CryptoBuyPage() {
           return actions.order.create({
             purchase_units: [{
               amount: { currency_code: "USD", value: usdValue },
-              description: `AliBank ${activeTab.toUpperCase()}: ${estimatedCrypto} ${selectedAsset.symbol}`
+              description: `AliBank Buy: ${estimatedCrypto} ${selectedAsset.symbol}`
             }]
           });
         },
@@ -331,7 +277,6 @@ export default function CryptoBuyPage() {
           }
         },
         onError: (err: any) => {
-          console.error("PayPal Error:", err);
           setGatewayError("Hambatan node PayPal terdeteksi.");
           renderInProgress.current = false;
         }
@@ -341,14 +286,13 @@ export default function CryptoBuyPage() {
       renderInProgress.current = false;
       setTimeout(renderPayPalButtons, 1000);
     }
-  }, [isCheckoutDialogOpen, selectedPayment.id, usdValue, estimatedCrypto, selectedAsset.symbol, systemKeys?.paypalClientId, toast, activeTab]);
+  }, [isCheckoutDialogOpen, selectedPayment.id, usdValue, estimatedCrypto, selectedAsset.symbol, systemKeys?.paypalClientId, toast]);
 
   useEffect(() => {
     if (isCheckoutDialogOpen && selectedPayment.id === 'card') {
       retryCount.current = 0;
       renderInProgress.current = false;
-      const timer = setTimeout(renderPayPalButtons, 800);
-      return () => clearTimeout(timer);
+      setTimeout(renderPayPalButtons, 800);
     }
   }, [isCheckoutDialogOpen, selectedPayment.id, renderPayPalButtons]);
 
@@ -360,10 +304,10 @@ export default function CryptoBuyPage() {
         <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mb-6">
           <CheckCircle2 className="w-10 h-10 text-green-600" />
         </div>
-        <h2 className="text-2xl font-black italic uppercase text-center mb-2">{activeTab === 'beli' ? 'Pembelian Berhasil' : 'Penjualan Berhasil'}</h2>
+        <h2 className="text-2xl font-black italic uppercase text-center mb-2">Pembelian Berhasil</h2>
         <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 space-y-4 mb-8 text-center shadow-2xl">
-          <p className="text-[10px] font-black text-muted-foreground uppercase">{activeTab === 'beli' ? 'Jumlah Diterima' : 'Jumlah Dicairkan'}</p>
-          <p className="text-3xl font-black text-primary italic">{activeTab === 'beli' ? `${estimatedCrypto} ${selectedAsset.symbol}` : `Rp ${totalAmountIdr.toLocaleString('id-ID')}`}</p>
+          <p className="text-[10px] font-black text-muted-foreground uppercase">Jumlah Diterima</p>
+          <p className="text-3xl font-black text-primary italic">{estimatedCrypto} {selectedAsset.symbol}</p>
         </Card>
         <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl" onClick={() => router.push('/')}>Beranda</Button>
       </div>
@@ -384,7 +328,7 @@ export default function CryptoBuyPage() {
         <div className="flex items-center gap-2">
            <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[8px] font-black italic h-6 uppercase flex items-center gap-1.5 px-2.5">
              <Wifi className={cn("w-2.5 h-2.5", isRateLoading ? "animate-pulse text-amber-500" : "text-green-500")} />
-             Kurs: Rp{dynamicUsdtRate.toLocaleString('id-ID')}
+             Kurs: Rp{isRateLoading ? "..." : dynamicUsdtRate.toLocaleString('id-ID')}
            </Badge>
            <button className="p-2 hover:bg-muted rounded-full" onClick={() => router.push('/transactions')}><History className="w-5 h-5 text-muted-foreground" /></button>
         </div>
@@ -426,7 +370,7 @@ export default function CryptoBuyPage() {
             <div className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" onClick={() => setIsAssetSheetOpen(true)}>
               <div className="flex items-center gap-4">
                 <div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2", selectedAsset.isNative ? "gold-gradient" : "bg-teal-600")}>{selectedAsset.isNative ? <LogoIcon className="text-white" /> : <div className="w-full h-full bg-white/20 rounded-full flex items-center justify-center font-black text-white text-[10px]">{selectedAsset.symbol[0]}</div>}</div>
-                <div><p className="text-xs font-black italic">{activeTab === 'beli' ? 'Beli' : 'Jual'}</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-600 text-[7px] font-black h-4 px-1.5 border-none uppercase">Live Node</Badge></div></div>
+                <div><p className="text-xs font-black italic">Beli</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-600 text-[7px] font-black h-4 px-1.5 border-none uppercase">Live Node</Badge></div></div>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
             </div>
@@ -434,9 +378,9 @@ export default function CryptoBuyPage() {
             <div className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" onClick={() => setIsPaymentSheetOpen(true)}>
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 shadow-sm text-primary">
-                  {activeTab === 'beli' ? <selectedPayment.icon className="w-5 h-5" /> : <Landmark className="w-5 h-5" />}
+                  <selectedPayment.icon className="w-5 h-5" />
                 </div>
-                <div><p className="text-xs font-black italic">{activeTab === 'beli' ? 'Metode pembayaran' : 'Metode penerimaan'}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">{activeTab === 'beli' ? selectedPayment.name : (selectedWithdrawalAccount ? selectedWithdrawalAccount.provider : "Pilih Rekening")}</p></div>
+                <div><p className="text-xs font-black italic">Metode pembayaran</p><p className="text-[10px] font-bold text-muted-foreground uppercase">{selectedPayment.name}</p></div>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
             </div>
@@ -458,6 +402,40 @@ export default function CryptoBuyPage() {
         </div>
       </main>
 
+      {/* FIXED: Menambahkan Sheet untuk Pemilihan Metode Pembayaran */}
+      <Sheet open={isPaymentSheetOpen} onOpenChange={setIsPaymentSheetOpen}>
+        <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
+          <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
+          <div className="px-6 space-y-6">
+            <SheetHeader className="text-left">
+              <SheetTitle className="text-xl font-black italic uppercase tracking-tight">Metode Pembayaran</SheetTitle>
+              <SheetDescription className="text-[10px] font-bold text-muted-foreground uppercase">Pilih gerbang kliring untuk penyelesaian dana.</SheetDescription>
+            </SheetHeader>
+            <div className="space-y-3">
+              {PAYMENT_METHODS.map((method) => (
+                <div 
+                  key={method.id} 
+                  onClick={() => { setSelectedPayment(method); setIsPaymentSheetOpen(false); }}
+                  className={cn(
+                    "p-5 rounded-2xl border-2 flex items-center justify-between transition-all cursor-pointer",
+                    selectedPayment.id === method.id ? "border-primary bg-primary/5" : "border-muted bg-card"
+                  )}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-primary"><method.icon className="w-5 h-5" /></div>
+                    <div className="text-left">
+                      <p className="text-sm font-black italic uppercase">{method.name}</p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase">{method.desc}</p>
+                    </div>
+                  </div>
+                  {selectedPayment.id === method.id && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                </div>
+              ))}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       <Dialog open={isCheckoutDialogOpen} onOpenChange={setIsCheckoutDialogOpen}>
         <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-0 overflow-hidden shadow-2xl">
           <div className="gold-gradient h-3 w-full" />
@@ -465,11 +443,11 @@ export default function CryptoBuyPage() {
             <DialogHeader className="text-center space-y-2">
               <div className="w-12 h-12 rounded-2xl gold-gradient mx-auto flex items-center justify-center shadow-xl p-2.5 mb-2"><LogoIcon className="text-white" /></div>
               <DialogTitle className="text-xl font-black italic uppercase tracking-tight">ALIBANK SECURE GATEWAY</DialogTitle>
-              <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Konfirmasi {activeTab} via {selectedPayment.name}</DialogDescription>
+              <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Konfirmasi Beli via {selectedPayment.name}</DialogDescription>
             </DialogHeader>
 
             <div className="bg-muted/50 rounded-[2rem] p-6 text-center space-y-2 border border-border">
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{activeTab === 'beli' ? 'Total Bayar' : 'Total Dicairkan'}</p>
+              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Bayar</p>
               <h3 className="text-3xl font-black italic text-foreground">Rp {totalAmountIdr.toLocaleString('id-ID')}</h3>
               <p className="text-[10px] font-black text-primary uppercase">≈ $ {usdValue}</p>
             </div>
@@ -486,7 +464,7 @@ export default function CryptoBuyPage() {
                   )}
                 </div>
               ) : (
-                <Button className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl">PROSES TRANSAKSI</Button>
+                <Button onClick={() => finalizeTransaction({})} className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl">PROSES TRANSAKSI</Button>
               )}
               <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3 mt-4">
                 <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0" />
@@ -509,8 +487,8 @@ export default function CryptoBuyPage() {
           </div>
           <div className="px-6 pb-6 overflow-y-auto no-scrollbar flex-1">
             <div className="space-y-1">
-              {filteredCurrencies.map((c) => (
-                <div key={c.code} onClick={() => handleCurrencySelect(c)} className={cn("flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all", selectedCurrency.code === c.code ? "bg-primary/10 border border-primary/20" : "hover:bg-muted/50")}>
+              {currencies.filter(c => c.code.toLowerCase().includes(currencySearch.toLowerCase())).map((c) => (
+                <div key={c.code} onClick={() => { setSelectedCurrency(c); setIsCurrencySheetOpen(false); setCurrencySearch(""); }} className={cn("flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all", selectedCurrency.code === c.code ? "bg-primary/10 border border-primary/20" : "hover:bg-muted/50")}>
                   <div className="flex items-center gap-4"><div className={cn("w-11 h-11 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm border-2 border-background shrink-0", c.color)}>{c.symbol.length > 2 ? c.code[0] : c.symbol}</div><div><h4 className="text-base font-black italic uppercase leading-none">{c.code}</h4><p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 italic">{c.name}</p></div></div>
                   {selectedCurrency.code === c.code && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                 </div>
@@ -539,5 +517,3 @@ export default function CryptoBuyPage() {
     </div>
   );
 }
-
-const filteredCurrencies = currencies;
