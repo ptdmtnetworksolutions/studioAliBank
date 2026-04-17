@@ -1,8 +1,9 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * @fileOverview Server-side proxy for Binance Klines (Candlestick) API.
- * Optimized for Production with Cluster Redundancy.
+ * Diperbarui dengan header anti-cache untuk akurasi grafik live.
  */
 
 export async function GET(request: NextRequest) {
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
         'Accept': 'application/json',
         'User-Agent': 'AliBank-V3-Core/1.0 (Production Node)'
       },
-      next: { revalidate: 10 }
+      cache: 'no-store'
     });
 
     if (!response.ok) {
@@ -32,7 +33,12 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    });
   } catch (error: any) {
     console.error('Market Proxy Klines Exception:', error.message);
     return NextResponse.json(

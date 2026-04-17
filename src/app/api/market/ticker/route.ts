@@ -1,8 +1,9 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * @fileOverview Server-side proxy for Binance 24hr Ticker API.
- * Dioptimalkan untuk Production dengan bypass cache agar Kurs selalu Real-Time.
+ * Dioptimalkan untuk Production dengan bypass cache total agar Kurs selalu Real-Time.
  */
 
 export async function GET(request: NextRequest) {
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
   const symbols = searchParams.get('symbols');
   const symbol = searchParams.get('symbol');
 
-  // Gunakan api3 untuk stabilitas lebih tinggi
+  // Gunakan api3 untuk stabilitas lebih tinggi di lingkungan Cloud
   let url = 'https://api3.binance.com/api/v3/ticker/24hr';
   
   if (symbols) {
@@ -26,20 +27,31 @@ export async function GET(request: NextRequest) {
         'Accept': 'application/json',
         'User-Agent': 'AliBank-V3-Core/1.0 (Production Node)'
       },
-      // Nonaktifkan cache internal NextJS agar data selalu segar (Real-Time)
-      cache: 'no-store'
+      // KRITIS: Pastikan tidak ada caching di tingkat Next.js
+      cache: 'no-store',
     });
 
     if (!response.ok) {
-      return NextResponse.json({ error: 'Upstream node rejected request.' }, { status: 502 });
+      const errorData = await response.text();
+      console.error('Binance Upstream Error:', errorData);
+      return NextResponse.json({ error: 'Node bursa global tidak merespons.' }, { status: 502 });
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    
+    // Kirim respons dengan header anti-cache yang sangat ketat untuk lingkungan Live
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+      }
+    });
   } catch (error: any) {
     console.error('Market Proxy Ticker Exception:', error.message);
     return NextResponse.json(
-      { error: 'Failed to synchronize with global market nodes.' }, 
+      { error: 'Kegagalan pada node sinkronisasi harga pasar.' }, 
       { status: 503 }
     );
   }
