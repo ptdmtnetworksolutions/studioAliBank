@@ -97,6 +97,7 @@ export default function CryptoBuyPage() {
   const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS[0]);
   const [selectedWithdrawalAccount, setSelectedWithdrawalAccount] = useState<any>(null);
+  const [dynamicUsdtRate, setDynamicUsdtRate] = useState(15850);
   
   const [isPaymentSheetOpen, setIsPaymentSheetOpen] = useState(false);
   const [isAssetSheetOpen, setIsAssetSheetOpen] = useState(false);
@@ -122,26 +123,42 @@ export default function CryptoBuyPage() {
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
+  const fetchRealTimeRate = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/market/ticker?symbol=USDTIDR`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.lastPrice) {
+          setDynamicUsdtRate(parseFloat(data.lastPrice));
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to fetch real-time rate", e);
+    }
+  }, []);
+
   useEffect(() => {
     setMounted(true);
+    fetchRealTimeRate();
+    const interval = setInterval(fetchRealTimeRate, 15000);
+
     const savedCurrency = localStorage.getItem("alibank-payment-currency");
     if (savedCurrency) {
       try {
         setSelectedCurrency(JSON.parse(savedCurrency));
       } catch (e) {}
     }
-  }, []);
+    return () => clearInterval(interval);
+  }, [fetchRealTimeRate]);
 
   const getRateToIdr = useCallback((code: string) => {
     if (code === 'IDR') return 1;
-    if (code === 'USD') return 15850;
-    if (code === 'EUR') return 17200;
-    if (code === 'GBP') return 20100;
-    if (code === 'SGD') return 11800;
+    if (code === 'USD') return dynamicUsdtRate;
+    if (code === 'EUR') return dynamicUsdtRate * 1.08;
+    if (code === 'GBP') return dynamicUsdtRate * 1.26;
+    if (code === 'SGD') return dynamicUsdtRate * 0.74;
     return 1;
-  }, []);
-
-  const exchangeRate = 15850; 
+  }, [dynamicUsdtRate]);
 
   const isVerified = userData?.kycStatus === 'verified';
   const hasWithdrawalMethods = userData?.withdrawalMethods && userData.withdrawalMethods.length > 0;
@@ -151,7 +168,7 @@ export default function CryptoBuyPage() {
       const cryptoBalance = userData.cryptoBalances[selectedAsset.symbol] || 0;
       if (cryptoBalance > 0) {
         const valInUsd = cryptoBalance * selectedAsset.priceUsd;
-        const valInIdr = valInUsd * exchangeRate;
+        const valInIdr = valInUsd * dynamicUsdtRate;
         const valInFiat = valInIdr / getRateToIdr(selectedCurrency.code);
         
         const formatted = selectedCurrency.code === 'IDR' 
@@ -167,7 +184,7 @@ export default function CryptoBuyPage() {
         setSelectedWithdrawalAccount(userData.withdrawalMethods[0]);
       }
     }
-  }, [activeTab, selectedAsset.symbol, userData?.cryptoBalances, selectedCurrency.code, getRateToIdr, hasWithdrawalMethods, selectedWithdrawalAccount]);
+  }, [activeTab, selectedAsset.symbol, userData?.cryptoBalances, selectedCurrency.code, getRateToIdr, hasWithdrawalMethods, selectedWithdrawalAccount, dynamicUsdtRate]);
 
   useEffect(() => {
     if (selectedPayment.id === 'bank' && activeTab === 'beli') {
@@ -190,21 +207,21 @@ export default function CryptoBuyPage() {
     const num = parseFloat(cleanAmount);
     if (isNaN(num) || num <= 0) return "0";
     const amountInIdr = num * getRateToIdr(selectedCurrency.code);
-    const amountInUsd = amountInIdr / exchangeRate;
+    const amountInUsd = amountInIdr / dynamicUsdtRate;
     
     const markup = activeTab === 'beli' ? (selectedAsset.isNative ? 1 : 1.02) : 1;
     const priceWithMarkup = selectedAsset.priceUsd * markup;
     
     return (amountInUsd / priceWithMarkup).toFixed(selectedAsset.symbol === 'BTC' ? 8 : 4);
-  }, [amount, selectedAsset, selectedCurrency, activeTab, getRateToIdr]);
+  }, [amount, selectedAsset, selectedCurrency, activeTab, getRateToIdr, dynamicUsdtRate]);
 
   const usdValue = useMemo(() => {
     const cleanAmount = amount.replace(',', '.');
     const num = parseFloat(cleanAmount);
     if (isNaN(num)) return "0.00";
     const amountInIdr = num * getRateToIdr(selectedCurrency.code);
-    return (amountInIdr / exchangeRate).toFixed(2);
-  }, [amount, selectedCurrency, getRateToIdr]);
+    return (amountInIdr / dynamicUsdtRate).toFixed(2);
+  }, [amount, selectedCurrency, getRateToIdr, dynamicUsdtRate]);
 
   const handleCurrencySelect = (currency: Currency) => {
     const oldRate = getRateToIdr(selectedCurrency.code);
@@ -323,7 +340,7 @@ export default function CryptoBuyPage() {
     if (selectedPayment.id !== 'card') return;
 
     if (typeof window === 'undefined' || !window.paypal) {
-      if (retryCount.current < 10) {
+      if (retryCount.current < 15) {
         retryCount.current++;
         setTimeout(renderPayPalButtons, 1000);
       } else {
@@ -340,7 +357,7 @@ export default function CryptoBuyPage() {
 
     try {
       await window.paypal.Buttons({
-        style: { layout: 'vertical', color: 'gold', shape: 'rect' },
+        style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
         createOrder: (data: any, actions: any) => {
           return actions.order.create({
             purchase_units: [{
@@ -362,7 +379,8 @@ export default function CryptoBuyPage() {
             setIsProcessing(false);
           }
         },
-        onError: () => {
+        onError: (err: any) => {
+          console.error("PayPal Error:", err);
           setGatewayError("Terjadi hambatan pada node PayPal.");
           renderInProgress.current = false;
         }
@@ -370,14 +388,19 @@ export default function CryptoBuyPage() {
       renderInProgress.current = false;
     } catch (err) {
       renderInProgress.current = false;
+      console.warn("PayPal Render Error, retrying...", err);
       setTimeout(renderPayPalButtons, 1000);
     }
   }, [isCheckoutDialogOpen, selectedPayment.id, usdValue, estimatedCrypto, selectedAsset.symbol, systemKeys?.paypalClientId, toast, activeTab]);
 
   useEffect(() => {
-    if (isCheckoutDialogOpen && paypalReady && selectedPayment.id === 'card') {
+    if (isCheckoutDialogOpen && selectedPayment.id === 'card') {
       retryCount.current = 0;
-      renderPayPalButtons();
+      renderInProgress.current = false;
+      const timer = setTimeout(() => {
+        renderPayPalButtons();
+      }, 500);
+      return () => clearTimeout(timer);
     }
   }, [isCheckoutDialogOpen, selectedPayment.id, paypalReady, renderPayPalButtons]);
 
@@ -511,7 +534,7 @@ export default function CryptoBuyPage() {
     <div className="h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
       {systemKeys?.paypalClientId && (
         <Script 
-          src={`https://www.paypal.com/sdk/js?client-id=${systemKeys.paypalClientId}&currency=USD`} 
+          src={`https://www.paypal.com/sdk/js?client-id=${systemKeys.paypalClientId}&currency=USD&intent=capture`} 
           onLoad={() => setPaypalReady(true)} 
         />
       )}
@@ -567,7 +590,7 @@ export default function CryptoBuyPage() {
                 <button 
                   onClick={() => {
                     const valInUsd = currentCryptoBalance * selectedAsset.priceUsd;
-                    const valInIdr = valInUsd * exchangeRate;
+                    const valInIdr = valInUsd * dynamicUsdtRate;
                     const valInFiat = valInIdr / getRateToIdr(selectedCurrency.code);
                     setAmount(selectedCurrency.code === 'IDR' ? Math.floor(valInFiat).toString() : valInFiat.toFixed(2).replace('.', ','));
                   }}
@@ -647,7 +670,12 @@ export default function CryptoBuyPage() {
         </div>
       </main>
 
-      <Dialog open={isCheckoutDialogOpen} onOpenChange={setIsCheckoutDialogOpen}>
+      <Dialog open={isCheckoutDialogOpen} onOpenChange={(open) => {
+        setIsCheckoutDialogOpen(open);
+        if (!open) {
+          renderInProgress.current = false;
+        }
+      }}>
         <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-0 overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
           <div className="gold-gradient h-3 w-full" />
           <div className="p-8 space-y-8">
@@ -711,7 +739,11 @@ export default function CryptoBuyPage() {
                       <p className="text-[10px] font-bold text-rose-500 uppercase italic">{gatewayError}</p>
                     </div>
                   ) : (
-                    <div ref={paypalContainerRef} className="w-full" />
+                    <div 
+                      ref={paypalContainerRef} 
+                      className="w-full flex justify-center"
+                      style={{ minHeight: '150px' }}
+                    />
                   )}
                 </div>
               ) : (
@@ -846,16 +878,6 @@ export default function CryptoBuyPage() {
                   {selectedCurrency.code === c.code && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                 </div>
               ))}
-
-              {filteredCurrencies.length === 0 && (
-                <div className="py-20 text-center space-y-4 opacity-30">
-                  <Search className="w-12 h-12 mx-auto text-muted-foreground" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-black uppercase italic">Data Tidak Ditemukan</p>
-                    <p className="text-[10px] font-bold uppercase tracking-widest">Coba kata kunci lain.</p>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </SheetContent>
