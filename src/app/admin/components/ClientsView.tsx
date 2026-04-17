@@ -32,7 +32,11 @@ import {
   History,
   Zap,
   Bitcoin,
-  Cpu
+  Cpu,
+  CheckCircle2,
+  Check,
+  MapPin,
+  ChevronRight
 } from "lucide-react";
 import { 
   Dialog, 
@@ -55,7 +59,6 @@ import {
   serverTimestamp,
   deleteDoc
 } from "firebase/firestore";
-import { sendPasswordResetEmail } from "firebase/auth";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
@@ -196,8 +199,8 @@ export function ClientsView({ allUsers }: any) {
                   </td>
                   <td className="px-8 py-5 text-right">
                     <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl hover:bg-primary/10 hover:text-primary" onClick={() => { setSelectedUser(u); setIsDialogOpen(true); }}><ShieldAlert className="w-5 h-5" /></Button>
-                      <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl hover:bg-rose-100 hover:text-rose-600" onClick={() => handleDelete(u.id)}><Trash2 className="w-5 h-5" /></Button>
+                      <button className="p-2 hover:bg-primary/10 hover:text-primary rounded-xl transition-all"><ShieldAlert className="w-5 h-5" /></button>
+                      <button className="p-2 hover:bg-rose-100 hover:text-rose-600 rounded-xl transition-all" onClick={() => handleDelete(u.id)}><Trash2 className="w-5 h-5" /></button>
                     </div>
                   </td>
                 </tr>
@@ -527,13 +530,5 @@ function KycDetail({ icon: Icon, label, value, isMono = false }: any) {
         )}>{value || "---"}</p>
       </div>
     </div>
-  );
-}
-
-function Check({ className }: any) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
   );
 }
