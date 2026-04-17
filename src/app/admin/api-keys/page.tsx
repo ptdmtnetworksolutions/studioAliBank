@@ -58,6 +58,7 @@ function APIKeysContent() {
   // API Key States
   const [keys, setKeys] = useState({
     paypalClientId: "",
+    paypalClientSecret: "", // Kolom Baru
     midtransMerchantId: "",
     midtransClientKey: "",
     midtransServerKey: "",
@@ -77,6 +78,7 @@ function APIKeysContent() {
     if (storedKeys) {
       setKeys({
         paypalClientId: storedKeys.paypalClientId || "",
+        paypalClientSecret: storedKeys.paypalClientSecret || "",
         midtransMerchantId: storedKeys.midtransMerchantId || "",
         midtransClientKey: storedKeys.midtransClientKey || "",
         midtransServerKey: storedKeys.midtransServerKey || "",
@@ -192,7 +194,7 @@ function APIKeysContent() {
                     icon={Lock} 
                     value={keys.vaultPrivateKey} 
                     placeholder="0x..."
-                    onChange={(v: any) => setKeys({...keys, vaultPrivateKey: v})}
+                    onChange={(v: any) => setKeys({...keys, vaultPrivateKey: v})} 
                     show={showKeys['vault']}
                     onToggle={() => toggleShow('vault')}
                     description="Kunci privat MetaMask untuk tanda tangan on-chain otomatis oleh sistem."
@@ -210,16 +212,28 @@ function APIKeysContent() {
                   <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black italic uppercase px-2 h-5">USD Gateway</Badge>
                 </div>
                 
-                <KeyField 
-                  label="PayPal Client ID" 
-                  icon={Globe} 
-                  value={keys.paypalClientId} 
-                  placeholder="AW-..."
-                  onChange={(v: any) => setKeys({...keys, paypalClientId: v})}
-                  show={showKeys['paypal']}
-                  onToggle={() => toggleShow('paypal')}
-                  description="Digunakan untuk pembayaran Kartu Kredit/Debit internasional."
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <KeyField 
+                    label="PayPal Client ID" 
+                    icon={Globe} 
+                    value={keys.paypalClientId} 
+                    placeholder="AW-..."
+                    onChange={(v: any) => setKeys({...keys, paypalClientId: v})}
+                    show={showKeys['paypal_id']}
+                    onToggle={() => toggleShow('paypal_id')}
+                    description="Client ID dari portal developer PayPal."
+                  />
+                  <KeyField 
+                    label="PayPal Client Secret" 
+                    icon={Lock} 
+                    value={keys.paypalClientSecret} 
+                    placeholder="E..."
+                    onChange={(v: any) => setKeys({...keys, paypalClientSecret: v})}
+                    show={showKeys['paypal_secret']}
+                    onToggle={() => toggleShow('paypal_secret')}
+                    description="Secret Key untuk kliring aman sisi server."
+                  />
+                </div>
               </section>
 
               <div className="h-px bg-white/5 w-full" />
@@ -278,8 +292,8 @@ function APIKeysContent() {
                     icon={Cpu} 
                     value={keys.ethereumRpcUrl} 
                     placeholder="https://eth-mainnet.g.alchemy.com/v2/your-key"
-                    onChange={(v: any) => setKeys({...keys, ethereumRpcUrl: v})}
-                    show={true}
+                    onChange={(v: any) => setKeys({...keys, ethereumRpcUrl: v})} 
+                    show={true} 
                     description="Gunakan Endpoint URL dari Alchemy (Mainnet) untuk Brankas ETH."
                   />
                   <KeyField 
@@ -287,8 +301,8 @@ function APIKeysContent() {
                     icon={Zap} 
                     value={keys.polygonRpcUrl} 
                     placeholder="https://polygon-mainnet.g.alchemy.com/v2/your-key"
-                    onChange={(v: any) => setKeys({...keys, polygonRpcUrl: v})}
-                    show={true}
+                    onChange={(v: any) => setKeys({...keys, polygonRpcUrl: v})} 
+                    show={true} 
                     description="Gunakan Endpoint URL dari Alchemy (Polygon) untuk Kontrol Koin ALX."
                   />
                   <div className="md:col-span-2">

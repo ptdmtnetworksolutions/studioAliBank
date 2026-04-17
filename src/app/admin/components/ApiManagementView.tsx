@@ -37,6 +37,7 @@ export function ApiManagementView({ storedKeys }: any) {
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [keys, setKeys] = useState({
     paypalClientId: "",
+    paypalClientSecret: "", // Kolom Baru
     midtransMerchantId: "",
     midtransClientKey: "",
     midtransServerKey: "",
@@ -53,6 +54,7 @@ export function ApiManagementView({ storedKeys }: any) {
     if (storedKeys) {
       setKeys({
         paypalClientId: storedKeys.paypalClientId || "",
+        paypalClientSecret: storedKeys.paypalClientSecret || "",
         midtransMerchantId: storedKeys.midtransMerchantId || "",
         midtransClientKey: storedKeys.midtransClientKey || "",
         midtransServerKey: storedKeys.midtransServerKey || "",
@@ -145,7 +147,26 @@ export function ApiManagementView({ storedKeys }: any) {
             <h3 className="text-sm font-black italic uppercase tracking-widest text-primary flex items-center gap-2">
               <Globe className="w-4 h-4" /> Kliring Global (PayPal)
             </h3>
-            <KeyField label="PayPal Client ID" icon={Globe} value={keys.paypalClientId} placeholder="AW-..." onChange={(v:any) => setKeys({...keys, paypalClientId: v})} show={showKeys['pp']} onToggle={() => toggleShow('pp')} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <KeyField 
+                label="PayPal Client ID" 
+                icon={Globe} 
+                value={keys.paypalClientId} 
+                placeholder="AW-..." 
+                onChange={(v:any) => setKeys({...keys, paypalClientId: v})} 
+                show={showKeys['pp_id']} 
+                onToggle={() => toggleShow('pp_id')} 
+              />
+              <KeyField 
+                label="PayPal Client Secret" 
+                icon={Lock} 
+                value={keys.paypalClientSecret} 
+                placeholder="E..." 
+                onChange={(v:any) => setKeys({...keys, paypalClientSecret: v})} 
+                show={showKeys['pp_sec']} 
+                onToggle={() => toggleShow('pp_sec')} 
+              />
+            </div>
           </section>
 
           <div className="h-px bg-border/50 w-full" />
