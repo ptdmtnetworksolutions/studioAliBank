@@ -40,7 +40,10 @@ import {
   ChevronRight,
   ShieldX,
   Lock,
-  ArrowUpRight
+  ArrowUpRight,
+  FileSearch,
+  Download,
+  Fingerprint
 } from "lucide-react";
 import { 
   Dialog, 
@@ -79,6 +82,9 @@ export function ClientsView({ allUsers }: any) {
   const [alxAdjustment, setAlxAdjustment] = useState("");
   const [userTxs, setUserTxs] = useState<any[]>([]);
   const [loadingSub, setLoadingSub] = useState(false);
+  
+  // State untuk rincian detail audit
+  const [auditDetailView, setAuditDetailType] = useState<'none' | 'inflow' | 'outflow' | 'discrepancy'>('none');
 
   const filteredUsers = allUsers?.filter((u: any) => 
     u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -90,11 +96,12 @@ export function ClientsView({ allUsers }: any) {
     async function fetchDetails() {
       if (!selectedUser || !db || !isDialogOpen) return;
       setLoadingSub(true);
+      setAuditDetailType('none');
       try {
         const q = query(
           collection(db, "users", selectedUser.id, "transactions"), 
           orderBy("timestamp", "desc"), 
-          limit(100)
+          limit(200)
         );
         const snapshot = await getDocs(q);
         setUserTxs(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -140,7 +147,6 @@ export function ClientsView({ allUsers }: any) {
     if (!selectedUser) return { discrepancy: 0, isClean: true, totalIn: 0, totalOut: 0 };
     
     const getVal = (t: any) => {
-      // Prioritas IDR Value dari berbagai field fitur (Trade-X, Topup, Transfer)
       if (t.amountIdr) return t.amountIdr;
       if (t.amount) return t.amount;
       if (t.stakeAmount && (t.stakeCurrency === 'IDR' || !t.stakeCurrency)) return t.stakeAmount;
@@ -159,9 +165,17 @@ export function ClientsView({ allUsers }: any) {
       isClean: Math.abs(diff) < 1000, 
       totalIn: inflow,
       totalOut: outflow,
-      totalActivity: userTxs.length
+      totalActivity: userTxs.length,
+      ledgerBalance: calculated
     };
   }, [selectedUser, userTxs]);
+
+  // Data terfilter untuk rincian detail audit
+  const auditDetailData = useMemo(() => {
+    if (auditDetailView === 'inflow') return userTxs.filter(t => t.type === 'income');
+    if (auditDetailView === 'outflow') return userTxs.filter(t => t.type === 'expense');
+    return [];
+  }, [userTxs, auditDetailView]);
 
   return (
     <div className="animate-in fade-in slide-in-from-right-10 duration-700 space-y-8">
@@ -317,10 +331,124 @@ export function ClientsView({ allUsers }: any) {
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <ForensicStatCard label="Total Dana Masuk" value={`Rp ${forensicCheck.totalIn.toLocaleString()}`} icon={TrendingUp} color="text-green-600" />
-                  <ForensicStatCard label="Total Dana Keluar" value={`Rp ${forensicCheck.totalOut.toLocaleString()}`} icon={TrendingDown} color="text-rose-600" />
-                  <ForensicStatCard label="Saldo Tak Ter-Audit" value={`Rp ${Math.abs(forensicCheck.discrepancy).toLocaleString()}`} icon={ShieldAlert} color={forensicCheck.isClean ? "text-muted-foreground" : "text-rose-600"} />
+                  <ForensicStatCard 
+                    label="Total Dana Masuk" 
+                    value={`Rp ${forensicCheck.totalIn.toLocaleString()}`} 
+                    icon={TrendingUp} 
+                    color="text-green-600"
+                    onClick={() => setAuditDetailType('inflow')}
+                    active={auditDetailView === 'inflow'}
+                  />
+                  <ForensicStatCard 
+                    label="Total Dana Keluar" 
+                    value={`Rp ${forensicCheck.totalOut.toLocaleString()}`} 
+                    icon={TrendingDown} 
+                    color="text-rose-600"
+                    onClick={() => setAuditDetailType('outflow')}
+                    active={auditDetailView === 'outflow'}
+                  />
+                  <ForensicStatCard 
+                    label="Saldo Tak Ter-Audit" 
+                    value={`Rp ${Math.abs(forensicCheck.discrepancy).toLocaleString()}`} 
+                    icon={ShieldAlert} 
+                    color={forensicCheck.isClean ? "text-muted-foreground" : "text-rose-600"}
+                    onClick={() => setAuditDetailType('discrepancy')}
+                    active={auditDetailView === 'discrepancy'}
+                  />
                 </div>
+
+                {/* AREA DETAIL AUDIT HUKUM */}
+                {auditDetailView !== 'none' && (
+                  <Card className="animate-in slide-in-from-top-4 duration-500 border-2 border-primary/20 bg-muted/20 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none"><Fingerprint className="w-48 h-48" /></div>
+                    
+                    <div className="p-8 border-b border-border bg-card flex justify-between items-center relative z-10">
+                      <div>
+                        <h4 className="text-lg font-black uppercase italic tracking-tighter flex items-center gap-2">
+                          <FileSearch className="w-5 h-5 text-primary" /> 
+                          {auditDetailView === 'inflow' ? 'Rincian Bukti Dana Masuk' : 
+                           auditDetailView === 'outflow' ? 'Rincian Bukti Dana Keluar' : 
+                           'Laporan Forensik Ketidaksesuaian'}
+                        </h4>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Dokumen ini sah sebagai bukti audit operasional AliBank V3</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="rounded-xl border-primary/20 text-primary font-black uppercase text-[10px] italic"><Download className="w-3.5 h-3.5 mr-2" /> Ekspor PDF</Button>
+                        <Button size="icon" variant="ghost" onClick={() => setAuditDetailType('none')} className="rounded-xl"><X className="w-5 h-5" /></Button>
+                      </div>
+                    </div>
+
+                    <div className="p-8 space-y-6 relative z-10">
+                      {auditDetailView === 'discrepancy' ? (
+                        <div className="space-y-6">
+                          <div className="p-6 rounded-2xl bg-rose-600/5 border border-rose-600/10 space-y-4">
+                            <h5 className="text-xs font-black uppercase italic text-rose-600">Matriks Rekonsiliasi Saldo</h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              <div className="space-y-4">
+                                <ReconRow label="Saldo Dompet Riil (Current)" value={selectedUser?.totalBalance || 0} color="text-foreground" />
+                                <ReconRow label="Saldo Buku Besar (Ledger)" value={forensicCheck.ledgerBalance} color="text-blue-600" />
+                                <div className="h-px bg-border w-full" />
+                                <ReconRow label="Selisih Tak Ter-Audit" value={forensicCheck.discrepancy} color="text-rose-600" isBold />
+                              </div>
+                              <div className="p-6 rounded-xl bg-white/5 border border-white/10 space-y-3">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+                                  Kesimpulan Forensik: Dana sebesar <span className="text-rose-600">Rp {Math.abs(forensicCheck.discrepancy).toLocaleString()}</span> muncul di akun nasabah tanpa melalui gerbang transaksi resmi atau fitur aplikasi yang ter-audit. Disarankan untuk pembekuan saldo segera.
+                                </p>
+                                <div className="flex items-center gap-2 pt-2">
+                                  <Badge className="bg-rose-600 text-white font-black text-[7px] uppercase h-4 px-1.5">KESEHATAN DATA: KRITIS</Badge>
+                                  <span className="text-[8px] font-mono text-muted-foreground">REF: {selectedUser.accountNumber}-DISC</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left">
+                            <thead className="text-[9px] font-black uppercase text-muted-foreground border-b border-border">
+                              <tr>
+                                <th className="py-4 px-4">Referensi Node</th>
+                                <th className="py-4 px-4">Waktu Penyelesaian</th>
+                                <th className="py-4 px-4">Kategori / Deskripsi</th>
+                                <th className="py-4 px-4 text-right">Nilai Bukti (IDR)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                              {auditDetailData.map((t) => (
+                                <tr key={t.id} className="hover:bg-card/50 transition-colors">
+                                  <td className="py-4 px-4"><span className="font-mono text-[9px] font-bold text-blue-500 uppercase">{t.id.slice(0, 12)}...</span></td>
+                                  <td className="py-4 px-4 text-[9px] font-bold text-muted-foreground italic">{t.timestamp?.toDate?.().toLocaleString('id-ID') || t.date || '---'}</td>
+                                  <td className="py-4 px-4">
+                                    <div className="flex flex-col">
+                                      <span className="text-[10px] font-black uppercase italic text-foreground">{t.description}</span>
+                                      <span className="text-[7px] font-bold text-primary uppercase">{t.category}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-4 px-4 text-right font-black italic text-[11px]">
+                                    {t.type === 'income' ? '+' : '-'}Rp{(t.amountIdr || t.amount || t.stakeAmount || 0).toLocaleString()}
+                                  </td>
+                                </tr>
+                              ))}
+                              {auditDetailData.length === 0 && (
+                                <tr>
+                                  <td colSpan={4} className="py-20 text-center opacity-30 italic font-black uppercase text-xs">Data tidak ditemukan dalam kriteria ini.</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      
+                      <div className="pt-6 flex justify-between items-center opacity-40 border-t border-border">
+                         <div className="flex items-center gap-2">
+                           <LogoIcon className="w-4 h-4" />
+                           <span className="text-[8px] font-black uppercase tracking-widest italic">AliBank V3 Forensic Stamp</span>
+                         </div>
+                         <p className="text-[8px] font-bold uppercase italic">Sertifikasi Sistem: ISO8583 COMPLIANT</p>
+                      </div>
+                    </div>
+                  </Card>
+                )}
 
                 <Card className="border-none bg-muted/30 rounded-[2.5rem] overflow-hidden shadow-inner">
                   <div className="p-6 border-b border-border bg-muted/50 flex justify-between items-center">
@@ -441,9 +569,15 @@ export function ClientsView({ allUsers }: any) {
   );
 }
 
-function ForensicStatCard({ label, value, icon: Icon, color }: any) {
+function ForensicStatCard({ label, value, icon: Icon, color, onClick, active }: any) {
   return (
-    <div className="p-6 rounded-[2rem] bg-muted/50 border border-border flex items-center gap-5 shadow-sm">
+    <div 
+      onClick={onClick}
+      className={cn(
+        "p-6 rounded-[2rem] bg-muted/50 border flex items-center gap-5 shadow-sm cursor-pointer transition-all hover:scale-[1.03] active:scale-95",
+        active ? "border-primary bg-primary/5 ring-4 ring-primary/5" : "border-border"
+      )}
+    >
       <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner", color + " bg-white/10")}>
         <Icon className="w-6 h-6" />
       </div>
@@ -451,6 +585,21 @@ function ForensicStatCard({ label, value, icon: Icon, color }: any) {
         <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest leading-none mb-1">{label}</p>
         <p className={cn("text-xl font-black italic tracking-tighter", color)}>{value}</p>
       </div>
+    </div>
+  );
+}
+
+function ReconRow({ label, value, color, isBold = false }: any) {
+  return (
+    <div className="flex justify-between items-end">
+      <span className="text-[10px] font-bold text-muted-foreground uppercase">{label}</span>
+      <span className={cn(
+        "text-sm font-black italic tracking-tighter",
+        color,
+        isBold && "text-base underline underline-offset-4"
+      )}>
+        Rp {value.toLocaleString()}
+      </span>
     </div>
   );
 }
