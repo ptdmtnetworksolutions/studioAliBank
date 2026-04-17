@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -43,7 +42,8 @@ import {
   ArrowUpRight,
   FileSearch,
   Download,
-  Fingerprint
+  Fingerprint,
+  X
 } from "lucide-react";
 import { 
   Dialog, 
