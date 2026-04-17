@@ -135,19 +135,31 @@ export function ClientsView({ allUsers }: any) {
     toast({ title: "Nasabah Dinonaktifkan" });
   };
 
-  // REKONSILIASI FORENSIK NASABAH
+  // REKONSILIASI FORENSIK NASABAH (UPDATED)
   const forensicCheck = useMemo(() => {
-    if (!selectedUser || userTxs.length === 0) return { discrepancy: 0, isClean: true };
-    const inflow = userTxs.filter(t => t.type === 'income').reduce((acc, t) => acc + (t.amount || t.amountIdr || 0), 0);
-    const outflow = userTxs.filter(t => t.type === 'expense').reduce((acc, t) => acc + (t.amount || t.amountIdr || 0), 0);
-    const calculated = inflow - outflow;
-    const actual = (selectedUser.totalBalance || 0) + (selectedUser.savings || 0);
+    if (!selectedUser) return { discrepancy: 0, isClean: true, totalIn: 0, totalOut: 0 };
     
-    // Toleransi 100 rupiah untuk pembulatan
+    // Engine ini sekarang mengecek berbagai kemungkinan field nominal yang digunakan di berbagai fitur (Trade-X, Swap, Topup)
+    const getVal = (t: any) => {
+      // Prioritas IDR Value
+      if (t.amountIdr) return t.amountIdr;
+      if (t.amount) return t.amount;
+      if (t.stakeAmount && (t.stakeCurrency === 'IDR' || !t.stakeCurrency)) return t.stakeAmount;
+      return 0;
+    };
+
+    const inflow = userTxs.filter(t => t.type === 'income').reduce((acc, t) => acc + getVal(t), 0);
+    const outflow = userTxs.filter(t => t.type === 'expense').reduce((acc, t) => acc + getVal(t), 0);
+    
+    const calculated = inflow - outflow;
+    const actual = (selectedUser.totalBalance || 0); // Hanya audit IDR Liquid
+    
     const diff = actual - calculated;
     return { 
       discrepancy: diff, 
-      isClean: Math.abs(diff) < 100,
+      isClean: Math.abs(diff) < 1000, // Toleransi 1000 rupiah
+      totalIn: inflow,
+      totalOut: outflow,
       totalActivity: userTxs.length
     };
   }, [selectedUser, userTxs]);
@@ -298,8 +310,8 @@ export function ClientsView({ allUsers }: any) {
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <ForensicStatCard label="Total Dana Masuk" value={`Rp ${userTxs.filter(t => t.type === 'income').reduce((acc, t) => acc + (t.amount || t.amountIdr || 0), 0).toLocaleString()}`} icon={TrendingUp} color="text-green-600" />
-                  <ForensicStatCard label="Total Dana Keluar" value={`Rp ${userTxs.filter(t => t.type === 'expense').reduce((acc, t) => acc + (t.amount || t.amountIdr || 0), 0).toLocaleString()}`} icon={TrendingDown} color="text-rose-600" />
+                  <ForensicStatCard label="Total Dana Masuk" value={`Rp ${forensicCheck.totalIn.toLocaleString()}`} icon={TrendingUp} color="text-green-600" />
+                  <ForensicStatCard label="Total Dana Keluar" value={`Rp ${forensicCheck.totalOut.toLocaleString()}`} icon={TrendingDown} color="text-rose-600" />
                   <ForensicStatCard label="Saldo Tak Ter-Audit" value={`Rp ${Math.abs(forensicCheck.discrepancy).toLocaleString()}`} icon={ShieldAlert} color={forensicCheck.isClean ? "text-muted-foreground" : "text-rose-600"} />
                 </div>
 
@@ -319,27 +331,35 @@ export function ClientsView({ allUsers }: any) {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {userTxs.map((tx) => (
-                          <tr key={tx.id} className="hover:bg-muted/50 transition-colors">
-                            <td className="px-8 py-4 text-[9px] font-mono font-bold text-muted-foreground italic">
-                              {tx.timestamp?.toDate?.().toLocaleString() || tx.date || '---'}
-                            </td>
-                            <td className="px-8 py-4">
-                              <Badge variant="outline" className="border-primary/20 text-accent font-black text-[7px] uppercase px-1.5 h-4 italic">{tx.category || 'Aktivitas'}</Badge>
-                            </td>
-                            <td className="px-8 py-4 text-[10px] font-bold text-foreground uppercase italic leading-tight">
-                              {tx.description}
-                            </td>
-                            <td className="px-8 py-4 text-right">
-                              <span className={cn(
-                                "text-[11px] font-black italic",
-                                tx.type === 'income' ? "text-green-600" : "text-rose-600"
-                              )}>
-                                {tx.type === 'income' ? '+' : '-'}Rp{(tx.amount || tx.amountIdr || 0).toLocaleString()}
-                              </span>
-                            </td>
+                        {userTxs.map((tx) => {
+                          const nominal = tx.amountIdr || tx.amount || tx.stakeAmount || 0;
+                          return (
+                            <tr key={tx.id} className="hover:bg-muted/50 transition-colors">
+                              <td className="px-8 py-4 text-[9px] font-mono font-bold text-muted-foreground italic">
+                                {tx.timestamp?.toDate?.().toLocaleString() || tx.date || '---'}
+                              </td>
+                              <td className="px-8 py-4">
+                                <Badge variant="outline" className="border-primary/20 text-accent font-black text-[7px] uppercase px-1.5 h-4 italic">{tx.category || 'Aktivitas'}</Badge>
+                              </td>
+                              <td className="px-8 py-4 text-[10px] font-bold text-foreground uppercase italic leading-tight">
+                                {tx.description}
+                              </td>
+                              <td className="px-8 py-4 text-right">
+                                <span className={cn(
+                                  "text-[11px] font-black italic",
+                                  tx.type === 'income' ? "text-green-600" : "text-rose-600"
+                                )}>
+                                  {tx.type === 'income' ? '+' : '-'}Rp{nominal.toLocaleString()}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {userTxs.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="py-20 text-center opacity-20 italic font-black uppercase tracking-widest">Tidak ada riwayat transaksi ditemukan.</td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>
