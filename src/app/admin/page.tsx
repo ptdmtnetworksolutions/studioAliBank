@@ -15,7 +15,9 @@ import {
   LogOut, 
   Loader2,
   Clock,
-  ShieldCheck
+  ShieldCheck,
+  Menu,
+  X
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
@@ -33,6 +35,14 @@ import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 import { useTheme } from "next-themes";
 import Image from "next/image";
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetHeader, 
+  SheetTitle, 
+  SheetTrigger,
+  SheetDescription
+} from "@/components/ui/sheet";
 
 import { DashboardView } from "./components/DashboardView";
 import { ClientsView } from "./components/ClientsView";
@@ -75,6 +85,7 @@ function AdminContent() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [onChainEth, setOnChainEth] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const liquidityRef = useMemoFirebase(() => (db && isAuthorized ? doc(db, "system", "liquidity") : null), [db, isAuthorized]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
@@ -132,28 +143,40 @@ function AdminContent() {
     syncOnChainData();
   }, [user, userLoading, router, syncOnChainData]);
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setIsMobileMenuOpen(false);
+  };
+
   if (userLoading) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
   if (!isAuthorized) return null;
 
+  const NavItems = () => (
+    <>
+      <SidebarItem icon={LayoutGrid} label="Dasbor" active={activeTab === 'dashboard'} onClick={() => handleTabChange('dashboard')} />
+      <SidebarItem icon={ShieldCheck} label="Pusat KYC" active={activeTab === 'kyc'} onClick={() => handleTabChange('kyc')} />
+      <SidebarItem icon={Clock} label="Permintaan Tertunda" active={activeTab === 'pending'} onClick={() => handleTabChange('pending')} />
+      <SidebarItem icon={Users} label="Nasabah" active={activeTab === 'users'} onClick={() => handleTabChange('users')} />
+      <SidebarItem icon={Wallet} label="Kontrol Brankas" active={activeTab === 'vault'} onClick={() => handleTabChange('vault')} />
+      <SidebarItem icon={Coins} label="Tokenomik" active={activeTab === 'tokenomics'} onClick={() => handleTabChange('tokenomics')} />
+      <SidebarItem icon={Key} label="Manajemen API" active={activeTab === 'api'} onClick={() => handleTabChange('api')} />
+      <SidebarItem icon={Box} label="Inventaris" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
+      <SidebarItem icon={FileText} label="Log Audit" active={activeTab === 'audit'} onClick={() => handleTabChange('audit')} />
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-      <aside className="w-full md:w-72 bg-card border-r border-border flex flex-col fixed top-0 md:h-screen z-50">
+      {/* DESKTOP SIDEBAR - Hidden on mobile */}
+      <aside className="hidden md:flex w-72 bg-card border-r border-border flex-col fixed top-0 h-screen z-50">
         <div className="p-8 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg"><LogoIcon className="text-white" /></div>
           <span className="font-bold text-xl tracking-tighter italic uppercase">AliBank</span>
         </div>
         <nav className="flex-1 px-4 space-y-2 pt-4 overflow-y-auto no-scrollbar">
-          <SidebarItem icon={LayoutGrid} label="Dasbor" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-          <SidebarItem icon={ShieldCheck} label="Pusat KYC" active={activeTab === 'kyc'} onClick={() => setActiveTab('kyc')} />
-          <SidebarItem icon={Clock} label="Permintaan Tertunda" active={activeTab === 'pending'} onClick={() => setActiveTab('pending')} />
-          <SidebarItem icon={Users} label="Nasabah" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
-          <SidebarItem icon={Wallet} label="Kontrol Brankas" active={activeTab === 'vault'} onClick={() => setActiveTab('vault')} />
-          <SidebarItem icon={Coins} label="Tokenomik" active={activeTab === 'tokenomics'} onClick={() => setActiveTab('tokenomics')} />
-          <SidebarItem icon={Key} label="Manajemen API" active={activeTab === 'api'} onClick={() => setActiveTab('api')} />
-          <SidebarItem icon={Box} label="Inventaris" active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} />
-          <SidebarItem icon={FileText} label="Log Audit" active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} />
+          <NavItems />
         </nav>
-        <div className="p-6 mt-auto space-y-6 hidden md:block">
+        <div className="p-6 mt-auto space-y-6">
           <div className="bg-muted/50 rounded-2xl p-4 border border-border">
             <div className="flex items-center justify-between mb-4">
               <span className="text-[10px] font-black uppercase text-muted-foreground">Tema</span>
@@ -166,12 +189,41 @@ function AdminContent() {
         </div>
       </aside>
 
-      <main className="md:ml-72 flex-1 flex flex-col min-w-0 bg-background">
+      {/* MAIN CONTENT AREA */}
+      <main className="md:ml-72 flex-1 flex flex-col min-w-0 bg-background min-h-screen">
+        {/* TOP HEADER - Mobile & Desktop Responsive */}
         <header className="h-20 bg-card border-b border-border flex items-center justify-between px-6 md:px-10 sticky top-0 z-40">
-          <div className="relative w-full max-sm hidden sm:block">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Cari data global..." className="h-11 pl-12 bg-muted border-none rounded-xl text-xs font-bold w-full" />
+          <div className="flex items-center gap-4">
+            {/* Mobile Menu Trigger */}
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <button className="md:hidden p-2 hover:bg-muted rounded-xl transition-colors">
+                  <Menu className="w-6 h-6 text-foreground" />
+                </button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[85vw] p-0 bg-card border-r border-border">
+                <SheetHeader className="p-8 flex-row items-center gap-3 text-left">
+                  <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg"><LogoIcon className="text-white" /></div>
+                  <div>
+                    <SheetTitle className="font-bold text-xl tracking-tighter italic uppercase">AliBank</SheetTitle>
+                    <SheetDescription className="text-[8px] font-bold uppercase text-muted-foreground">Control Center V3</SheetDescription>
+                  </div>
+                </SheetHeader>
+                <nav className="px-4 space-y-2 py-4 h-[calc(100vh-160px)] overflow-y-auto no-scrollbar">
+                  <NavItems />
+                </nav>
+                <div className="p-6 border-t border-border mt-auto">
+                   <SidebarItem icon={LogOut} label="Keluar" className="text-rose-500" onClick={() => auth?.signOut()} />
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            <div className="relative w-full max-w-sm hidden sm:block">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Cari data global..." className="h-11 pl-12 bg-muted border-none rounded-xl text-xs font-bold w-full" />
+            </div>
           </div>
+
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-black leading-none">{user?.displayName || "Super Admin"}</p>
@@ -189,7 +241,8 @@ function AdminContent() {
           </div>
         </header>
 
-        <div className="p-6 md:p-10 space-y-10 overflow-y-auto no-scrollbar pb-20">
+        {/* PAGE CONTENT */}
+        <div className="p-6 md:p-10 space-y-10 overflow-y-auto no-scrollbar pb-20 flex-1">
           {activeTab === 'dashboard' && (
             <DashboardView 
               globalLiquidity={globalLiquidity} 
