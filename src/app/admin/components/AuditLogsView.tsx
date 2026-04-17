@@ -18,34 +18,45 @@ import {
   ShieldCheck,
   Activity,
   AlertCircle,
-  Database
+  Database,
+  ShieldAlert,
+  ArrowUpRight,
+  User,
+  AlertTriangle
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 
-export function AuditLogsView({ auditLogs }: any) {
+export function AuditLogsView({ auditLogs, allUsers }: any) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
-  const itemsPerPage = 12;
+  const itemsPerPage = 15;
 
-  // ANALITIK DINAMIS: Mendeteksi aktivitas mencurigakan yang ter-capture di sisi User
-  const stats = useMemo(() => {
-    if (!auditLogs) return { official: 0, clientSide: 0, anomalyCount: 0, totalValue: 0 };
+  // ANALITIK FORENSIK: Deteksi Ketidaksesuaian Saldo Lintas Node
+  const forensicStats = useMemo(() => {
+    if (!auditLogs || !allUsers) return { anomalies: [], totalValue: 0, riskyCount: 0 };
     
-    return auditLogs.reduce((acc: any, log: any) => {
+    let totalValue = 0;
+    let riskyCount = 0;
+    
+    // Identifikasi transaksi berisiko (Besar & Cepat)
+    const anomalies = auditLogs.filter((log: any) => {
       const amt = log.amountIdr || 0;
-      if (log.source === 'official') acc.official++;
-      else {
-        acc.clientSide++;
-        // Anggap transaksi client-side di atas 10jt yang tidak ada di audit global sebagai anomali
-        if (amt > 10000000) acc.anomalyCount++;
-      }
-      acc.totalValue += amt;
-      return acc;
-    }, { official: 0, clientSide: 0, anomalyCount: 0, totalValue: 0 });
-  }, [auditLogs]);
+      totalValue += amt;
+      
+      const isLarge = amt > 10000000;
+      const isManual = log.category === "Manual Adjustment";
+      const isClientSource = log.source === 'client';
+      
+      if (isLarge || isManual) riskyCount++;
+      
+      return isLarge || isClientSource || isManual;
+    });
+
+    return { anomalies, totalValue, riskyCount };
+  }, [auditLogs, allUsers]);
 
   const filteredLogs = useMemo(() => {
     if (!auditLogs) return [];
@@ -57,7 +68,7 @@ export function AuditLogsView({ auditLogs }: any) {
       log.description?.toLowerCase().includes(s) ||
       log.category?.toLowerCase().includes(s) ||
       log.userEmail?.toLowerCase().includes(s) ||
-      log.source?.toLowerCase().includes(s)
+      log.gateway?.toLowerCase().includes(s)
     );
   }, [auditLogs, searchTerm]);
 
@@ -72,46 +83,51 @@ export function AuditLogsView({ auditLogs }: any) {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h2 className="text-3xl font-black italic uppercase tracking-tighter">Rekonsiliasi Lintas Node</h2>
-            <Badge className="bg-primary text-primary-foreground font-black text-[8px] h-5 uppercase italic">V3 Deep Scan</Badge>
+            <h2 className="text-3xl font-black italic uppercase tracking-tighter">Pusat Forensik Keuangan</h2>
+            <Badge className="bg-rose-600 text-white font-black text-[8px] h-5 uppercase italic animate-pulse">Deep Scan Active</Badge>
           </div>
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Memantau Sinkronisasi Antara Node Inti dan Rekaman Nasabah</p>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Audit Menyeluruh Lintas Nasabah & Deteksi Sumber Dana Gaib</p>
         </div>
         <div className="flex gap-3">
           <button className="h-11 px-6 rounded-xl gold-gradient text-white flex items-center gap-2 text-xs font-black uppercase italic shadow-lg">
-            <Download className="w-4 h-4" /> Ekspor Laporan Komprehensif
+            <Download className="w-4 h-4" /> Cetak Laporan Kepatuhan
           </button>
         </div>
       </header>
 
+      {/* FORENSIC INDICATORS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <AnalyticCard 
-          icon={ShieldCheck} 
-          label="Audit Resmi (Node Inti)" 
-          value={stats.official} 
-          sub="Tercatat di Global Ledger" 
-          color="text-green-500" 
-        />
-        <AnalyticCard 
-          icon={Database} 
-          label="Rekaman Nasabah" 
-          value={stats.clientSide} 
-          sub="Terdeteksi di Sisi User" 
-          color="text-blue-500" 
-        />
-        <AnalyticCard 
-          icon={AlertCircle} 
+        <ForensicCard 
+          icon={ShieldAlert} 
           label="Anomali Terdeteksi" 
-          value={stats.anomalyCount} 
-          sub="Transaksi User Mencurigakan" 
+          value={forensicStats.anomalies.length} 
+          sub="Transaksi Butuh Review" 
           color="text-rose-500" 
+          status="CRITICAL"
         />
-        <AnalyticCard 
+        <ForensicCard 
+          icon={Activity} 
+          label="Transaksi Berisiko" 
+          value={forensicStats.riskyCount} 
+          sub="Di atas Rp10jt / Manual" 
+          color="text-amber-500" 
+          status="WARNING"
+        />
+        <ForensicCard 
+          icon={Database} 
+          label="Rekaman Lintas Node" 
+          value={auditLogs?.length || 0} 
+          sub="Total Entri Buku Besar" 
+          color="text-blue-500" 
+          status="SYNCED"
+        />
+        <ForensicCard 
           icon={TrendingUp} 
           label="Total Perputaran" 
-          value={`Rp ${stats.totalValue.toLocaleString()}`} 
+          value={`Rp ${forensicStats.totalValue.toLocaleString()}`} 
           sub="Akumulasi Seluruh Node" 
           color="text-primary" 
+          status="LIVE"
         />
       </div>
 
@@ -120,7 +136,7 @@ export function AuditLogsView({ auditLogs }: any) {
           <div className="relative w-full max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 
-              placeholder="Cari ID, Email, atau Sumber Data..." 
+              placeholder="Cari Email Nasabah, ID Transaksi, atau Gateway..." 
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className="h-12 pl-12 bg-background border-none rounded-2xl text-xs font-bold shadow-none" 
@@ -128,114 +144,104 @@ export function AuditLogsView({ auditLogs }: any) {
           </div>
           
           <div className="flex items-center gap-6">
-            <Badge className="bg-primary/10 text-primary border-none text-[9px] font-black uppercase px-3 h-6 flex items-center">
-              Ditemukan: {filteredLogs.length} Entri
-            </Badge>
             <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-9 w-9 rounded-xl" 
-                disabled={currentPage === 1} 
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <span className="text-[10px] font-black text-muted-foreground uppercase italic">
-                Hal {currentPage} / {totalPages || 1}
-              </span>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-9 w-9 rounded-xl" 
-                disabled={currentPage === totalPages || totalPages === 0} 
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}><ChevronLeft className="w-4 h-4" /></Button>
+              <span className="text-[10px] font-black text-muted-foreground uppercase italic">Hal {currentPage} / {totalPages || 1}</span>
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}><ChevronRight className="w-4 h-4" /></Button>
             </div>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left min-w-[900px]">
             <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
               <tr>
-                <th className="px-8 py-6">Waktu & Sumber</th>
-                <th className="px-8 py-6">Deskripsi Transaksi</th>
-                <th className="px-8 py-6">Entitas Nasabah</th>
+                <th className="px-8 py-6">Konteks & Waktu</th>
+                <th className="px-8 py-6">Sumber / Gateway</th>
+                <th className="px-8 py-6">Nasabah</th>
+                <th className="px-8 py-6">Status Audit</th>
                 <th className="px-8 py-6 text-right">Nilai Nominal</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {paginatedLogs.map((log: any) => (
-                <tr key={log.id || Math.random()} className={cn(
-                  "hover:bg-muted/30 transition-colors group",
-                  log.source === 'client' && "bg-blue-500/[0.02]"
-                )}>
-                  <td className="px-8 py-5">
-                    <div className="space-y-1.5">
-                      <p className="text-[10px] font-bold text-muted-foreground font-mono italic">
-                        {log.timestamp?.toDate?.().toLocaleString('id-ID') || '---'}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Badge className={cn(
-                          "border-none text-[7px] font-black h-4 px-1.5 uppercase",
-                          log.source === 'official' ? "bg-green-500 text-white" : "bg-blue-500 text-white"
-                        )}>
-                          {log.source === 'official' ? 'Node Inti' : 'Rekaman Nasabah'}
+              {paginatedLogs.map((log: any) => {
+                const isAnomaly = (log.amountIdr > 10000000) || (log.category === "Manual Adjustment") || log.source === 'client';
+                
+                return (
+                  <tr key={log.id || Math.random()} className={cn(
+                    "hover:bg-muted/30 transition-colors group",
+                    isAnomaly && "bg-rose-500/[0.02]"
+                  )}>
+                    <td className="px-8 py-5">
+                      <div className="space-y-1.5">
+                        <Badge className="bg-muted text-foreground border-none text-[8px] font-black h-5 uppercase px-2">
+                          {log.category}
                         </Badge>
-                        {log.source === 'client' && <AlertCircle className="w-3 h-3 text-blue-500" />}
+                        <p className="text-[10px] font-bold text-muted-foreground font-mono italic">
+                          {log.timestamp?.toDate?.().toLocaleString('id-ID') || '---'}
+                        </p>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5">
-                    <div className="space-y-1.5">
-                      <Badge className="bg-muted text-foreground border-none text-[8px] font-black h-5 uppercase px-2">
-                        {log.category}
-                      </Badge>
-                      <p className="text-[11px] font-black uppercase italic text-accent leading-tight max-w-xs">
-                        {log.description}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center border border-border">
-                        <UserIcon className="w-4 h-4 text-muted-foreground" />
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-muted text-primary"><Zap className="w-3.5 h-3.5" /></div>
+                        <div>
+                          <p className="text-[11px] font-black uppercase italic text-foreground">{log.gateway || log.source || "Node Inti"}</p>
+                          <p className="text-[8px] font-bold text-muted-foreground uppercase">{log.description?.slice(0, 40)}...</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-black italic uppercase text-foreground">{log.userEmail?.split('@')[0] || 'Sistem'}</p>
-                        <p className="text-[8px] font-bold text-muted-foreground uppercase">{log.userEmail || 'Internal'}</p>
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center border border-border">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black italic uppercase text-foreground">{log.userEmail?.split('@')[0] || 'Sistem'}</p>
+                          <p className="text-[8px] font-bold text-muted-foreground uppercase">{log.userEmail || 'Internal'}</p>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5 text-right">
-                    <div className="space-y-1">
-                      <p className={cn(
-                        "text-sm font-black italic tracking-tighter",
-                        log.amountIdr > 0 ? "text-foreground" : "text-muted-foreground"
-                      )}>
-                        {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString('id-ID')}` : '---'}
-                      </p>
-                      {log.source === 'client' && <span className="text-[7px] font-bold text-blue-500 uppercase">Verifikasi Dibutuhkan</span>}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-8 py-5">
+                      {isAnomaly ? (
+                        <div className="flex items-center gap-2 text-rose-600">
+                          <AlertTriangle className="w-4 h-4" />
+                          <span className="text-[10px] font-black uppercase italic">Dicurigai</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-green-600">
+                          <ShieldCheck className="w-4 h-4" />
+                          <span className="text-[10px] font-black uppercase italic">Tervalidasi</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-8 py-5 text-right">
+                      <div className="space-y-1">
+                        <p className={cn(
+                          "text-sm font-black italic tracking-tighter",
+                          isAnomaly ? "text-rose-600" : "text-foreground"
+                        )}>
+                          Rp {log.amountIdr?.toLocaleString('id-ID') || '0'}
+                        </p>
+                        {log.amountUsd && <p className="text-[8px] font-bold text-muted-foreground uppercase italic">$ {log.amountUsd.toFixed(2)}</p>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </Card>
 
-      <div className="p-8 rounded-[2.5rem] bg-rose-600/5 border border-rose-600/10 flex flex-col md:flex-row items-center gap-6">
-        <div className="w-16 h-16 rounded-3xl bg-rose-600 flex items-center justify-center shrink-0 shadow-xl p-4">
-          <ShieldCheck className="text-white w-full h-full" />
+      <div className="p-8 rounded-[2.5rem] bg-amber-500/5 border border-amber-500/10 flex flex-col md:flex-row items-center gap-6">
+        <div className="w-16 h-16 rounded-3xl bg-amber-500 flex items-center justify-center shrink-0 shadow-xl p-4">
+          <ShieldAlert className="text-white w-full h-full" />
         </div>
         <div className="space-y-1 text-center md:text-left">
-          <h4 className="text-sm font-black uppercase italic tracking-tight text-rose-600">Protokol Keamanan V3.5 - Deep Reconciliation</h4>
+          <h4 className="text-sm font-black uppercase italic tracking-tight text-amber-600">Protokol Keamanan V3.5 - Pencucian Uang (AML)</h4>
           <p className="text-[10px] font-medium text-muted-foreground leading-relaxed uppercase italic max-w-3xl">
-            Sistem saat ini sedang menampilkan data dari dua jalur: Audit Global dan Aktivitas Lintas Dompet Nasabah. Transaksi yang muncul dengan label <span className="text-blue-500 font-bold">"Rekaman Nasabah"</span> adalah transaksi yang tercatat secara lokal di dompet user namun belum melewati sinkronisasi Buku Besar Utama. Hal ini membantu mengidentifikasi anomali saldo yang tidak wajar.
+            Sistem secara otomatis menandai transaksi di atas <span className="text-rose-600 font-bold">Rp10.000.000</span> atau transaksi yang dilakukan secara manual oleh nasabah tanpa verifikasi gateway yang sah. Anda disarankan melakukan pembekuan saldo jika menemukan ketidaksesuaian pada tab <span className="text-blue-500 font-bold">"Rekaman Nasabah"</span>.
           </p>
         </div>
       </div>
@@ -243,29 +249,20 @@ export function AuditLogsView({ auditLogs }: any) {
   );
 }
 
-function AnalyticCard({ icon: Icon, label, value, sub, color }: any) {
+function ForensicCard({ icon: Icon, label, value, sub, color, status }: any) {
   return (
-    <Card className="border-none bg-card rounded-[2.5rem] p-8 shadow-sm h-44 flex flex-col justify-between hover:shadow-md transition-all group">
+    <Card className="border-none bg-card rounded-[2.5rem] p-8 shadow-sm h-44 flex flex-col justify-between hover:shadow-md transition-all group border border-border/50">
       <div className="flex justify-between items-start">
         <div className={cn("w-12 h-12 rounded-2xl bg-muted flex items-center justify-center transition-transform group-hover:scale-110", color)}>
           <Icon className="w-6 h-6" />
         </div>
-        <Badge variant="outline" className="border-border text-[7px] font-black uppercase tracking-widest px-2 h-5">Live Monitor</Badge>
+        <Badge variant="outline" className="border-border text-[7px] font-black uppercase tracking-widest px-2 h-5 italic">{status}</Badge>
       </div>
       <div>
         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest leading-none mb-1.5">{label}</p>
         <p className={cn("text-2xl font-black italic tracking-tighter truncate", color)}>{value}</p>
-        <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1 opacity-60">{sub}</p>
+        <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1 opacity-60 italic">{sub}</p>
       </div>
     </Card>
-  );
-}
-
-function UserIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
   );
 }
