@@ -3,9 +3,9 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V9.0 - TOTAL ADMIN PRIVILEGE
-     * Proteksi mutlak untuk infrastruktur perbankan AliBank V3.
-     * Memastikan Super Admin memiliki akses tanpa batas (Zero Boundary) ke seluruh data.
+     * ALIBANK SECURITY RULES V10.0 - UNRESTRICTED ADMIN PRIVILEGE
+     * Memberikan kontrol penuh tanpa batas kepada Super Admin AliBank.
+     * Mengizinkan kueri Collection Group (rekonsiliasi lintas nasabah).
      */
 
     function isSignedIn() {
@@ -20,28 +20,27 @@ service cloud.firestore {
       );
     }
 
-    // --- GLOBAL ADMIN PRIORITY ---
-    // Aturan ini memberikan akses penuh ke seluruh dokumen dan sub-koleksi (termasuk Collection Groups)
-    // Jika aturan ini 'true', maka admin tidak akan pernah terkena "Missing or insufficient permissions".
+    // --- GLOBAL ADMIN OVERRIDE (CRITICAL) ---
+    // Aturan ini mencakup kueri Collection Group dan akses dokumen individual.
+    // Jika isAdmin() benar, semua operasi di jalur mana pun akan diizinkan.
     match /{document=**} {
       allow read, write: if isAdmin();
     }
 
-    // --- ATURAN SPESIFIK (Hanya berlaku jika user BUKAN Admin) ---
+    // --- ATURAN KHUSUS UNTUK NASABAH ---
+    // (Hanya dievaluasi jika user BUKAN Admin)
     
-    // Koleksi Nasabah (Users)
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn() && request.auth.uid == userId;
-      allow delete: if false; // Hanya Admin yang bisa hapus (via rule global di atas)
+      allow delete: if false;
 
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn() && request.auth.uid == userId;
       }
     }
 
-    // Koleksi Bisnis (Merchants)
     match /merchants/{userId} {
       allow get, list: if isSignedIn() && request.auth.uid == userId;
       allow create, update: if isSignedIn() && request.auth.uid == userId;
@@ -52,14 +51,11 @@ service cloud.firestore {
       }
     }
 
-    // Aturan Topup Requests
     match /topup_requests/{reqId} {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow update, delete: if false; // Hanya Admin (via rule global)
     }
 
-    // Data Pasar & Produk
     match /market/{pairId} {
       allow read: if isSignedIn();
       match /{allSubcollections=**} {
@@ -71,20 +67,18 @@ service cloud.firestore {
       allow read: if isSignedIn();
     }
 
-    // Infrastruktur Sistem
     match /system/liquidity {
       allow read: if isSignedIn();
-      allow update: if false; // Hanya Admin (via rule global)
     }
     
     match /system/api_keys {
-      // KEAMANAN TINGGI: Hanya Admin yang bisa menyentuh Kunci Vault
-      allow read, write: if false; // Override oleh rule global isAdmin()
+      // Keamanan tertinggi: Hanya Admin yang bisa menyentuh kredensial sistem.
+      allow read, write: if isAdmin();
     }
     
     match /system/audit/{subPath=**} {
       allow create: if isSignedIn();
-      allow read: if false; // Hanya Admin (via rule global)
+      allow read: if isAdmin();
     }
   }
 }
