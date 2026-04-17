@@ -3,9 +3,9 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V10.0 - UNRESTRICTED ADMIN PRIVILEGE
-     * Memberikan kontrol penuh tanpa batas kepada Super Admin AliBank.
-     * Mengizinkan kueri Collection Group (rekonsiliasi lintas nasabah).
+     * ALIBANK SECURITY RULES V11.0 - UNRESTRICTED SUPER ADMIN PRIVILEGE
+     * Memberikan kontrol mutlak tanpa batas kepada Super Admin AliBank.
+     * Mengizinkan kueri Collection Group untuk audit dan rekonsiliasi global.
      */
 
     function isSignedIn() {
@@ -14,20 +14,33 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
+        request.auth.uid == 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2' ||
         request.auth.token.email == 'alidzulfikar075@gmail.com' || 
-        request.auth.token.email == 'dzulfikaraliridlo@gmail.com' ||
-        request.auth.uid == 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2'
+        request.auth.token.email == 'dzulfikaraliridlo@gmail.com'
       );
     }
 
-    // --- GLOBAL ADMIN OVERRIDE (CRITICAL) ---
-    // Aturan ini mencakup kueri Collection Group dan akses dokumen individual.
-    // Jika isAdmin() benar, semua operasi di jalur mana pun akan diizinkan.
+    // --- GLOBAL ADMIN OVERRIDE (KUASA TANPA BATAS) ---
+    // Aturan ini menjamin Admin bisa melakukan APAPUN di jalur MANAPUN.
     match /{document=**} {
       allow read, write: if isAdmin();
     }
 
-    // --- ATURAN KHUSUS UNTUK NASABAH ---
+    // --- DUKUNGAN KUERI LINTAS KOLEKSI (COLLECTION GROUP) ---
+    // Diperlukan agar Dasbor Admin bisa memindai data dari seluruh dompet nasabah.
+    match /{path=**}/transactions/{docId} {
+      allow read: if isAdmin();
+    }
+    
+    match /{path=**}/invoices/{docId} {
+      allow read: if isAdmin();
+    }
+
+    match /{path=**}/futures_positions/{docId} {
+      allow read: if isAdmin();
+    }
+
+    // --- ATURAN KHUSUS UNTUK NASABAH (NON-ADMIN) ---
     // (Hanya dievaluasi jika user BUKAN Admin)
     
     match /users/{userId} {
