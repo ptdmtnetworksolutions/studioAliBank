@@ -60,7 +60,7 @@ function APIKeysContent() {
   const [keys, setKeys] = useState({
     paypalClientId: "",
     paypalClientSecret: "",
-    paypalWebhookId: "", // Kolom Baru untuk Webhook
+    paypalWebhookId: "",
     midtransMerchantId: "",
     midtransClientKey: "",
     midtransServerKey: "",
@@ -224,7 +224,6 @@ function APIKeysContent() {
                     onChange={(v: any) => setKeys({...keys, paypalClientId: v})}
                     show={showKeys['paypal_id']}
                     onToggle={() => toggleShow('paypal_id')}
-                    description="Client ID dari portal developer PayPal."
                   />
                   <KeyField 
                     label="PayPal Client Secret" 
@@ -234,7 +233,6 @@ function APIKeysContent() {
                     onChange={(v: any) => setKeys({...keys, paypalClientSecret: v})}
                     show={showKeys['paypal_secret']}
                     onToggle={() => toggleShow('paypal_secret')}
-                    description="Secret Key untuk kliring aman sisi server."
                   />
                   <div className="md:col-span-2">
                     <KeyField 
@@ -245,7 +243,7 @@ function APIKeysContent() {
                       onChange={(v: any) => setKeys({...keys, paypalWebhookId: v})}
                       show={showKeys['paypal_wh']}
                       onToggle={() => toggleShow('paypal_wh')}
-                      description="ID Webhook dari tab 'Manage Webhooks' di dashboard PayPal."
+                      description="Gunakan URL Webhook: https://studio--darmedia-pos.us-central1.hosted.app/api/paypal/webhook"
                     />
                   </div>
                 </div>
@@ -288,7 +286,6 @@ function APIKeysContent() {
                       onChange={(v: any) => setKeys({...keys, midtransServerKey: v})}
                       show={showKeys['mt_server']}
                       onToggle={() => toggleShow('mt_server')}
-                      description="Server Key digunakan untuk otentikasi aman antar server. Jangan pernah bagikan."
                     />
                   </div>
                 </div>
@@ -309,7 +306,6 @@ function APIKeysContent() {
                     placeholder="https://eth-mainnet.g.alchemy.com/v2/your-key"
                     onChange={(v: any) => setKeys({...keys, ethereumRpcUrl: v})} 
                     show={true} 
-                    description="Gunakan Endpoint URL dari Alchemy (Mainnet) untuk Brankas ETH."
                   />
                   <KeyField 
                     label="Polygon RPC Node (Alchemy)" 
@@ -318,7 +314,6 @@ function APIKeysContent() {
                     placeholder="https://polygon-mainnet.g.alchemy.com/v2/your-key"
                     onChange={(v: any) => setKeys({...keys, polygonRpcUrl: v})} 
                     show={true} 
-                    description="Gunakan Endpoint URL dari Alchemy (Polygon) untuk Kontrol Koin ALX."
                   />
                   <div className="md:col-span-2">
                     <KeyField 
@@ -328,7 +323,6 @@ function APIKeysContent() {
                       placeholder="0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd"
                       onChange={(v: any) => setKeys({...keys, alxContractAddress: v})}
                       show={true}
-                      description="Alamat kontrak Polygon untuk token ALX V3.1."
                     />
                   </div>
                 </div>
@@ -337,7 +331,7 @@ function APIKeysContent() {
               <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex gap-4">
                 <AlertCircle className="w-6 h-6 text-amber-500 shrink-0" />
                 <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                  Peringatan Keamanan: Perubahan kredensial bersifat instan. Kesalahan input pada RPC Node dapat menyebabkan kegagalan sinkronisasi saldo on-chain dan fungsi penarikan.
+                  Informasi: Gunakan Webhook untuk menjamin sinkronisasi saldo otomatis saat nasabah membayar melalui kartu kredit tanpa harus menunggu mereka kembali ke aplikasi.
                 </p>
               </div>
 
