@@ -32,37 +32,28 @@ export interface InternalQuery extends Query<DocumentData> {
 /**
  * Ekstrak path secara aman.
  * Menangani: CollectionReference, Query biasa, dan CollectionGroup query.
- * Return NULL jika benar-benar tidak bisa diekstrak.
  */
 function safeExtractPath(
   ref: CollectionReference<DocumentData> | Query<DocumentData>
 ): string | null {
   try {
-    // Case 1: CollectionReference — punya .path langsung
     if (ref.type === 'collection') {
       return (ref as CollectionReference).path || null;
     }
 
-    // Case 2: Query internal
     const internalQuery = (ref as unknown as InternalQuery)._query;
     if (!internalQuery) return null;
 
-    // ✅ FIX UTAMA: Collection Group query punya collectionGroup, bukan path
-    // Contoh: collectionGroup(db, 'transactions')
     const collectionGroupId = (internalQuery as any)?.collectionGroup;
     if (typeof collectionGroupId === 'string' && collectionGroupId.length > 0) {
-      // Prefix dengan '__group__/' agar isValidPath tidak menolaknya
-      // dan kita tahu ini collection group untuk keperluan logging
       return `__group__/${collectionGroupId}`;
     }
 
-    // Case 3: Query biasa dengan path
     const canonicalPath = internalQuery?.path?.canonicalString?.();
     if (typeof canonicalPath === 'string' && canonicalPath.length > 0) {
       return canonicalPath;
     }
 
-    // Case 4: Fallback ke property path langsung
     const directPath = (ref as any)?.path;
     if (typeof directPath === 'string' && directPath.length > 0) {
       return directPath;
@@ -75,17 +66,11 @@ function safeExtractPath(
   }
 }
 
-/**
- * Validasi path adalah string Firestore yang sah.
- */
 function isValidPath(path: string | null): path is string {
   if (!path || typeof path !== 'string') return false;
   if (path === '/' || path === '') return false;
-  // Tolak semua string yang terlihat seperti fallback / nama bukan koleksi
   const RESERVED_FALLBACKS = new Set(['query', 'unknown', 'undefined', 'null', 'collection']);
   if (RESERVED_FALLBACKS.has(path.toLowerCase())) return false;
-  // Path Firestore: huruf, angka, underscore, dash, slash
-  // Ditambah support untuk prefix __group__ kita
   return /^[\w\-]+(\/[\w\-]+)*$/.test(path);
 }
 
@@ -102,7 +87,6 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    // Guard 1: Null / undefined
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -110,25 +94,16 @@ export function useCollection<T = any>(
       return;
     }
 
-    // Guard 2: Ekstrak path — jika null, hentikan
     const rawPath = safeExtractPath(memoizedTargetRefOrQuery);
 
     if (!isValidPath(rawPath)) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn(
-          `[useCollection] Path tidak valid: "${rawPath}". ` +
-          `Subscription dibatalkan. RefType: ${memoizedTargetRefOrQuery.type}`,
-          memoizedTargetRefOrQuery
-        );
-      }
       setData(null);
       setIsLoading(false);
       setError(null);
-      return; // ← STOP total, tidak lanjut ke onSnapshot
+      return;
     }
 
-    const path = rawPath; // TypeScript sekarang tahu ini string
-
+    const path = rawPath;
     setIsLoading(true);
     setError(null);
 
@@ -152,31 +127,11 @@ export function useCollection<T = any>(
         setData(null);
         setIsLoading(false);
         errorEmitter.emit('permission-error', contextualError);
-
-        if (process.env.NODE_ENV === 'development') {
-          console.error(
-            `[useCollection] ❌ Firestore DENIED path: "${path}"\n` +
-            `Pastikan: 1) User sudah login, 2) Aturan keamanan mendukung kueri ini.`,
-            err
-          );
-        }
       }
     );
 
     return () => unsubscribe();
   }, [memoizedTargetRefOrQuery]);
-
-  // Memo guard
-  if (
-    process.env.NODE_ENV === 'development' &&
-    memoizedTargetRefOrQuery &&
-    !memoizedTargetRefOrQuery.__memo
-  ) {
-    console.error(
-      '[useCollection] ⚠️ Ref/Query tidak di-memoize! ' +
-      'Gunakan useMemoFirebase().'
-    );
-  }
 
   return { data, isLoading, error };
 }

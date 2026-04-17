@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V12.0 - SUPREME ADMIN & ROOT ACCESS
+     * ALIBANK SECURITY RULES V13.0 - SUPREME ADMIN & ROOT ACCESS
      * Memberikan kontrol mutlak dan dukungan kueri rekonsiliasi global.
      */
 
@@ -20,20 +20,16 @@ service cloud.firestore {
     }
 
     // --- ROOT LEVEL LIST SUPPORT ---
-    // Mengizinkan admin untuk melist koleksi di tingkat teratas database.
-    // Ini krusial untuk mencegah error "list" pada path root "/"
     match /{topLevelCollection} {
       allow list: if isAdmin();
     }
 
     // --- GLOBAL ADMIN OVERRIDE (KUASA TANPA BATAS) ---
-    // Aturan ini menjamin Admin bisa melakukan APAPUN di seluruh tingkatan dokumen.
     match /{document=**} {
       allow read, write: if isAdmin();
     }
 
     // --- DUKUNGAN KUERI LINTAS KOLEKSI (COLLECTION GROUP) ---
-    // Diperlukan agar Dasbor Admin bisa memindai data dari seluruh dompet nasabah secara bersamaan.
     match /{path=**}/transactions/{docId} {
       allow read: if isAdmin();
     }
@@ -47,8 +43,6 @@ service cloud.firestore {
     }
 
     // --- ATURAN KHUSUS UNTUK NASABAH (NON-ADMIN) ---
-    // (Hanya dievaluasi jika user BUKAN Admin)
-    
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
@@ -91,7 +85,6 @@ service cloud.firestore {
     }
     
     match /system/api_keys {
-      // Keamanan tertinggi: Hanya Admin yang bisa menyentuh kredensial sistem.
       allow read, write: if isAdmin();
     }
     
