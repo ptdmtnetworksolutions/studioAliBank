@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * @fileOverview Server-side proxy for Binance 24hr Ticker API.
- * Optimized for Production with Cluster Redundancy.
+ * Dioptimalkan untuk Production dengan bypass cache agar Kurs selalu Real-Time.
  */
 
 export async function GET(request: NextRequest) {
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const symbols = searchParams.get('symbols');
   const symbol = searchParams.get('symbol');
 
-  // Gunakan api3 untuk stabilitas lebih tinggi di lingkungan Cloud Hosting
+  // Gunakan api3 untuk stabilitas lebih tinggi
   let url = 'https://api3.binance.com/api/v3/ticker/24hr';
   
   if (symbols) {
@@ -26,11 +26,11 @@ export async function GET(request: NextRequest) {
         'Accept': 'application/json',
         'User-Agent': 'AliBank-V3-Core/1.0 (Production Node)'
       },
-      next: { revalidate: 10 } 
+      // Nonaktifkan cache internal NextJS agar data selalu segar (Real-Time)
+      cache: 'no-store'
     });
 
     if (!response.ok) {
-      console.error(`Binance Node Error (${response.status})`);
       return NextResponse.json({ error: 'Upstream node rejected request.' }, { status: 502 });
     }
 

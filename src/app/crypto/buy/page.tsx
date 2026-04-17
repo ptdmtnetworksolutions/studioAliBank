@@ -6,33 +6,26 @@ import {
   History, 
   ChevronDown, 
   ChevronRight, 
-  Sparkles,
   Delete,
-  X,
   ArrowUpDown,
   CreditCard,
   Building2,
-  Wallet,
   Loader2,
   CheckCircle2,
   ShieldCheck,
-  Lock,
   Globe,
   Smartphone,
   ShieldAlert,
   Copy,
   Landmark,
   Upload,
-  ImageIcon,
   RefreshCw,
   Zap,
   QrCode,
-  ArrowDownLeft,
-  ArrowUpRight,
-  Search,
   Info,
   AlertCircle,
-  Plus
+  Plus,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -98,6 +91,7 @@ export default function CryptoBuyPage() {
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS[0]);
   const [selectedWithdrawalAccount, setSelectedWithdrawalAccount] = useState<any>(null);
   const [dynamicUsdtRate, setDynamicUsdtRate] = useState(15850);
+  const [isRateLoading, setIsRateLoading] = useState(true);
   
   const [isPaymentSheetOpen, setIsPaymentSheetOpen] = useState(false);
   const [isAssetSheetOpen, setIsAssetSheetOpen] = useState(false);
@@ -123,17 +117,22 @@ export default function CryptoBuyPage() {
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
+  // FIX: Sinkronisasi Kurs USD/IDR Real-Time dari Node Bursa
   const fetchRealTimeRate = useCallback(async () => {
     try {
-      const res = await fetch(`/api/market/ticker?symbol=USDTIDR`);
+      setIsRateLoading(true);
+      const res = await fetch(`/api/market/ticker?symbol=USDTIDR`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         if (data.lastPrice) {
-          setDynamicUsdtRate(parseFloat(data.lastPrice));
+          const newRate = parseFloat(data.lastPrice);
+          setDynamicUsdtRate(newRate);
         }
       }
     } catch (e) {
       console.warn("Failed to fetch real-time rate", e);
+    } finally {
+      setIsRateLoading(false);
     }
   }, []);
 
@@ -335,16 +334,17 @@ export default function CryptoBuyPage() {
     }
   };
 
+  // FIX: Logika Rendering PayPal yang lebih stabil dengan Auto-Retry
   const renderPayPalButtons = useCallback(async () => {
     if (!paypalContainerRef.current || !isCheckoutDialogOpen || !systemKeys?.paypalClientId) return;
     if (selectedPayment.id !== 'card') return;
 
     if (typeof window === 'undefined' || !window.paypal) {
-      if (retryCount.current < 15) {
+      if (retryCount.current < 20) {
         retryCount.current++;
         setTimeout(renderPayPalButtons, 1000);
       } else {
-        setGatewayError("Gagal memuat terminal kliring PayPal.");
+        setGatewayError("Gagal memuat terminal kliring PayPal. Silakan segarkan halaman.");
       }
       return;
     }
@@ -399,7 +399,7 @@ export default function CryptoBuyPage() {
       renderInProgress.current = false;
       const timer = setTimeout(() => {
         renderPayPalButtons();
-      }, 500);
+      }, 800);
       return () => clearTimeout(timer);
     }
   }, [isCheckoutDialogOpen, selectedPayment.id, paypalReady, renderPayPalButtons]);
@@ -536,6 +536,7 @@ export default function CryptoBuyPage() {
         <Script 
           src={`https://www.paypal.com/sdk/js?client-id=${systemKeys.paypalClientId}&currency=USD&intent=capture`} 
           onLoad={() => setPaypalReady(true)} 
+          onError={() => setGatewayError("Gagal memuat terminal PayPal.")}
         />
       )}
       {systemKeys?.midtransClientKey && (
@@ -550,7 +551,13 @@ export default function CryptoBuyPage() {
       
       <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background z-50">
         <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors"><ArrowLeft className="w-5 h-5" /></button>
-        <button className="p-2 hover:bg-muted rounded-full transition-colors" onClick={() => router.push('/transactions')}><History className="w-5 h-5 text-muted-foreground" /></button>
+        <div className="flex items-center gap-2">
+           <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[8px] font-black italic h-6 uppercase flex items-center gap-1.5 px-2.5">
+             <RefreshCw className={cn("w-2.5 h-2.5", isRateLoading && "animate-spin")} />
+             Kurs: Rp{dynamicUsdtRate.toLocaleString()}
+           </Badge>
+           <button className="p-2 hover:bg-muted rounded-full transition-colors" onClick={() => router.push('/transactions')}><History className="w-5 h-5 text-muted-foreground" /></button>
+        </div>
       </header>
 
       <main className="flex-1 px-5 pt-1 flex flex-col justify-between">
@@ -653,7 +660,7 @@ export default function CryptoBuyPage() {
             className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest transition-all"
           >
             {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : 
-              (!isVerified && activeTab === 'jual' ? 'KYC DIERLUKAN' : (activeTab === 'beli' ? 'LANJUTKAN KE PEMBAYARAN' : 'LANJUTKAN PENJUALAN'))
+              (!isVerified && activeTab === 'jual' ? 'KYC DIPERLUKAN' : (activeTab === 'beli' ? 'LANJUTKAN KE PEMBAYARAN' : 'LANJUTKAN PENJUALAN'))
             }
           </Button>
           
@@ -743,7 +750,14 @@ export default function CryptoBuyPage() {
                       ref={paypalContainerRef} 
                       className="w-full flex justify-center"
                       style={{ minHeight: '150px' }}
-                    />
+                    >
+                       {!paypalReady && (
+                         <div className="flex flex-col items-center gap-2">
+                           <Loader2 className="animate-spin text-primary" />
+                           <p className="text-[8px] font-black uppercase italic text-primary">Menyiapkan Tombol PayPal...</p>
+                         </div>
+                       )}
+                    </div>
                   )}
                 </div>
               ) : (
