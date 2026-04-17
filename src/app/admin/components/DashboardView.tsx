@@ -20,7 +20,8 @@ import {
   Wifi,
   WifiOff,
   Cpu,
-  Smartphone
+  Smartphone,
+  AlertTriangle
 } from "lucide-react";
 import { 
   ComposedChart, 
@@ -52,20 +53,31 @@ export function DashboardView({
   const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
   const { data: storedKeys } = useDoc(apiKeysRef);
 
-  // LOGIKA AGREGASI PENDAPATAN RIIL DARI AUDIT LEDGER
+  // REKONSILIASI FINANSIAL: Menghitung total likuiditas riil yang ada di dompet nasabah
+  // Ini mendeteksi "uang gaib" yang tidak terdaftar di log audit resmi
+  const userLedgerStats = useMemo(() => {
+    if (!allUsers) return { totalUserIdr: 0, totalUserAlx: 0 };
+    return allUsers.reduce((acc: any, u: any) => {
+      acc.totalUserIdr += (u.totalBalance || 0) + (u.savings || 0);
+      acc.totalUserAlx += (u.cryptoBalances?.ALX || 0);
+      return acc;
+    }, { totalUserIdr: 0, totalUserAlx: 0 });
+  }, [allUsers]);
+
   const aggregatedStats = useMemo(() => {
     if (!auditLogs) return { tradingFees: 0, profitCapture: 0, alxSales: 0 };
 
     return auditLogs.reduce((acc: any, log: any) => {
       const amount = log.amountIdr || 0;
-      if (log.status === 'success' || log.status === 'berhasil') {
+      // Filter hanya transaksi yang sukses (baik resmi maupun rekaman nasabah)
+      if (log.status === 'success' || log.status === 'berhasil' || log.source === 'client') {
         if (log.category === "Futures Entry" || log.category === "Market Execution" || log.category === "Market Trade") {
           acc.tradingFees += amount;
         }
-        if (log.category === "Trade-X Capture" || log.category === "Ali-Spin Capture") {
+        if (log.category === "Trade-X Capture" || log.category === "Ali-Spin Capture" || log.category === "Trade-X Win") {
           acc.profitCapture += amount;
         }
-        if (log.category === "Ali-Exchange") {
+        if (log.category === "Ali-Exchange" || log.category === "Market Trade") {
           acc.alxSales += amount;
         }
       }
@@ -73,72 +85,71 @@ export function DashboardView({
     }, { tradingFees: 0, profitCapture: 0, alxSales: 0 });
   }, [auditLogs]);
 
-  const tradingFeesDisplay = globalLiquidity?.totalTradingFeesIdr || aggregatedStats.tradingFees;
-  const profitCaptureDisplay = globalLiquidity?.tradeXGrossVolumeIdr || aggregatedStats.profitCapture;
-  const alxSalesDisplay = globalLiquidity?.totalInternalAumIdr || aggregatedStats.alxSales;
+  // JIKA LIKUIDITAS DI DOMPET USER > LIKUIDITAS SISTEM, TAMPILKAN PERINGATAN ANOMALI
+  const isAnomaly = userLedgerStats.totalUserIdr > (globalLiquidity?.totalFiatInjected || 0);
 
   return (
     <div className="animate-in fade-in duration-700 space-y-10">
-      {/* NODE HEALTH STATUS - BARU: MEMANTAU KUNCI YANG ANDA MASUKKAN */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <NodeStatusCard 
-          label="Polygon Node (ALX)" 
-          status={storedKeys?.polygonRpcUrl ? "Online" : "Offline"} 
-          icon={Zap} 
-          color="text-primary" 
-        />
-        <NodeStatusCard 
-          label="Ethereum Node (Vault)" 
-          status={storedKeys?.ethereumRpcUrl ? "Online" : "Offline"} 
-          icon={Cpu} 
-          color="text-blue-500" 
-        />
-        <NodeStatusCard 
-          label="PayPal Gateway" 
-          status={storedKeys?.paypalClientId ? "Online" : "Offline"} 
-          icon={Globe} 
-          color="text-indigo-500" 
-        />
-        <NodeStatusCard 
-          label="Midtrans Gateway" 
-          status={storedKeys?.midtransServerKey ? "Online" : "Offline"} 
-          icon={Smartphone} 
-          color="text-emerald-500" 
-        />
+        <NodeStatusCard label="ALX Network" status={storedKeys?.polygonRpcUrl ? "Online" : "Offline"} icon={Zap} color="text-primary" />
+        <NodeStatusCard label="Vault Node" status={storedKeys?.ethereumRpcUrl ? "Online" : "Offline"} icon={Cpu} color="text-blue-500" />
+        <NodeStatusCard label="PayPal Bridge" status={storedKeys?.paypalClientId ? "Online" : "Offline"} icon={Globe} color="text-indigo-500" />
+        <NodeStatusCard label="Audit Engine" status="Online" icon={ShieldCheck} color="text-emerald-500" />
       </section>
 
+      {isAnomaly && (
+        <Card className="p-6 bg-rose-600 text-white rounded-[2rem] border-none shadow-xl animate-bounce flex items-center gap-6">
+          <AlertTriangle className="w-12 h-12 shrink-0" />
+          <div>
+            <h4 className="text-lg font-black uppercase italic">Peringatan Anomali Likuiditas!</h4>
+            <p className="text-xs font-bold uppercase opacity-80">Saldo riil di dompet nasabah (Rp {userLedgerStats.totalUserIdr.toLocaleString()}) melebihi catatan likuiditas masuk sistem. Terdeteksi lonjakan saldo yang tidak ter-audit.</p>
+          </div>
+          <Button variant="outline" className="ml-auto bg-white/20 border-white/20 text-white font-black italic uppercase text-xs" onClick={() => setActiveTab('audit')}>LIHAT DETAIL</Button>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <Card className="lg:col-span-8 border-none bg-card rounded-[2.5rem] p-10 space-y-10 shadow-sm">
-          <div className="flex items-center justify-between">
+        <Card className="lg:col-span-8 border-none bg-card rounded-[2.5rem] p-10 space-y-10 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none"><Database className="w-64 h-64" /></div>
+          
+          <div className="flex items-center justify-between relative z-10">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-600"><Database className="w-6 h-6" /></div>
-              <h3 className="text-lg font-black italic uppercase tracking-tight">Likuiditas Global AliBank</h3>
+              <h3 className="text-lg font-black italic uppercase tracking-tight">Kewajiban Likuiditas Riil</h3>
             </div>
-            <Badge className="bg-green-100 text-green-600 font-black text-[8px] px-3 h-6 rounded uppercase italic">Live Reconciled</Badge>
+            <Badge className="bg-primary text-primary-foreground font-black text-[8px] px-3 h-6 rounded uppercase italic">Rekonsiliasi Lintas Dompet</Badge>
           </div>
-          <div className="space-y-2">
-            <p className="text-sm font-bold text-muted-foreground uppercase">Total Modal Bersih (IDR)</p>
-            <h2 className="text-4xl md:text-6xl font-black tracking-tighter italic">Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString('id-ID')}</h2>
+          
+          <div className="space-y-2 relative z-10">
+            <p className="text-sm font-bold text-muted-foreground uppercase">Total Saldo di Dompet Nasabah (AUM)</p>
+            <h2 className="text-4xl md:text-6xl font-black tracking-tighter italic text-accent">
+              Rp {userLedgerStats.totalUserIdr.toLocaleString('id-ID')}
+            </h2>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-[10px] font-black uppercase text-muted-foreground italic">Cadangan Sistem:</span>
+              <span className="text-[10px] font-black text-green-500 italic">Rp {(globalLiquidity?.totalFiatInjected || 0).toLocaleString()}</span>
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
-            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Cadangan Brankas (USD)</span><p className="text-xl font-black italic">$ {(globalLiquidity?.totalUsdInjected || 0).toLocaleString()}</p></div>
-            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Pendapatan Futures</span><p className="text-xl font-black italic text-primary">Rp {(globalLiquidity?.futuresGrossProfitIdr || 0).toLocaleString()}</p></div>
-            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">AUM Internal</span><p className="text-xl font-black italic text-green-600">Rp {alxSalesDisplay.toLocaleString()}</p></div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 relative z-10">
+            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Volume Trade-X</span><p className="text-xl font-black italic text-primary">Rp {aggregatedStats.profitCapture.toLocaleString()}</p></div>
+            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Pendapatan Biaya</span><p className="text-xl font-black italic text-accent">Rp {aggregatedStats.tradingFees.toLocaleString()}</p></div>
+            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Aset ALX Beredar</span><p className="text-xl font-black italic text-blue-500">{userLedgerStats.totalUserAlx.toFixed(4)} ALX</p></div>
           </div>
         </Card>
         
         <Card className="lg:col-span-4 border-none bg-card rounded-[2.5rem] p-10 flex flex-col shadow-sm">
-          <h3 className="text-base font-black italic uppercase mb-8">Nasabah Terverifikasi</h3>
+          <h3 className="text-base font-black italic uppercase mb-8">Nasabah Aktif</h3>
           <div className="flex -space-x-3 mb-10">
             {(allUsers || []).slice(0, 5).map((u: any, i: number) => (
               <div key={i} className="h-12 w-12 rounded-full ring-4 ring-card overflow-hidden border border-border bg-muted">
-                <Image src={`https://picsum.photos/seed/${u.uid || i}/100/100`} alt="u" width={48} height={48} className="object-cover" />
+                {u.avatarUrl ? <img src={u.avatarUrl} alt="u" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs font-black uppercase italic text-muted-foreground">{u.name?.[0]}</div>}
               </div>
             ))}
           </div>
           <div className="mt-auto space-y-2">
             <div className="flex justify-between items-center text-[10px] font-black uppercase text-muted-foreground">
-              <span>Akun Aktif</span>
+              <span>Rekening Terdaftar</span>
               <span>{allUsers?.length || 0}</span>
             </div>
             <Progress value={Math.min(100, (allUsers?.length || 0) * 2)} className="h-1" />
@@ -146,36 +157,17 @@ export function DashboardView({
         </Card>
       </div>
 
-      {/* REVENUE BREAKDOWN */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <RevenueCard 
-          icon={Zap} 
-          label="Biaya Trading Platform" 
-          value={`Rp ${tradingFeesDisplay.toLocaleString()}`} 
-          sub="Dari Spot & Futures" 
-          color="text-yellow-500" 
-        />
-        <RevenueCard 
-          icon={TrendingUp} 
-          label="Tangkapan Profit" 
-          value={`Rp ${profitCaptureDisplay.toLocaleString()}`} 
-          sub="Game Capture & Liquidations" 
-          color="text-green-500" 
-        />
-        <RevenueCard 
-          icon={TrendingUp} 
-          label="Pendapatan Penjualan ALX" 
-          value={`Rp ${alxSalesDisplay.toLocaleString()}`} 
-          sub="Distribusi ALX Internal" 
-          color="text-blue-500" 
-        />
+        <RevenueCard icon={Zap} label="Pendapatan Fee Platform" value={`Rp ${aggregatedStats.tradingFees.toLocaleString()}`} sub="Bursa & Kliring" color="text-yellow-500" />
+        <RevenueCard icon={TrendingUp} label="Total Penjualan ALX" value={`Rp ${aggregatedStats.alxSales.toLocaleString()}`} sub="AUM Internal AliBank" color="text-blue-500" />
+        <RevenueCard icon={RefreshCw} label="Profit dari Anomali" value={`Rp ${Math.max(0, (globalLiquidity?.totalFiatInjected || 0) - userLedgerStats.totalUserIdr).toLocaleString()}`} sub="Net Liquid Surplus" color="text-emerald-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <Card className="lg:col-span-8 border-none bg-card rounded-[2.5rem] p-10 space-y-8 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2"><CandlestickChart className="w-4 h-4 text-primary" /> Dinamika Pendapatan Pro</h3>
-            <Badge className="bg-muted text-muted-foreground text-[8px] font-black uppercase">Aktivitas 24J</Badge>
+            <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2"><CandlestickChart className="w-4 h-4 text-primary" /> Aktivitas Lintas Node (24J)</h3>
+            <Badge className="bg-muted text-muted-foreground text-[8px] font-black uppercase">Real-Time Data</Badge>
           </div>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -198,35 +190,35 @@ export function DashboardView({
           <div className="relative z-10">
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-2">Aset Berdaulat</p>
             <h3 className="text-3xl font-black italic uppercase tracking-tighter">ALIX TOKEN (ALX)</h3>
-            <p className="text-[9px] font-bold text-white/30 uppercase mt-2">PROTOKOL ALX V3</p>
+            <p className="text-[9px] font-bold text-white/30 uppercase mt-2">PROTOKOL ALX V3.1</p>
           </div>
           <div className="relative z-10 flex justify-between items-end">
             <div>
-              <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Inventaris Brankas</p>
+              <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Pasokan Beredar</p>
               <p className="text-xl font-black italic">
-                {globalLiquidity?.alixVaultBalance?.toLocaleString() || '0'} ALX
+                {userLedgerStats.totalUserAlx.toLocaleString()} ALX
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Harga Jangkar</p>
-              <p className="text-xl font-black italic text-primary">$ 12.24</p>
+              <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Maks. Suplai</p>
+              <p className="text-xl font-black italic text-primary">1B</p>
             </div>
           </div>
         </Card>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <QuickOpButton icon={Skull} label="Reset Semua Nasabah" sub="Pembersihan Produksi" color="text-rose-500" onClick={() => setActiveTab('users')} />
-        <QuickOpButton icon={PlusCircle} label="Cetak ALX" sub="Pasokan Sah" color="text-green-500" onClick={() => setActiveTab('tokenomics')} />
-        <QuickOpButton icon={Pickaxe} label="Bakar ALX" sub="Protokol Deflasi" color="text-orange-500" onClick={() => setActiveTab('tokenomics')} />
-        <QuickOpButton icon={RefreshCw} label="Sinkron Brankas" sub="Koneksi Node" color="text-blue-500" onClick={() => syncOnChainData(true)} syncing={syncingVault} />
+        <QuickOpButton icon={Skull} label="Deep Recon" sub="Audit Lintas Node" color="text-rose-500" onClick={() => setActiveTab('audit')} />
+        <QuickOpButton icon={PlusCircle} label="Freeze Asset" sub="Blokir Anomali" color="text-amber-500" onClick={() => setActiveTab('users')} />
+        <QuickOpButton icon={Pickaxe} label="Wipe Cache" sub="Node Refresh" color="text-orange-500" onClick={() => window.location.reload()} />
+        <QuickOpButton icon={RefreshCw} label="Sync Vault" sub="On-Chain Sync" color="text-blue-500" onClick={() => syncOnChainData(true)} syncing={syncingVault} />
       </div>
 
       <div className="space-y-6">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-sm font-black italic uppercase tracking-widest">Log Aktivitas Terbaru</h3>
+          <h3 className="text-sm font-black italic uppercase tracking-widest">Log Aktivitas & Anomali Terbaru</h3>
           <button onClick={() => setActiveTab('audit')} className="text-[10px] font-black text-primary uppercase flex items-center gap-1 hover:underline">
-            Lihat Semua Log <ArrowUpRight className="w-3 h-3" />
+            Buka Buku Besar <ArrowUpRight className="w-3 h-3" />
           </button>
         </div>
         <Card className="border-none bg-card rounded-[2rem] overflow-hidden shadow-sm">
@@ -234,18 +226,35 @@ export function DashboardView({
             <table className="w-full text-left min-w-[600px]">
               <thead className="bg-muted/50 text-[9px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
                 <tr>
+                  <th className="px-8 py-5">Sumber</th>
                   <th className="px-8 py-5">ID Operasi</th>
                   <th className="px-8 py-5">Konteks</th>
                   <th className="px-8 py-5">Nilai</th>
-                  <th className="px-8 py-5 text-right">Sinkronisasi</th>
+                  <th className="px-8 py-5 text-right">Penyelesaian</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {auditLogs?.slice(0, 10).map((log: any) => (
-                  <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+                {auditLogs?.slice(0, 15).map((log: any) => (
+                  <tr key={log.id} className={cn(
+                    "hover:bg-muted/30 transition-colors",
+                    log.source === 'client' && "bg-blue-500/[0.03]"
+                  )}>
+                    <td className="px-8 py-4">
+                      <Badge className={cn(
+                        "text-[7px] font-black uppercase h-4 px-1.5 border-none",
+                        log.source === 'official' ? "bg-green-500 text-white" : "bg-blue-500 text-white"
+                      )}>
+                        {log.source === 'official' ? 'NODE' : 'USER'}
+                      </Badge>
+                    </td>
                     <td className="px-8 py-4 text-[10px] font-mono font-bold text-accent">{log.id?.slice(0, 15)}...</td>
-                    <td className="px-8 py-4"><Badge className="bg-muted text-foreground border-none text-[7px] font-black h-5 uppercase px-2">{log.category}</Badge></td>
-                    <td className="px-8 py-4 text-[10px] font-black italic">
+                    <td className="px-8 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-[7px] font-black uppercase text-muted-foreground">{log.category}</span>
+                        <span className="text-[10px] font-black italic text-foreground truncate max-w-[200px]">{log.description}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-4 text-[10px] font-black italic text-primary">
                       {log.amountIdr ? `Rp ${log.amountIdr.toLocaleString()}` : '---'}
                     </td>
                     <td className="px-8 py-4 text-right text-[9px] font-bold text-muted-foreground italic">

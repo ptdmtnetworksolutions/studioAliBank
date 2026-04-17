@@ -27,7 +27,8 @@ import {
   doc, 
   query, 
   orderBy, 
-  limit 
+  limit,
+  collectionGroup
 } from "firebase/firestore";
 import { JsonRpcProvider, formatEther } from "ethers";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -87,28 +88,59 @@ function AdminContent() {
   const [syncingVault, setSyncingVault] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const liquidityRef = useMemoFirebase(() => (db && isAuthorized ? doc(db, "system", "liquidity") : null), [db, isAuthorized]);
+  // DATA FETCHING STRATEGY V3.5 - RECONCILIATION MODE
+  const isPrivileged = user && (user.email === OWNER_EMAIL || user.uid === OWNER_UID);
+
+  const liquidityRef = useMemoFirebase(() => (db && isPrivileged ? doc(db, "system", "liquidity") : null), [db, isPrivileged]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
   
-  const usersQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "users"), limit(100)) : null), [db, isAuthorized]);
+  const usersQuery = useMemoFirebase(() => (db && isPrivileged ? query(collection(db, "users"), limit(100)) : null), [db, isPrivileged]);
   const { data: allUsers } = useCollection(usersQuery);
   
-  const auditQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(100)) : null), [db, isAuthorized]);
+  // 1. Ambil Log Audit Global (Resmi)
+  const auditQuery = useMemoFirebase(() => (db && isPrivileged ? query(collection(db, "system", "audit", "global_transactions"), orderBy("timestamp", "desc"), limit(100)) : null), [db, isPrivileged]);
   const { data: auditLogs } = useCollection(auditQuery);
 
-  const marketplaceQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "marketplace"), orderBy("createdAt", "desc")) : null), [db, isAuthorized]);
+  // 2. KRITIS: Ambil Laporan Lintas Nasabah (Mendeteksi lonjakan yang tidak ter-capture di Global Audit)
+  const userTransactionsQuery = useMemoFirebase(() => (db && isPrivileged ? query(collectionGroup(db, "transactions"), orderBy("timestamp", "desc"), limit(200)) : null), [db, isPrivileged]);
+  const { data: userTransactions } = useCollection(userTransactionsQuery);
+
+  const marketplaceQuery = useMemoFirebase(() => (db && isPrivileged ? query(collection(db, "marketplace"), orderBy("createdAt", "desc")) : null), [db, isPrivileged]);
   const { data: marketplaceProducts } = useCollection(marketplaceQuery);
 
-  const apiKeysRef = useMemoFirebase(() => (db && isAuthorized ? doc(db, "system", "api_keys") : null), [db, isAuthorized]);
+  const apiKeysRef = useMemoFirebase(() => (db && isPrivileged ? doc(db, "system", "api_keys") : null), [db, isPrivileged]);
   const { data: storedKeys } = useDoc(apiKeysRef);
 
-  const topupQuery = useMemoFirebase(() => (db && isAuthorized ? query(collection(db, "topup_requests"), orderBy("timestamp", "desc"), limit(50)) : null), [db, isAuthorized]);
+  const topupQuery = useMemoFirebase(() => (db && isPrivileged ? query(collection(db, "topup_requests"), orderBy("timestamp", "desc"), limit(50)) : null), [db, isPrivileged]);
   const { data: topupRequests } = useCollection(topupQuery);
 
+  // MERGE DATA UNTUK AUDIT TOTAL
+  const combinedAuditLogs = useMemo(() => {
+    const global = (auditLogs || []).map(l => ({ ...l, source: 'official' }));
+    const clientSide = (userTransactions || []).map(l => ({ 
+      ...l, 
+      source: 'client',
+      category: l.category || 'User Activity',
+      amountIdr: l.amount || l.amountIdr || 0,
+      description: l.description || 'Transaksi Sisi Nasabah'
+    }));
+
+    // Hindari duplikasi jika ID sama
+    const seenIds = new Set(global.map(l => l.id));
+    const filteredClient = clientSide.filter(l => !seenIds.has(l.id));
+
+    return [...global, ...filteredClient].sort((a, b) => {
+      const timeA = a.timestamp?.seconds || 0;
+      const timeB = b.timestamp?.seconds || 0;
+      return timeB - timeA;
+    });
+  }, [auditLogs, userTransactions]);
+
   const candleData = useMemo(() => {
-    if (!auditLogs) return Array.from({ length: 24 }, (_, i) => ({ time: `${i}:00`, close: 0, isUp: true }));
+    const logs = combinedAuditLogs;
+    if (!logs) return Array.from({ length: 24 }, (_, i) => ({ time: `${i.toString().padStart(2, '0')}:00`, close: 0, isUp: true }));
     const hours = Array.from({ length: 24 }, (_, i) => ({ time: `${i.toString().padStart(2, '0')}:00`, close: 0, isUp: true }));
-    auditLogs.forEach((log: any) => {
+    logs.forEach((log: any) => {
       if (log.timestamp && log.amountIdr) {
         const hour = log.timestamp.toDate().getHours();
         hours[hour].close += log.amountIdr;
@@ -116,10 +148,10 @@ function AdminContent() {
     });
     for (let i = 1; i < hours.length; i++) hours[i].isUp = hours[i].close >= hours[i-1].close;
     return hours;
-  }, [auditLogs]);
+  }, [combinedAuditLogs]);
 
   const syncOnChainData = useCallback(async () => {
-    if (!isAuthorized) return;
+    if (!isPrivileged) return;
     setSyncingVault(true);
     try {
       const ethRpc = "https://ethereum-rpc.publicnode.com";
@@ -131,7 +163,7 @@ function AdminContent() {
     } finally {
       setSyncingVault(false);
     }
-  }, [isAuthorized]);
+  }, [isPrivileged]);
 
   useEffect(() => {
     if (userLoading) return;
@@ -167,7 +199,6 @@ function AdminContent() {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-      {/* DESKTOP SIDEBAR - Hidden on mobile */}
       <aside className="hidden md:flex w-72 bg-card border-r border-border flex-col fixed top-0 h-screen z-50">
         <div className="p-8 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg"><LogoIcon className="text-white" /></div>
@@ -189,12 +220,9 @@ function AdminContent() {
         </div>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
       <main className="md:ml-72 flex-1 flex flex-col min-w-0 bg-background min-h-screen">
-        {/* TOP HEADER - Mobile & Desktop Responsive */}
         <header className="h-20 bg-card border-b border-border flex items-center justify-between px-6 md:px-10 sticky top-0 z-40">
           <div className="flex items-center gap-4">
-            {/* Mobile Menu Trigger */}
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
                 <button className="md:hidden p-2 hover:bg-muted rounded-xl transition-colors">
@@ -241,14 +269,13 @@ function AdminContent() {
           </div>
         </header>
 
-        {/* PAGE CONTENT */}
         <div className="p-6 md:p-10 space-y-10 overflow-y-auto no-scrollbar pb-20 flex-1">
           {activeTab === 'dashboard' && (
             <DashboardView 
               globalLiquidity={globalLiquidity} 
               allUsers={allUsers} 
               candleData={candleData} 
-              auditLogs={auditLogs} 
+              auditLogs={combinedAuditLogs} 
               setActiveTab={setActiveTab} 
               syncOnChainData={syncOnChainData} 
               syncingVault={syncingVault}
@@ -259,7 +286,7 @@ function AdminContent() {
           {activeTab === 'kyc' && <KycVerificationView allUsers={allUsers} />}
           {activeTab === 'pending' && <PendingRequestsView topupRequests={topupRequests} />}
           {activeTab === 'users' && <ClientsView allUsers={allUsers} />}
-          {activeTab === 'vault' && <VaultControlView onChainEth={onChainEth} VAULT_CONTRACT={VAULT_CONTRACT} auditLogs={auditLogs} />}
+          {activeTab === 'vault' && <VaultControlView onChainEth={onChainEth} VAULT_CONTRACT={VAULT_CONTRACT} auditLogs={combinedAuditLogs} />}
           {activeTab === 'tokenomics' && (
             <TokenomicsView 
               totalSupply={totalSupply}
@@ -272,12 +299,12 @@ function AdminContent() {
               mintALX={mintALX}
               burnALX={burnALX}
               togglePause={togglePause}
-              auditLogs={auditLogs}
+              auditLogs={combinedAuditLogs}
             />
           )}
           {activeTab === 'api' && <ApiManagementView storedKeys={storedKeys} />}
           {activeTab === 'inventory' && <InventoryView marketplaceProducts={marketplaceProducts} />}
-          {activeTab === 'audit' && <AuditLogsMod auditLogs={auditLogs} />}
+          {activeTab === 'audit' && <AuditLogsMod auditLogs={combinedAuditLogs} />}
         </div>
       </main>
     </div>
