@@ -19,7 +19,6 @@ import {
   Menu,
   X,
   Landmark,
-  HandCoins,
   Trophy,
   ListTodo,
   ShoppingBag,
@@ -206,8 +205,8 @@ function DashboardContent() {
 
   const fetchMarketData = useCallback(async () => {
     try {
-      const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "USDTIDR"];
-      const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}`);
+      const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "USDTIDRT"];
+      const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}&t=${Date.now()}`);
       
       if (!res.ok) throw new Error('Market sync failed via Proxy');
       
@@ -216,12 +215,11 @@ function DashboardContent() {
       if (data.error) throw new Error(data.error);
 
       const formatted = data.map((item: any) => {
-        let symbol = item.symbol.replace("USDT", "").replace("IDR", "");
+        let symbol = item.symbol.replace("USDT", "").replace("IDR", "").replace("IDRT", "");
         if (symbol === "") symbol = "USDT";
         
         let price = parseFloat(item.lastPrice);
-        if (item.symbol === "USDTIDR") {
-          price = price; 
+        if (item.symbol === "USDTIDRT") {
           setDynamicUsdtRate(price);
         }
         
@@ -232,11 +230,11 @@ function DashboardContent() {
           price: symbol === "USDT" ? 1 : price,
           change: parseFloat(item.priceChangePercent) || 0,
           isUp: (parseFloat(item.priceChangePercent) || 0) >= 0,
-          baseIdr: symbol === "USDT" ? price : price * (data.find((d:any) => d.symbol === "USDTIDR")?.lastPrice || DEFAULT_USDT_IDR_RATE)
+          baseIdr: symbol === "USDT" ? price : price * (data.find((d:any) => d.symbol === "USDTIDRT")?.lastPrice || DEFAULT_USDT_IDR_RATE)
         };
       });
 
-      const currentUsdtPrice = parseFloat(data.find((d:any) => d.symbol === "USDTIDR")?.lastPrice || DEFAULT_USDT_IDR_RATE);
+      const currentUsdtPrice = parseFloat(data.find((d:any) => d.symbol === "USDTIDRT")?.lastPrice || DEFAULT_USDT_IDR_RATE);
       const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
       const alxData = {
         symbol: "ALX",
@@ -247,7 +245,7 @@ function DashboardContent() {
         isNative: true
       };
 
-      setMarketCoins([alxData, ...formatted.filter((c: any) => c.symbol !== "USDT" && c.symbol !== "IDR")].slice(0, 5));
+      setMarketCoins([alxData, ...formatted.filter((c: any) => c.symbol !== "USDT" && c.symbol !== "IDR" && c.symbol !== "IDRT")].slice(0, 5));
     } catch (e) {
       console.warn("Home Market Sync failed, using fallbacks:", e);
     } finally {

@@ -116,13 +116,12 @@ export default function CryptoBuyPage() {
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  // KRITIS: Menambahkan timestamp untuk memecah cache jaringan di mode Publish
+  // KRITIS: Menggunakan USDTIDRT sebagai simbol yang valid di Binance
   const fetchRealTimeRate = useCallback(async () => {
     try {
       setIsRateLoading(true);
-      const res = await fetch(`/api/market/ticker?symbol=USDTIDR&t=${Date.now()}`, { 
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      const res = await fetch(`/api/market/ticker?symbol=USDTIDRT&t=${Date.now()}`, { 
+        cache: 'no-store'
       });
       if (res.ok) {
         const data = await res.json();
@@ -132,9 +131,11 @@ export default function CryptoBuyPage() {
           setLastSync(new Date().toLocaleTimeString());
           setIsRateLoading(false);
         }
+      } else {
+        throw new Error('Upstream failed');
       }
     } catch (e) {
-      console.warn("Real-time rate sync failed, using bank fallback:", e);
+      console.warn("Real-time rate sync failed, maintaining previous state:", e);
       setIsRateLoading(false);
     }
   }, []);
@@ -142,7 +143,7 @@ export default function CryptoBuyPage() {
   useEffect(() => {
     setMounted(true);
     fetchRealTimeRate();
-    const interval = setInterval(fetchRealTimeRate, 10000);
+    const interval = setInterval(fetchRealTimeRate, 15000);
     return () => clearInterval(interval);
   }, [fetchRealTimeRate]);
 
@@ -402,7 +403,6 @@ export default function CryptoBuyPage() {
         </div>
       </main>
 
-      {/* FIXED: Menambahkan Sheet untuk Pemilihan Metode Pembayaran */}
       <Sheet open={isPaymentSheetOpen} onOpenChange={setIsPaymentSheetOpen}>
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
           <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
