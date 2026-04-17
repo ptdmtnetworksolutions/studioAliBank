@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -178,7 +177,6 @@ export default function TradeProPage() {
     const liquidityRef = doc(db, "system", "liquidity");
     const amountInIdr = amount * ASSET_PRICES[stakeCurrency];
     updateDoc(liquidityRef, { 
-      // Seluruh nilai taruhan (apa pun asetnya) menambah Cadangan Kas Bank dalam IDR
       totalFiatInjected: increment(amountInIdr),
       tradeXGrossVolumeIdr: increment(amountInIdr) 
     });
@@ -197,8 +195,24 @@ export default function TradeProPage() {
     const amountInIdr = amount * ASSET_PRICES[stakeCurrency];
     const rewardInAlx = isWin ? (amountInIdr * 1.9) / ALX_PRICE_IDR : 0;
 
+    const globalAuditRef = collection(db, "system", "audit", "global_transactions");
+
     if (isWin) {
       updateDoc(userDocRef, { "cryptoBalances.ALX": increment(rewardInAlx) });
+      
+      // LOG KEMENANGAN KE AUDIT GLOBAL
+      addDoc(globalAuditRef, {
+        id: `TRADEX-WIN-${Date.now()}`,
+        category: "Trade-X Win",
+        amountIdr: amountInIdr * 1.9,
+        cryptoAmount: rewardInAlx,
+        cryptoCurrency: "ALX",
+        status: "success",
+        timestamp: serverTimestamp(),
+        description: `User Win: Trade-X high yield payout for ${userData?.name}.`,
+        userEmail: user.email
+      });
+
       addDoc(collection(db, "users", user.uid, "notifications"), {
         title: "Trade-X Profit!",
         message: `Kemenangan Trade-X: +${rewardInAlx.toFixed(6)} ALX`,
@@ -207,8 +221,8 @@ export default function TradeProPage() {
         createdAt: new Date().toISOString()
       });
     } else {
-      // LOG KEKALAHAN KE DASHBOARD ADMIN
-      addDoc(collection(db, "system", "audit", "global_transactions"), {
+      // LOG KEKALAHAN KE AUDIT GLOBAL (BANK PROFIT)
+      addDoc(globalAuditRef, {
         id: `TRADEX-CAPTURE-${Date.now()}`,
         category: "Trade-X Capture",
         amountIdr: amountInIdr,
@@ -216,7 +230,8 @@ export default function TradeProPage() {
         cryptoCurrency: stakeCurrency,
         status: "success",
         timestamp: serverTimestamp(),
-        description: `Bank Profit: Trade-X Loss capture from ${userData?.name}.`
+        description: `Bank Profit: Trade-X Loss capture from ${userData?.name}.`,
+        userEmail: user.email
       });
     }
 

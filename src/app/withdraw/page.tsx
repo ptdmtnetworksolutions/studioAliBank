@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -82,14 +81,25 @@ export default function WithdrawPage() {
         totalBalance: increment(-numAmount)
       });
 
-      // 2. Catat Transaksi dengan status PENDING untuk Verifikasi Gateway
+      // 2. LOG AUDIT GLOBAL (KEBUTUHAN MONITORING ADMIN)
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `WD-REQ-${Date.now()}`,
+        category: "Withdraw",
+        amountIdr: numAmount,
+        description: `Withdraw Request: Rp ${numAmount.toLocaleString()} to ${targetBank.toUpperCase()} (${accountNumber}). Status: PENDING.`,
+        status: "pending_verification",
+        timestamp: serverTimestamp(),
+        userEmail: user.email
+      });
+
+      // 3. Catat Transaksi dengan status PENDING untuk Verifikasi Gateway
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
         description: `Withdraw: ${targetBank.toUpperCase()} (${accountNumber})`,
         category: "Withdraw",
         amount: numAmount,
         type: "expense",
-        status: "pending", // Membutuhkan verifikasi Admin/Gateway
+        status: "pending", 
         bankDetails: {
           bank: targetBank,
           accountNumber,
@@ -98,7 +108,7 @@ export default function WithdrawPage() {
         timestamp: serverTimestamp()
       });
 
-      // 3. Kirim Notifikasi
+      // 4. Kirim Notifikasi
       await addDoc(collection(db, "users", user.uid, "notifications"), {
         title: "Permintaan Penarikan Diterima",
         message: `Penarikan Rp ${numAmount.toLocaleString('id-ID')} ke ${targetBank.toUpperCase()} sedang diverifikasi oleh AliBank Node.`,

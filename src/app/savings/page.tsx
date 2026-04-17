@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -70,7 +69,18 @@ export default function SavingsPage() {
 
       await updateDoc(userDocRef, payload);
 
-      // Log Transaksi
+      // 1. LOG AUDIT GLOBAL (UNTUK MONITORING ADMIN)
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `SAVE-MOVE-${Date.now()}`,
+        category: "Savings Portfolio",
+        amountIdr: numAmount,
+        description: `Internal Movement: Rp ${numAmount.toLocaleString()} ${direction === 'to_savings' ? 'deposited to' : 'withdrawn from'} Savings.`,
+        status: "success",
+        timestamp: serverTimestamp(),
+        userEmail: user.email
+      });
+
+      // 2. RIWAYAT TRANSAKSI PRIBADI
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
         description: direction === 'to_savings' ? "Alokasi Dana ke Tabungan" : "Pencairan Dana Tabungan",
@@ -81,7 +91,7 @@ export default function SavingsPage() {
         timestamp: serverTimestamp()
       });
 
-      // Kirim Notifikasi
+      // 3. KIRIM NOTIFIKASI
       await addDoc(collection(db, "users", user.uid, "notifications"), {
         title: direction === 'to_savings' ? "Portofolio Tabungan Diperbarui" : "Pencairan Berhasil",
         message: direction === 'to_savings' 

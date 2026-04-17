@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -105,7 +104,7 @@ export default function TransferPage() {
     } catch (err) {} finally { setIsSearching(false); }
   };
 
-  const handleExecuteTransfer = () => {
+  const handleExecuteTransfer = async () => {
     if (!user || !db || !amount || !selectedRecipient || !userData) return;
     const numAmount = parseFloat(amount);
     if (numAmount > (userData.totalBalance || 0)) {
@@ -114,47 +113,66 @@ export default function TransferPage() {
     }
 
     setIsProcessing(true);
-    const senderRef = doc(db, "users", user.uid);
-    updateDoc(senderRef, { totalBalance: increment(-numAmount) });
+    try {
+      const senderRef = doc(db, "users", user.uid);
+      await updateDoc(senderRef, { totalBalance: increment(-numAmount) });
 
-    if (selectedRecipient.isReal && selectedRecipient.id) {
-      const recipientRef = doc(db, "users", selectedRecipient.id);
-      updateDoc(recipientRef, { totalBalance: increment(numAmount) });
+      if (selectedRecipient.isReal && selectedRecipient.id) {
+        const recipientRef = doc(db, "users", selectedRecipient.id);
+        await updateDoc(recipientRef, { totalBalance: increment(numAmount) });
 
-      const recipientNotifRef = collection(db, "users", selectedRecipient.id, "notifications");
-      addDoc(recipientNotifRef, {
-        title: "Dana Masuk",
-        message: `Anda menerima transfer sebesar Rp ${numAmount.toLocaleString('id-ID')} dari ${userData.name}.`,
+        const recipientNotifRef = collection(db, "users", selectedRecipient.id, "notifications");
+        await addDoc(recipientNotifRef, {
+          title: "Dana Masuk",
+          message: `Anda menerima transfer sebesar Rp ${numAmount.toLocaleString('id-ID')} dari ${userData.name}.`,
+          type: "success",
+          read: false,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      // 1. LOG AUDIT GLOBAL (UNTUK MONITORING ADMIN)
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `XFER-${Date.now()}`,
+        category: "Internal Transfer",
+        amountIdr: numAmount,
+        description: `Transfer: Rp ${numAmount.toLocaleString()} from ${userData.name} to ${selectedRecipient.name} (${selectedRecipient.accountNumber}).`,
+        status: "success",
+        timestamp: serverTimestamp(),
+        userEmail: user.email,
+        targetEmail: selectedRecipient.email || "internal_recipient"
+      });
+
+      // 2. RIWAYAT TRANSAKSI PRIBADI
+      const txRef = collection(db, "users", user.uid, "transactions");
+      const notifRef = collection(db, "users", user.uid, "notifications");
+
+      await addDoc(txRef, {
+        date: new Date().toISOString(),
+        description: `Transfer ke ${selectedRecipient.name} (${selectedRecipient.accountNumber})`,
+        category: "Transfer",
+        amount: numAmount,
+        type: "expense",
+        status: "success",
+        timestamp: serverTimestamp(),
+        note: note || ""
+      });
+
+      await addDoc(notifRef, {
+        title: "Transfer Berhasil",
+        message: `Berhasil mengirim Rp ${numAmount.toLocaleString('id-ID')} ke ${selectedRecipient.name}.`,
         type: "success",
         read: false,
         createdAt: new Date().toISOString()
       });
+
+      setStep('success');
+      toast({ title: "Berhasil", description: "Transfer telah diselesaikan secara riil." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Transfer Gagal", description: err.message });
+    } finally {
+      setIsProcessing(false);
     }
-
-    const txRef = collection(db, "users", user.uid, "transactions");
-    const notifRef = collection(db, "users", user.uid, "notifications");
-
-    addDoc(txRef, {
-      date: new Date().toISOString(),
-      description: `Transfer ke ${selectedRecipient.name} (${selectedRecipient.accountNumber})`,
-      category: "Transfer",
-      amount: numAmount,
-      type: "expense",
-      timestamp: serverTimestamp(),
-      note: note || ""
-    });
-
-    addDoc(notifRef, {
-      title: "Transfer Berhasil",
-      message: `Berhasil mengirim Rp ${numAmount.toLocaleString('id-ID')} ke ${selectedRecipient.name}.`,
-      type: "success",
-      read: false,
-      createdAt: new Date().toISOString()
-    });
-
-    setStep('success');
-    setIsProcessing(false);
-    toast({ title: "Berhasil", description: "Transfer telah diselesaikan secara riil." });
   };
 
   if (step === 'success') return (

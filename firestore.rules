@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V8.7 - PRODUCTION STABLE
+     * ALIBANK SECURITY RULES V8.8 - PRODUCTION STABLE
      * Proteksi mutlak untuk infrastruktur perbankan AliBank V3.
      */
 
@@ -77,9 +77,8 @@ service cloud.firestore {
     }
     
     match /system/api_keys {
-      // PERBAIKAN: Izinkan read publik sementara untuk Server Actions agar bisa mengambil Vault Key 
-      // di lingkungan Firebase Studio tanpa admin context.
-      allow read: if true;
+      // KEAMANAN DIPERKETAT: Hanya Admin yang boleh membaca Kunci Vault
+      allow read: if isAdmin();
       allow update: if isAdmin();
     }
     
