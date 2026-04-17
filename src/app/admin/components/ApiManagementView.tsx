@@ -21,7 +21,8 @@ import {
   Zap,
   Building2,
   Wallet,
-  ShieldCheck
+  ShieldCheck,
+  Bell
 } from "lucide-react";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useFirestore, useUser } from "@/firebase";
@@ -37,7 +38,8 @@ export function ApiManagementView({ storedKeys }: any) {
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [keys, setKeys] = useState({
     paypalClientId: "",
-    paypalClientSecret: "", // Kolom Baru
+    paypalClientSecret: "",
+    paypalWebhookId: "",
     midtransMerchantId: "",
     midtransClientKey: "",
     midtransServerKey: "",
@@ -55,7 +57,8 @@ export function ApiManagementView({ storedKeys }: any) {
       setKeys({
         paypalClientId: storedKeys.paypalClientId || "",
         paypalClientSecret: storedKeys.paypalClientSecret || "",
-        midtransMerchantId: storedKeys.midtransMerchantId || "",
+        paypalWebhookId: storedKeys.paypalWebhookId || "",
+        midtransMerchantId: storedKeys.midtransMerchantId || "" ,
         midtransClientKey: storedKeys.midtransClientKey || "",
         midtransServerKey: storedKeys.midtransServerKey || "",
         etherscanApiKey: storedKeys.etherscanApiKey || "",
@@ -166,6 +169,18 @@ export function ApiManagementView({ storedKeys }: any) {
                 show={showKeys['pp_sec']} 
                 onToggle={() => toggleShow('pp_sec')} 
               />
+              <div className="md:col-span-2">
+                <KeyField 
+                  label="PayPal Webhook ID" 
+                  icon={Bell} 
+                  value={keys.paypalWebhookId} 
+                  placeholder="WH-..." 
+                  onChange={(v:any) => setKeys({...keys, paypalWebhookId: v})} 
+                  show={showKeys['pp_wh']} 
+                  onToggle={() => toggleShow('pp_wh')} 
+                  description="Gunakan ini untuk notifikasi penyelesaian pembayaran sisi server yang lebih aman."
+                />
+              </div>
             </div>
           </section>
 

@@ -20,7 +20,8 @@ import {
   Zap,
   CreditCard,
   Building2,
-  Wallet
+  Wallet,
+  Bell
 } from "lucide-react";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -58,7 +59,8 @@ function APIKeysContent() {
   // API Key States
   const [keys, setKeys] = useState({
     paypalClientId: "",
-    paypalClientSecret: "", // Kolom Baru
+    paypalClientSecret: "",
+    paypalWebhookId: "", // Kolom Baru untuk Webhook
     midtransMerchantId: "",
     midtransClientKey: "",
     midtransServerKey: "",
@@ -79,6 +81,7 @@ function APIKeysContent() {
       setKeys({
         paypalClientId: storedKeys.paypalClientId || "",
         paypalClientSecret: storedKeys.paypalClientSecret || "",
+        paypalWebhookId: storedKeys.paypalWebhookId || "",
         midtransMerchantId: storedKeys.midtransMerchantId || "",
         midtransClientKey: storedKeys.midtransClientKey || "",
         midtransServerKey: storedKeys.midtransServerKey || "",
@@ -233,6 +236,18 @@ function APIKeysContent() {
                     onToggle={() => toggleShow('paypal_secret')}
                     description="Secret Key untuk kliring aman sisi server."
                   />
+                  <div className="md:col-span-2">
+                    <KeyField 
+                      label="PayPal Webhook ID" 
+                      icon={Bell} 
+                      value={keys.paypalWebhookId} 
+                      placeholder="WH-..."
+                      onChange={(v: any) => setKeys({...keys, paypalWebhookId: v})}
+                      show={showKeys['paypal_wh']}
+                      onToggle={() => toggleShow('paypal_wh')}
+                      description="ID Webhook dari tab 'Manage Webhooks' di dashboard PayPal."
+                    />
+                  </div>
                 </div>
               </section>
 
