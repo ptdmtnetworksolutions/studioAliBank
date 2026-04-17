@@ -135,13 +135,12 @@ export function ClientsView({ allUsers }: any) {
     toast({ title: "Nasabah Dinonaktifkan" });
   };
 
-  // REKONSILIASI FORENSIK NASABAH (UPDATED)
+  // REKONSILIASI FORENSIK NASABAH (SUMBER DANA & PERGERAKAN)
   const forensicCheck = useMemo(() => {
     if (!selectedUser) return { discrepancy: 0, isClean: true, totalIn: 0, totalOut: 0 };
     
-    // Engine ini sekarang mengecek berbagai kemungkinan field nominal yang digunakan di berbagai fitur (Trade-X, Swap, Topup)
     const getVal = (t: any) => {
-      // Prioritas IDR Value
+      // Prioritas IDR Value dari berbagai field fitur (Trade-X, Topup, Transfer)
       if (t.amountIdr) return t.amountIdr;
       if (t.amount) return t.amount;
       if (t.stakeAmount && (t.stakeCurrency === 'IDR' || !t.stakeCurrency)) return t.stakeAmount;
@@ -152,12 +151,12 @@ export function ClientsView({ allUsers }: any) {
     const outflow = userTxs.filter(t => t.type === 'expense').reduce((acc, t) => acc + getVal(t), 0);
     
     const calculated = inflow - outflow;
-    const actual = (selectedUser.totalBalance || 0); // Hanya audit IDR Liquid
+    const actual = (selectedUser.totalBalance || 0); 
     
     const diff = actual - calculated;
     return { 
       discrepancy: diff, 
-      isClean: Math.abs(diff) < 1000, // Toleransi 1000 rupiah
+      isClean: Math.abs(diff) < 1000, 
       totalIn: inflow,
       totalOut: outflow,
       totalActivity: userTxs.length
@@ -235,8 +234,16 @@ export function ClientsView({ allUsers }: any) {
                   </td>
                   <td className="px-8 py-5 text-right">
                     <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                      <button className="p-2 hover:bg-primary/10 hover:text-primary rounded-xl transition-all" title="Audit Forensik"><ArrowUpRight className="w-5 h-5" /></button>
-                      <button className="p-2 hover:bg-rose-100 hover:text-rose-600 rounded-xl transition-all" onClick={() => handleDelete(u.id)} title="Bekukan Akun"><ShieldX className="w-5 h-5" /></button>
+                      <button 
+                        onClick={() => { setSelectedUser(u); setIsDialogOpen(true); }}
+                        className="p-2 hover:bg-primary/10 hover:text-primary rounded-xl transition-all" 
+                        title="Audit Forensik"
+                      >
+                        <ArrowUpRight className="w-5 h-5" />
+                      </button>
+                      <button className="p-2 hover:bg-rose-100 hover:text-rose-600 rounded-xl transition-all" onClick={() => handleDelete(u.id)} title="Bekukan Akun">
+                        <ShieldX className="w-5 h-5" />
+                      </button>
                     </div>
                   </td>
                 </tr>
