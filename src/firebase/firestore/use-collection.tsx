@@ -12,22 +12,14 @@ import {
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-/** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
 
-/**
- * Interface for the return value of the useCollection hook.
- * @template T Type of the document data.
- */
 export interface UseCollectionResult<T> {
-  data: WithId<T>[] | null; // Document data with ID, or null.
-  isLoading: boolean;       // True if loading.
-  error: FirestoreError | Error | null; // Error object, or null.
+  data: WithId<T>[] | null;
+  isLoading: boolean;
+  error: FirestoreError | Error | null;
 }
 
-/* Internal implementation of Query:
-  https://github.com/firebase/firebase-js-sdk/blob/c5f08a9bc5da0d2b0207802c972d53724ccef055/packages/firestore/src/lite-api/reference.ts#L143
-*/
 export interface InternalQuery extends Query<DocumentData> {
   _query: {
     path: {
@@ -38,25 +30,79 @@ export interface InternalQuery extends Query<DocumentData> {
 }
 
 /**
- * React hook to subscribe to a Firestore collection or query in real-time.
- * Handles nullable references/queries.
- * 
- * IMPORTANT! YOU MUST MEMOIZE the inputted memoizedTargetRefOrQuery or BAD THINGS WILL HAPPEN
- * use useMemo to memoize it per React guidence.  Also make sure that it's dependencies are stable
- * references
+ * Ekstrak path secara aman.
+ * Menangani: CollectionReference, Query biasa, dan CollectionGroup query.
+ * Return NULL jika benar-benar tidak bisa diekstrak.
  */
+function safeExtractPath(
+  ref: CollectionReference<DocumentData> | Query<DocumentData>
+): string | null {
+  try {
+    // Case 1: CollectionReference — punya .path langsung
+    if (ref.type === 'collection') {
+      return (ref as CollectionReference).path || null;
+    }
+
+    // Case 2: Query internal
+    const internalQuery = (ref as unknown as InternalQuery)._query;
+    if (!internalQuery) return null;
+
+    // ✅ FIX UTAMA: Collection Group query punya collectionGroup, bukan path
+    // Contoh: collectionGroup(db, 'transactions')
+    const collectionGroupId = (internalQuery as any)?.collectionGroup;
+    if (typeof collectionGroupId === 'string' && collectionGroupId.length > 0) {
+      // Prefix dengan '__group__/' agar isValidPath tidak menolaknya
+      // dan kita tahu ini collection group untuk keperluan logging
+      return `__group__/${collectionGroupId}`;
+    }
+
+    // Case 3: Query biasa dengan path
+    const canonicalPath = internalQuery?.path?.canonicalString?.();
+    if (typeof canonicalPath === 'string' && canonicalPath.length > 0) {
+      return canonicalPath;
+    }
+
+    // Case 4: Fallback ke property path langsung
+    const directPath = (ref as any)?.path;
+    if (typeof directPath === 'string' && directPath.length > 0) {
+      return directPath;
+    }
+
+    return null;
+  } catch (e) {
+    console.warn('[useCollection] safeExtractPath gagal:', e);
+    return null;
+  }
+}
+
+/**
+ * Validasi path adalah string Firestore yang sah.
+ */
+function isValidPath(path: string | null): path is string {
+  if (!path || typeof path !== 'string') return false;
+  if (path === '/' || path === '') return false;
+  // Tolak semua string yang terlihat seperti fallback / nama bukan koleksi
+  const RESERVED_FALLBACKS = new Set(['query', 'unknown', 'undefined', 'null', 'collection']);
+  if (RESERVED_FALLBACKS.has(path.toLowerCase())) return false;
+  // Path Firestore: huruf, angka, underscore, dash, slash
+  // Ditambah support untuk prefix __group__ kita
+  return /^[\w\-]+(\/[\w\-]+)*$/.test(path);
+}
+
 export function useCollection<T = any>(
-    memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
+  memoizedTargetRefOrQuery: (
+    | (CollectionReference<DocumentData> | Query<DocumentData>)
+    & { __memo?: boolean }
+  ) | null | undefined,
 ): UseCollectionResult<T> {
   type ResultItemType = WithId<T>;
-  type StateDataType = ResultItemType[] | null;
 
-  const [data, setData] = useState<StateDataType>(null);
+  const [data, setData] = useState<ResultItemType[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    // 1. Guard: Jangan subscribe jika referensi null/undefined
+    // Guard 1: Null / undefined
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -64,24 +110,24 @@ export function useCollection<T = any>(
       return;
     }
 
-    // 2. Guard: Jangan subscribe jika path adalah root database (/)
-    // Ini mencegah error "Missing or insufficient permissions" pada level root
-    let path = '';
-    try {
-      path = memoizedTargetRefOrQuery.type === 'collection'
-        ? (memoizedTargetRefOrQuery as CollectionReference).path
-        : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query?.path?.canonicalString?.() || 'query';
-    } catch (e) {
-      path = 'query';
-    }
+    // Guard 2: Ekstrak path — jika null, hentikan
+    const rawPath = safeExtractPath(memoizedTargetRefOrQuery);
 
-    if (path === '' || path === '/') {
-      console.warn('[useCollection] Invalid path detected (root). Skipping subscription to prevent permission error.');
+    if (!isValidPath(rawPath)) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(
+          `[useCollection] Path tidak valid: "${rawPath}". ` +
+          `Subscription dibatalkan. RefType: ${memoizedTargetRefOrQuery.type}`,
+          memoizedTargetRefOrQuery
+        );
+      }
       setData(null);
       setIsLoading(false);
       setError(null);
-      return;
+      return; // ← STOP total, tidak lanjut ke onSnapshot
     }
+
+    const path = rawPath; // TypeScript sekarang tahu ini string
 
     setIsLoading(true);
     setError(null);
@@ -89,35 +135,48 @@ export function useCollection<T = any>(
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
-        const results: ResultItemType[] = [];
-        for (const doc of snapshot.docs) {
-          results.push({ ...(doc.data() as T), id: doc.id });
-        }
+        const results: ResultItemType[] = snapshot.docs.map(doc => ({
+          ...(doc.data() as T),
+          id: doc.id,
+        }));
         setData(results);
         setError(null);
         setIsLoading(false);
       },
       (err: FirestoreError) => {
-        // Create the rich, contextual error asynchronously.
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path,
         });
-
         setError(contextualError);
         setData(null);
         setIsLoading(false);
-
-        // trigger global error propagation
         errorEmitter.emit('permission-error', contextualError);
+
+        if (process.env.NODE_ENV === 'development') {
+          console.error(
+            `[useCollection] ❌ Firestore DENIED path: "${path}"\n` +
+            `Pastikan: 1) User sudah login, 2) Aturan keamanan mendukung kueri ini.`,
+            err
+          );
+        }
       }
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
+  }, [memoizedTargetRefOrQuery]);
 
-  if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
+  // Memo guard
+  if (
+    process.env.NODE_ENV === 'development' &&
+    memoizedTargetRefOrQuery &&
+    !memoizedTargetRefOrQuery.__memo
+  ) {
+    console.error(
+      '[useCollection] ⚠️ Ref/Query tidak di-memoize! ' +
+      'Gunakan useMemoFirebase().'
+    );
   }
+
   return { data, isLoading, error };
 }
