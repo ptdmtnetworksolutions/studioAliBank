@@ -68,7 +68,8 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
       
       if (isLarge || isManual || isClientSource) riskyCount++;
       
-      return isLarge || isClientSource || isManual;
+      // Anomali jika sumber hanya dari client (kemungkinan besar injeksi ilegal)
+      return isClientSource || (isManual && amt > 50000000);
     });
 
     return { anomalies, totalValue, riskyCount };
@@ -83,7 +84,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
     if (activeFilter === 'anomaly') {
       logs = forensicStats.anomalies;
     } else if (activeFilter === 'risky') {
-      logs = auditLogs.filter((l: any) => (l.amountIdr || 0) > 10000000 || l.category === "Manual Adjustment");
+      logs = auditLogs.filter((l: any) => (l.amountIdr || 0) > 10000000 || l.category === "Manual Adjustment" || l.source === 'client');
     }
 
     if (!searchTerm) return logs;
@@ -109,14 +110,14 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h2 className="text-3xl font-black italic uppercase tracking-tighter">Pusat Forensik Keuangan</h2>
-            <Badge className="bg-rose-600 text-white font-black text-[8px] h-5 uppercase italic animate-pulse">Global Deep Scan Active</Badge>
+            <h2 className="text-3xl font-black italic uppercase tracking-tighter">Pusat Audit & Intelijen</h2>
+            <Badge className="bg-rose-600 text-white font-black text-[8px] h-5 uppercase italic animate-pulse px-3">Radar Anomali Aktif</Badge>
           </div>
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Audit Menyeluruh Lintas Nasabah & Deteksi Sumber Dana Ilegal</p>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Audit Menyeluruh Lintas Nasabah & Deteksi Injeksi Saldo Ilegal</p>
         </div>
         <div className="flex gap-3">
           <button className="h-11 px-6 rounded-xl gold-gradient text-white flex items-center gap-2 text-xs font-black uppercase italic shadow-lg hover:scale-[1.02] transition-transform">
-            <Download className="w-4 h-4" /> Cetak Laporan Kepatuhan AML
+            <Download className="w-4 h-4" /> Cetak Laporan AML
           </button>
         </div>
       </header>
@@ -125,9 +126,9 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <ForensicCard 
           icon={ShieldAlert} 
-          label="Anomali Terdeteksi" 
+          label="Anomali Saldo Ilegal" 
           value={forensicStats.anomalies.length} 
-          sub="Input Tanpa Rekaman Resmi" 
+          sub="Injeksi Tanpa Ledger Pusat" 
           color="text-rose-500" 
           status="CRITICAL"
           onClick={() => setActiveFilter('anomaly')}
@@ -137,7 +138,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
           icon={Activity} 
           label="Transaksi Berisiko" 
           value={forensicStats.riskyCount} 
-          sub="Di atas Rp10jt / Manual" 
+          sub="Aktivitas di Luar Kewajaran" 
           color="text-amber-500" 
           status="WARNING"
           onClick={() => setActiveFilter('risky')}
@@ -145,9 +146,9 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
         />
         <ForensicCard 
           icon={Database} 
-          label="Rekaman Ter-Audit" 
+          label="Total Ledger" 
           value={auditLogs?.length || 0} 
-          sub="Total Entri Buku Besar" 
+          sub="Total Seluruh Entri Data" 
           color="text-blue-500" 
           status="SYNCED"
           onClick={() => setActiveFilter('all')}
@@ -155,9 +156,9 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
         />
         <ForensicCard 
           icon={TrendingUp} 
-          label="Total Perputaran" 
+          label="Nilai Perputaran" 
           value={`Rp ${forensicStats.totalValue.toLocaleString()}`} 
-          sub="Akumulasi Seluruh Node" 
+          sub="Aset Terdeteksi di Jaringan" 
           color="text-primary" 
           status="LIVE"
           onClick={() => setActiveFilter('all')}
@@ -170,7 +171,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
             <div className="relative w-full">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input 
-                placeholder="Cari Email Nasabah, ID Transaksi, atau Gateway..." 
+                placeholder="Cari ID, Email Nasabah, atau Anomali..." 
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                 className="h-12 pl-12 bg-background border-none rounded-2xl text-xs font-bold shadow-none focus:ring-2 focus:ring-primary/20" 
@@ -194,20 +195,19 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
           <table className="w-full text-left min-w-[1000px]">
             <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
               <tr>
-                <th className="px-8 py-6">Konteks & Waktu</th>
-                <th className="px-8 py-6">Sumber / Gateway</th>
-                <th className="px-8 py-6">Nasabah</th>
-                <th className="px-8 py-6">Status Keamanan</th>
-                <th className="px-8 py-6 text-right">Nilai Nominal</th>
+                <th className="px-8 py-6">Status & Waktu</th>
+                <th className="px-8 py-6">Gateway / Node</th>
+                <th className="px-8 py-6">Subjek Audit</th>
+                <th className="px-8 py-6">Keamanan Data</th>
+                <th className="px-8 py-6 text-right">Nilai Bukti</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {paginatedLogs.map((log: any) => {
                 const amount = log.amountIdr || 0;
                 const isManual = log.category === "Manual Adjustment" || log.category === "Adjustment";
-                const isLarge = amount > 10000000;
                 const isClientOnly = log.source === 'client';
-                const isAnomaly = isLarge || isManual || isClientOnly;
+                const isAnomaly = isClientOnly || (isManual && amount > 10000000);
                 
                 return (
                   <tr 
@@ -215,7 +215,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                     onClick={() => setSelectedLog(log)}
                     className={cn(
                       "hover:bg-muted/30 transition-colors group cursor-pointer",
-                      isAnomaly && "bg-rose-500/[0.02]"
+                      isAnomaly && "bg-rose-500/[0.03]"
                     )}
                   >
                     <td className="px-8 py-5">
@@ -223,11 +223,11 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                         <div className="flex items-center gap-2">
                           <Badge className={cn(
                             "border-none text-[8px] font-black h-5 uppercase px-2",
-                            isManual ? "bg-amber-100 text-amber-600" : "bg-muted text-foreground"
+                            isManual ? "bg-amber-100 text-amber-600" : isClientOnly ? "bg-rose-100 text-rose-600" : "bg-muted text-foreground"
                           )}>
                             {log.category}
                           </Badge>
-                          {isClientOnly && <Badge className="bg-blue-100 text-blue-600 border-none text-[8px] font-black h-5 uppercase px-2">CLIENT SIDE</Badge>}
+                          {isClientOnly && <Badge className="bg-rose-600 text-white border-none text-[7px] font-black h-4 px-1.5 uppercase">UNVERIFIED</Badge>}
                         </div>
                         <p className="text-[10px] font-bold text-muted-foreground font-mono italic">
                           {log.timestamp?.toDate?.().toLocaleString('id-ID') || log.date || '---'}
@@ -238,12 +238,12 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                       <div className="flex items-center gap-2">
                         <div className={cn(
                           "p-2 rounded-lg bg-muted",
-                          isManual ? "text-amber-500" : "text-primary"
+                          isAnomaly ? "text-rose-500" : "text-primary"
                         )}>
-                          <Zap className="w-3.5 h-3.5" />
+                          {isClientOnly ? <ShieldAlert className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
                         </div>
                         <div>
-                          <p className="text-[11px] font-black uppercase italic text-foreground">{log.gateway || log.source || "Node Inti"}</p>
+                          <p className="text-[11px] font-black uppercase italic text-foreground">{log.gateway || (isClientOnly ? "Client-Side Injection" : "Sistem Node")}</p>
                           <p className="text-[8px] font-bold text-muted-foreground uppercase max-w-[200px] truncate">{log.description}</p>
                         </div>
                       </div>
@@ -254,7 +254,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                           <User className="w-4 h-4 text-muted-foreground" />
                         </div>
                         <div>
-                          <p className="text-[10px] font-black italic uppercase text-foreground">{log.userEmail?.split('@')[0] || 'Sistem'}</p>
+                          <p className="text-[10px] font-black italic uppercase text-foreground">{log.userEmail?.split('@')[0] || 'System'}</p>
                           <p className="text-[8px] font-bold text-muted-foreground uppercase">{log.userEmail || 'Internal Node'}</p>
                         </div>
                       </div>
@@ -262,8 +262,8 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                     <td className="px-8 py-5">
                       {isAnomaly ? (
                         <div className="flex items-center gap-2 text-rose-600 animate-pulse">
-                          <AlertTriangle className="w-4 h-4" />
-                          <span className="text-[10px] font-black uppercase italic">Dicurigai</span>
+                          <Skull className="w-4 h-4" />
+                          <span className="text-[10px] font-black uppercase italic">Ilegal / Anomali</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 text-green-600">
@@ -278,7 +278,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                           "text-sm font-black italic tracking-tighter",
                           isAnomaly ? "text-rose-600" : "text-foreground"
                         )}>
-                          Rp {amount.toLocaleString('id-ID')}
+                          {amount > 0 ? `Rp ${amount.toLocaleString('id-ID')}` : '---'}
                         </p>
                         {log.cryptoCurrency && (
                           <p className="text-[8px] font-bold text-primary uppercase italic">
@@ -297,7 +297,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
         {paginatedLogs.length === 0 && (
           <div className="py-20 text-center space-y-4 opacity-20 italic">
             <Fingerprint className="w-16 h-16 mx-auto" />
-            <p className="text-sm font-black uppercase tracking-widest">Buku Besar Audit Kosong</p>
+            <p className="text-sm font-black uppercase tracking-widest">Radar Bersih. Tidak Ada Log Audit Ditemukan.</p>
           </div>
         )}
       </Card>
@@ -306,28 +306,27 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
       <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
         <DialogContent className="max-w-2xl rounded-[3rem] p-0 bg-background border-none shadow-2xl overflow-hidden">
           <DialogHeader className="sr-only">
-            <DialogTitle>Detail Log Audit: {selectedLog?.id}</DialogTitle>
-            <DialogDescription>Rincian teknis transaksi untuk keperluan audit forensik.</DialogDescription>
+            <DialogTitle>Audit Forensic Trace: {selectedLog?.id}</DialogTitle>
           </DialogHeader>
 
           <div className={cn(
             "h-3 w-full",
-            (selectedLog?.amountIdr > 10000000 || selectedLog?.source === 'client') ? "bg-rose-600" : "gold-gradient"
+            selectedLog?.source === 'client' ? "bg-rose-600" : "gold-gradient"
           )} />
           
           <div className="p-10 space-y-8">
             <header className="flex justify-between items-start">
               <div className="space-y-1">
-                <Badge variant="outline" className="border-primary/20 text-primary font-black text-[8px] uppercase px-2 h-5 mb-2">Audit Trace Node</Badge>
+                <Badge variant="outline" className="border-primary/20 text-primary font-black text-[8px] uppercase px-2 h-5 mb-2">Audit Forensic Trace</Badge>
                 <h2 className="text-2xl font-black italic uppercase tracking-tighter text-foreground">{selectedLog?.category}</h2>
-                <p className="text-[10px] font-mono text-muted-foreground uppercase">Ref ID: {selectedLog?.id}</p>
+                <p className="text-[10px] font-mono text-muted-foreground uppercase">Ref ID: {selectedLog?.id || 'NO-REF'}</p>
               </div>
               <div className="text-right">
-                <p className="text-[9px] font-black uppercase text-muted-foreground mb-1">Status Keamanan</p>
-                {(selectedLog?.amountIdr > 10000000 || selectedLog?.source === 'client') ? (
-                   <Badge className="bg-rose-600 text-white font-black text-[9px] px-3 h-6 uppercase italic animate-pulse">SUSPICIOUS</Badge>
+                <p className="text-[9px] font-black uppercase text-muted-foreground mb-1">Integritas Data</p>
+                {selectedLog?.source === 'client' ? (
+                   <Badge className="bg-rose-600 text-white font-black text-[9px] px-3 h-6 uppercase italic animate-pulse">PHANTOM DATA</Badge>
                 ) : (
-                   <Badge className="bg-green-500 text-white font-black text-[9px] px-3 h-6 uppercase italic">VERIFIED</Badge>
+                   <Badge className="bg-green-500 text-white font-black text-[9px] px-3 h-6 uppercase italic">VERIFIED CORE</Badge>
                 )}
               </div>
             </header>
@@ -335,14 +334,14 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <LogDetailItem icon={User} label="Nasabah Terkait" value={selectedLog?.userEmail || 'System Node'} />
                <LogDetailItem icon={Clock} label="Timestamp Presisi" value={selectedLog?.timestamp?.toDate?.().toLocaleString('id-ID') || selectedLog?.date || '---'} />
-               <LogDetailItem icon={Globe} label="Gateway / Jalur" value={selectedLog?.gateway || selectedLog?.source || 'Internal'} />
-               <LogDetailItem icon={Cpu} label="Node Eksekusi" value={selectedLog?.source === 'client' ? 'Client Bridge' : 'Core Sovereign'} />
+               <LogDetailItem icon={Globe} label="Node Eksekusi" value={selectedLog?.source === 'client' ? 'Client Local DB' : 'Central Validator'} />
+               <LogDetailItem icon={Cpu} label="Status Kliring" value={selectedLog?.status || 'Selesai'} />
             </div>
 
             <Card className="p-8 rounded-[2rem] bg-muted/30 border border-border shadow-inner text-center space-y-2">
-               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Nilai Transaksi Riil</p>
+               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Nilai Nominal Audit</p>
                <h3 className="text-4xl font-black italic tracking-tighter text-foreground">
-                 Rp {selectedLog?.amountIdr?.toLocaleString()}
+                 {selectedLog?.amountIdr ? `Rp ${selectedLog.amountIdr.toLocaleString()}` : (selectedLog?.amount ? `Rp ${selectedLog.amount.toLocaleString()}` : '---')}
                </h3>
                {selectedLog?.cryptoCurrency && (
                  <p className="text-xs font-black text-primary uppercase italic">
@@ -352,20 +351,22 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
             </Card>
 
             <div className="space-y-3">
-               <p className="text-[9px] font-black uppercase text-muted-foreground ml-2">Deskripsi Operasional</p>
+               <p className="text-[9px] font-black uppercase text-muted-foreground ml-2">Detail Bukti Aktivitas</p>
                <div className="p-5 rounded-2xl bg-accent/5 border border-primary/10">
                  <p className="text-xs font-bold text-foreground italic leading-relaxed uppercase">
-                   {selectedLog?.description || "Tidak ada deskripsi tambahan."}
+                   {selectedLog?.description || "Tidak ada rincian tambahan dari node."}
                  </p>
                </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex gap-3">
-               <ShieldCheck className="w-5 h-5 text-amber-500 shrink-0" />
-               <p className="text-[9px] font-bold text-muted-foreground leading-relaxed italic uppercase">
-                 Log ini telah diamankan oleh sistem Ali-Intelligence Node V3.5 dan sah sebagai bukti audit operasional internal.
-               </p>
-            </div>
+            {selectedLog?.source === 'client' && (
+              <div className="p-4 rounded-xl bg-rose-600/10 border border-rose-600/20 flex gap-3">
+                 <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0" />
+                 <p className="text-[9px] font-black text-rose-600 leading-relaxed italic uppercase">
+                   Peringatan: Transaksi ini HANYA ditemukan pada riwayat nasabah dan TIDAK memiliki rekaman di Audit Global Pusat. Indikasi kuat manipulasi saldo sisi klien.
+                 </p>
+              </div>
+            )}
 
             <Button onClick={() => setSelectedLog(null)} className="w-full h-14 rounded-2xl bg-foreground text-background font-black italic uppercase shadow-xl hover:scale-[1.01] transition-all">
               TUTUP TERMINAL AUDIT
@@ -374,7 +375,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
         </DialogContent>
       </Dialog>
 
-      {/* FORENSIC STAMP FOOTER */}
+      {/* FOOTER WARNING */}
       <div className="p-8 rounded-[2.5rem] bg-amber-500/5 border border-amber-500/10 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-6">
           <div className="w-16 h-16 rounded-3xl bg-amber-500 flex items-center justify-center shrink-0 shadow-xl p-4">
@@ -383,7 +384,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
           <div className="space-y-1">
             <h4 className="text-sm font-black uppercase italic tracking-tight text-amber-600">Protokol Keamanan Ali-Intelligence Node V3.5</h4>
             <p className="text-[10px] font-medium text-muted-foreground leading-relaxed uppercase italic max-w-2xl">
-              Sistem secara otomatis menandai anomali pada log audit jika terdeteksi <span className="text-rose-600 font-bold">Injeksi Saldo Tanpa Ledger</span> atau transaksi manual yang melebihi batas kewajaran. Gunakan data ini sebagai bukti sah untuk pembekuan aset nasabah.
+              Radar audit secara otomatis menandai anomali jika terdeteksi <span className="text-rose-600 font-bold">Dana Hantu (Phantom Funds)</span> yang muncul di riwayat transaksi klien namun tidak terdaftar di sistem kliring pusat AliBank. Gunakan data ini sebagai bukti sah pembekuan aset.
             </p>
           </div>
         </div>
@@ -433,3 +434,4 @@ function LogDetailItem({ icon: Icon, label, value }: any) {
     </div>
   );
 }
+
