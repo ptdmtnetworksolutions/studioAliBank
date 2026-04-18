@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * @fileOverview Server-side proxy for Binance 24hr Ticker API.
- * Diperbarui untuk mendukung penanganan beban tinggi dan pencegahan caching PWA.
+ * Diperbarui dengan ketahanan tinggi untuk lingkungan produksi Firebase App Hosting.
  */
 
 export async function GET(request: NextRequest) {
@@ -23,14 +23,15 @@ export async function GET(request: NextRequest) {
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s strict timeout
 
   try {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'AliBank-V3-Core/1.2'
+        'User-Agent': 'AliBank-V3-Core/1.2-Live',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
       },
       cache: 'no-store',
       signal: controller.signal
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json({ 
-        error: 'Node bursa sedang sibuk.',
+        error: 'Node bursa sedang sibuk (Rate Limit).',
         status: response.status 
       }, { 
         status: 200,
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     clearTimeout(timeoutId);
+    console.error('[Ticker Proxy Error]:', error.message);
     return NextResponse.json(
       { error: 'Hambatan koneksi pada node harga global.', isNetworkError: true }, 
       { status: 200 }

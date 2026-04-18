@@ -73,11 +73,10 @@ export default function DesktopDiscoverPage() {
   const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
-  // Fungsi untuk mengambil data klines (tren) per koin dengan delay untuk menghindari 500 error
   const fetchTrendData = async (symbol: string) => {
     try {
       const binanceSymbol = symbol === 'USDT' ? 'USDTIDR' : `${symbol}USDT`;
-      const res = await fetch(`/api/market/klines?symbol=${binanceSymbol}&interval=1h&limit=24`);
+      const res = await fetch(`/api/market/klines?symbol=${binanceSymbol}&interval=1h&limit=24&t=${Date.now()}`);
       if (res.ok) {
         const klines = await res.json();
         if (Array.isArray(klines)) {
@@ -93,7 +92,8 @@ export default function DesktopDiscoverPage() {
   const syncMarketData = useCallback(async () => {
     try {
       const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(GLOBAL_SYMBOLS))}&t=${Date.now()}`, {
-        cache: 'no-store'
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
       });
       
       const tickerData = await res.json();
@@ -106,7 +106,6 @@ export default function DesktopDiscoverPage() {
 
       const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
       
-      // Tahap 1: Update Harga Instan
       const baseData = tickerData.map((item, idx) => {
         const symbol = item.symbol.replace("USDT", "");
         return {
@@ -136,18 +135,15 @@ export default function DesktopDiscoverPage() {
         icon: null
       };
 
-      const combined = [alxEntry, ...baseData];
-      setMarketData(combined);
+      setMarketData([alxEntry, ...baseData]);
       setLastSync(new Date().toLocaleTimeString());
       setIsLoading(false);
       setIsError(false);
 
-      // Tahap 2: Update Tren secara bertahap (Background)
-      // Hanya ambil tren untuk 20 koin teratas agar tidak memicu 500 error
+      // Sequential background trend loading
       for (let i = 0; i < baseData.length; i++) {
         const coin = baseData[i];
-        // Jeda setiap 2 permintaan untuk kestabilan node
-        if (i > 0 && i % 2 === 0) await new Promise(r => setTimeout(resolve => r(null), 800));
+        if (i > 0 && i % 2 === 0) await new Promise(r => setTimeout(r, 600));
         
         const trend = await fetchTrendData(coin.symbol);
         if (trend.length > 0) {
@@ -171,7 +167,7 @@ export default function DesktopDiscoverPage() {
       return;
     }
     syncMarketData();
-    const interval = setInterval(syncMarketData, 60000); // Sinkronisasi total setiap 1 menit
+    const interval = setInterval(syncMarketData, 45000); 
     return () => clearInterval(interval);
   }, [router, syncMarketData]);
 
@@ -186,7 +182,6 @@ export default function DesktopDiscoverPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex font-body selection:bg-primary/30">
-      {/* Sidebar Desktop */}
       <aside className="w-64 bg-card border-r border-border flex flex-col fixed h-screen z-50">
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg text-white">
@@ -246,7 +241,7 @@ export default function DesktopDiscoverPage() {
                 onClick={() => setActiveSubTab(tab)}
                 className={cn(
                   "pb-4 text-sm font-bold transition-all relative uppercase italic tracking-tighter",
-                  activeSubTab === tab ? "text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-primary" : "text-muted-foreground hover:text-foreground"
+                  activeSubTab === tab ? "text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2.5px] after:bg-primary" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {tab}
@@ -280,7 +275,7 @@ export default function DesktopDiscoverPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {isLoading && marketData.length === 0 ? (
+                      {(isLoading && marketData.length === 0) ? (
                         <tr>
                           <td colSpan={6} className="py-32 text-center">
                             <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
@@ -351,16 +346,6 @@ export default function DesktopDiscoverPage() {
                   </table>
                 </div>
               </Card>
-            </div>
-          ) : activeSubTab === "Games" ? (
-            <div className="space-y-6 animate-in fade-in zoom-in-95 duration-700">
-              <div className="flex items-center justify-between px-1">
-                 <h3 className="text-lg font-black italic uppercase tracking-tight">Web3 Gaming Universe</h3>
-                 <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Powered by <span className="text-primary">Ali-Sovereign Assets</span></p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                {/* Games content mapping same as previous version */}
-              </div>
             </div>
           ) : (
             <div className="py-40 text-center opacity-20 italic">

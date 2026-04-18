@@ -63,9 +63,11 @@ export function GasStation() {
     setIsError(false);
     try {
       const res = await fetch(`/api/network/gas?networkId=${selectedNetwork.id}&t=${Date.now()}`, { 
-        cache: 'no-store' 
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
       });
       
+      if (!res.ok) throw new Error('API Unreachable');
       const data = await res.json();
       
       if (data && !data.error && (data.standard || data.estimatedBaseFee)) {
@@ -76,6 +78,7 @@ export function GasStation() {
         setIsLoading(false);
       }
     } catch (e) {
+      console.warn('[Gas Terminal] Sync failed:', e);
       setIsError(true);
       setIsLoading(false);
     }
@@ -83,7 +86,7 @@ export function GasStation() {
 
   useEffect(() => {
     fetchGasPrices();
-    const interval = setInterval(fetchGasPrices, 20000);
+    const interval = setInterval(fetchGasPrices, 30000); // Relaxed interval for live stability
     return () => clearInterval(interval);
   }, [fetchGasPrices]);
 
@@ -128,7 +131,7 @@ export function GasStation() {
 
           {isError ? (
             <div className="p-6 rounded-2xl bg-rose-500/5 border border-rose-500/10 text-center space-y-4">
-               <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
+               <AlertCircle className="w-8 h-8 text-rose-600 mx-auto" />
                <p className="text-[10px] font-bold text-rose-600 uppercase italic">Node Jaringan Sedang Offline</p>
                <Button onClick={() => { setIsLoading(true); fetchGasPrices(); }} size="sm" variant="outline" className="h-8 rounded-lg text-[9px] font-black uppercase">Hubungkan Kembali</Button>
             </div>
