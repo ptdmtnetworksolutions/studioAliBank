@@ -70,6 +70,7 @@ import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { LogoIcon } from "@/components/ui/logo";
 
 export function ClientsView({ allUsers }: any) {
   const db = useFirestore();
@@ -83,7 +84,6 @@ export function ClientsView({ allUsers }: any) {
   const [userTxs, setUserTxs] = useState<any[]>([]);
   const [loadingSub, setLoadingSub] = useState(false);
   
-  // State untuk rincian detail audit
   const [auditDetailView, setAuditDetailType] = useState<'none' | 'inflow' | 'outflow' | 'discrepancy'>('none');
 
   const filteredUsers = allUsers?.filter((u: any) => 
@@ -142,7 +142,6 @@ export function ClientsView({ allUsers }: any) {
     toast({ title: "Nasabah Dinonaktifkan" });
   };
 
-  // REKONSILIASI FORENSIK NASABAH (SUMBER DANA & PERGERAKAN)
   const forensicCheck = useMemo(() => {
     if (!selectedUser) return { discrepancy: 0, isClean: true, totalIn: 0, totalOut: 0 };
     
@@ -170,7 +169,6 @@ export function ClientsView({ allUsers }: any) {
     };
   }, [selectedUser, userTxs]);
 
-  // Data terfilter untuk rincian detail audit
   const auditDetailData = useMemo(() => {
     if (auditDetailView === 'inflow') return userTxs.filter(t => t.type === 'income');
     if (auditDetailView === 'outflow') return userTxs.filter(t => t.type === 'expense');
@@ -357,7 +355,6 @@ export function ClientsView({ allUsers }: any) {
                   />
                 </div>
 
-                {/* AREA DETAIL AUDIT HUKUM */}
                 {auditDetailView !== 'none' && (
                   <Card className="animate-in slide-in-from-top-4 duration-500 border-2 border-primary/20 bg-muted/20 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
                     <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none"><Fingerprint className="w-48 h-48" /></div>
