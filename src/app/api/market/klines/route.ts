@@ -1,9 +1,8 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * @fileOverview Server-side proxy for Binance Klines API.
- * Diperbarui dengan timeout dan anti-cache untuk akurasi grafik live di produksi.
+ * Diperbarui untuk mendukung pengambilan data tren masif secara stabil.
  */
 
 export async function GET(request: NextRequest) {
@@ -16,12 +15,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
   }
 
-  // Koreksi simbol
   const sanitizedSymbol = symbol === 'USDTIDR' ? 'USDTIDRT' : symbol;
   const url = `https://api.binance.com/api/v3/klines?symbol=${sanitizedSymbol}&interval=${interval}&limit=${limit || 60}`;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000);
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 detik timeout
 
   try {
     const response = await fetch(url, {
@@ -30,29 +28,27 @@ export async function GET(request: NextRequest) {
         'Accept': 'application/json',
         'User-Agent': 'AliBank-V3-Core/1.1'
       },
-      cache: 'no-store',
+      next: { revalidate: 60 }, // Cache klines lebih lama karena data historis
       signal: controller.signal
     });
 
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      return NextResponse.json({ error: 'Klines node communication failed.' }, { status: 502 });
+      return NextResponse.json({ error: 'Klines node busy' }, { status: 200 });
     }
 
     const data = await response.json();
     return NextResponse.json(data, {
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-        'Pragma': 'no-cache'
+        'Cache-Control': 'public, max-age=60',
       }
     });
   } catch (error: any) {
     clearTimeout(timeoutId);
-    console.error('Market Proxy Klines Exception:', error.message);
     return NextResponse.json(
-      { error: 'Failed to synchronize candlestick data.' }, 
-      { status: 504 }
+      { error: 'Klines node timeout' }, 
+      { status: 200 }
     );
   }
 }

@@ -48,7 +48,7 @@ import { doc } from "firebase/firestore";
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 
-const MARKUP = 1.02; // AliBank 2% Premium Fee
+const MARKUP = 1.02; 
 const USDT_IDR_RATE = 15850;
 
 const GAMES_LIST = [
@@ -91,28 +91,47 @@ export default function DesktopDiscoverPage() {
 
   const syncMarketData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(GLOBAL_SYMBOLS))}`, {
+      const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(GLOBAL_SYMBOLS))}&t=${Date.now()}`, {
         cache: 'no-store'
       });
       
-      if (!res.ok) throw new Error("Upstream busy");
-      const data = await res.json();
+      const tickerData = await res.json();
       
-      if (!Array.isArray(data)) {
-        if (data.error) throw new Error(data.error);
+      if (!tickerData || tickerData.error || !Array.isArray(tickerData)) {
+        setIsError(true);
+        // Jangan reset marketData agar UI tidak kosong saat error sementara
+        setIsLoading(false);
         return;
       }
 
-      // Fetch Klines for sparklines (Parallel with chunking for stability)
-      const klinesPromises = GLOBAL_SYMBOLS.slice(0, 48).map(s => 
-        fetch(`/api/market/klines?symbol=${s}&interval=1h&limit=24`, { cache: 'no-store' }).then(r => r.json())
-      );
-      const allKlines = await Promise.all(klinesPromises);
+      // STRATEGI CHUNKING: Ambil Klines dalam kelompok 8 koin untuk stabilitas
+      const CHUNK_SIZE = 8;
+      const allTrends: Record<string, any[]> = {};
+      
+      for (let i = 0; i < GLOBAL_SYMBOLS.length; i += CHUNK_SIZE) {
+        const chunk = GLOBAL_SYMBOLS.slice(i, i + CHUNK_SIZE);
+        const results = await Promise.allSettled(
+          chunk.map(s => fetch(`/api/market/klines?symbol=${s}&interval=1h&limit=24`).then(r => r.json()))
+        );
 
-      const formatted = data.map((item, idx) => {
+        results.forEach((res, idx) => {
+          const symbol = chunk[idx].replace("USDT", "");
+          if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+            allTrends[symbol] = res.value.map((k: any) => ({ value: parseFloat(k[4]) }));
+          } else {
+            allTrends[symbol] = [];
+          }
+        });
+
+        // Jeda kecil antar chunk untuk menghindari blokir node
+        if (i + CHUNK_SIZE < GLOBAL_SYMBOLS.length) {
+          await new Promise(r => setTimeout(r, 200));
+        }
+      }
+
+      const formatted = tickerData.map((item, idx) => {
         const symbol = item.symbol.replace("USDT", "");
-        const kline = allKlines[idx];
-        const trendData = Array.isArray(kline) ? kline.map((k: any) => ({ value: parseFloat(k[4]) })) : [];
+        const trend = allTrends[symbol] || [];
         
         return {
           rank: idx + 2,
@@ -122,7 +141,7 @@ export default function DesktopDiscoverPage() {
           changePercent: parseFloat(item.priceChangePercent) || 0,
           isUp: parseFloat(item.priceChangePercent) >= 0,
           marketCap: (parseFloat(item.quoteVolume) * (15 + Math.random() * 5)).toLocaleString(), 
-          trend: trendData,
+          trend: trend,
           age: "Autonomous",
           icon: getIconUrl(symbol)
         };
@@ -162,11 +181,12 @@ export default function DesktopDiscoverPage() {
       return;
     }
     syncMarketData();
-    const interval = setInterval(syncMarketData, 20000); // 20s interval for more coins
+    const interval = setInterval(syncMarketData, 30000); // 30 detik untuk stabilitas beban
     return () => clearInterval(interval);
   }, [router, syncMarketData]);
 
   const filteredMarketData = useMemo(() => {
+    if (marketData.length === 0) return [];
     if (activeFilter === "Popular") return marketData;
     if (activeFilter === "Gainers") return [...marketData].sort((a, b) => b.changePercent - a.changePercent);
     if (activeFilter === "Trending") return marketData.slice(0, 15);
@@ -279,7 +299,7 @@ export default function DesktopDiscoverPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#F3F4F6]">
-                      {isLoading ? (
+                      {isLoading && marketData.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="py-32 text-center opacity-30">
                             <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
@@ -331,6 +351,15 @@ export default function DesktopDiscoverPage() {
                           </td>
                         </tr>
                       ))}
+                      {marketData.length === 0 && !isLoading && (
+                        <tr>
+                          <td colSpan={6} className="py-20 text-center opacity-40 italic">
+                             <CircleAlert className="w-12 h-12 mx-auto mb-4" />
+                             <p className="font-black uppercase">Gagal memuat data dari node bursa.</p>
+                             <Button onClick={syncMarketData} variant="link" className="text-primary font-black uppercase text-xs mt-2">Coba Hubungkan Kembali</Button>
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
