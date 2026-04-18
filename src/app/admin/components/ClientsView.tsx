@@ -121,7 +121,23 @@ export function ClientsView({ allUsers }: any) {
     const val = op === 'add' ? amt : -amt;
     const key = type === 'idr' ? "totalBalance" : "cryptoBalances.ALX";
 
+    // 1. Update Saldo Utama
     await updateDoc(ref, { [key]: increment(val) });
+
+    // 2. KRITIS: Tambah ke Riwayat Transaksi Nasabah agar ter-audit sebagai Inflow/Outflow
+    await addDoc(collection(db, "users", selectedUser.id, "transactions"), {
+      date: new Date().toISOString(),
+      description: `Penyesuaian Manual oleh Admin (${op === 'add' ? 'Penambahan' : 'Pengurangan'})`,
+      category: "Adjustment",
+      amount: type === 'idr' ? Math.abs(val) : 0,
+      cryptoAmount: type === 'alx' ? Math.abs(val) : 0,
+      cryptoCurrency: type === 'alx' ? "ALX" : null,
+      type: op === 'add' ? 'income' : 'expense',
+      status: "success",
+      timestamp: serverTimestamp()
+    });
+
+    // 3. Catat ke Audit Global
     await addDoc(collection(db, "system", "audit", "global_transactions"), {
       id: `ADJ-${Date.now()}`,
       category: "Manual Adjustment",
@@ -132,7 +148,8 @@ export function ClientsView({ allUsers }: any) {
       status: "berhasil",
       userEmail: selectedUser.email
     });
-    toast({ title: "Audit Log Tercatat", description: "Perubahan saldo telah disiarkan ke buku besar global." });
+
+    toast({ title: "Audit Log & Riwayat Tercatat", description: "Perubahan saldo telah disinkronkan ke seluruh node." });
     setBalanceAdjustment(""); setAlxAdjustment("");
   };
 
@@ -145,10 +162,18 @@ export function ClientsView({ allUsers }: any) {
   const forensicCheck = useMemo(() => {
     if (!selectedUser) return { discrepancy: 0, isClean: true, totalIn: 0, totalOut: 0 };
     
+    const ALX_PRICE_IDR = 194004;
+
     const getVal = (t: any) => {
+      // Prioritaskan IDR
       if (t.amountIdr) return t.amountIdr;
       if (t.amount) return t.amount;
       if (t.stakeAmount && (t.stakeCurrency === 'IDR' || !t.stakeCurrency)) return t.stakeAmount;
+      
+      // Jika koin ALX, konversi ke IDR untuk audit perbandingan saldo utama
+      if (t.rewardAlx) return t.rewardAlx * ALX_PRICE_IDR;
+      if (t.cryptoCurrency === 'ALX' && t.cryptoAmount) return t.cryptoAmount * ALX_PRICE_IDR;
+      
       return 0;
     };
 
@@ -323,7 +348,7 @@ export function ClientsView({ allUsers }: any) {
                     <AlertTriangle className="w-10 h-10 shrink-0" />
                     <div>
                       <h4 className="text-lg font-black uppercase italic">Ketidaksesuaian Dana Terdeteksi!</h4>
-                      <p className="text-xs font-bold uppercase opacity-80">Ada selisih Rp {Math.abs(forensicCheck.discrepancy).toLocaleString()} antara catatan transaksi dan saldo riil dompet nasabah. Periksa indikasi Top-Up Ilegal.</p>
+                      <p className="text-xs font-bold uppercase opacity-80">Ada selisih Rp {Math.abs(forensicCheck.discrepancy).toLocaleString()} antara catatan transaksi dan saldo riil dompet nasabah. Periksa indikasi Top-Up Ilegal atau Injeksi Saldo Tanpa Rekaman.</p>
                     </div>
                   </Card>
                 )}
@@ -389,7 +414,7 @@ export function ClientsView({ allUsers }: any) {
                               </div>
                               <div className="p-6 rounded-xl bg-white/5 border border-white/10 space-y-3">
                                 <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                                  Kesimpulan Forensik: Dana sebesar <span className="text-rose-600">Rp {Math.abs(forensicCheck.discrepancy).toLocaleString()}</span> muncul di akun nasabah tanpa melalui gerbang transaksi resmi atau fitur aplikasi yang ter-audit. Disarankan untuk pembekuan saldo segera.
+                                  Kesimpulan Forensik: Dana sebesar <span className="text-rose-600">Rp {Math.abs(forensicCheck.discrepancy).toLocaleString()}</span> muncul di akun nasabah tanpa melalui gerbang transaksi resmi atau fitur aplikasi yang ter-audit. Ini mengindikasikan adanya injeksi saldo manual atau kegagalan pencatatan sistem pada node tertentu.
                                 </p>
                                 <div className="flex items-center gap-2 pt-2">
                                   <Badge className="bg-rose-600 text-white font-black text-[7px] uppercase h-4 px-1.5">KESEHATAN DATA: KRITIS</Badge>
