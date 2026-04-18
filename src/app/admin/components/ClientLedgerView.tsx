@@ -59,6 +59,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
   const [globalAuditMatches, setGlobalAuditMatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isForensicLoading, setIsForensicLoading] = useState(false);
+  const [indexError, setIndexError] = useState(false);
 
   // LOGIKA PENCARIAN & SARAN NASABAH
   const suggestions = useMemo(() => {
@@ -78,6 +79,8 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
       if (!selectedUser || !db) return;
       setIsLoading(true);
       setIsForensicLoading(true);
+      setIndexError(false);
+      
       try {
         // 1. Ambil Riwayat Transaksi Nasabah (Local Ledger)
         const qLocal = query(
@@ -89,17 +92,21 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
         setUserTxs(localSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
         // 2. DEEP SCAN: Cari bukti di Audit Global yang berkaitan dengan email nasabah
-        // Kritis: Membutuhkan Indeks Komposit di Firebase
         const qGlobal = query(
           collection(db, "system", "audit", "global_transactions"),
           where("userEmail", "==", selectedUser.email),
           orderBy("timestamp", "desc"),
           limit(50)
         );
+        
         const globalSnap = await getDocs(qGlobal).catch((err) => {
-          console.error("Index missing error. Please click the link in the console to create index.", err);
+          if (err.message?.includes("index")) {
+            setIndexError(true);
+          }
+          console.error("Firestore Index Missing:", err);
           return { docs: [] };
         });
+        
         setGlobalAuditMatches(globalSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
       } catch (e) {
@@ -140,7 +147,6 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
     };
   }, [userTxs, selectedUser]);
 
-  // Identifikasi Transaksi yang tidak singkron (Ada di Global tapi tidak di Local)
   const disconnectedLogs = useMemo(() => {
     const localIds = new Set(userTxs.map(t => t.id || t.invoiceId || t.orderId));
     return globalAuditMatches.filter(g => !localIds.has(g.id) && !localIds.has(g.invoiceId));
@@ -340,6 +346,16 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
                   <RefreshCw className="w-6 h-6 animate-spin text-primary" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground animate-pulse">Scanning Global Audit Logs...</p>
                 </div>
+              ) : indexError ? (
+                <Card className="p-8 rounded-[2rem] bg-amber-500/5 border border-amber-500/20 shadow-sm space-y-4">
+                  <div className="flex justify-between items-start">
+                    <Badge className="bg-amber-500 text-white font-black text-[8px] h-5 uppercase italic">Index Required</Badge>
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
+                  </div>
+                  <p className="text-[10px] font-bold text-foreground leading-relaxed uppercase">
+                    Pencarian audit global memerlukan indeks. Silakan klik tautan di konsol browser (F12) untuk mengaktifkan fitur ini.
+                  </p>
+                </Card>
               ) : disconnectedLogs.length > 0 ? (
                 <div className="space-y-4">
                   {disconnectedLogs.map((log) => (
@@ -353,7 +369,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
                       </p>
                       <div className="pt-3 border-t border-amber-500/10 flex justify-between items-center text-[8px] font-mono font-bold text-muted-foreground">
                         <span>REF: {log.id.slice(0, 12)}</span>
-                        <span>{log.timestamp?.toDate().toLocaleDateString()}</span>
+                        <span>{log.timestamp?.toDate ? log.timestamp.toDate().toLocaleDateString() : '---'}</span>
                       </div>
                     </Card>
                   ))}
