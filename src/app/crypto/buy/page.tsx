@@ -28,7 +28,9 @@ import {
   Plus,
   Search,
   Wifi,
-  X
+  X,
+  Banknote,
+  Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -88,7 +90,6 @@ export default function CryptoBuyPage() {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'beli' | 'jual' | 'convert'>('beli');
   const [amount, setAmount] = useState("0");
-  const [uniqueCode, setUniqueCode] = useState(0);
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
   const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS[0]);
@@ -103,7 +104,7 @@ export default function CryptoBuyPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [paypalReady, setPaypalReady] = useState(false);
   const [gatewayError, setGatewayError] = useState<string | null>(null);
-  const [step, setStep] = useState<'input' | 'success'>('input');
+  const [step, setStep] = useState<'input' | 'pending_verification' | 'success'>('input');
   
   const [currencySearch, setCurrencySearch] = useState("");
   const paypalContainerRef = useRef<HTMLDivElement>(null);
@@ -116,7 +117,6 @@ export default function CryptoBuyPage() {
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  // KRITIS: Menggunakan USDTIDRT sebagai simbol yang valid di Binance
   const fetchRealTimeRate = useCallback(async () => {
     try {
       setIsRateLoading(true);
@@ -196,6 +196,7 @@ export default function CryptoBuyPage() {
     setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : "0");
   };
 
+  // KRITIS: HANYA BOLEH DIPANGGIL SETELAH PROOF PEMBAYARAN VALID (SNAP SUCCESS / PAYPAL APPROVED)
   const finalizeTransaction = async (paymentDetails: any) => {
     if (!user || !db || !userDocRef || !userData) return;
     setIsProcessing(true);
@@ -225,10 +226,106 @@ export default function CryptoBuyPage() {
         userEmail: user.email
       });
 
+      await addDoc(collection(db, "users", user.uid, "transactions"), {
+        date: new Date().toISOString(),
+        description: `Beli ${selectedAsset.symbol} via ${paymentDetails.gateway || selectedPayment.name}`,
+        category: "Trading",
+        amount: fiatAmountIdr,
+        cryptoAmount: cryptoAmount,
+        cryptoCurrency: selectedAsset.symbol,
+        type: 'income',
+        status: "success",
+        timestamp: serverTimestamp()
+      });
+
       setIsCheckoutDialogOpen(false);
       setStep('success');
     } catch (err: any) {
       toast({ variant: "destructive", title: "Sync Error", description: err.message });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // PROSEDUR AMAN: UNTUK TRANSFER MANUAL, BUAT REQUEST PENDING
+  const handleManualBankRequest = async () => {
+    if (!user || !db || !userData) return;
+    setIsProcessing(true);
+    const uniqueCode = Math.floor(100 + Math.random() * 899);
+    const finalAmount = totalAmountIdr + uniqueCode;
+
+    try {
+      await addDoc(collection(db, "topup_requests"), {
+        userId: user.uid,
+        userName: userData.name,
+        userEmail: user.email,
+        amount: totalAmountIdr,
+        uniqueCode: uniqueCode,
+        totalToTransfer: finalAmount,
+        asset: selectedAsset.symbol,
+        estimatedAsset: parseFloat(estimatedCrypto),
+        status: "pending",
+        type: "bank_transfer",
+        timestamp: serverTimestamp(),
+        createdAt: new Date().toISOString()
+      });
+
+      await addDoc(collection(db, "users", user.uid, "transactions"), {
+        date: new Date().toISOString(),
+        description: `Pengisian Saldo ${selectedAsset.symbol} (Menunggu Verifikasi)`,
+        category: "Top Up",
+        amount: totalAmountIdr,
+        type: 'income',
+        status: "pending",
+        timestamp: serverTimestamp()
+      });
+
+      setIsCheckoutDialogOpen(false);
+      setStep('pending_verification');
+      toast({ title: "Permintaan Dibuat", description: "Silakan transfer sesuai instruksi." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal", description: err.message });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // PROSEDUR AMAN: INTEGRASI MIDTRANS SNAP
+  const handleMidtransPayment = async () => {
+    if (!user || !db || !systemKeys?.midtransServerKey) {
+      toast({ variant: "destructive", title: "Konfigurasi Error", description: "Gateway Midtrans belum aktif di Vault." });
+      return;
+    }
+    
+    setIsProcessing(true);
+    try {
+      const orderId = `ALIBANK-BUY-${Date.now()}`;
+      const res = await createMidtransSnapTokenAction(
+        orderId,
+        totalAmountIdr,
+        userData?.name || "User",
+        user.email || "",
+        systemKeys.midtransServerKey
+      );
+
+      if (res.token) {
+        window.snap.pay(res.token, {
+          onSuccess: (result: any) => {
+            finalizeTransaction({ id: result.transaction_id, gateway: "Midtrans Snap" });
+          },
+          onPending: () => {
+            handleManualBankRequest(); // Fallback to pending state
+          },
+          onError: () => {
+            toast({ variant: "destructive", title: "Pembayaran Gagal" });
+          },
+          onClose: () => {
+            setIsProcessing(false);
+          }
+        });
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Snap Error", description: err.message });
     } finally {
       setIsProcessing(false);
     }
@@ -297,7 +394,7 @@ export default function CryptoBuyPage() {
     }
   }, [isCheckoutDialogOpen, selectedPayment.id, renderPayPalButtons]);
 
-  if (!mounted) return <div className="h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
+  if (!mounted) return null;
 
   if (step === 'success') {
     return (
@@ -315,6 +412,28 @@ export default function CryptoBuyPage() {
     );
   }
 
+  if (step === 'pending_verification') {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center animate-in zoom-in">
+        <div className="w-20 h-20 rounded-full bg-amber-500/10 flex items-center justify-center mb-6">
+          <Clock className="w-10 h-10 text-amber-600 animate-pulse" />
+        </div>
+        <h2 className="text-2xl font-black italic uppercase mb-2">Menunggu Verifikasi</h2>
+        <p className="text-xs text-muted-foreground uppercase mb-8 italic">Permintaan pengisian saldo Anda telah masuk ke antrean kliring.</p>
+        <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 space-y-4 mb-8 shadow-2xl text-center">
+          <p className="text-[10px] font-black uppercase">Instruksi Pembayaran</p>
+          <p className="text-2xl font-black text-foreground italic">Cek Detail di Pusat Kliring</p>
+          <div className="pt-4 border-t border-primary/5">
+             <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed">
+               Saldo akan otomatis masuk setelah Admin memverifikasi dana riil di rekening bank.
+             </p>
+          </div>
+        </Card>
+        <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl" onClick={() => router.push('/')}>Dashboard</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
       {systemKeys?.paypalClientId && (
@@ -323,6 +442,10 @@ export default function CryptoBuyPage() {
           onLoad={() => setPaypalReady(true)} 
         />
       )}
+      <Script 
+        src="https://app.sandbox.midtrans.com/snap/snap.js" 
+        data-client-key={systemKeys?.midtransClientKey}
+      />
       
       <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background z-50">
         <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors"><ArrowLeft className="w-6 h-6" /></button>
@@ -364,7 +487,6 @@ export default function CryptoBuyPage() {
               <ArrowUpDown className="w-3.5 h-3.5 text-primary" />
               <span className="text-xs">{estimatedCrypto} {selectedAsset.symbol}</span>
             </div>
-            {lastSync && <p className="text-[7px] font-black text-muted-foreground uppercase opacity-40">Node Sync: {lastSync}</p>}
           </div>
 
           <div className="space-y-2">
@@ -463,12 +585,27 @@ export default function CryptoBuyPage() {
                     </div>
                   )}
                 </div>
+              ) : selectedPayment.id === 'midtrans' ? (
+                <Button 
+                  onClick={handleMidtransPayment} 
+                  disabled={isProcessing}
+                  className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl flex items-center justify-center gap-3"
+                >
+                  {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : <><Zap className="w-5 h-5" /> BAYAR DENGAN SNAP</>}
+                </Button>
               ) : (
-                <Button onClick={() => finalizeTransaction({})} className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl">PROSES TRANSAKSI</Button>
+                <Button 
+                  onClick={handleManualBankRequest} 
+                  disabled={isProcessing}
+                  className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase italic shadow-xl flex items-center justify-center gap-3"
+                >
+                  {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : <><Banknote className="w-5 h-5" /> DAPATKAN INSTRUKSI TRANSFER</>}
+                </Button>
               )}
+              
               <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3 mt-4">
                 <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0" />
-                <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">Node keamanan SSL AliBank V3 melindungi setiap transaksi Anda.</p>
+                <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">Node keamanan SSL AliBank V3 melindungi setiap transaksi Anda. Saldo hanya akan dikreditkan setelah dana riil terverifikasi.</p>
               </div>
             </div>
           </div>
