@@ -1,3 +1,4 @@
+
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -13,11 +14,6 @@ export const metadata: Metadata = {
   title: 'AliBank V3',
   description: 'Infrastruktur perbankan elit dengan integrasi aset kripto Mainnet.',
   manifest: '/manifest.webmanifest',
-  icons: {
-    icon: '/icon.svg',
-    shortcut: '/icon.svg',
-    apple: '/icon.svg',
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
