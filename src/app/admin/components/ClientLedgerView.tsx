@@ -33,7 +33,8 @@ import {
   X,
   Database,
   SearchCode,
-  FileWarning
+  FileWarning,
+  RefreshCw
 } from "lucide-react";
 import { 
   getDocs, 
@@ -88,14 +89,17 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
         setUserTxs(localSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
         // 2. DEEP SCAN: Cari bukti di Audit Global yang berkaitan dengan email nasabah
-        // Ini untuk mendeteksi transaksi yang tercatat di pusat tapi gagal di-inkjeksi ke ledger nasabah
+        // Kritis: Membutuhkan Indeks Komposit di Firebase
         const qGlobal = query(
           collection(db, "system", "audit", "global_transactions"),
           where("userEmail", "==", selectedUser.email),
           orderBy("timestamp", "desc"),
           limit(50)
         );
-        const globalSnap = await getDocs(qGlobal);
+        const globalSnap = await getDocs(qGlobal).catch((err) => {
+          console.error("Index missing error. Please click the link in the console to create index.", err);
+          return { docs: [] };
+        });
         setGlobalAuditMatches(globalSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
       } catch (e) {
@@ -282,7 +286,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
                   <History className="w-5 h-5 text-primary" /> Rincian Riwayat Buku Besar
                 </h4>
                 <button className="h-10 px-5 rounded-xl gold-gradient text-white flex items-center gap-2 text-[10px] font-black uppercase italic shadow-lg">
-                  <Download className="w-3.5 h-3.5" /> Ekspor Bukti Audit
+                  <Download className="w-3.5 h-3.5 mr-2" /> Ekspor Bukti Audit
                 </button>
               </div>
 
