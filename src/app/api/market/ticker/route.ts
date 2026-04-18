@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -24,7 +23,7 @@ export async function GET(request: NextRequest) {
 
   // Mekanisme AbortController untuk mencegah latensi tinggi di Cloud Run (502/504)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
 
   try {
     const response = await fetch(url, {
@@ -40,13 +39,11 @@ export async function GET(request: NextRequest) {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Binance Upstream Error:', errorData);
-      // Jika error 400 (Invalid Symbol), jangan kembalikan 502, berikan info yang benar
+      // Jika error terjadi, berikan status error JSON yang sopan alih-alih merusak tampilan klien
       return NextResponse.json({ 
-        error: 'Node bursa memberikan respons negatif.',
+        error: 'Node bursa sedang sibuk.',
         code: response.status 
-      }, { status: response.status === 400 ? 400 : 502 });
+      }, { status: 200 }); // Return 200 with error property to prevent UI crash
     }
 
     const data = await response.json();
@@ -62,9 +59,10 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     clearTimeout(timeoutId);
     console.error('Market Proxy Ticker Exception:', error.message);
+    // Kembalikan objek error standar agar klien bisa melakukan fallback
     return NextResponse.json(
-      { error: 'Hambatan koneksi pada node harga global.' }, 
-      { status: 504 }
+      { error: 'Hambatan koneksi pada node harga global.', isNetworkError: true }, 
+      { status: 200 }
     );
   }
 }

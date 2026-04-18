@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -16,6 +15,7 @@ import {
   Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card"; // FIXED: Added missing import
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -80,6 +80,8 @@ export default function ConvertPage() {
       const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}`);
       if (res.ok) {
         const data = await res.json();
+        if (data.error) return; // Silent return if proxy busy
+
         const newPrices = { ...prices };
         
         const btcData = data.find((d: any) => d.symbol === 'BTCUSDT');
