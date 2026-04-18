@@ -29,7 +29,8 @@ import {
   Calendar,
   Clock,
   ArrowUpRight,
-  Globe
+  Globe,
+  X
 } from "lucide-react";
 import { 
   getDocs, 
@@ -53,14 +54,17 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
   const [userTxs, setUserTxs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const filteredUsers = useMemo(() => {
-    if (!allUsers || !searchTerm) return [];
+  // LOGIKA PENCARIAN & SARAN NASABAH
+  const suggestions = useMemo(() => {
+    if (!allUsers) return [];
+    if (!searchTerm) return allUsers.slice(0, 10); // Tampilkan 10 nasabah terbaru jika belum mencari
+    
     const s = searchTerm.toLowerCase();
     return allUsers.filter(u => 
       u.name?.toLowerCase().includes(s) || 
       u.email?.toLowerCase().includes(s) || 
       u.accountNumber?.includes(s)
-    ).slice(0, 5);
+    ).slice(0, 10);
   }, [allUsers, searchTerm]);
 
   useEffect(() => {
@@ -116,7 +120,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
     <div className="animate-in fade-in duration-700 space-y-10">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Buku Besar Nasabah</h2>
+          <h2 className="text-3xl font-black italic uppercase tracking-tighter text-foreground">Buku Besar Nasabah</h2>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Terminal Rekonsiliasi Dana Riil & Pembuktian Audit</p>
         </div>
         <div className="relative w-full max-w-md">
@@ -125,40 +129,67 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
             placeholder="Cari Nasabah (UID/Email/Nama)..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-12 pl-12 bg-card border-none rounded-2xl text-xs font-bold shadow-sm"
+            className="h-12 pl-12 bg-card border-none rounded-2xl text-xs font-bold shadow-sm focus:ring-2 focus:ring-primary/20"
           />
-          {filteredUsers.length > 0 && !selectedUser && (
-            <div className="absolute top-14 left-0 right-0 bg-card border border-border rounded-2xl shadow-2xl z-50 overflow-hidden">
-              {filteredUsers.map(u => (
-                <div 
-                  key={u.id} 
-                  onClick={() => { setSelectedUser(u); setSearchTerm(""); }}
-                  className="p-4 flex items-center gap-4 hover:bg-muted cursor-pointer transition-colors"
-                >
-                  <div className="w-10 h-10 rounded-xl gold-gradient flex items-center justify-center font-black text-white">{u.name[0]}</div>
-                  <div>
-                    <p className="text-xs font-black uppercase italic">{u.name}</p>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase">{u.email}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </header>
 
       {!selectedUser ? (
-        <div className="min-h-[400px] flex flex-col items-center justify-center text-center space-y-6 opacity-20 italic">
-          <SearchCheck className="w-20 h-20" />
-          <div className="space-y-1">
-            <h4 className="text-xl font-black uppercase tracking-widest">Pilih Nasabah</h4>
-            <p className="text-sm font-bold uppercase">Gunakan pencarian untuk memulai audit investigasi.</p>
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 px-2">
+            <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest italic">
+              {searchTerm ? 'Hasil Pencarian' : 'Nasabah Terbaru (Pilih untuk Audit)'}
+            </h4>
           </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {suggestions.map((u: any) => (
+              <Card 
+                key={u.id}
+                onClick={() => setSelectedUser(u)}
+                className="p-6 rounded-[2rem] bg-card border border-border/50 hover:border-primary/40 cursor-pointer transition-all hover:scale-[1.02] active:scale-95 group shadow-sm"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl gold-gradient flex items-center justify-center p-0.5">
+                    <div className="w-full h-full rounded-2xl bg-background flex items-center justify-center overflow-hidden">
+                      {u.avatarUrl ? (
+                        <img src={u.avatarUrl} alt="av" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="font-black text-foreground uppercase">{u.name[0]}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <h5 className="text-sm font-black italic uppercase text-foreground leading-none">{u.name}</h5>
+                    <p className="text-[9px] font-bold text-muted-foreground mt-1.5 uppercase truncate max-w-[150px]">{u.email}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground/30 group-hover:text-primary transition-colors" />
+                </div>
+                <div className="mt-4 pt-4 border-t border-border/50 flex justify-between items-end">
+                   <div>
+                     <p className="text-[8px] font-black text-muted-foreground uppercase">Saldo Utama</p>
+                     <p className="text-xs font-black italic text-foreground">Rp{u.totalBalance?.toLocaleString()}</p>
+                   </div>
+                   <Badge variant="outline" className="text-[7px] font-black uppercase border-primary/20 text-primary">UID: {u.accountNumber}</Badge>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {suggestions.length === 0 && (
+            <div className="min-h-[400px] flex flex-col items-center justify-center text-center space-y-6 opacity-20 italic">
+              <SearchCheck className="w-20 h-20" />
+              <div className="space-y-1">
+                <h4 className="text-xl font-black uppercase tracking-widest">Tidak Ditemukan</h4>
+                <p className="text-sm font-bold uppercase">Nasabah dengan kriteria tersebut tidak ada di node AliBank.</p>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-10 animate-in slide-in-from-bottom-6 duration-700">
           {/* USER CONTEXT PANEL */}
-          <div className="flex flex-col md:flex-row items-center gap-8 bg-card p-8 rounded-[3rem] shadow-sm relative overflow-hidden">
+          <div className="flex flex-col md:flex-row items-center gap-8 bg-card p-8 rounded-[3rem] shadow-sm relative overflow-hidden border border-border/50">
             <div className="absolute top-0 right-0 p-8 opacity-5"><ShieldCheck className="w-48 h-48 text-primary" /></div>
             
             <div className="w-32 h-32 rounded-[2.5rem] gold-gradient flex items-center justify-center p-1.5 shadow-2xl relative z-10">
@@ -189,7 +220,9 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
               </div>
             </div>
 
-            <Button variant="ghost" onClick={() => setSelectedUser(null)} className="absolute top-6 right-6 rounded-full"><X className="w-5 h-5" /></Button>
+            <Button variant="ghost" onClick={() => setSelectedUser(null)} className="absolute top-6 right-6 rounded-full hover:bg-muted transition-colors">
+              <X className="w-5 h-5" />
+            </Button>
           </div>
 
           {/* RECONCILIATION SUMMARY */}
@@ -342,7 +375,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
 function LedgerStatCard({ label, value, sub, icon: Icon, color, isAnomaly }: any) {
   return (
     <Card className={cn(
-      "border-none bg-card rounded-[2.5rem] p-8 shadow-sm h-44 flex flex-col justify-between border-2 transition-all",
+      "border-none bg-card rounded-3xl p-8 shadow-sm h-44 flex flex-col justify-between border-2 transition-all",
       isAnomaly ? "border-rose-500 bg-rose-500/[0.02] animate-pulse" : "border-border/50"
     )}>
       <div className="flex justify-between items-start">
