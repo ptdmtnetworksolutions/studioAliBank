@@ -52,7 +52,12 @@ import {
   RefreshCw,
   Wallet,
   CreditCard,
-  History
+  History,
+  Repeat,
+  DollarSign,
+  ArrowUpRight,
+  Filter,
+  MoreVertical
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -186,6 +191,10 @@ function DashboardContent() {
     
     return idrBalance + (alxHoldings * alxPriceIdr) + (usdtHoldings * currentUsdtRate) + (btcHoldings * btcPriceIdr) + (ethHoldings * ethPriceIdr);
   }, [userData, marketCoins, currentUsdtRate]);
+
+  const totalValueUsd = useMemo(() => {
+    return totalValueCalculated / currentUsdtRate;
+  }, [totalValueCalculated, currentUsdtRate]);
 
   const debtInfo = useMemo(() => {
     if (!userData || !userTxs) return { illegalDebtIdr: 0, totalDebtValIdr: 0, cryptoDebts: [], pendingDebt: 0, hasDebt: false };
@@ -472,14 +481,17 @@ function DashboardContent() {
                 <div className="relative cursor-pointer shrink-0" onClick={() => router.push('/notifications')}>
                   <MessageSquareText className="w-6 h-6 text-foreground" />
                   {unreadNotifications && unreadNotifications.length > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center border-2 border-background px-1">
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center border-2 border-background px-1">
                       {unreadNotifications.length}
                     </span>
                   )}
                 </div>
               </div>
             ) : (
-              <div className="p-1 cursor-pointer shrink-0" onClick={() => router.push('/settings/wallet')}><Menu className="w-6 h-6 text-foreground" /></div>
+              <div className="flex items-center gap-2 cursor-pointer group" onClick={() => router.push('/settings/wallet')}>
+                <span className="text-sm font-black text-foreground italic uppercase">AliBank</span>
+                <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              </div>
             )}
           </div>
           
@@ -489,24 +501,32 @@ function DashboardContent() {
           </div>
 
           <div className="flex items-center gap-3 flex-1 justify-end overflow-hidden">
-            <Headset className="w-5 h-5 text-foreground cursor-pointer shrink-0" />
-            <div className="cursor-pointer shrink-0" onClick={() => router.push('/topup')}><HandCoinIcon className="w-6 h-6 text-foreground" /></div>
+            {activeTab === 'bursa' ? (
+              <>
+                <Headset className="w-5 h-5 text-foreground cursor-pointer shrink-0" />
+                <div className="cursor-pointer shrink-0" onClick={() => router.push('/topup')}><HandCoinIcon className="w-6 h-6 text-foreground" /></div>
+              </>
+            ) : (
+              <button className="p-1" onClick={() => router.push('/settings')}><Menu className="w-6 h-6 text-foreground" /></button>
+            )}
           </div>
         </div>
       </header>
 
-      <div className="px-4 pb-2 sticky top-14 z-40 bg-background/80 backdrop-blur-md">
-        <div className="relative mb-2">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Cari aset..." className="h-10 pl-11 pr-4 bg-muted border-none rounded-md text-xs font-medium placeholder:text-muted-foreground shadow-sm" />
+      {activeTab === 'bursa' && (
+        <div className="px-4 pb-2 sticky top-14 z-40 bg-background/80 backdrop-blur-md">
+          <div className="relative mb-2">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input placeholder="Cari aset..." className="h-10 pl-11 pr-4 bg-muted border-none rounded-md text-xs font-medium placeholder:text-muted-foreground shadow-sm" />
+          </div>
         </div>
-      </div>
+      )}
 
       <main 
         className="px-4 pt-2 space-y-6 will-change-transform"
         style={{ transform: `translateY(${pullY}px)`, transition: isPulling.current ? 'none' : 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' }}
       >
-        {/* GLOBAL DEBT ALERT SECTION - USER SIDE */}
+        {/* GLOBAL DEBT ALERT SECTION */}
         {debtInfo.hasDebt && (
           <Card className="bg-rose-600 text-white rounded-[2rem] p-6 shadow-xl border-none animate-in zoom-in duration-500 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10"><Skull className="w-24 h-24" /></div>
@@ -600,110 +620,140 @@ function DashboardContent() {
           </div>
         ) : (
           <div className="animate-in slide-in-from-right-10 duration-500 space-y-8">
-            {/* DOMPET HEADER */}
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2 group cursor-pointer" onClick={() => router.push('/settings/wallet')}>
-                <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center p-1">
-                  <LogoIcon className="text-white" />
+            {/* NEW DOMPET UI (WALLET MODE) */}
+            <div className="space-y-6">
+              {/* Chain Icons & Copy */}
+              <div className="flex items-center gap-3">
+                <div className="flex -space-x-1">
+                  <div className="w-5 h-5 rounded-full bg-blue-500 border border-background flex items-center justify-center p-1"><LogoIcon className="text-white" /></div>
+                  <div className="w-5 h-5 rounded-full bg-orange-500 border border-background flex items-center justify-center p-1"><Bitcoin className="text-white" /></div>
+                  <div className="w-5 h-5 rounded-full bg-teal-600 border border-background flex items-center justify-center p-1"><Zap className="text-white" /></div>
                 </div>
-                <span className="text-sm font-black text-foreground italic uppercase">AliBank Native</span>
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                <div 
+                  className="w-6 h-6 rounded bg-muted flex items-center justify-center cursor-pointer active:scale-90 transition-transform"
+                  onClick={copyAddress}
+                >
+                  <Copy className="w-3 h-3 text-muted-foreground" />
+                </div>
               </div>
-              <button onClick={copyAddress} className="p-1 hover:bg-muted rounded transition-colors">
-                <Copy className="w-4 h-4 text-muted-foreground" />
-              </button>
-            </div>
 
-            <div className="space-y-1">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">Total Saldo Dompet</p>
-              <h1 className="text-5xl font-black tracking-tighter text-foreground italic">
-                Rp{totalValueCalculated.toLocaleString('id-ID')}
-              </h1>
-            </div>
+              {/* Main Balance Display */}
+              <div className="space-y-1">
+                <h1 className="text-5xl font-black tracking-tight text-foreground italic">
+                  US${totalValueUsd.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </h1>
+                <div className="flex items-center gap-1.5 text-xs font-black">
+                  <span className={cn("italic", pnlData.isUp ? "text-green-500" : "text-rose-500")}>
+                    {pnlData.isUp ? '+' : '-'}US${Math.abs(pnlData.total / currentUsdtRate).toLocaleString('id-ID', { minimumFractionDigits: 2 })} ({pnlData.percent.toFixed(2)}%)
+                  </span>
+                  <button className="text-blue-500 flex items-center gap-1 uppercase text-[10px] ml-1">
+                    Temukan <ArrowUpRight className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
 
-            {/* QUICK ACTIONS GRID */}
-            <div className="grid grid-cols-5 gap-4">
-              {[
-                { name: "Alpha", icon: CalendarDays, href: "/alpha" },
-                { name: "Sekuritas", icon: TrendingUp, href: "/crypto" },
-                { name: "Earn", icon: Briefcase, href: "/deposits" },
-                { name: "Referral", icon: UserPlus, href: "/profile" },
-                { name: "Lainnya", icon: Grid3X3, href: "/marketplace" },
-              ].map((service, idx) => (
-                <div key={idx} className="flex flex-col items-center gap-3 cursor-pointer" onClick={() => router.push(service.href)}>
-                  <div className="w-12 h-12 rounded-2xl bg-muted border border-border flex items-center justify-center shadow-sm">
-                    <service.icon className="w-6 h-6 text-foreground" />
+              {/* Four Action Buttons */}
+              <div className="grid grid-cols-4 gap-3 pt-2">
+                <WalletActionBtn icon={DollarSign} label="Beli" onClick={() => router.push('/crypto/buy')} />
+                <WalletActionBtn icon={ArrowRightLeft} label="Swap" onClick={() => router.push('/crypto/convert')} />
+                <WalletActionBtn icon={Send} label="Kirim" onClick={() => router.push('/crypto/send')} />
+                <WalletActionBtn icon={Download} label="Terima" onClick={() => router.push('/crypto/receive')} />
+              </div>
+
+              {/* Wallet Content Tabs */}
+              <div className="space-y-6 pt-4">
+                <div className="flex items-center gap-6 border-b border-border/20 px-1 overflow-x-auto no-scrollbar">
+                  {["Token", "DeFi", "NFT", "Aktivitas"].map((tab) => (
+                    <button
+                      key={tab}
+                      className={cn(
+                        "pb-3 text-sm font-black italic transition-all relative uppercase",
+                        tab === "Token" ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-primary" : "text-muted-foreground"
+                      )}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Filter Bar */}
+                <div className="flex items-center justify-between px-1">
+                  <button className="flex items-center gap-1.5 bg-muted/50 px-3 py-1.5 rounded-lg border border-border text-[10px] font-black uppercase italic">
+                    Semua jaringan populer <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                  </button>
+                  <div className="flex items-center gap-4 text-muted-foreground">
+                    <Filter className="w-4 h-4" />
+                    <MoreVertical className="w-4 h-4" />
                   </div>
-                  <span className="text-[10px] font-bold text-muted-foreground italic text-center leading-none">{service.name}</span>
                 </div>
-              ))}
+
+                {/* New Pro Asset List */}
+                <div className="space-y-5 pb-20">
+                  <WalletAssetRow 
+                    name="Alix Coin" 
+                    symbol="ALX" 
+                    amount={userData?.cryptoBalances?.ALX ?? 0} 
+                    usdValue={(userData?.cryptoBalances?.ALX ?? 0) * (marketCoins.find(c => c.symbol === "ALX")?.price ?? 12.24)} 
+                    change="+0.14%"
+                    isUp={true}
+                    icon={LogoIcon} 
+                    color="gold-gradient"
+                    networkBadge="ALX"
+                  />
+                  <WalletAssetRow 
+                    name="Ethereum" 
+                    symbol="ETH" 
+                    amount={userData?.cryptoBalances?.ETH ?? 0} 
+                    usdValue={(userData?.cryptoBalances?.ETH ?? 0) * (marketCoins.find(c => c.symbol === "ETH")?.price ?? 2000)} 
+                    change="+3.47%"
+                    isUp={true}
+                    icon={Cpu} 
+                    color="bg-blue-600"
+                    networkBadge="ARB"
+                    tag="Dapatkan ⚡"
+                  />
+                  <WalletAssetRow 
+                    name="TetherUS" 
+                    symbol="USDT" 
+                    amount={userData?.cryptoBalances?.USDT ?? 0} 
+                    usdValue={(userData?.cryptoBalances?.USDT ?? 0)} 
+                    change="-0.06%"
+                    isUp={false}
+                    icon={Zap} 
+                    color="bg-teal-600"
+                    networkBadge="BSC"
+                  />
+                  <WalletAssetRow 
+                    name="Bitcoin" 
+                    symbol="BTC" 
+                    amount={userData?.cryptoBalances?.BTC ?? 0} 
+                    usdValue={(userData?.cryptoBalances?.BTC ?? 0) * (marketCoins.find(c => c.symbol === "BTC")?.price ?? 66000)} 
+                    change="+3.18%"
+                    isUp={true}
+                    icon={Bitcoin} 
+                    color="bg-orange-500"
+                    networkBadge="BTC"
+                    tag="Native SegWit"
+                  />
+                  <WalletAssetRow 
+                    name="Rupiah" 
+                    symbol="IDR" 
+                    amount={userData?.totalBalance ?? 0} 
+                    usdValue={(userData?.totalBalance ?? 0) / currentUsdtRate} 
+                    change="+0.22%"
+                    isUp={true}
+                    icon={() => <span className="text-white font-black text-[10px]">Rp</span>} 
+                    color="bg-rose-600"
+                    networkBadge="FIAT"
+                  />
+                </div>
+              </div>
             </div>
-
-            {/* ASSET HOLDINGS LIST */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <h2 className="text-sm font-black text-muted-foreground uppercase tracking-widest italic">Aset Saya</h2>
-                <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black uppercase">Mainnet Node</Badge>
-              </div>
-
-              <div className="space-y-3">
-                {/* IDR Asset */}
-                <AssetRow 
-                  name="Rupiah" 
-                  symbol="IDR" 
-                  amount={userData?.totalBalance ?? 0} 
-                  idrValue={userData?.totalBalance ?? 0} 
-                  icon={() => <div className="text-white font-black text-sm">Rp</div>} 
-                  color="bg-rose-600" 
-                />
-
-                {/* ALX Asset */}
-                <AssetRow 
-                  name="Alix Coin" 
-                  symbol="ALX" 
-                  amount={userData?.cryptoBalances?.ALX ?? 0} 
-                  idrValue={(userData?.cryptoBalances?.ALX ?? 0) * (marketCoins.find(c => c.symbol === "ALX")?.price ?? 12.24) * currentUsdtRate} 
-                  icon={LogoIcon} 
-                  color="gold-gradient" 
-                  isNative 
-                />
-
-                {/* USDT Asset */}
-                <AssetRow 
-                  name="TetherUS" 
-                  symbol="USDT" 
-                  amount={userData?.cryptoBalances?.USDT ?? 0} 
-                  idrValue={(userData?.cryptoBalances?.USDT ?? 0) * currentUsdtRate} 
-                  icon={Zap} 
-                  color="bg-[#0D9488]" 
-                />
-
-                {/* BTC Asset */}
-                <AssetRow 
-                  name="Bitcoin" 
-                  symbol="BTC" 
-                  amount={userData?.cryptoBalances?.BTC ?? 0} 
-                  idrValue={(userData?.cryptoBalances?.BTC ?? 0) * (marketCoins.find(c => c.symbol === "BTC")?.price ?? 66000) * currentUsdtRate} 
-                  icon={Bitcoin} 
-                  color="bg-orange-500" 
-                />
-
-                {/* ETH Asset */}
-                <AssetRow 
-                  name="Ethereum" 
-                  symbol="ETH" 
-                  amount={userData?.cryptoBalances?.ETH ?? 0} 
-                  idrValue={(userData?.cryptoBalances?.ETH ?? 0) * (marketCoins.find(c => c.symbol === "ETH")?.price ?? 2000) * currentUsdtRate} 
-                  icon={Cpu} 
-                  color="bg-blue-500" 
-                />
-              </div>
-            </section>
           </div>
         )}
       </main>
 
-      {/* DIALOG PILIHAN PEMBAYARAN HUTANG */}
+      {/* DIALOGS ... */}
       <Dialog open={isDebtPaymentOpen} onOpenChange={setIsDebtPaymentOpen}>
         <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-0 overflow-hidden shadow-2xl">
           <div className="bg-rose-600 h-2 w-full" />
@@ -744,13 +794,6 @@ function DashboardContent() {
                 <ChevronRight className="w-4 h-4 opacity-30 group-hover:opacity-100" />
               </button>
             </div>
-
-            <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex gap-3">
-              <Info className="w-5 h-5 text-amber-500 shrink-0" />
-              <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                Akun akan tetap berstatus "Dicurigai" di radar Admin hingga kewajiban diselesaikan atau program cicilan dimulai.
-              </p>
-            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -777,28 +820,51 @@ function DashboardContent() {
   );
 }
 
-function AssetRow({ name, symbol, amount, idrValue, icon: Icon, color, isNative }: any) {
+function WalletActionBtn({ icon: Icon, label, onClick }: any) {
   return (
-    <div className="p-5 rounded-2xl bg-card border border-border flex items-center justify-between hover:bg-muted/30 transition-colors cursor-pointer group active:scale-[0.98]">
+    <button 
+      onClick={onClick}
+      className="flex flex-col items-center gap-2 group active:scale-95 transition-all"
+    >
+      <div className="w-full h-16 rounded-2xl bg-muted border border-border flex items-center justify-center shadow-sm group-hover:bg-muted/80 transition-colors">
+        <Icon className="w-5 h-5 text-foreground" />
+      </div>
+      <span className="text-[10px] font-black uppercase italic tracking-widest text-muted-foreground group-hover:text-foreground">{label}</span>
+    </button>
+  );
+}
+
+function WalletAssetRow({ name, symbol, amount, usdValue, change, isUp, icon: Icon, color, networkBadge, tag }: any) {
+  return (
+    <div className="flex items-center justify-between py-2 group cursor-pointer active:opacity-70 transition-all">
       <div className="flex items-center gap-4">
-        <div className={cn("w-12 h-12 rounded-full flex items-center justify-center p-2.5 shadow-sm shrink-0", color)}>
-          <Icon className="text-white w-full h-full" />
+        <div className="relative">
+          <div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2 shadow-sm shrink-0", color)}>
+            <Icon className="text-white w-full h-full" />
+          </div>
+          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-muted border-2 border-background rounded-full flex items-center justify-center">
+            <span className="text-[6px] font-black text-muted-foreground">{networkBadge}</span>
+          </div>
         </div>
         <div>
-          <div className="flex items-center gap-1.5">
-            <h4 className="text-sm font-black italic uppercase text-foreground">{name}</h4>
-            {isNative && <Badge className="bg-primary/20 text-primary text-[6px] font-black h-3.5 px-1 border-none">V3</Badge>}
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm font-black italic uppercase text-foreground leading-none">{name}</h4>
+            {tag && (
+              <Badge className="bg-muted text-muted-foreground border-none text-[6px] font-black h-3.5 px-1 uppercase italic">{tag}</Badge>
+            )}
           </div>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase mt-0.5">{symbol}</p>
+          <p className={cn("text-[9px] font-black uppercase mt-1", isUp ? "text-green-500" : "text-rose-500")}>
+            {change}
+          </p>
         </div>
       </div>
       <div className="text-right">
-        <p className="text-sm font-black italic text-foreground">
-          {symbol === 'IDR' ? `Rp ${amount.toLocaleString()}` : `${amount.toFixed(6)} ${symbol}`}
+        <p className="text-sm font-black italic text-foreground leading-none">
+          US${usdValue.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
-        {symbol !== 'IDR' && (
-          <p className="text-[9px] font-bold text-muted-foreground mt-0.5">Rp {idrValue.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</p>
-        )}
+        <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">
+          {amount.toFixed(6).replace(/\.?0+$/, "")} {symbol}
+        </p>
       </div>
     </div>
   );
