@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -30,7 +29,8 @@ import {
   Clock,
   Lock,
   Globe,
-  RefreshCw
+  RefreshCw,
+  Skull
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -434,4 +434,3 @@ function LogDetailItem({ icon: Icon, label, value }: any) {
     </div>
   );
 }
-
