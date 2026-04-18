@@ -6,7 +6,7 @@ import { firebaseConfig } from '@/firebase/config';
 
 /**
  * @fileOverview Server-side proxy untuk Infura Gas API.
- * Menggunakan Project ID dan Secret dari Brankas secara aman.
+ * Menjamin privasi Project Secret dan reliabilitas data GWEI.
  */
 
 export async function GET(request: NextRequest) {
@@ -14,25 +14,27 @@ export async function GET(request: NextRequest) {
   const networkId = searchParams.get('networkId') || '1';
 
   try {
-    // 1. Ambil Kredensial dari Firestore
+    // 1. Ambil Kredensial dari Firestore secara aman
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     const db = getFirestore(app);
     const keySnap = await getDoc(doc(db, "system", "api_keys"));
     
-    if (!keySnap.exists()) {
-      return NextResponse.json({ error: 'Konfigurasi Vault tidak ditemukan.' }, { status: 404 });
-    }
+    let projectId = "30ba607f7b6845bca3a645b110a0db22"; // Jalur Prioritas Default
+    let projectSecret = "";
 
-    const config = keySnap.data();
-    const projectId = config.infuraProjectId || "30ba607f7b6845bca3a645b110a0db22";
-    const projectSecret = config.infuraProjectSecret;
+    if (keySnap.exists()) {
+      const config = keySnap.data();
+      if (config.infuraProjectId) projectId = config.infuraProjectId;
+      if (config.infuraProjectSecret) projectSecret = config.infuraProjectSecret;
+    }
 
     // 2. Bangun URL Infura Gas API V3
     const url = `https://gas.api.infura.io/v3/${projectId}/networks/${networkId}/suggestedGasFees`;
 
-    // 3. Siapkan Header (Gunakan Basic Auth jika Secret tersedia)
+    // 3. Siapkan Header Keamanan
     const headers: Record<string, string> = {
       'Accept': 'application/json',
+      'User-Agent': 'AliBank-V3-Engine/1.2'
     };
 
     if (projectSecret) {
@@ -43,19 +45,32 @@ export async function GET(request: NextRequest) {
     const response = await fetch(url, {
       method: 'GET',
       headers,
-      next: { revalidate: 10 } // Cache selama 10 detik sesuai waktu blok
+      next: { revalidate: 12 } // Sinkronisasi setiap 12 detik (waktu blok rata-rata)
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Infura Gas Node Error [${response.status}]:`, errorText);
-      return NextResponse.json({ error: 'Node Gas sedang sibuk.', status: response.status }, { status: 200 });
+      return NextResponse.json({ 
+        error: 'Node Gas Sedang Sibuk', 
+        status: response.status 
+      }, { status: 200 });
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+
+    // Validasi struktur data Infura sebelum dikirim ke client
+    if (!data.standard || !data.estimatedBaseFee) {
+       return NextResponse.json({ error: 'Data gas tidak valid dari provider.' }, { status: 200 });
+    }
+
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=5'
+      }
+    });
   } catch (error: any) {
     console.error('Gas Proxy Exception:', error.message);
-    return NextResponse.json({ error: 'Gagal menghubungkan node gas global.' }, { status: 200 });
+    return NextResponse.json({ error: 'Hambatan koneksi node gas global.' }, { status: 200 });
   }
 }
