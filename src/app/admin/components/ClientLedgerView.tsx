@@ -30,7 +30,10 @@ import {
   Clock,
   ArrowUpRight,
   Globe,
-  X
+  X,
+  Database,
+  SearchCode,
+  FileWarning
 } from "lucide-react";
 import { 
   getDocs, 
@@ -52,12 +55,14 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userTxs, setUserTxs] = useState<any[]>([]);
+  const [globalAuditMatches, setGlobalAuditMatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isForensicLoading, setIsForensicLoading] = useState(false);
 
   // LOGIKA PENCARIAN & SARAN NASABAH
   const suggestions = useMemo(() => {
     if (!allUsers) return [];
-    if (!searchTerm) return allUsers.slice(0, 10); // Tampilkan 10 nasabah terbaru jika belum mencari
+    if (!searchTerm) return allUsers.slice(0, 10); 
     
     const s = searchTerm.toLowerCase();
     return allUsers.filter(u => 
@@ -68,28 +73,43 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
   }, [allUsers, searchTerm]);
 
   useEffect(() => {
-    async function fetchLedger() {
+    async function fetchDeepLedger() {
       if (!selectedUser || !db) return;
       setIsLoading(true);
+      setIsForensicLoading(true);
       try {
-        const q = query(
+        // 1. Ambil Riwayat Transaksi Nasabah (Local Ledger)
+        const qLocal = query(
           collection(db, "users", selectedUser.id, "transactions"),
           orderBy("timestamp", "desc"),
           limit(100)
         );
-        const snapshot = await getDocs(q);
-        setUserTxs(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        const localSnap = await getDocs(qLocal);
+        setUserTxs(localSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+        // 2. DEEP SCAN: Cari bukti di Audit Global yang berkaitan dengan email nasabah
+        // Ini untuk mendeteksi transaksi yang tercatat di pusat tapi gagal di-inkjeksi ke ledger nasabah
+        const qGlobal = query(
+          collection(db, "system", "audit", "global_transactions"),
+          where("userEmail", "==", selectedUser.email),
+          orderBy("timestamp", "desc"),
+          limit(50)
+        );
+        const globalSnap = await getDocs(qGlobal);
+        setGlobalAuditMatches(globalSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
       } catch (e) {
         console.error("Ledger fetch error:", e);
       } finally {
         setIsLoading(false);
+        setIsForensicLoading(false);
       }
     }
-    fetchLedger();
+    fetchDeepLedger();
   }, [selectedUser, db]);
 
   const ledgerStats = useMemo(() => {
-    if (!userTxs.length) return { totalIn: 0, totalOut: 0, discrepancy: 0 };
+    if (!userTxs.length) return { totalIn: 0, totalOut: 0, discrepancy: selectedUser?.totalBalance || 0, ledgerBalance: 0 };
     
     const ALX_PRICE_IDR = 194004;
 
@@ -115,6 +135,12 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
       ledgerBalance: ledgerBal
     };
   }, [userTxs, selectedUser]);
+
+  // Identifikasi Transaksi yang tidak singkron (Ada di Global tapi tidak di Local)
+  const disconnectedLogs = useMemo(() => {
+    const localIds = new Set(userTxs.map(t => t.id || t.invoiceId || t.orderId));
+    return globalAuditMatches.filter(g => !localIds.has(g.id) && !localIds.has(g.invoiceId));
+  }, [userTxs, globalAuditMatches]);
 
   return (
     <div className="animate-in fade-in duration-700 space-y-10">
@@ -175,16 +201,6 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
               </Card>
             ))}
           </div>
-
-          {suggestions.length === 0 && (
-            <div className="min-h-[400px] flex flex-col items-center justify-center text-center space-y-6 opacity-20 italic">
-              <SearchCheck className="w-20 h-20" />
-              <div className="space-y-1">
-                <h4 className="text-xl font-black uppercase tracking-widest">Tidak Ditemukan</h4>
-                <p className="text-sm font-bold uppercase">Nasabah dengan kriteria tersebut tidak ada di node AliBank.</p>
-              </div>
-            </div>
-          )}
         </div>
       ) : (
         <div className="space-y-10 animate-in slide-in-from-bottom-6 duration-700">
@@ -225,6 +241,24 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
             </Button>
           </div>
 
+          {/* DEEP SCAN ALERT */}
+          {Math.abs(ledgerStats.discrepancy) > 1000 && (
+            <Card className="p-8 bg-rose-600 text-white rounded-[2.5rem] border-none shadow-2xl animate-in zoom-in duration-500 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-10"><ShieldAlert className="w-32 h-32" /></div>
+              <div className="flex items-center gap-6 relative z-10">
+                <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center animate-pulse">
+                  <SearchCode className="w-8 h-8 text-white" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <h4 className="text-xl font-black uppercase italic italic tracking-tighter">HASIL DEEP SCAN: INJEKSI DANA TANPA RIWAYAT</h4>
+                  <p className="text-xs font-bold uppercase opacity-80 leading-relaxed">
+                    Sistem mendeteksi selisih sebesar <span className="underline decoration-2 text-yellow-300">Rp {Math.abs(ledgerStats.discrepancy).toLocaleString()}</span> yang masuk ke saldo profil tanpa melalui dokumen kuitansi digital. Dana ini diidentifikasi sebagai **Injeksi Database Langsung (Manual Root Edit)**.
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
+
           {/* RECONCILIATION SUMMARY */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <LedgerStatCard label="Saldo Dompet Saat Ini" value={`Rp ${selectedUser.totalBalance?.toLocaleString()}`} sub="Current Wallet Value" color="text-foreground" icon={Wallet} />
@@ -240,130 +274,104 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
             />
           </div>
 
-          {/* MAIN LEDGER TABLE */}
-          <Card className="border-none bg-card rounded-[3rem] overflow-hidden shadow-sm">
-            <div className="p-8 border-b border-border bg-muted/30 flex justify-between items-center">
-              <h4 className="text-lg font-black italic uppercase tracking-tighter flex items-center gap-3">
-                <History className="w-5 h-5 text-primary" /> Rincian Riwayat Buku Besar
-              </h4>
-              <button className="h-10 px-5 rounded-xl gold-gradient text-white flex items-center gap-2 text-[10px] font-black uppercase italic shadow-lg">
-                <Download className="w-3.5 h-3.5" /> Ekspor Bukti Audit
-              </button>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* MAIN LEDGER TABLE */}
+            <Card className="lg:col-span-8 border-none bg-card rounded-[3rem] overflow-hidden shadow-sm">
+              <div className="p-8 border-b border-border bg-muted/30 flex justify-between items-center">
+                <h4 className="text-lg font-black italic uppercase tracking-tighter flex items-center gap-3">
+                  <History className="w-5 h-5 text-primary" /> Rincian Riwayat Buku Besar
+                </h4>
+                <button className="h-10 px-5 rounded-xl gold-gradient text-white flex items-center gap-2 text-[10px] font-black uppercase italic shadow-lg">
+                  <Download className="w-3.5 h-3.5" /> Ekspor Bukti Audit
+                </button>
+              </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left min-w-[1100px]">
-                <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
-                  <tr>
-                    <th className="px-8 py-6">Timestamp & Ref Node</th>
-                    <th className="px-8 py-6">Kategori / Sumber</th>
-                    <th className="px-8 py-6">Metode & Gateway</th>
-                    <th className="px-8 py-6">Status Keamanan</th>
-                    <th className="px-8 py-6 text-right">Nilai Nominal</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {isLoading ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left min-w-[800px]">
+                  <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
                     <tr>
-                      <td colSpan={5} className="py-20 text-center"><Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" /></td>
+                      <th className="px-8 py-6">Timestamp</th>
+                      <th className="px-8 py-6">Aktivitas</th>
+                      <th className="px-8 py-6">Metode</th>
+                      <th className="px-8 py-6 text-right">Nominal</th>
                     </tr>
-                  ) : userTxs.map((tx) => {
-                    const nominal = tx.amountIdr || tx.amount || tx.stakeAmount || 0;
-                    const isAdjustment = tx.category === "Adjustment" || tx.category === "Manual Adjustment";
-                    const isLarge = nominal > 10000000;
-                    
-                    return (
-                      <tr key={tx.id} className={cn(
-                        "hover:bg-muted/30 transition-colors group",
-                        (isAdjustment || isLarge) && "bg-rose-500/[0.01]"
-                      )}>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {isLoading ? (
+                      <tr><td colSpan={4} className="py-20 text-center"><Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" /></td></tr>
+                    ) : userTxs.map((tx) => (
+                      <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-8 py-5">
-                          <div className="space-y-1">
-                            <p className="text-[10px] font-mono font-bold text-muted-foreground">
-                              {tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleString('id-ID') : tx.date}
-                            </p>
-                            <p className="text-[8px] font-mono font-medium text-blue-500 uppercase tracking-tighter">NODE: {tx.id.slice(0, 16)}</p>
-                          </div>
+                          <p className="text-[10px] font-mono font-bold text-muted-foreground">
+                            {tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleString('id-ID') : tx.date}
+                          </p>
                         </td>
                         <td className="px-8 py-5">
-                          <div className="space-y-1">
-                            <Badge variant="outline" className={cn(
-                              "border-none text-[8px] font-black uppercase px-2 h-4",
-                              isAdjustment ? "bg-amber-100 text-amber-600" : "bg-muted text-foreground"
-                            )}>
-                              {tx.category || 'Aktivitas'}
-                            </Badge>
-                            <p className="text-[11px] font-black uppercase italic text-foreground max-w-[250px] truncate">{tx.description}</p>
-                          </div>
+                          <Badge variant="outline" className="border-none text-[8px] font-black uppercase px-2 h-4 bg-muted text-foreground mb-1">{tx.category || 'Aktivitas'}</Badge>
+                          <p className="text-[10px] font-black uppercase italic text-foreground">{tx.description}</p>
                         </td>
                         <td className="px-8 py-5">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-primary border border-border">
-                              {tx.gateway === 'PayPal' ? <Globe className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
-                            </div>
-                            <div>
-                               <p className="text-[10px] font-black uppercase italic leading-none">{tx.gateway || "Ali-Bridge Node"}</p>
-                               <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">{tx.bankName || "Blockchain Confirmed"}</p>
-                            </div>
-                          </div>
+                          <p className="text-[10px] font-black uppercase italic">{tx.gateway || "Ali-Bridge Node"}</p>
                         </td>
-                        <td className="px-8 py-5">
-                          {tx.status === 'success' || tx.status === 'berhasil' ? (
-                            <div className="flex items-center gap-2 text-green-600">
-                              <ShieldCheck className="w-4 h-4" />
-                              <span className="text-[10px] font-black uppercase italic">Diverifikasi</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 text-amber-500 animate-pulse">
-                              <Clock className="w-4 h-4" />
-                              <span className="text-[10px] font-black uppercase italic">Pending Node</span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-8 py-5 text-right">
-                          <div className="space-y-1">
-                             <p className={cn(
-                               "text-sm font-black italic tracking-tighter",
-                               tx.type === 'income' ? "text-green-600" : "text-rose-600"
-                             )}>
-                               {tx.type === 'income' ? '+' : '-'}Rp{nominal.toLocaleString()}
-                             </p>
-                             {tx.cryptoAmount > 0 && (
-                               <p className="text-[8px] font-bold text-primary uppercase italic">{tx.cryptoAmount.toFixed(6)} {tx.cryptoCurrency}</p>
-                             )}
-                          </div>
+                        <td className="px-8 py-5 text-right font-black italic">
+                          <span className={tx.type === 'income' ? "text-green-600" : "text-rose-600"}>
+                            {tx.type === 'income' ? '+' : '-'}Rp{(tx.amountIdr || tx.amount || tx.stakeAmount || 0).toLocaleString()}
+                          </span>
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
 
-            {!isLoading && userTxs.length === 0 && (
-              <div className="py-20 text-center space-y-4 opacity-20 italic">
-                <Fingerprint className="w-16 h-16 mx-auto" />
-                <p className="text-sm font-black uppercase tracking-widest">Buku Besar Kosong</p>
-              </div>
-            )}
-          </Card>
+            {/* DEEP SCAN RESULTS: TEMUAN BUKTI EKSTERNAL */}
+            <div className="lg:col-span-4 space-y-6">
+              <h4 className="text-sm font-black uppercase italic tracking-widest px-2 flex items-center gap-2">
+                <SearchCheck className="w-4 h-4 text-primary" /> Temuan Bukti Eksternal
+              </h4>
+              
+              {isForensicLoading ? (
+                <div className="p-10 flex flex-col items-center gap-3 bg-card rounded-[2rem] border border-border">
+                  <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground animate-pulse">Scanning Global Audit Logs...</p>
+                </div>
+              ) : disconnectedLogs.length > 0 ? (
+                <div className="space-y-4">
+                  {disconnectedLogs.map((log) => (
+                    <Card key={log.id} className="p-6 rounded-[2rem] bg-amber-500/5 border border-amber-500/20 shadow-sm space-y-4 animate-in slide-in-from-right-4">
+                      <div className="flex justify-between items-start">
+                        <Badge className="bg-amber-500 text-white font-black text-[8px] h-5 uppercase italic">Broken Ledger Link</Badge>
+                        <AlertTriangle className="w-4 h-4 text-amber-500" />
+                      </div>
+                      <p className="text-[10px] font-bold text-foreground leading-relaxed uppercase">
+                        Ditemukan catatan di Audit Global sebesar **Rp {log.amountIdr?.toLocaleString()}** ({log.category}), namun tidak tercatat di buku besar nasabah.
+                      </p>
+                      <div className="pt-3 border-t border-amber-500/10 flex justify-between items-center text-[8px] font-mono font-bold text-muted-foreground">
+                        <span>REF: {log.id.slice(0, 12)}</span>
+                        <span>{log.timestamp?.toDate().toLocaleDateString()}</span>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card className="p-8 rounded-[2rem] border-2 border-dashed border-border flex flex-col items-center justify-center text-center opacity-40 space-y-3">
+                   <FileWarning className="w-10 h-10" />
+                   <p className="text-[10px] font-bold uppercase italic leading-tight">
+                     Tidak ditemukan bukti transaksi pendukung di Audit Global. Dana dikategorikan sebagai **MURNI ILEGAL / DATA GLITCH**.
+                   </p>
+                </Card>
+              )}
 
-          {/* LEGAL FOOTER */}
-          <div className="p-8 rounded-[2.5rem] bg-accent/5 border border-primary/10 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-6">
-              <div className="w-16 h-16 rounded-3xl gold-gradient flex items-center justify-center shrink-0 shadow-xl p-4">
-                <LogoIcon className="text-white w-full h-full" />
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-sm font-black uppercase italic tracking-tight text-accent">Sertifikasi Audit Digital V3.5</h4>
-                <p className="text-[10px] font-medium text-muted-foreground leading-relaxed uppercase italic max-w-2xl">
-                  Laporan ini disahkan oleh protokol AliBank Sovereign Node. Setiap entri transaksi dijamin tidak dapat dimanipulasi (*Immutable Ledger*) dan sah digunakan sebagai bukti kepatuhan AML dan KYC di wilayah hukum Republik Indonesia.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 opacity-40 grayscale shrink-0">
-               <LogoIcon className="w-8 h-8" />
-               <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">AliBank Compliance Dept.</span>
+              <Card className="p-6 rounded-[2rem] bg-[#1A1D1F] text-white space-y-4 shadow-xl">
+                 <div className="flex items-center gap-3">
+                    <Database className="w-5 h-5 text-primary" />
+                    <h5 className="text-[11px] font-black uppercase italic tracking-widest">Sertifikasi Node V3.5</h5>
+                 </div>
+                 <p className="text-[9px] font-medium text-white/50 leading-relaxed uppercase italic">
+                   Laporan forensik ini menggunakan algoritma rekonsiliasi lintas-node ISO8583. Hasil "Saldo Tak Ter-Audit" adalah bukti mutlak adanya manipulasi field saldo langsung tanpa melalui logika aplikasi.
+                 </p>
+              </Card>
             </div>
           </div>
         </div>
