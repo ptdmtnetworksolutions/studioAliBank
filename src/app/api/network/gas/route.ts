@@ -4,6 +4,8 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { firebaseConfig } from '@/firebase/config';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * @fileOverview Server-side proxy untuk Infura Gas API.
  * Menjamin privasi Project Secret dan reliabilitas data GWEI.
@@ -15,6 +17,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // 1. Ambil Kredensial dari Firestore secara aman
+    // Di App Hosting, initializeApp() tanpa argumen akan menggunakan service account default
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     const db = getFirestore(app);
     const keySnap = await getDoc(doc(db, "system", "api_keys"));
@@ -45,28 +48,27 @@ export async function GET(request: NextRequest) {
     const response = await fetch(url, {
       method: 'GET',
       headers,
-      next: { revalidate: 12 } // Sinkronisasi setiap 12 detik (waktu blok rata-rata)
+      cache: 'no-store',
+      next: { revalidate: 0 }
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Infura Gas Node Error [${response.status}]:`, errorText);
       return NextResponse.json({ 
         error: 'Node Gas Sedang Sibuk', 
         status: response.status 
-      }, { status: 200 });
+      }, { 
+        status: 200,
+        headers: { 'Cache-Control': 'no-store, max-age=0' }
+      });
     }
 
     const data = await response.json();
 
-    // Validasi struktur data Infura sebelum dikirim ke client
-    if (!data.standard || !data.estimatedBaseFee) {
-       return NextResponse.json({ error: 'Data gas tidak valid dari provider.' }, { status: 200 });
-    }
-
     return NextResponse.json(data, {
       headers: {
-        'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=5'
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     });
   } catch (error: any) {

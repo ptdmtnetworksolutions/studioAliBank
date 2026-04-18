@@ -1,8 +1,11 @@
+
 import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * @fileOverview Server-side proxy for Binance 24hr Ticker API.
- * Diperbarui untuk mendukung penanganan beban tinggi (48+ koin).
+ * Diperbarui untuk mendukung penanganan beban tinggi dan pencegahan caching PWA.
  */
 
 export async function GET(request: NextRequest) {
@@ -15,33 +18,34 @@ export async function GET(request: NextRequest) {
   if (symbols) {
     url += `?symbols=${symbols}`;
   } else if (symbol) {
-    const sanitizedSymbol = symbol === 'USDTIDR' ? 'USDTIDRT' : symbol;
+    const sanitizedSymbol = symbol === 'USDT' ? 'USDTIDRT' : (symbol.includes('USDT') ? symbol : `${symbol}USDT`);
     url += `?symbol=${sanitizedSymbol}`;
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000); // Meningkatkan timeout ke 12 detik
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'AliBank-V3-Core/1.1'
+        'User-Agent': 'AliBank-V3-Core/1.2'
       },
-      next: { revalidate: 10 }, // Cache singkat di sisi server
+      cache: 'no-store',
       signal: controller.signal
     });
 
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.warn(`Upstream Market Error [${response.status}]:`, errorText);
       return NextResponse.json({ 
         error: 'Node bursa sedang sibuk.',
         status: response.status 
-      }, { status: 200 }); // Kembalikan 200 agar client tidak melempar eksepsi keras
+      }, { 
+        status: 200,
+        headers: { 'Cache-Control': 'no-store' }
+      });
     }
 
     const data = await response.json();
@@ -49,12 +53,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache'
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     });
   } catch (error: any) {
     clearTimeout(timeoutId);
-    console.error('Market Proxy Ticker Exception:', error.message);
     return NextResponse.json(
       { error: 'Hambatan koneksi pada node harga global.', isNetworkError: true }, 
       { status: 200 }

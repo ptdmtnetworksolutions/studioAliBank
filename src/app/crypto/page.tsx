@@ -82,47 +82,24 @@ export default function DesktopDiscoverPage() {
 
   const syncMarketData = useCallback(async () => {
     try {
-      // Menarik harga terakhir secara riil dari node bursa
       const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(GLOBAL_SYMBOLS))}&t=${Date.now()}`, {
-        cache: 'no-store'
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-store' }
       });
       
       const tickerData = await res.json();
       
       if (!tickerData || tickerData.error || !Array.isArray(tickerData)) {
+        console.warn("Market Proxy Error:", tickerData?.error || "Invalid response format");
         setIsError(true);
-        setIsLoading(false);
+        // Tetap gunakan data lama jika ada
+        if (marketData.length === 0) setIsLoading(false);
         return;
       }
 
-      // Mengambil data tren klines secara berkelompok (Chunking) untuk mencegah rate-limit
-      const CHUNK_SIZE = 5;
-      const allTrends: Record<string, any[]> = {};
-      
-      for (let i = 0; i < GLOBAL_SYMBOLS.length; i += CHUNK_SIZE) {
-        const chunk = GLOBAL_SYMBOLS.slice(i, i + CHUNK_SIZE);
-        const results = await Promise.allSettled(
-          chunk.map(s => fetch(`/api/market/klines?symbol=${s}&interval=1h&limit=24`).then(r => r.json()))
-        );
-
-        results.forEach((res, idx) => {
-          const symbol = chunk[idx].replace("USDT", "");
-          if (res.status === 'fulfilled' && Array.isArray(res.value)) {
-            allTrends[symbol] = res.value.map((k: any) => ({ value: parseFloat(k[4]) }));
-          } else {
-            allTrends[symbol] = [];
-          }
-        });
-
-        if (i + CHUNK_SIZE < GLOBAL_SYMBOLS.length) {
-          await new Promise(r => setTimeout(r, 400));
-        }
-      }
-
-      // Gabungkan dengan data kedaulatan ALX dari Firestore (Sumber riil dari Brankas)
+      // Gabungkan dengan data kedaulatan ALX dari Firestore
       const formatted = tickerData.map((item, idx) => {
         const symbol = item.symbol.replace("USDT", "");
-        const trend = allTrends[symbol] || [];
         
         return {
           rank: idx + 2,
@@ -132,15 +109,13 @@ export default function DesktopDiscoverPage() {
           changePercent: parseFloat(item.priceChangePercent) || 0,
           isUp: parseFloat(item.priceChangePercent) >= 0,
           marketCap: (parseFloat(item.quoteVolume) * 12.5).toLocaleString(), 
-          trend: trend,
+          trend: [], // Trend will be updated separately or on demand to save requests
           age: "Autonomous",
           icon: getIconUrl(symbol)
         };
       });
 
       const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
-      const alxTrend = Array.from({ length: 24 }, (_, i) => ({ value: alxPrice + (Math.sin(i/2) * 0.05) }));
-      
       const alxEntry = {
         rank: 1,
         symbol: "ALX",
@@ -149,7 +124,7 @@ export default function DesktopDiscoverPage() {
         changePercent: 1.14,
         isUp: true,
         marketCap: "524.8M",
-        trend: alxTrend,
+        trend: Array.from({ length: 24 }, (_, i) => ({ value: alxPrice + (Math.sin(i/2) * 0.05) })),
         age: "Sovereign",
         icon: null
       };
@@ -163,7 +138,7 @@ export default function DesktopDiscoverPage() {
       setIsError(true);
       setIsLoading(false);
     }
-  }, [globalLiquidity]);
+  }, [globalLiquidity, marketData.length]);
 
   useEffect(() => {
     setMounted(true);
@@ -172,7 +147,7 @@ export default function DesktopDiscoverPage() {
       return;
     }
     syncMarketData();
-    const interval = setInterval(syncMarketData, 45000); 
+    const interval = setInterval(syncMarketData, 30000); 
     return () => clearInterval(interval);
   }, [router, syncMarketData]);
 
@@ -186,14 +161,14 @@ export default function DesktopDiscoverPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-[#F8F9FB] text-[#1E2329] flex font-body selection:bg-primary/30">
+    <div className="min-h-screen bg-background text-foreground flex font-body selection:bg-primary/30">
       {/* Sidebar Desktop */}
-      <aside className="w-64 bg-white border-r border-[#E5E7EB] flex flex-col fixed h-screen z-50">
+      <aside className="w-64 bg-card border-r border-border flex flex-col fixed h-screen z-50">
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg text-white">
             <LogoIcon />
           </div>
-          <span className="font-bold text-xl tracking-tighter italic uppercase text-slate-900">AliBank</span>
+          <span className="font-bold text-xl tracking-tighter italic uppercase">AliBank</span>
         </div>
         <nav className="flex-1 px-4 space-y-1 pt-4">
           <SidebarItem icon={LayoutDashboard} label="Dashboard" href="/" />
@@ -203,8 +178,8 @@ export default function DesktopDiscoverPage() {
           <SidebarItem icon={Calculator} label="Tax Hub" href="#" />
           <SidebarItem icon={Plane} label="Travel" href="#" />
         </nav>
-        <div className="p-6 border-t border-[#E5E7EB] space-y-4">
-          <div className="flex items-center justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
+        <div className="p-6 border-t border-border space-y-4">
+          <div className="flex items-center justify-between text-[8px] font-black text-muted-foreground uppercase tracking-widest">
             <span>Network Health</span>
             <span className={cn("flex items-center gap-1", isError ? "text-rose-500" : "text-green-500")}>
               <Wifi className="w-2.5 h-2.5" /> {isError ? "Limited" : "Live"}
@@ -214,9 +189,9 @@ export default function DesktopDiscoverPage() {
       </aside>
 
       <main className="ml-64 flex-1 flex flex-col min-w-0">
-        <header className="h-16 bg-white border-b border-[#E5E7EB] flex items-center justify-between px-8 sticky top-0 z-40">
+        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 sticky top-0 z-40">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Discover</h2>
+            <h2 className="text-xl font-black text-foreground uppercase italic tracking-tight">Discover</h2>
             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[8px] font-black h-5 uppercase px-2">
               <RefreshCw className={cn("w-2.5 h-2.5 mr-1.5", isLoading && "animate-spin")} /> 
               {isLoading ? "Syncing Nodes..." : `Node Sync: ${lastSync}`}
@@ -224,15 +199,15 @@ export default function DesktopDiscoverPage() {
           </div>
           <div className="flex items-center gap-6">
             <div className="relative w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input placeholder="Search for a token..." className="h-10 pl-10 bg-[#F3F4F6] border-none rounded-lg text-sm font-medium" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Search for a token..." className="h-10 pl-10 bg-muted/50 border-none rounded-lg text-sm font-medium" />
             </div>
             
-            <div className="flex items-center gap-4 border-l border-[#E5E7EB] pl-6">
+            <div className="flex items-center gap-4 border-l border-border pl-6">
               <GasStation />
-              <Activity className="w-4 h-4 text-slate-400" />
-              <Bell className="w-5 h-5 text-slate-400" />
-              <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden border border-border cursor-pointer" onClick={() => router.push('/profile')}>
+              <Activity className="w-4 h-4 text-muted-foreground" />
+              <Bell className="w-5 h-5 text-muted-foreground" />
+              <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border cursor-pointer" onClick={() => router.push('/profile')}>
                 {user?.photoURL ? <img src={user.photoURL} alt="p" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-black italic text-[10px] uppercase">{user?.displayName?.[0] || 'U'}</div>}
               </div>
             </div>
@@ -240,14 +215,14 @@ export default function DesktopDiscoverPage() {
         </header>
 
         <div className="p-8 space-y-10">
-          <div className="flex items-center gap-8 border-b border-[#E5E7EB]">
+          <div className="flex items-center gap-8 border-b border-border">
             {["Tokens", "Games", "Sites", "NFTs", "Networks"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveSubTab(tab)}
                 className={cn(
                   "pb-4 text-sm font-bold transition-all relative uppercase italic tracking-tighter",
-                  activeSubTab === tab ? "text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-primary" : "text-slate-400 hover:text-slate-600"
+                  activeSubTab === tab ? "text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-primary" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {tab}
@@ -269,16 +244,16 @@ export default function DesktopDiscoverPage() {
                   <FilterBtn icon={Trophy} label="Popular" active={activeFilter === "Popular"} onClick={() => setActiveFilter("Popular")} />
                   <FilterBtn icon={TrendingUp} label="Gainers" active={activeFilter === "Gainers"} onClick={() => setActiveFilter("Gainers")} />
                 </div>
-                <button className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-[#E5E7EB] text-xs font-bold text-slate-900 shadow-sm">
+                <button className="flex items-center gap-2 bg-card px-4 py-2 rounded-lg border border-border text-xs font-bold text-foreground shadow-sm">
                   <ShieldCheck className="w-4 h-4 text-primary" /> Multi-Chain Sync Active
                 </button>
               </div>
 
-              <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white">
+              <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-card">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      <tr className="border-b border-[#F3F4F6] text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                      <tr className="border-b border-border text-[10px] font-black uppercase text-muted-foreground tracking-widest">
                         <th className="px-6 py-5">#</th>
                         <th className="px-6 py-5">Token</th>
                         <th className="px-6 py-5">Price (USD)</th>
@@ -287,7 +262,7 @@ export default function DesktopDiscoverPage() {
                         <th className="px-6 py-5 text-right">Node Type</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#F3F4F6]">
+                    <tbody className="divide-y divide-border">
                       {isLoading && marketData.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="py-32 text-center">
@@ -298,13 +273,13 @@ export default function DesktopDiscoverPage() {
                       ) : filteredMarketData.map((token) => (
                         <tr 
                           key={token.symbol} 
-                          className="hover:bg-slate-50/80 transition-colors cursor-pointer group" 
+                          className="hover:bg-muted/30 transition-colors cursor-pointer group" 
                           onClick={() => router.push(`/crypto/market/${token.symbol.toLowerCase()}`)}
                         >
-                          <td className="px-6 py-5 text-xs font-bold text-slate-400">{token.rank}</td>
+                          <td className="px-6 py-5 text-xs font-bold text-muted-foreground">{token.rank}</td>
                           <td className="px-6 py-5">
                             <div className="flex items-center gap-4">
-                              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center p-1.5 shadow-inner transition-transform group-hover:scale-110", token.symbol === "ALX" ? "gold-gradient" : "bg-slate-100 border border-border relative overflow-hidden")}>
+                              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center p-1.5 shadow-inner transition-transform group-hover:scale-110", token.symbol === "ALX" ? "gold-gradient" : "bg-muted border border-border relative overflow-hidden")}>
                                 {token.symbol === "ALX" ? (
                                   <LogoIcon className="text-white" />
                                 ) : (
@@ -315,17 +290,17 @@ export default function DesktopDiscoverPage() {
                                       className="w-full h-full object-contain rounded-lg" 
                                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as any).nextElementSibling?.classList.remove('hidden'); }}
                                     />
-                                    <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-lg font-black text-[10px] text-slate-400 uppercase">{token.symbol[0]}</div>
+                                    <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-lg font-black text-[10px] text-muted-foreground uppercase">{token.symbol[0]}</div>
                                   </>
                                 )}
                               </div>
                               <div>
-                                <p className="text-sm font-black italic leading-none text-slate-900 group-hover:text-primary transition-colors uppercase">{token.symbol}</p>
-                                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">{token.name}</p>
+                                <p className="text-sm font-black italic leading-none text-foreground group-hover:text-primary transition-colors uppercase">{token.symbol}</p>
+                                <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">{token.name}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-5 text-sm font-black italic tracking-tighter text-slate-900">
+                          <td className="px-6 py-5 text-sm font-black italic tracking-tighter text-foreground">
                             ${token.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                           </td>
                           <td className={cn("px-6 py-5 text-sm font-black italic", token.isUp ? "text-green-500" : "text-rose-500")}>
@@ -334,7 +309,7 @@ export default function DesktopDiscoverPage() {
                           <td className="px-6 py-5 w-40">
                             <div className="h-10 w-full">
                               <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={token.trend}>
+                                <AreaChart data={token.trend && token.trend.length > 0 ? token.trend : [{value: 1}]}>
                                   <YAxis domain={['auto', 'auto']} hide />
                                   <Area type="monotone" dataKey="value" stroke={token.isUp ? "#22C55E" : "#EF4444"} fill={token.isUp ? "#22C55E" : "#EF4444"} fillOpacity={0.1} strokeWidth={2} isAnimationActive={false} />
                                 </AreaChart>
@@ -342,7 +317,7 @@ export default function DesktopDiscoverPage() {
                             </div>
                           </td>
                           <td className="px-6 py-5 text-right">
-                            <Badge variant="outline" className={cn("text-[8px] font-black uppercase px-2.5 h-6 border-none", token.symbol === 'ALX' ? "bg-primary text-black" : "bg-slate-100 text-slate-500")}>{token.age}</Badge>
+                            <Badge variant="outline" className={cn("text-[8px] font-black uppercase px-2.5 h-6 border-none", token.symbol === 'ALX' ? "bg-primary text-black" : "bg-muted text-muted-foreground")}>{token.age}</Badge>
                           </td>
                         </tr>
                       ))}
@@ -363,8 +338,8 @@ export default function DesktopDiscoverPage() {
           ) : activeSubTab === "Games" ? (
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-700">
               <div className="flex items-center justify-between px-1">
-                 <h3 className="text-lg font-black italic uppercase tracking-tight text-slate-900">Web3 Gaming Universe</h3>
-                 <p className="text-[10px] font-bold text-slate-400 uppercase italic">Powered by <span className="text-primary">Ali-Sovereign Assets</span></p>
+                 <h3 className="text-lg font-black italic uppercase tracking-tight">Web3 Gaming Universe</h3>
+                 <p className="text-[10px] font-bold text-muted-foreground uppercase italic">Powered by <span className="text-primary">Ali-Sovereign Assets</span></p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                 {GAMES_LIST.map((game) => {
@@ -378,11 +353,11 @@ export default function DesktopDiscoverPage() {
                         </div>
                       </div>
                       <div className="px-2 space-y-1">
-                        <h4 className="text-base font-black italic uppercase tracking-tight text-slate-900 group-hover:text-primary transition-colors">{game.title}</h4>
-                        <p className="text-[10px] font-medium text-slate-400 line-clamp-1">{game.category}</p>
+                        <h4 className="text-base font-black italic uppercase tracking-tight group-hover:text-primary transition-colors">{game.title}</h4>
+                        <p className="text-[10px] font-medium text-muted-foreground line-clamp-1">{game.category}</p>
                         <div className="pt-2 flex items-center gap-2">
                            <div className="w-5 h-5 rounded-lg bg-primary/10 flex items-center justify-center p-1"><LogoIcon className="text-primary" /></div>
-                           <span className="text-[9px] font-bold text-slate-400 uppercase italic">AliBank Verified</span>
+                           <span className="text-[9px] font-bold text-muted-foreground uppercase italic">AliBank Verified</span>
                         </div>
                       </div>
                     </div>
@@ -393,7 +368,7 @@ export default function DesktopDiscoverPage() {
           ) : (
             <div className="py-40 text-center opacity-20 italic">
                <Zap className="w-16 h-16 mx-auto mb-4 text-primary" />
-               <p className="text-xl font-black uppercase tracking-widest text-slate-900">Terminal {activeSubTab} Segera Hadir</p>
+               <p className="text-xl font-black uppercase tracking-widest">Terminal {activeSubTab} Segera Hadir</p>
             </div>
           )}
         </div>
@@ -405,9 +380,9 @@ export default function DesktopDiscoverPage() {
 function SidebarItem({ icon: Icon, label, active = false, href }: any) {
   const router = useRouter();
   return (
-    <div onClick={() => href !== "#" && router.push(href)} className={cn("flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all group relative", active ? "bg-primary/10 text-primary" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900")}>
+    <div onClick={() => href !== "#" && router.push(href)} className={cn("flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all group relative", active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
       <div className="flex items-center gap-3">
-        <Icon className={cn("w-5 h-5", active ? "text-primary" : "text-slate-400 group-hover:text-slate-900")} />
+        <Icon className={cn("w-5 h-5", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
         <span className="text-sm font-bold">{label}</span>
       </div>
       {active && <div className="w-1 h-5 bg-primary rounded-full absolute left-0" />}
@@ -417,19 +392,19 @@ function SidebarItem({ icon: Icon, label, active = false, href }: any) {
 
 function PromoCard({ icon, title, desc, color }: any) {
   return (
-    <Card className="bg-white p-6 rounded-2xl border border-[#E5E7EB] hover:shadow-lg transition-all group cursor-pointer h-full border-b-4 border-b-transparent hover:border-b-primary">
+    <Card className="bg-card p-6 rounded-2xl border border-border hover:shadow-lg transition-all group cursor-pointer h-full border-b-4 border-b-transparent hover:border-b-primary">
       <div className="flex items-center gap-3 mb-4">
         <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center p-2 shadow-sm text-white shrink-0", color)}><img src={icon} alt={title} width={24} height={24} className="rounded" /></div>
-        <h4 className="text-sm font-black italic text-slate-900">{title}</h4>
+        <h4 className="text-sm font-black italic text-foreground">{title}</h4>
       </div>
-      <p className="text-[11px] font-medium text-slate-400 leading-relaxed group-hover:text-slate-600 transition-colors italic">{desc}</p>
+      <p className="text-[11px] font-medium text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors italic">{desc}</p>
     </Card>
   );
 }
 
 function FilterBtn({ icon: Icon, label, active, onClick }: any) {
   return (
-    <button onClick={onClick} className={cn("flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black italic uppercase transition-all border", active ? "bg-slate-900 border-slate-900 text-white shadow-lg" : "bg-white border-[#E5E7EB] text-slate-400 hover:border-slate-300")}>
+    <button onClick={onClick} className={cn("flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black italic uppercase transition-all border", active ? "bg-foreground border-foreground text-background shadow-lg" : "bg-card border-border text-muted-foreground hover:border-muted-foreground")}>
       <Icon className="w-4 h-4" />
       {label}
     </button>
