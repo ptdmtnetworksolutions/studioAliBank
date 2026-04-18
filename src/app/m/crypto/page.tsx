@@ -17,7 +17,8 @@ import {
   ShieldCheck,
   Wifi,
   ArrowLeft,
-  History
+  History,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,14 @@ const getIconUrl = (symbol: string) => {
   return `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${s}.png`;
 };
 
+const GLOBAL_SYMBOLS = [
+  "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT",
+  "MATICUSDT", "LTCUSDT", "SHIBUSDT", "DAIUSDT", "BCHUSDT", "AVAXUSDT", "UNIUSDT", "ATOMUSDT", "XLMUSDT", "XMRUSDT",
+  "ETCUSDT", "ICPUSDT", "FILUSDT", "LDOUSDT", "APTUSDT", "HBARUSDT", "NEARUSDT", "ARBUSDT", "VETUSDT", "OPUSDT",
+  "GRTUSDT", "RNDRUSDT", "MKRUSDT", "STXUSDT", "INJUSDT", "THETAUSDT", "FTMUSDT", "ALGOUSDT", "EGLDUSDT", "TIAUSDT",
+  "FLOWUSDT", "SEIUSDT", "DYDXUSDT", "MANAUSDT", "SANDUSDT", "IMXUSDT", "KASUSDT"
+];
+
 export default function MobileMarketPage() {
   const router = useRouter();
   const db = useFirestore();
@@ -49,7 +58,6 @@ export default function MobileMarketPage() {
 
   useEffect(() => {
     setMounted(true);
-    // Deteksi Desktop & Redirect back
     if (typeof window !== "undefined" && window.innerWidth >= 768) {
       router.replace('/crypto');
     }
@@ -60,22 +68,14 @@ export default function MobileMarketPage() {
 
   const fetchMarketData = useCallback(async () => {
     try {
-      const symbols = [
-        "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", 
-        "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT", "USDTIDR"
-      ];
-      
-      const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}`);
+      const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(GLOBAL_SYMBOLS))}`);
       const data = await res.json();
       
       if (!Array.isArray(data)) return;
 
       const formatted = data.map(item => {
-        let symbol = item.symbol.replace("USDT", "").replace("IDR", "");
-        if (symbol === "") symbol = "USDT";
-        let price = parseFloat(item.lastPrice);
-        if (item.symbol === "USDTIDR") price = price / USDT_IDR_RATE;
-        price = price * MARKUP;
+        let symbol = item.symbol.replace("USDT", "");
+        let price = parseFloat(item.lastPrice) * MARKUP;
 
         return {
           symbol: symbol,
@@ -99,7 +99,7 @@ export default function MobileMarketPage() {
   useEffect(() => {
     if (mounted) {
       fetchMarketData();
-      const interval = setInterval(fetchMarketData, 10000);
+      const interval = setInterval(fetchMarketData, 15000);
       return () => clearInterval(interval);
     }
   }, [mounted, fetchMarketData]);
@@ -108,61 +108,60 @@ export default function MobileMarketPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-24 flex flex-col font-body">
-      <header className="px-4 pt-4 pb-2 sticky top-0 bg-background/80 backdrop-blur-md z-50 border-b border-border/50">
-        <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => router.push('/')} className="p-2 hover:bg-muted rounded-full">
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input 
-              placeholder="Cari Coin..."
-              className="w-full h-10 pl-10 pr-4 bg-muted border-none rounded-md text-sm font-medium outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between border-b border-border px-1">
-          <div className="flex gap-6 overflow-x-auto no-scrollbar">
-            {["Pasar", "Alpha", "Data"].map((tab) => (
+      <header className="px-4 h-16 sticky top-0 bg-background/80 backdrop-blur-md z-50 border-b border-border/50 flex items-center justify-between">
+        <button onClick={() => router.push('/')} className="p-2 hover:bg-muted rounded-full">
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+        <div className="flex-1 px-4 flex justify-center">
+          <div className="flex bg-muted/60 p-1 rounded-lg">
+            {["Pasar", "Alpha"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={cn(
-                  "py-2 text-sm font-black transition-all relative shrink-0 italic uppercase",
-                  activeTab === tab ? "text-foreground" : "text-muted-foreground"
+                  "px-6 py-1.5 text-[10px] font-black uppercase italic rounded-md transition-all",
+                  activeTab === tab ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
                 )}
               >
                 {tab}
-                {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
               </button>
             ))}
           </div>
         </div>
+        <button className="p-2 hover:bg-muted rounded-full">
+           <Search className="w-5 h-5 text-muted-foreground" />
+        </button>
       </header>
 
       <main className="flex-1 px-4 pt-4 space-y-6 overflow-y-auto no-scrollbar">
         {activeTab === "Pasar" && (
           <div className="space-y-6">
+            <div className="flex items-center justify-between px-1">
+               <h3 className="text-xs font-black uppercase italic text-muted-foreground tracking-widest">Aset Global (48)</h3>
+               {isLoading && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+            </div>
             {isLoading ? (
               <div className="py-20 flex flex-col items-center justify-center gap-4 opacity-30">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-[10px] font-black">Syncing Markets...</p>
+                <p className="text-[10px] font-black">Connecting to Mainnet...</p>
               </div>
             ) : marketData.map((coin) => (
               <div key={coin.symbol} className="flex items-center justify-between group active:opacity-70" onClick={() => router.push(`/crypto/market/${coin.symbol.toLowerCase()}`)}>
                 <div className="flex items-center gap-3">
-                  <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shadow-sm overflow-hidden", coin.isNative && "gold-gradient")}>
+                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-sm overflow-hidden", coin.isNative ? "gold-gradient" : "bg-muted")}>
                     {coin.isNative ? <LogoIcon className="text-white p-2" /> : <img src={coin.icon || `https://placehold.co/100x100?text=${coin.symbol}`} className="object-cover w-full h-full" />}
                   </div>
                   <div>
-                    <span className="text-sm font-black italic text-foreground uppercase">{coin.symbol}</span>
-                    <p className="text-[8px] font-bold text-muted-foreground">Volume High</p>
+                    <div className="flex items-center gap-1">
+                       <span className="text-sm font-black italic text-foreground uppercase">{coin.symbol}</span>
+                       {coin.isNative && <Badge className="bg-primary/20 text-primary text-[6px] h-3 px-1 border-none">V3</Badge>}
+                    </div>
+                    <p className="text-[8px] font-bold text-muted-foreground uppercase">Real-Time Sync</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-black italic">${coin.price.toFixed(coin.price < 1 ? 4 : 2)}</p>
-                  <p className={cn("text-[10px] font-black", coin.isUp ? "text-green-500" : "text-rose-500")}>
+                  <p className="text-sm font-black italic text-slate-900">${coin.price.toFixed(coin.price < 1 ? 4 : 2)}</p>
+                  <p className={cn("text-[9px] font-black italic", coin.isUp ? "text-green-500" : "text-rose-500")}>
                     {coin.isUp ? '+' : ''}{coin.change.toFixed(2)}%
                   </p>
                 </div>
