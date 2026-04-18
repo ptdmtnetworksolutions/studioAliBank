@@ -175,102 +175,6 @@ function DashboardContent() {
 
   const currentUsdtRate = useMemo(() => dynamicUsdtRate || DEFAULT_USDT_IDR_RATE, [dynamicUsdtRate]);
 
-  const totalValueCalculated = useMemo(() => {
-    const idrBalance = userData?.totalBalance ?? 0;
-    const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
-    const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
-    const btcHoldings = userData?.cryptoBalances?.BTC ?? 0;
-    const ethHoldings = userData?.cryptoBalances?.ETH ?? 0;
-    
-    const alxMarket = marketCoins.find(c => c.symbol === "ALX");
-    const btcMarket = marketCoins.find(c => c.symbol === "BTC");
-    const ethMarket = marketCoins.find(c => c.symbol === "ETH");
-    
-    const alxPriceIdr = (alxMarket?.price ?? 12.24) * currentUsdtRate;
-    const btcPriceIdr = (btcMarket?.price ?? 66000) * currentUsdtRate;
-    const ethPriceIdr = (ethMarket?.price ?? 2000) * currentUsdtRate;
-    
-    return idrBalance + (alxHoldings * alxPriceIdr) + (usdtHoldings * currentUsdtRate) + (btcHoldings * btcPriceIdr) + (ethHoldings * ethPriceIdr);
-  }, [userData, marketCoins, currentUsdtRate]);
-
-  const totalValueUsd = useMemo(() => {
-    return totalValueCalculated / currentUsdtRate;
-  }, [totalValueCalculated, currentUsdtRate]);
-
-  const debtInfo = useMemo(() => {
-    if (!userData || !userTxs) return { illegalDebtIdr: 0, totalDebtValIdr: 0, cryptoDebts: [], pendingDebt: 0, hasDebt: false };
-
-    const idrInflow = userTxs.filter(t => t.type === 'income' && t.amount).reduce((acc, t) => acc + (t.amount || 0), 0);
-    const idrOutflow = userTxs.filter(t => t.type === 'expense' && t.amount).reduce((acc, t) => acc + (t.amount || 0), 0);
-    const idrLedger = idrInflow - idrOutflow;
-    const illegalDebtIdr = Math.max(0, (userData.totalBalance || 0) - idrLedger);
-
-    const assets = ['ALX', 'BTC', 'ETH', 'USDT'];
-    const cryptoDebts: any[] = [];
-    let totalCryptoDebtValIdr = 0;
-
-    assets.forEach(asset => {
-      const cryptoIn = userTxs.filter(t => t.type === 'income' && t.cryptoCurrency === asset).reduce((acc, t) => acc + (t.cryptoAmount || t.toAmount || 0), 0);
-      const cryptoOut = userTxs.filter(t => t.type === 'expense' && t.cryptoCurrency === asset).reduce((acc, t) => acc + (t.cryptoAmount || t.fromAmount || 0), 0);
-      const cryptoLedger = cryptoIn - cryptoOut;
-      const cryptoActual = userData.cryptoBalances?.[asset] || 0;
-      const diff = Math.max(0, cryptoActual - cryptoLedger);
-      
-      if (diff > 0.000001) {
-        const priceMap: any = { ALX: 194004, BTC: 1100000000, ETH: 35000000, USDT: 15850 };
-        const val = diff * (priceMap[asset] || 0);
-        totalCryptoDebtValIdr += val;
-        cryptoDebts.push({ asset, amount: diff, valueIdr: val });
-      }
-    });
-
-    const pendingDebt = pendingTopups?.reduce((acc, curr) => acc + (curr.totalToTransfer || curr.amount || 0), 0) || 0;
-
-    return {
-      illegalDebtIdr,
-      cryptoDebts,
-      pendingDebt,
-      totalDebtValIdr: illegalDebtIdr + totalCryptoDebtValIdr + pendingDebt,
-      hasDebt: illegalDebtIdr > 1000 || cryptoDebts.length > 0 || pendingDebt > 0
-    };
-  }, [userData, userTxs, pendingTopups]);
-
-  const pnlData = useMemo(() => {
-    const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
-    const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
-    const btcHoldings = userData?.cryptoBalances?.BTC ?? 0;
-    const ethHoldings = userData?.cryptoBalances?.ETH ?? 0;
-    
-    const alxMarket = marketCoins.find(c => c.symbol === "ALX");
-    const btcMarket = marketCoins.find(c => c.symbol === "BTC");
-    const ethMarket = marketCoins.find(c => c.symbol === "ETH");
-    const usdtMarket = marketCoins.find(c => c.symbol === "USDT") || { change: 0.01 };
-
-    const alxPriceIdr = (alxMarket?.price ?? 12.24) * currentUsdtRate;
-    const btcPriceIdr = (btcMarket?.price ?? 66000) * currentUsdtRate;
-    const ethPriceIdr = (ethMarket?.price ?? 2000) * currentUsdtRate;
-
-    const alxPnl = (alxHoldings * alxPriceIdr * (alxMarket?.change ?? 0)) / 100;
-    const usdtPnl = (usdtHoldings * currentUsdtRate * (usdtMarket.change ?? 0)) / 100;
-    const btcPnl = (btcHoldings * btcPriceIdr * (btcMarket?.change ?? 0)) / 100;
-    const ethPnl = (ethHoldings * ethPriceIdr * (ethMarket?.change ?? 0)) / 100;
-    
-    const totalPnl = alxPnl + usdtPnl + btcPnl + ethPnl;
-    const pnlPercent = totalValueCalculated > 0 ? (totalPnl / totalValueCalculated) * 100 : 0;
-
-    return {
-      total: totalPnl,
-      percent: pnlPercent,
-      isUp: totalPnl >= 0,
-      breakdown: {
-        alx: alxPnl,
-        usdt: usdtPnl,
-        btc: btcPnl,
-        eth: ethPnl
-      }
-    };
-  }, [userData, marketCoins, totalValueCalculated, currentUsdtRate]);
-
   const fetchMarketData = useCallback(async () => {
     try {
       const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "USDTIDRT"];
@@ -311,6 +215,105 @@ function DashboardContent() {
       setIsMarketLoading(false);
     }
   }, [globalLiquidity]);
+
+  const totalValueCalculated = useMemo(() => {
+    const idrBalance = userData?.totalBalance ?? 0;
+    const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
+    const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
+    const btcHoldings = userData?.cryptoBalances?.BTC ?? 0;
+    const ethHoldings = userData?.cryptoBalances?.ETH ?? 0;
+    
+    const alxMarket = marketCoins.find(c => c.symbol === "ALX");
+    const btcMarket = marketCoins.find(c => c.symbol === "BTC");
+    const ethMarket = marketCoins.find(c => c.symbol === "ETH");
+    
+    const alxPriceIdr = (alxMarket?.price ?? 12.24) * currentUsdtRate;
+    const btcPriceIdr = (btcMarket?.price ?? 66000) * currentUsdtRate;
+    const ethPriceIdr = (ethMarket?.price ?? 2000) * currentUsdtRate;
+    
+    return idrBalance + (alxHoldings * alxPriceIdr) + (usdtHoldings * currentUsdtRate) + (btcHoldings * btcPriceIdr) + (ethHoldings * ethPriceIdr);
+  }, [userData, marketCoins, currentUsdtRate]);
+
+  const totalValueUsd = useMemo(() => {
+    return totalValueCalculated / currentUsdtRate;
+  }, [totalValueCalculated, currentUsdtRate]);
+
+  const debtInfo = useMemo(() => {
+    if (!userData || !userTxs) return { illegalDebtIdr: 0, totalDebtValIdr: 0, cryptoDebts: [], pendingDebt: 0, hasDebt: false };
+
+    // KRITIS: Filter keluar transaksi pelunasan agar tidak merusak kalkulasi forensik
+    const isNeutralCategory = (cat: string) => ['Legalization', 'Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat);
+
+    const idrInflow = userTxs.filter(t => t.type === 'income' && t.amount && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.amount || 0), 0);
+    const idrOutflow = userTxs.filter(t => t.type === 'expense' && t.amount && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.amount || 0), 0);
+    const idrLedger = idrInflow - idrOutflow;
+    const illegalDebtIdr = Math.max(0, (userData.totalBalance || 0) - idrLedger);
+
+    const assets = ['ALX', 'BTC', 'ETH', 'USDT'];
+    const cryptoDebts: any[] = [];
+    let totalCryptoDebtValIdr = 0;
+
+    assets.forEach(asset => {
+      const cryptoIn = userTxs.filter(t => t.type === 'income' && t.cryptoCurrency === asset && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.cryptoAmount || t.toAmount || 0), 0);
+      const cryptoOut = userTxs.filter(t => t.type === 'expense' && t.cryptoCurrency === asset && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.cryptoAmount || t.fromAmount || 0), 0);
+      const cryptoLedger = cryptoIn - cryptoOut;
+      const cryptoActual = userData.cryptoBalances?.[asset] || 0;
+      const diff = Math.max(0, cryptoActual - cryptoLedger);
+      
+      if (diff > 0.000001) {
+        const priceMap: any = { ALX: 194004, BTC: 1100000000, ETH: 35000000, USDT: 15850 };
+        const val = diff * (priceMap[asset] || 0);
+        totalCryptoDebtValIdr += val;
+        cryptoDebts.push({ asset, amount: diff, valueIdr: val });
+      }
+    });
+
+    const pendingDebt = pendingTopups?.reduce((acc, curr) => acc + (curr.totalToTransfer || curr.amount || 0), 0) || 0;
+
+    return {
+      illegalDebtIdr,
+      cryptoDebts,
+      pendingDebt,
+      totalDebtValIdr: illegalDebtIdr + totalCryptoDebtValIdr + pendingDebt,
+      hasDebt: (illegalDebtIdr + totalCryptoDebtValIdr) > 1000 || pendingDebt > 0
+    };
+  }, [userData, userTxs, pendingTopups]);
+
+  const pnlData = useMemo(() => {
+    const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
+    const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
+    const btcHoldings = userData?.cryptoBalances?.BTC ?? 0;
+    const ethHoldings = userData?.cryptoBalances?.ETH ?? 0;
+    
+    const alxMarket = marketCoins.find(c => c.symbol === "ALX");
+    const btcMarket = marketCoins.find(c => c.symbol === "BTC");
+    const ethMarket = marketCoins.find(c => c.symbol === "ETH");
+    const usdtMarket = marketCoins.find(c => c.symbol === "USDT") || { change: 0.01 };
+
+    const alxPriceIdr = (alxMarket?.price ?? 12.24) * currentUsdtRate;
+    const btcPriceIdr = (btcMarket?.price ?? 66000) * currentUsdtRate;
+    const ethPriceIdr = (ethMarket?.price ?? 2000) * currentUsdtRate;
+
+    const alxPnl = (alxHoldings * alxPriceIdr * (alxMarket?.change ?? 0)) / 100;
+    const usdtPnl = (usdtHoldings * currentUsdtRate * (usdtMarket.change ?? 0)) / 100;
+    const btcPnl = (btcHoldings * btcPriceIdr * (btcMarket?.change ?? 0)) / 100;
+    const ethPnl = (ethHoldings * ethPriceIdr * (ethMarket?.change ?? 0)) / 100;
+    
+    const totalPnl = alxPnl + usdtPnl + btcPnl + ethPnl;
+    const pnlPercent = totalValueCalculated > 0 ? (totalPnl / totalValueCalculated) * 100 : 0;
+
+    return {
+      total: totalPnl,
+      percent: pnlPercent,
+      isUp: totalPnl >= 0,
+      breakdown: {
+        alx: alxPnl,
+        usdt: usdtPnl,
+        btc: btcPnl,
+        eth: ethPnl
+      }
+    };
+  }, [userData, marketCoins, totalValueCalculated, currentUsdtRate]);
 
   useEffect(() => {
     setMounted(true);
@@ -863,7 +866,7 @@ function WalletAssetRow({ name, symbol, amount, usdValue, change, isUp, icon: Ic
         <p className="text-sm font-black italic text-foreground leading-none">
           US${usdValue.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
-        <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">
+        <p className={cn("text-[9px] font-bold text-muted-foreground uppercase mt-1", amount <= 0 && "opacity-20")}>
           {amount.toFixed(6).replace(/\.?0+$/, "")} {symbol}
         </p>
       </div>

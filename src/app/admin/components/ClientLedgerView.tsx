@@ -123,11 +123,14 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
   }, [selectedUser, db]);
 
   const ledgerStats = useMemo(() => {
-    if (!selectedUser) return { totalIn: 0, totalOut: 0, illegalDebtIdr: 0, cryptoDebtBreakdown: [], pendingDebt: 0 };
+    if (!selectedUser) return { totalIn: 0, totalOut: 0, illegalDebtIdr: 0, cryptoDebtBreakdown: [], pendingDebt: 0, totalTotalDebt: 0 };
     
+    // KRITIS: Filter keluar transaksi pelunasan agar tidak merusak kalkulasi forensik
+    const isNeutralCategory = (cat: string) => ['Legalization', 'Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat || '');
+
     // 1. IDR Ledger Check
-    const idrInflow = userTxs.filter(t => t.type === 'income' && t.amount).reduce((acc, t) => acc + (t.amount || 0), 0);
-    const idrOutflow = userTxs.filter(t => t.type === 'expense' && t.amount).reduce((acc, t) => acc + (t.amount || 0), 0);
+    const idrInflow = userTxs.filter(t => t.type === 'income' && t.amount && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.amount || 0), 0);
+    const idrOutflow = userTxs.filter(t => t.type === 'expense' && t.amount && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.amount || 0), 0);
     const idrLedgerBal = idrInflow - idrOutflow;
     const illegalDebtIdr = Math.max(0, (selectedUser.totalBalance || 0) - idrLedgerBal);
 
@@ -137,8 +140,8 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
     let totalCryptoDebtValIdr = 0;
 
     assets.forEach(asset => {
-      const assetInflow = userTxs.filter(t => t.type === 'income' && t.cryptoCurrency === asset).reduce((acc, t) => acc + (t.cryptoAmount || t.toAmount || 0), 0);
-      const assetOutflow = userTxs.filter(t => t.type === 'expense' && t.cryptoCurrency === asset).reduce((acc, t) => acc + (t.cryptoAmount || t.fromAmount || 0), 0);
+      const assetInflow = userTxs.filter(t => t.type === 'income' && t.cryptoCurrency === asset && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.cryptoAmount || t.toAmount || 0), 0);
+      const assetOutflow = userTxs.filter(t => t.type === 'expense' && t.cryptoCurrency === asset && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.cryptoAmount || t.fromAmount || 0), 0);
       const ledgerBal = assetInflow - assetOutflow;
       const actualBal = selectedUser.cryptoBalances?.[asset] || 0;
       const diff = Math.max(0, actualBal - ledgerBal);

@@ -161,17 +161,19 @@ export function ClientsView({ allUsers }: any) {
   };
 
   const forensicCheck = useMemo(() => {
-    if (!selectedUser) return { discrepancy: 0, isClean: true, totalIn: 0, totalOut: 0 };
+    if (!selectedUser) return { discrepancy: 0, isClean: true, totalIn: 0, totalOut: 0, ledgerBalance: 0 };
     
     const ALX_PRICE_IDR = 194004;
 
+    const isNeutralCategory = (cat: string) => ['Legalization', 'Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat || '');
+
     const getVal = (t: any) => {
-      // Prioritaskan IDR
+      // Jangan hitung kuitansi netral untuk mendeteksi gap un-audited asli
+      if (isNeutralCategory(t.category)) return 0;
+
       if (t.amountIdr) return t.amountIdr;
       if (t.amount) return t.amount;
       if (t.stakeAmount && (t.stakeCurrency === 'IDR' || !t.stakeCurrency)) return t.stakeAmount;
-      
-      // Jika koin ALX, konversi ke IDR untuk audit perbandingan saldo utama
       if (t.rewardAlx) return t.rewardAlx * ALX_PRICE_IDR;
       if (t.cryptoCurrency === 'ALX' && t.cryptoAmount) return t.cryptoAmount * ALX_PRICE_IDR;
       
