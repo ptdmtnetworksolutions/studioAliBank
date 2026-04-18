@@ -29,14 +29,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { doc, collection, query, orderBy, limit, increment, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 import { currencies } from "@/lib/currencies";
 
-export default function RootPage() {
+function RootPageContent() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -83,5 +83,19 @@ export default function RootPage() {
         <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
       </div>
     </div>
+  );
+}
+
+export default function RootPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+        <div className="w-16 h-16 rounded-2xl gold-gradient animate-pulse flex items-center justify-center p-3">
+          <LogoIcon className="text-white" />
+        </div>
+      </div>
+    }>
+      <RootPageContent />
+    </Suspense>
   );
 }
