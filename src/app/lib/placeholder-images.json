@@ -1,3 +1,4 @@
+
 {
   "placeholderImages": [
     {
@@ -23,6 +24,30 @@
       "description": "Manual transfer QR placeholder",
       "imageUrl": "https://picsum.photos/seed/alibqr/400/400",
       "imageHint": "qr code"
+    },
+    {
+      "id": "game-craft-world",
+      "description": "Craft World Game Cover",
+      "imageUrl": "https://picsum.photos/seed/game1/600/800",
+      "imageHint": "fantasy game"
+    },
+    {
+      "id": "game-awakening",
+      "description": "Unfettered Awakening Cover",
+      "imageUrl": "https://picsum.photos/seed/game2/600/800",
+      "imageHint": "action game"
+    },
+    {
+      "id": "game-medieval",
+      "description": "Medieval Empires Cover",
+      "imageUrl": "https://picsum.photos/seed/game3/600/800",
+      "imageHint": "strategy game"
+    },
+    {
+      "id": "game-galaxies",
+      "description": "Phantom Galaxies Cover",
+      "imageUrl": "https://picsum.photos/seed/game4/600/800",
+      "imageHint": "space robot"
     }
   ]
 }
