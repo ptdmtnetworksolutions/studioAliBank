@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
@@ -58,7 +57,8 @@ function APIKeysContent() {
 
   // API Key States
   const [keys, setKeys] = useState({
-    infuraProjectId: "30ba607f7b6845bca3a645b110a0db22", // Default from user
+    infuraProjectId: "30ba607f7b6845bca3a645b110a0db22",
+    infuraProjectSecret: "",
     paypalClientId: "",
     paypalClientSecret: "",
     paypalWebhookId: "",
@@ -81,6 +81,7 @@ function APIKeysContent() {
     if (storedKeys) {
       setKeys({
         infuraProjectId: storedKeys.infuraProjectId || "30ba607f7b6845bca3a645b110a0db22",
+        infuraProjectSecret: storedKeys.infuraProjectSecret || "",
         paypalClientId: storedKeys.paypalClientId || "",
         paypalClientSecret: storedKeys.paypalClientSecret || "",
         paypalWebhookId: storedKeys.paypalWebhookId || "",
@@ -184,36 +185,49 @@ function APIKeysContent() {
                   <Badge className="bg-rose-600 text-white text-[8px] font-black italic uppercase px-2 h-5">Sensitive Data</Badge>
                 </div>
                 
-                <div className="grid grid-cols-1 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <KeyField 
-                    label="MetaMask Developer API (Infura)" 
+                    label="MetaMask / Infura Project ID" 
                     icon={Zap} 
                     value={keys.infuraProjectId} 
                     placeholder="30ba607f..."
                     onChange={(v: any) => setKeys({...keys, infuraProjectId: v})}
-                    show={showKeys['infura']}
-                    onToggle={() => toggleShow('infura')}
-                    description="Digunakan sebagai node RPC utama untuk sinkronisasi saldo Ethereum & Polygon yang cepat."
-                  />
-                  <KeyField 
-                    label="Kontrak Pintar Brankas (Vault)" 
-                    icon={ShieldCheck} 
-                    value={keys.vaultContractAddress} 
-                    placeholder="0x56268032A3B3E64CFeF1916d591087CF8dF40945"
-                    onChange={(v: any) => setKeys({...keys, vaultContractAddress: v})}
                     show={true}
-                    description="Alamat kontrak Ethereum Mainnet untuk penyimpanan likuiditas utama."
+                    description="Kunci identitas publik untuk sinkronisasi node RPC Ethereum & Polygon."
                   />
                   <KeyField 
-                    label="Vault Private Key (0x...)" 
+                    label="MetaMask / Infura Project Secret" 
                     icon={Lock} 
-                    value={keys.vaultPrivateKey} 
-                    placeholder="0x..."
-                    onChange={(v: any) => setKeys({...keys, vaultPrivateKey: v})} 
-                    show={showKeys['vault']}
-                    onToggle={() => toggleShow('vault')}
-                    description="Kunci privat MetaMask untuk tanda tangan on-chain otomatis oleh sistem."
+                    value={keys.infuraProjectSecret} 
+                    placeholder="Masukkan secret di sini..."
+                    onChange={(v: any) => setKeys({...keys, infuraProjectSecret: v})}
+                    show={showKeys['infura_sec']}
+                    onToggle={() => toggleShow('infura_sec')}
+                    description="Hanya digunakan di sisi server untuk otentikasi node prioritas yang aman."
                   />
+                  <div className="md:col-span-2">
+                    <KeyField 
+                      label="Kontrak Pintar Brankas (Vault)" 
+                      icon={ShieldCheck} 
+                      value={keys.vaultContractAddress} 
+                      placeholder="0x56268032A3B3E64CFeF1916d591087CF8dF40945"
+                      onChange={(v: any) => setKeys({...keys, vaultContractAddress: v})}
+                      show={true}
+                      description="Alamat kontrak Ethereum Mainnet untuk penyimpanan likuiditas utama."
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <KeyField 
+                      label="Vault Private Key (0x...)" 
+                      icon={Lock} 
+                      value={keys.vaultPrivateKey} 
+                      placeholder="0x..."
+                      onChange={(v: any) => setKeys({...keys, vaultPrivateKey: v})} 
+                      show={showKeys['vault']}
+                      onToggle={() => toggleShow('vault')}
+                      description="Kunci privat MetaMask untuk tanda tangan on-chain otomatis oleh sistem."
+                    />
+                  </div>
                 </div>
               </section>
 
@@ -255,7 +269,7 @@ function APIKeysContent() {
                       onChange={(v: any) => setKeys({...keys, paypalWebhookId: v})}
                       show={showKeys['paypal_wh']}
                       onToggle={() => toggleShow('paypal_wh')}
-                      description="Gunakan URL Webhook: https://studio--darmedia-pos.us-central1.hosted.app/api/paypal/webhook"
+                      description="URL Webhook: https://studio--darmedia-pos.us-central1.hosted.app/api/paypal/webhook"
                     />
                   </div>
                 </div>
@@ -343,7 +357,7 @@ function APIKeysContent() {
               <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex gap-4">
                 <AlertCircle className="w-6 h-6 text-amber-500 shrink-0" />
                 <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                  Informasi: Gunakan Webhook untuk menjamin sinkronisasi saldo otomatis saat nasabah membayar melalui kartu kredit tanpa harus menunggu mereka kembali ke aplikasi.
+                  Peringatan: Project Secret MetaMask/Infura bersifat sangat rahasia. Jangan pernah membagikan kunci ini kepada siapa pun karena dapat memberikan akses tak terbatas ke kuota node Anda.
                 </p>
               </div>
 

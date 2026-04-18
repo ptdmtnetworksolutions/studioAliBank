@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -38,6 +37,7 @@ export function ApiManagementView({ storedKeys }: any) {
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [keys, setKeys] = useState({
     infuraProjectId: "",
+    infuraProjectSecret: "",
     paypalClientId: "",
     paypalClientSecret: "",
     paypalWebhookId: "",
@@ -57,6 +57,7 @@ export function ApiManagementView({ storedKeys }: any) {
     if (storedKeys) {
       setKeys({
         infuraProjectId: storedKeys.infuraProjectId || "",
+        infuraProjectSecret: storedKeys.infuraProjectSecret || "",
         paypalClientId: storedKeys.paypalClientId || "",
         paypalClientSecret: storedKeys.paypalClientSecret || "",
         paypalWebhookId: storedKeys.paypalWebhookId || "",
@@ -117,22 +118,42 @@ export function ApiManagementView({ storedKeys }: any) {
         <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none"><Key className="w-64 h-64 text-primary" /></div>
         
         <div className="space-y-10 relative z-10">
+          {/* INFURA SECTION */}
+          <section className="space-y-6">
+            <h3 className="text-sm font-black italic uppercase tracking-widest text-primary flex items-center gap-2">
+              <Zap className="w-4 h-4" /> MetaMask Developer (Infura Node)
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <KeyField 
+                label="Infura Project ID" 
+                icon={Zap} 
+                value={keys.infuraProjectId} 
+                placeholder="30ba607f..."
+                onChange={(v: any) => setKeys({...keys, infuraProjectId: v})}
+                show={true}
+                description="Kunci publik utama untuk otentikasi node RPC."
+              />
+              <KeyField 
+                label="Infura Project Secret" 
+                icon={Lock} 
+                value={keys.infuraProjectSecret} 
+                placeholder="Project Secret..."
+                onChange={(v: any) => setKeys({...keys, infuraProjectSecret: v})}
+                show={showKeys['inf_sec']}
+                onToggle={() => toggleShow('inf_sec')}
+                description="Hanya digunakan di sisi server untuk keamanan maksimal."
+              />
+            </div>
+          </section>
+
+          <div className="h-px bg-border/50 w-full" />
+
           {/* VAULT SECTION */}
           <section className="space-y-6">
             <h3 className="text-sm font-black italic uppercase tracking-widest text-primary flex items-center gap-2">
               <Wallet className="w-4 h-4" /> Brankas Pusat (Tanda Tangan Privat)
             </h3>
             <div className="grid grid-cols-1 gap-6">
-              <KeyField 
-                label="MetaMask Developer API (Infura)" 
-                icon={Zap} 
-                value={keys.infuraProjectId} 
-                placeholder="30ba607f..."
-                onChange={(v: any) => setKeys({...keys, infuraProjectId: v})}
-                show={showKeys['infura']}
-                onToggle={() => toggleShow('infura')}
-                description="Token otentikasi utama untuk node RPC Infura (Ethereum & Polygon)."
-              />
               <KeyField 
                 label="Kontrak Pintar Brankas (Vault)" 
                 icon={ShieldCheck} 
@@ -225,7 +246,7 @@ export function ApiManagementView({ storedKeys }: any) {
                 icon={Cpu} 
                 value={keys.ethereumRpcUrl} 
                 placeholder="https://eth-mainnet.g.alchemy.com/v2/..."
-                onChange={(v:any) => setKeys({...keys, ethereumRpcUrl: v})} 
+                onChange={(v: any) => setKeys({...keys, ethereumRpcUrl: v})} 
                 show={true} 
                 description="Gunakan node dari Alchemy untuk Brankas ETH."
               />
@@ -234,12 +255,12 @@ export function ApiManagementView({ storedKeys }: any) {
                 icon={Zap} 
                 value={keys.polygonRpcUrl} 
                 placeholder="https://polygon-mainnet.g.alchemy.com/v2/..."
-                onChange={(v:any) => setKeys({...keys, polygonRpcUrl: v})} 
+                onChange={(v: any) => setKeys({...keys, polygonRpcUrl: v})} 
                 show={true} 
                 description="Gunakan node dari Alchemy untuk Operasional Koin ALX."
               />
-              <KeyField label="Kunci API Gemini" icon={Lock} value={keys.geminiApiKey} placeholder="AIza..." onChange={(v:any) => setKeys({...keys, geminiApiKey: v})} show={showKeys['gm']} onToggle={() => toggleShow('gm')} />
-              <KeyField label="Kontrak Pintar Koin ALX" icon={ShieldCheck} value={keys.alxContractAddress} placeholder="0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd" onChange={(v:any) => setKeys({...keys, alxContractAddress: v})} show={true} />
+              <KeyField label="Kunci API Gemini" icon={Lock} value={keys.geminiApiKey} placeholder="AIza..." onChange={(v: any) => setKeys({...keys, geminiApiKey: v})} show={showKeys['gm']} onToggle={() => toggleShow('gm')} />
+              <KeyField label="Kontrak Pintar Koin ALX" icon={ShieldCheck} value={keys.alxContractAddress} placeholder="0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd" onChange={(v: any) => setKeys({...keys, alxContractAddress: v})} show={true} />
             </div>
           </section>
         </div>
