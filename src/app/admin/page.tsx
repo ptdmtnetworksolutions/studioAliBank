@@ -169,12 +169,12 @@ function AdminContent() {
 
   useEffect(() => {
     if (userLoading) return;
-    if (!user || (user.email !== OWNER_EMAIL && user.uid !== OWNER_UID)) {
+    if (!user || (user.email === OWNER_EMAIL || user.uid === OWNER_UID)) {
+      setIsAuthorized(true);
+      syncOnChainData();
+    } else {
       router.push('/login');
-      return;
     }
-    setIsAuthorized(true);
-    syncOnChainData();
   }, [user, userLoading, router, syncOnChainData]);
 
   const handleTabChange = (tab: string) => {

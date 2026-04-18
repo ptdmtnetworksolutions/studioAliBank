@@ -34,7 +34,8 @@ import {
   Database,
   SearchCode,
   FileWarning,
-  RefreshCw
+  RefreshCw,
+  ExternalLink
 } from "lucide-react";
 import { 
   getDocs, 
@@ -60,6 +61,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isForensicLoading, setIsForensicLoading] = useState(false);
   const [indexError, setIndexError] = useState(false);
+  const [indexUrl, setIndexUrl] = useState<string | null>(null);
 
   // LOGIKA PENCARIAN & SARAN NASABAH
   const suggestions = useMemo(() => {
@@ -80,6 +82,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
       setIsLoading(true);
       setIsForensicLoading(true);
       setIndexError(false);
+      setIndexUrl(null);
       
       try {
         // 1. Ambil Riwayat Transaksi Nasabah (Local Ledger)
@@ -102,6 +105,8 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
         const globalSnap = await getDocs(qGlobal).catch((err) => {
           if (err.message?.includes("index")) {
             setIndexError(true);
+            const match = err.message.match(/https:\/\/console\.firebase\.google\.com[^\s]*/);
+            if (match) setIndexUrl(match[0]);
           }
           console.error("Firestore Index Missing:", err);
           return { docs: [] };
@@ -353,8 +358,17 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
                     <AlertTriangle className="w-4 h-4 text-amber-500" />
                   </div>
                   <p className="text-[10px] font-bold text-foreground leading-relaxed uppercase">
-                    Pencarian audit global memerlukan indeks. Silakan klik tautan di konsol browser (F12) untuk mengaktifkan fitur ini.
+                    Pencarian audit global memerlukan Indeks Komposit di Firestore.
                   </p>
+                  {indexUrl && (
+                    <Button 
+                      onClick={() => window.open(indexUrl, '_blank')}
+                      className="w-full bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black uppercase h-10 rounded-xl"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" /> AKTIFKAN INDEKS SEKARANG
+                    </Button>
+                  )}
+                  <p className="text-[8px] text-muted-foreground italic uppercase">Klik tombol di atas lalu pilih "Create Index" di Firebase Console.</p>
                 </Card>
               ) : disconnectedLogs.length > 0 ? (
                 <div className="space-y-4">

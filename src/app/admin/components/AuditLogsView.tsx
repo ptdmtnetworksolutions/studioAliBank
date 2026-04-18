@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -28,7 +29,8 @@ import {
   Cpu,
   Clock,
   Lock,
-  Globe
+  Globe,
+  RefreshCw
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -426,7 +428,7 @@ function LogDetailItem({ icon: Icon, label, value }: any) {
       </div>
       <div className="min-w-0">
         <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest leading-none mb-1">{label}</p>
-        <p className="text-11px font-bold uppercase truncate italic">{value || '---'}</p>
+        <p className="text-[11px] font-bold uppercase truncate italic">{value || '---'}</p>
       </div>
     </div>
   );

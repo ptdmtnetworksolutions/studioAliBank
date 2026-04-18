@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -442,7 +443,7 @@ export function ClientsView({ allUsers }: any) {
                                   <td className="py-4 px-4 text-[9px] font-bold text-muted-foreground italic">{t.timestamp?.toDate?.().toLocaleString('id-ID') || t.date || '---'}</td>
                                   <td className="py-4 px-4">
                                     <div className="flex flex-col">
-                                      <span className="text-[10px] font-black uppercase italic text-foreground">{t.description}</span>
+                                      <span className="text-10px font-black uppercase italic text-foreground">{t.description}</span>
                                       <span className="text-[7px] font-bold text-primary uppercase">{t.category}</span>
                                     </div>
                                   </td>
@@ -549,7 +550,7 @@ export function ClientsView({ allUsers }: any) {
                       <div className="flex gap-3">
                         <Input placeholder="Input ALX..." type="number" value={alxAdjustment} onChange={(e) => setAlxAdjustment(e.target.value)} className="h-14 bg-background border-none rounded-2xl text-base font-black italic focus:ring-2 focus:ring-primary/20" />
                         <button onClick={() => handleAdjust('alx', 'add')} className="w-14 h-14 rounded-2xl gold-gradient text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"><Plus className="w-6 h-6" /></button>
-                        <button onClick={() => handleAdjust('alx', 'sub')} className="w-14 h-14 rounded-2xl bg-slate-800 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"><Minus className="w-6 h-6" /></button>
+                        <button onClick={() => handleAdjust('alx', 'sub')} className="w-14 h-14 rounded-2xl bg-slate-800 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"><Minus className="w-3 h-3" /></button>
                       </div>
                     </div>
                   </div>
