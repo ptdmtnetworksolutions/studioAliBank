@@ -33,10 +33,11 @@ import { AlphaMarketView } from "@/components/crypto/AlphaMarketView";
 const MARKUP = 1.02;
 const USDT_IDR_RATE = 15850;
 
+// Menggunakan coincap assets untuk dukungan koin modern (NEAR, SHIB, ARB)
 const getIconUrl = (symbol: string) => {
   const s = symbol.toLowerCase();
   if (s === 'alx') return null;
-  return `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${s}.png`;
+  return `https://assets.coincap.io/assets/icons/${s}@2x.png`;
 };
 
 // DAFTAR 20 KOIN PRIORITAS UNTUK STABILITAS MOBILE
@@ -148,8 +149,26 @@ export default function MobileMarketPage() {
             ) : marketData.map((coin) => (
               <div key={coin.symbol} className="flex items-center justify-between group active:opacity-70" onClick={() => router.push(`/crypto/market/${coin.symbol.toLowerCase()}`)}>
                 <div className="flex items-center gap-3">
-                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-sm overflow-hidden", coin.isNative ? "gold-gradient" : "bg-muted")}>
-                    {coin.isNative ? <LogoIcon className="text-white p-2" /> : <img src={coin.icon || `https://placehold.co/100x100?text=${coin.symbol}`} className="object-cover w-full h-full" />}
+                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-sm relative overflow-hidden", coin.isNative ? "gold-gradient" : "bg-muted")}>
+                    {coin.isNative ? (
+                      <LogoIcon className="text-white p-2" />
+                    ) : (
+                      <>
+                        <img 
+                          src={coin.icon || ""} 
+                          className="object-cover w-full h-full" 
+                          alt={coin.symbol} 
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                            if (fallback) fallback.classList.remove('hidden');
+                          }}
+                        />
+                        <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-lg font-black text-[10px] text-slate-400">
+                          {coin.symbol[0]}
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div>
                     <div className="flex items-center gap-1">

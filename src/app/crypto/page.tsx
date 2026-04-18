@@ -58,10 +58,11 @@ const GAMES_LIST = [
   { id: "galaxies", title: "Phantom Galaxies", category: "Action, Space, Story-Rich", imageId: "game-galaxies" },
 ];
 
+// Menggunakan coincap assets untuk dukungan koin modern (NEAR, SHIB, ARB)
 const getIconUrl = (symbol: string) => {
   const s = symbol.toLowerCase();
   if (s === 'alx') return null;
-  return `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${s}.png`;
+  return `https://assets.coincap.io/assets/icons/${s}@2x.png`;
 };
 
 // DAFTAR 20 KOIN PRIORITAS UNTUK STABILITAS NODE
@@ -267,7 +268,7 @@ export default function DesktopDiscoverPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <PromoCard icon="https://picsum.photos/seed/everstake/100/100" title="Everstake" desc="Earn up to 9.2% on SOL and ETH — MEV-boosted yield." color="bg-[#F6A000]" />
                 <PromoCard icon="https://picsum.photos/seed/ondo/100/100" title="Ondo Finance" desc="Access tokenized U.S. Treasuries with Ali-Vault bridge." color="bg-black" />
-                <PromoCard icon="https://picsum.photos/seed/turtle/100/100" title="EigenLayer" desc="Re-stake your assets and multiply rewards automatically." color="bg-[#22C55E]" />
+                <PromoCard icon="https://picsum.photos/seed/turtle/100/100" title="Turtle" desc="Re-stake your assets and multiply rewards automatically." color="bg-[#22C55E]" />
                 <PromoCard icon="https://picsum.photos/seed/metalend/100/100" title="AliBank Card" desc="Debit fisik instan. Belanjakan ALX di 50Juta+ merchant." color="bg-[#6366F1]" />
               </div>
 
@@ -312,8 +313,26 @@ export default function DesktopDiscoverPage() {
                           <td className="px-6 py-5 text-xs font-bold text-slate-400">{token.rank}</td>
                           <td className="px-6 py-5">
                             <div className="flex items-center gap-4">
-                              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center p-1.5 shadow-inner transition-transform group-hover:scale-110", token.symbol === "ALX" ? "gold-gradient" : "bg-slate-100 border border-border")}>
-                                {token.symbol === "ALX" ? <LogoIcon className="text-white" /> : <img src={token.icon || `https://placehold.co/100x100?text=${token.symbol}`} alt={token.symbol} className="w-full h-full object-contain rounded-lg" />}
+                              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center p-1.5 shadow-inner transition-transform group-hover:scale-110", token.symbol === "ALX" ? "gold-gradient" : "bg-slate-100 border border-border relative overflow-hidden")}>
+                                {token.symbol === "ALX" ? (
+                                  <LogoIcon className="text-white" />
+                                ) : (
+                                  <>
+                                    <img 
+                                      src={token.icon || ""} 
+                                      alt={token.symbol} 
+                                      className="w-full h-full object-contain rounded-lg" 
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                        const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                        if (fallback) fallback.classList.remove('hidden');
+                                      }}
+                                    />
+                                    <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-lg font-black text-[10px] text-slate-400">
+                                      {token.symbol[0]}
+                                    </div>
+                                  </>
+                                )}
                               </div>
                               <div>
                                 <div className="flex items-center gap-2">
