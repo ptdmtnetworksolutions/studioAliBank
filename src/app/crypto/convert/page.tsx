@@ -5,14 +5,15 @@ import { useRouter } from "next/navigation";
 import { 
   ArrowLeft, 
   Settings2, 
-  History, 
   ChevronDown, 
   ArrowUpDown, 
   Loader2,
   CheckCircle2,
   Bitcoin,
   Cpu,
-  Zap
+  Zap,
+  Info,
+  Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -115,19 +116,22 @@ export default function ConvertPage() {
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
+  const userBalance = useMemo(() => {
+    if (!userData) return 0;
+    if (fromAsset === 'IDR') return userData.totalBalance || 0;
+    return userData.cryptoBalances?.[fromAsset] || 0;
+  }, [userData, fromAsset]);
+
+  const isInsufficient = useMemo(() => {
+    const num = parseFloat(amount);
+    if (isNaN(num)) return false;
+    return num > userBalance;
+  }, [amount, userBalance]);
+
   const handleConvert = async () => {
-    if (!user || !db || !userData) return;
+    if (!user || !db || !userData || isInsufficient) return;
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) return;
-
-    let balance = 0;
-    if (fromAsset === 'IDR') balance = userData.totalBalance || 0;
-    else balance = userData.cryptoBalances?.[fromAsset] || 0;
-
-    if (balance < numAmount) {
-      toast({ variant: "destructive", title: "Saldo Tidak Cukup" });
-      return;
-    }
 
     setIsProcessing(true);
     try {
@@ -170,6 +174,9 @@ export default function ConvertPage() {
   const currentFromAsset = ASSETS.find(a => a.symbol === fromAsset)!;
   const currentToAsset = ASSETS.find(a => a.symbol === toAsset)!;
 
+  const fromUsd = (parseFloat(amount) || 0) * prices[fromAsset];
+  const toUsd = (parseFloat(convertedValue) || 0) * prices[toAsset];
+
   if (step === 'success') {
     return (
       <div className="min-h-screen bg-[#0F1113] flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-500">
@@ -199,29 +206,32 @@ export default function ConvertPage() {
         </button>
       </header>
 
-      <main className="flex-1 flex flex-col pt-4">
+      <main className="flex-1 flex flex-col pt-4 overflow-y-auto no-scrollbar">
         {/* FROM SECTION */}
-        <div className="px-6 py-8 space-y-2 group">
-          <div className="flex justify-between items-center">
-            <input 
-              type="number" 
-              placeholder="0" 
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-1/2 bg-transparent text-6xl font-black italic outline-none tracking-tighter text-white placeholder:text-white/10" 
-            />
-            <div className="flex flex-col items-end gap-2">
+        <div className="px-6 py-4 space-y-2">
+          <div className="flex justify-between items-center h-20">
+            <div className="flex-1 flex flex-col">
+              <input 
+                type="number" 
+                placeholder="0" 
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full bg-transparent text-6xl font-black italic outline-none tracking-tighter text-white placeholder:text-white/10" 
+              />
+              <p className="text-sm font-medium text-white/30 italic mt-1">${fromUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+            </div>
+            <div className="flex flex-col items-end gap-2 shrink-0">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 bg-[#1C2024] hover:bg-[#252A2E] pl-2 pr-4 py-2 rounded-full border border-white/5 shadow-xl transition-all active:scale-95">
-                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-1.5", currentFromAsset.color)}>
+                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-1.5 shadow-inner", currentFromAsset.color)}>
                       <currentFromAsset.icon className="text-white w-full h-full" />
                     </div>
                     <span className="text-sm font-black italic uppercase tracking-tighter">{fromAsset}</span>
                     <ChevronDown className="w-3.5 h-3.5 text-white/40" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-[#1C2024] border-white/10 text-white rounded-2xl p-2 min-w-[140px]">
+                <DropdownMenuContent className="bg-[#1C2024] border-white/10 text-white rounded-2xl p-2 min-w-[140px] shadow-2xl">
                   {ASSETS.filter(a => a.symbol !== toAsset).map((a) => (
                     <DropdownMenuItem key={a.symbol} onClick={() => setFromAsset(a.symbol)} className="rounded-xl p-3 flex items-center gap-3 cursor-pointer focus:bg-white/5">
                       <div className={cn("w-6 h-6 rounded-full flex items-center justify-center p-1", a.color)}><a.icon className="text-white w-full h-full" /></div>
@@ -230,21 +240,23 @@ export default function ConvertPage() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <p className="text-[11px] font-bold text-white/30 italic mr-1">
-                {fromAsset === 'IDR' ? `Rp${(userData?.totalBalance ?? 0).toLocaleString()}` : `${(userData?.cryptoBalances?.[fromAsset] ?? 0).toFixed(6)} ${fromAsset}`} 
-                <button 
-                  onClick={() => setAmount((fromAsset === 'IDR' ? (userData?.totalBalance ?? 0) : (userData?.cryptoBalances?.[fromAsset] ?? 0)).toString())}
-                  className="text-blue-500 font-black ml-1.5 hover:underline"
+              <div className="flex items-center gap-1.5 mr-1">
+                 <span className={cn("text-[10px] font-black uppercase italic", isInsufficient ? "text-rose-500" : "text-white/30")}>
+                    {userBalance.toFixed(fromAsset === 'IDR' ? 0 : 4)} {fromAsset}
+                 </span>
+                 <button 
+                  onClick={() => setAmount(userBalance.toString())}
+                  className="text-blue-500 font-black text-[9px] uppercase hover:underline"
                 >
                   Maks
                 </button>
-              </p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* DIVIDER WITH SWAP ICON */}
-        <div className="relative h-px bg-white/5 w-full flex justify-center items-center">
+        <div className="relative h-px bg-white/5 w-full flex justify-center items-center my-2">
           <button 
             onClick={() => { const old = fromAsset; setFromAsset(toAsset); setToAsset(old); setAmount(""); }}
             className="w-10 h-10 bg-[#1C2024] border-[4px] border-[#0F1113] rounded-full flex items-center justify-center text-white/60 active:scale-90 transition-transform shadow-xl z-20"
@@ -254,23 +266,26 @@ export default function ConvertPage() {
         </div>
 
         {/* TO SECTION */}
-        <div className="px-6 py-8 space-y-2">
-          <div className="flex justify-between items-center">
-            <div className="text-6xl font-black italic tracking-tighter text-white/40">
-              {convertedValue}
+        <div className="px-6 py-4 space-y-2">
+          <div className="flex justify-between items-center h-20">
+            <div className="flex-1 flex flex-col">
+              <div className="text-6xl font-black italic tracking-tighter text-white">
+                {convertedValue}
+              </div>
+              <p className="text-sm font-medium text-white/30 italic mt-1">${toUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
             </div>
-            <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-col items-end gap-2 shrink-0">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 bg-[#1C2024] hover:bg-[#252A2E] pl-2 pr-4 py-2 rounded-full border border-white/5 shadow-xl transition-all active:scale-95">
-                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-1.5", currentToAsset.color)}>
+                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-1.5 shadow-inner", currentToAsset.color)}>
                       <currentToAsset.icon className="text-white w-full h-full" />
                     </div>
                     <span className="text-sm font-black italic uppercase tracking-tighter">{toAsset}</span>
                     <ChevronDown className="w-3.5 h-3.5 text-white/40" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-[#1C2024] border-white/10 text-white rounded-2xl p-2 min-w-[140px]">
+                <DropdownMenuContent className="bg-[#1C2024] border-white/10 text-white rounded-2xl p-2 min-w-[140px] shadow-2xl">
                   {ASSETS.filter(a => a.symbol !== fromAsset).map((a) => (
                     <DropdownMenuItem key={a.symbol} onClick={() => setToAsset(a.symbol)} className="rounded-xl p-3 flex items-center gap-3 cursor-pointer focus:bg-white/5">
                       <div className={cn("w-6 h-6 rounded-full flex items-center justify-center p-1", a.color)}><a.icon className="text-white w-full h-full" /></div>
@@ -279,29 +294,61 @@ export default function ConvertPage() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <button className="text-[10px] font-mono font-bold text-white/20 underline decoration-white/10 hover:text-white/40 transition-colors mr-1">
-                {userData?.walletAddress ? `${userData.walletAddress.slice(0, 4)}...${userData.walletAddress.slice(-4)}` : 'Node Not Linked'}
-              </button>
+              <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold text-white/20 italic mr-1">
+                <span>Wallet 1 / AliBank</span>
+                <Pencil className="w-2.5 h-2.5" />
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* DETAILED INFO SECTION */}
+        <div className="mt-8 px-6 space-y-4 pb-10">
+          <DetailRow label="Tarif" value={`1 ${fromAsset} = ${(prices[fromAsset]/prices[toAsset]/MARKUP).toFixed(4)} ${toAsset}`} icon />
+          <DetailRow label="Biaya jaringan" value="$0.0004" icon />
+          <DetailRow label="Selip" value="2%" edit icon />
+          <DetailRow label="Dampak harga" value="0%" icon />
+          <DetailRow label="Minimum yang diterima" value={`${(parseFloat(convertedValue) * 0.98).toFixed(4)} ${toAsset}`} icon />
+          <DetailRow label="Penerima" value="Wallet 1 / AliBank" edit />
         </div>
       </main>
 
       {/* FOOTER CTA */}
-      <footer className="p-6 bg-[#0F1113] pb-12">
+      <footer className="p-6 bg-[#0F1113] pb-12 space-y-4">
         <Button 
           disabled={!amount || parseFloat(amount) <= 0 || isProcessing}
           onClick={handleConvert}
           className={cn(
             "w-full h-16 rounded-3xl font-black italic uppercase transition-all duration-300 border-none shadow-none text-base",
-            (!amount || parseFloat(amount) <= 0) 
-              ? "bg-transparent text-white/20 hover:bg-transparent" 
-              : "gold-gradient text-white shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95"
+            isInsufficient 
+              ? "bg-[#1C2024] text-white/20" 
+              : (!amount || parseFloat(amount) <= 0)
+                ? "bg-[#1C2024] text-white/20"
+                : "gold-gradient text-white shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95"
           )}
         >
-          {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (!amount || parseFloat(amount) <= 0 ? "Pilih jumlah" : "Konfirmasi Swap")}
+          {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (isInsufficient ? "Dana tidak cukup" : !amount ? "Pilih jumlah" : "Konfirmasi Swap")}
         </Button>
+        <p className="text-center text-[10px] font-bold text-white/30 uppercase tracking-tighter">
+          Termasuk biaya MM sebesar 0.875%.
+        </p>
       </footer>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, edit = false, icon = false }: { label: string; value: string; edit?: boolean; icon?: boolean }) {
+  return (
+    <div className="flex justify-between items-center">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] font-medium text-white/40 italic">{label}</span>
+        {icon && <Info className="w-3 h-3 text-white/10" />}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-black italic text-white/80">{value}</span>
+        {edit && <Pencil className="w-2.5 h-2.5 text-white/20" />}
+        {label === "Tarif" && <ChevronDown className="w-3 h-3 text-white/20 rotate-[-90deg]" />}
+      </div>
     </div>
   );
 }
