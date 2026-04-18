@@ -114,6 +114,8 @@ function DashboardContent() {
   const [mounted, setMounted] = useState(false);
   const [bannerApi, setBannerApi] = useState<CarouselApi>();
   const [currentBanner, setCurrentBanner] = useState(0);
+  const [swiftApi, setSwiftApi] = useState<CarouselApi>();
+  const [currentSwiftBanner, setCurrentSwiftBanner] = useState(0);
   const [isTambahDanaOpen, setIsTambahDanaOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'bursa' | 'dompet'>('bursa');
   const [marketFilter, setMarketFilter] = useState("Populer");
