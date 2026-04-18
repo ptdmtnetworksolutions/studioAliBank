@@ -46,10 +46,6 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="mobile-web-app-capable" content="yes" />
-        
-        {/* PWA Icons - Official Black Edition */}
-        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-        <link rel="apple-touch-icon" href="/icon.svg" />
       </head>
       <body className="font-body antialiased bg-background text-foreground transition-colors duration-300 overflow-x-hidden selection:bg-primary/30">
         <ThemeProvider
@@ -74,7 +70,6 @@ export default function RootLayout({
           </LanguageProvider>
         </ThemeProvider>
         
-        {/* Registrasi Service Worker Wajib untuk WebAPK Native */}
         <Script id="register-sw" strategy="afterInteractive">
           {`
             if ('serviceWorker' in navigator) {
