@@ -21,7 +21,8 @@ import {
   Building2,
   Wallet,
   ShieldCheck,
-  Bell
+  Bell,
+  Flame
 } from "lucide-react";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useFirestore, useUser } from "@/firebase";
@@ -38,6 +39,7 @@ export function ApiManagementView({ storedKeys }: any) {
   const [keys, setKeys] = useState({
     infuraProjectId: "",
     infuraProjectSecret: "",
+    infuraGasApiUrl: "",
     paypalClientId: "",
     paypalClientSecret: "",
     paypalWebhookId: "",
@@ -58,6 +60,7 @@ export function ApiManagementView({ storedKeys }: any) {
       setKeys({
         infuraProjectId: storedKeys.infuraProjectId || "",
         infuraProjectSecret: storedKeys.infuraProjectSecret || "",
+        infuraGasApiUrl: storedKeys.infuraGasApiUrl || "",
         paypalClientId: storedKeys.paypalClientId || "",
         paypalClientSecret: storedKeys.paypalClientSecret || "",
         paypalWebhookId: storedKeys.paypalWebhookId || "",
@@ -143,6 +146,17 @@ export function ApiManagementView({ storedKeys }: any) {
                 onToggle={() => toggleShow('inf_sec')}
                 description="Hanya digunakan di sisi server untuk keamanan maksimal."
               />
+              <div className="md:col-span-2">
+                <KeyField 
+                  label="Infura Gas API Endpoint" 
+                  icon={Flame} 
+                  value={keys.infuraGasApiUrl} 
+                  placeholder="https://gas.api.infura.io/v3/..."
+                  onChange={(v: any) => setKeys({...keys, infuraGasApiUrl: v})}
+                  show={true}
+                  description="URL real-time estimasi biaya transaksi blockchain."
+                />
+              </div>
             </div>
           </section>
 

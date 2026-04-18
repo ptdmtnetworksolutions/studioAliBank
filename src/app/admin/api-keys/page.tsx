@@ -20,7 +20,8 @@ import {
   CreditCard,
   Building2,
   Wallet,
-  Bell
+  Bell,
+  Flame
 } from "lucide-react";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -59,6 +60,7 @@ function APIKeysContent() {
   const [keys, setKeys] = useState({
     infuraProjectId: "30ba607f7b6845bca3a645b110a0db22",
     infuraProjectSecret: "",
+    infuraGasApiUrl: "https://gas.api.infura.io/v3/30ba607f7b6845bca3a645b110a0db22",
     paypalClientId: "",
     paypalClientSecret: "",
     paypalWebhookId: "",
@@ -82,6 +84,7 @@ function APIKeysContent() {
       setKeys({
         infuraProjectId: storedKeys.infuraProjectId || "30ba607f7b6845bca3a645b110a0db22",
         infuraProjectSecret: storedKeys.infuraProjectSecret || "",
+        infuraGasApiUrl: storedKeys.infuraGasApiUrl || "https://gas.api.infura.io/v3/30ba607f7b6845bca3a645b110a0db22",
         paypalClientId: storedKeys.paypalClientId || "",
         paypalClientSecret: storedKeys.paypalClientSecret || "",
         paypalWebhookId: storedKeys.paypalWebhookId || "",
@@ -205,6 +208,17 @@ function APIKeysContent() {
                     onToggle={() => toggleShow('infura_sec')}
                     description="Hanya digunakan di sisi server untuk otentikasi node prioritas yang aman."
                   />
+                  <div className="md:col-span-2">
+                    <KeyField 
+                      label="Infura Gas API Endpoint" 
+                      icon={Flame} 
+                      value={keys.infuraGasApiUrl} 
+                      placeholder="https://gas.api.infura.io/v3/..."
+                      onChange={(v: any) => setKeys({...keys, infuraGasApiUrl: v})}
+                      show={true}
+                      description="Digunakan untuk estimasi biaya jaringan (Gas) yang akurat secara real-time."
+                    />
+                  </div>
                   <div className="md:col-span-2">
                     <KeyField 
                       label="Kontrak Pintar Brankas (Vault)" 

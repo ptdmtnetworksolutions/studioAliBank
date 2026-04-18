@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -16,13 +15,14 @@ import {
   Lock,
   Key,
   Info,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Flame
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
@@ -45,11 +45,34 @@ export default function CryptoSendPage() {
   const [isActivating, setIsActivating] = useState(false);
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [onChainBal, setOnChainBal] = useState("0");
+  const [gasInfo, setGasInfo] = useState<{ fast: number, standard: number } | null>(null);
+
+  const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
+  const { data: config } = useDoc(apiKeysRef);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
   const hasPrivateKey = !!userData?.privateKey;
+
+  // FETCH REAL-TIME GAS ESTIMATES via Infura Gas API
+  const fetchGasPrice = useCallback(async () => {
+    const gasApiUrl = config?.infuraGasApiUrl;
+    if (!gasApiUrl) return;
+
+    try {
+      const res = await fetch(gasApiUrl);
+      const data = await res.json();
+      if (data.standard) {
+        setGasInfo({
+          fast: parseFloat(data.fast.suggestedMaxFeePerGas),
+          standard: parseFloat(data.standard.suggestedMaxFeePerGas)
+        });
+      }
+    } catch (e) {
+      console.warn("Gas API sync failed, using default RPC fallback.");
+    }
+  }, [config?.infuraGasApiUrl]);
 
   useEffect(() => {
     async function sync() {
@@ -64,7 +87,10 @@ export default function CryptoSendPage() {
       }
     }
     sync();
-  }, [userData?.walletAddress]);
+    fetchGasPrice();
+    const interval = setInterval(fetchGasPrice, 30000);
+    return () => clearInterval(interval);
+  }, [userData?.walletAddress, fetchGasPrice]);
 
   const handleActivateSignature = async () => {
     if (!userDocRef || isActivating) return;
@@ -109,7 +135,8 @@ export default function CryptoSendPage() {
         const internalWallet = new ethers.Wallet(userData.privateKey, provider);
         
         const feeData = await provider.getFeeData();
-        const gasPrice = feeData.gasPrice || ethers.parseUnits('20', 'gwei');
+        // Priority: Use Infura Gas API -> then Provider -> then fallback
+        const gasPrice = gasInfo ? ethers.parseUnits(gasInfo.standard.toString(), 'gwei') : (feeData.gasPrice || ethers.parseUnits('20', 'gwei'));
         const gasLimit = 21000n;
         const totalFee = gasPrice * gasLimit;
         const valueToSend = ethers.parseEther(amount);
@@ -118,7 +145,7 @@ export default function CryptoSendPage() {
         const currentBalance = await provider.getBalance(userData.walletAddress);
         
         if (currentBalance < totalNeeded) {
-          throw new Error("Saldo tidak cukup untuk membayar biaya jaringan Ethereum.");
+          throw new Error(`Saldo tidak cukup untuk biaya Gas (${ethers.formatEther(totalFee).slice(0,8)} ETH).`);
         }
 
         const tx = await internalWallet.sendTransaction({
@@ -302,7 +329,8 @@ export default function CryptoSendPage() {
                   Tersedia: {assetType === 'ETH' ? parseFloat(onChainBal).toFixed(8) : (userData?.cryptoBalances?.[assetType] || 0)} {assetType}
                 </p>
                 <div className="flex items-center gap-1 text-[7px] font-black text-primary uppercase">
-                  <Info className="w-2.5 h-2.5" /> {assetType === 'ETH' ? 'On-Chain (Instan)' : 'Kliring Ali-Bridge'}
+                  <Flame className={cn("w-2.5 h-2.5", gasInfo && "animate-pulse text-orange-500")} /> 
+                  {assetType === 'ETH' ? (gasInfo ? `Gas: ${gasInfo.standard.toFixed(1)} Gwei` : 'Auto Gas') : 'Fixed Fee'}
                 </div>
               </div>
             </div>
@@ -329,7 +357,7 @@ export default function CryptoSendPage() {
                 {assetType === 'ETH' ? <Lock className="w-5 h-5 text-blue-600 shrink-0" /> : <ArrowRightLeft className="w-5 h-5 text-blue-600 shrink-0" />}
                 <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
                   {assetType === 'ETH' 
-                    ? "Informasi: Transaksi ETH akan langsung dikirimkan ke jaringan Mainnet secara instan."
+                    ? "Informasi: Transaksi ETH akan langsung dikirimkan ke jaringan Mainnet secara instan menggunakan estimasi Gas dari Infura API."
                     : "Informasi: Transaksi BTC/USDT akan melalui antrean Kliring Ali-Bridge untuk verifikasi keamanan cold-storage sebelum disiarkan."}
                 </p>
               </div>
