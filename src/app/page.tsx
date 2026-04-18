@@ -40,14 +40,18 @@ import {
   Info,
   TrendingDown,
   ArrowUpDown,
-  Loader2
+  Loader2,
+  ShieldAlert,
+  Skull,
+  HandCoins,
+  CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
-import { doc, collection, query, where } from "firebase/firestore";
+import { doc, collection, query, where, orderBy, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -67,6 +71,8 @@ import {
 } from "@/components/ui/sheet";
 import Image from "next/image";
 import { AlphaMarketView } from "@/components/crypto/AlphaMarketView";
+
+const ALX_PRICE_IDR = 194004;
 
 function HandCoinIcon({ className }: { className?: string }) {
   return (
@@ -108,8 +114,6 @@ function DashboardContent() {
   const [mounted, setMounted] = useState(false);
   const [bannerApi, setBannerApi] = useState<CarouselApi>();
   const [currentBanner, setCurrentBanner] = useState(0);
-  const [swiftApi, setSwiftApi] = useState<CarouselApi>();
-  const [currentSwiftBanner, setCurrentSwiftBanner] = useState(0);
   const [isTambahDanaOpen, setIsTambahDanaOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'bursa' | 'dompet'>('bursa');
   const [marketFilter, setMarketFilter] = useState("Populer");
@@ -132,6 +136,13 @@ function DashboardContent() {
   }, [db, user]);
 
   const { data: userData } = useDoc(userDocRef);
+
+  // FETCH TRANSAKSI & TOPUP UNTUK ANALISIS HUTANG
+  const txQuery = useMemoFirebase(() => (db && user ? query(collection(db, "users", user.uid, "transactions"), orderBy("timestamp", "desc"), limit(100)) : null), [db, user]);
+  const { data: userTxs } = useCollection(txQuery);
+
+  const pendingTopupQuery = useMemoFirebase(() => (db && user ? query(collection(db, "topup_requests"), where("userId", "==", user.uid), where("status", "==", "pending")) : null), [db, user]);
+  const { data: pendingTopups } = useCollection(pendingTopupQuery);
 
   const currentUsdtRate = useMemo(() => dynamicUsdtRate || DEFAULT_USDT_IDR_RATE, [dynamicUsdtRate]);
 
@@ -157,6 +168,34 @@ function DashboardContent() {
     
     return idrBalance + alxValueIdr + usdtValueIdr + btcValueIdr + ethValueIdr;
   }, [userData, marketCoins, currentUsdtRate]);
+
+  // ANALISIS HUTANG NASABAH
+  const debtInfo = useMemo(() => {
+    if (!userData || !userTxs) return { illegalDebt: 0, pendingDebt: 0, hasDebt: false };
+
+    const getVal = (t: any) => {
+      if (t.amountIdr) return t.amountIdr;
+      if (t.amount) return t.amount;
+      if (t.stakeAmount) return t.stakeAmount;
+      if (t.rewardAlx) return t.rewardAlx * ALX_PRICE_IDR;
+      if (t.cryptoCurrency === 'ALX' && t.cryptoAmount) return t.cryptoAmount * ALX_PRICE_IDR;
+      return 0;
+    };
+
+    const inflow = userTxs.filter((t: any) => t.type === 'income').reduce((acc: number, t: any) => acc + getVal(t), 0);
+    const outflow = userTxs.filter((t: any) => t.type === 'expense').reduce((acc: number, t: any) => acc + getVal(t), 0);
+    
+    const ledgerBalance = inflow - outflow;
+    const actualBalance = userData.totalBalance || 0;
+    const illegalDebt = Math.max(0, actualBalance - ledgerBalance);
+    const pendingDebt = pendingTopups?.reduce((acc: number, curr: any) => acc + (curr.totalToTransfer || curr.amount || 0), 0) || 0;
+
+    return {
+      illegalDebt,
+      pendingDebt,
+      hasDebt: illegalDebt > 1000 || pendingDebt > 0
+    };
+  }, [userData, userTxs, pendingTopups]);
 
   const pnlData = useMemo(() => {
     const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
@@ -491,6 +530,41 @@ function DashboardContent() {
       >
         {activeTab === 'bursa' ? (
           <div className="animate-in fade-in duration-500 space-y-6">
+            {/* DEBT ALERT SECTION - TAMPILKAN JIKA ADA HUTANG */}
+            {debtInfo.hasDebt && (
+              <Card className="bg-rose-600 text-white rounded-2xl p-5 shadow-lg border-none animate-in zoom-in duration-500 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10"><Skull className="w-16 h-16" /></div>
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                    <ShieldAlert className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <h3 className="text-xs font-black uppercase italic tracking-widest">Status Keamanan Akun</h3>
+                    <p className="text-[10px] font-bold uppercase opacity-80 leading-tight">
+                      Sistem mendeteksi adanya kewajiban dana yang harus diselesaikan.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-2 relative z-10">
+                  {debtInfo.illegalDebt > 1000 && (
+                    <div className="flex justify-between items-center bg-black/10 p-2 rounded-lg">
+                      <span className="text-[9px] font-black uppercase italic">Hutang Injeksi Ilegal</span>
+                      <span className="text-xs font-black italic">Rp {debtInfo.illegalDebt.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {debtInfo.pendingDebt > 0 && (
+                    <div className="flex justify-between items-center bg-black/10 p-2 rounded-lg">
+                      <span className="text-[9px] font-black uppercase italic">Piutang Top-up Pending</span>
+                      <span className="text-xs font-black italic">Rp {debtInfo.pendingDebt.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <p className="text-[8px] font-medium text-center uppercase italic opacity-60 pt-1">
+                    Hubungi Admin atau segera lakukan penyelesaian pembayaran riil.
+                  </p>
+                </div>
+              </Card>
+            )}
+
             <div 
               className="flex flex-col items-center justify-center absolute left-0 right-0 -top-16 mb-4 transition-opacity pointer-events-none"
               style={{ opacity: Math.min(pullY / 60, 1), transform: `scale(${Math.min(0.5 + pullY/140, 1)})` }}
