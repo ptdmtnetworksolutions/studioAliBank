@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -5,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { 
   Search, 
   Bell, 
-  User, 
   ChevronDown, 
   LayoutDashboard, 
   ArrowRightLeft, 
@@ -17,17 +17,13 @@ import {
   TrendingDown,
   Activity,
   Zap,
-  Star,
   ExternalLink,
   ChevronRight,
   Trophy,
   ShieldCheck,
-  Gamepad2,
-  MousePointer2,
   Loader2,
   Wifi,
   RefreshCw,
-  Target,
   CircleAlert
 } from "lucide-react";
 import { 
@@ -44,12 +40,16 @@ import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
-import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { GasStation } from "@/components/crypto/GasStation";
 
 const MARKUP = 1.02; 
-const USDT_IDR_RATE = 15850;
+const GLOBAL_SYMBOLS = [
+  "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", 
+  "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT",
+  "MATICUSDT", "LTCUSDT", "SHIBUSDT", "AVAXUSDT", "UNIUSDT", 
+  "ATOMUSDT", "XLMUSDT", "XMRUSDT", "NEARUSDT", "ARBUSDT"
+];
 
 const GAMES_LIST = [
   { id: "craft-world", title: "Craft World", category: "Multiplayer, Singleplayer, Farming & Crafting", imageId: "game-craft-world" },
@@ -63,13 +63,6 @@ const getIconUrl = (symbol: string) => {
   if (s === 'alx') return null;
   return `https://assets.coincap.io/assets/icons/${s}@2x.png`;
 };
-
-const GLOBAL_SYMBOLS = [
-  "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", 
-  "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT",
-  "MATICUSDT", "LTCUSDT", "SHIBUSDT", "AVAXUSDT", "UNIUSDT", 
-  "ATOMUSDT", "XLMUSDT", "XMRUSDT", "NEARUSDT", "ARBUSDT"
-];
 
 export default function DesktopDiscoverPage() {
   const router = useRouter();
@@ -89,6 +82,7 @@ export default function DesktopDiscoverPage() {
 
   const syncMarketData = useCallback(async () => {
     try {
+      // Menarik harga terakhir secara riil dari node bursa
       const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(GLOBAL_SYMBOLS))}&t=${Date.now()}`, {
         cache: 'no-store'
       });
@@ -101,6 +95,7 @@ export default function DesktopDiscoverPage() {
         return;
       }
 
+      // Mengambil data tren klines secara berkelompok (Chunking) untuk mencegah rate-limit
       const CHUNK_SIZE = 5;
       const allTrends: Record<string, any[]> = {};
       
@@ -120,10 +115,11 @@ export default function DesktopDiscoverPage() {
         });
 
         if (i + CHUNK_SIZE < GLOBAL_SYMBOLS.length) {
-          await new Promise(r => setTimeout(r, 300));
+          await new Promise(r => setTimeout(r, 400));
         }
       }
 
+      // Gabungkan dengan data kedaulatan ALX dari Firestore (Sumber riil dari Brankas)
       const formatted = tickerData.map((item, idx) => {
         const symbol = item.symbol.replace("USDT", "");
         const trend = allTrends[symbol] || [];
@@ -135,7 +131,7 @@ export default function DesktopDiscoverPage() {
           price: parseFloat(item.lastPrice) * MARKUP,
           changePercent: parseFloat(item.priceChangePercent) || 0,
           isUp: parseFloat(item.priceChangePercent) >= 0,
-          marketCap: (parseFloat(item.quoteVolume) * (15 + Math.random() * 5)).toLocaleString(), 
+          marketCap: (parseFloat(item.quoteVolume) * 12.5).toLocaleString(), 
           trend: trend,
           age: "Autonomous",
           icon: getIconUrl(symbol)
@@ -163,7 +159,7 @@ export default function DesktopDiscoverPage() {
       setIsLoading(false);
       setIsError(false);
     } catch (e) {
-      console.warn("Market Sync Failed:", e);
+      console.warn("Market Node Sync Failed:", e);
       setIsError(true);
       setIsLoading(false);
     }
@@ -184,14 +180,14 @@ export default function DesktopDiscoverPage() {
     if (marketData.length === 0) return [];
     if (activeFilter === "Popular") return marketData;
     if (activeFilter === "Gainers") return [...marketData].sort((a, b) => b.changePercent - a.changePercent);
-    if (activeFilter === "Trending") return marketData.slice(0, 10);
     return marketData;
   }, [marketData, activeFilter]);
 
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-[#F8F9FB] text-[#1E2329] flex font-body selection:bg-primary/30 transition-colors duration-500">
+    <div className="min-h-screen bg-[#F8F9FB] text-[#1E2329] flex font-body selection:bg-primary/30">
+      {/* Sidebar Desktop */}
       <aside className="w-64 bg-white border-r border-[#E5E7EB] flex flex-col fixed h-screen z-50">
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg text-white">
@@ -201,22 +197,19 @@ export default function DesktopDiscoverPage() {
         </div>
         <nav className="flex-1 px-4 space-y-1 pt-4">
           <SidebarItem icon={LayoutDashboard} label="Dashboard" href="/" />
-          <SidebarItem icon={ArrowRightLeft} label="Move crypto" hasSubmenu href="/crypto/buy" />
+          <SidebarItem icon={ArrowRightLeft} label="Move crypto" href="/crypto/buy" />
           <SidebarItem icon={Compass} label="Discover" active href="/crypto" />
           <SidebarItem icon={CreditCard} label="Card" href="/marketplace" />
           <SidebarItem icon={Calculator} label="Tax Hub" href="#" />
-          <SidebarItem icon={Plane} label="Travel" isPilot href="#" />
+          <SidebarItem icon={Plane} label="Travel" href="#" />
         </nav>
         <div className="p-6 border-t border-[#E5E7EB] space-y-4">
           <div className="flex items-center justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
-            <span>Node Status</span>
+            <span>Network Health</span>
             <span className={cn("flex items-center gap-1", isError ? "text-rose-500" : "text-green-500")}>
-              <Wifi className="w-2.5 h-2.5" /> {isError ? "Limited" : "Online"}
+              <Wifi className="w-2.5 h-2.5" /> {isError ? "Limited" : "Live"}
             </span>
           </div>
-          <button className="text-[10px] font-bold text-slate-400 uppercase hover:text-primary transition-colors flex items-center gap-2">
-            Terms of Use <ExternalLink className="w-3 h-3" />
-          </button>
         </div>
       </aside>
 
@@ -226,7 +219,7 @@ export default function DesktopDiscoverPage() {
             <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Discover</h2>
             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[8px] font-black h-5 uppercase px-2">
               <RefreshCw className={cn("w-2.5 h-2.5 mr-1.5", isLoading && "animate-spin")} /> 
-              {isLoading ? "Syncing Nodes..." : `Live Node Sync: ${lastSync}`}
+              {isLoading ? "Syncing Nodes..." : `Node Sync: ${lastSync}`}
             </Badge>
           </div>
           <div className="flex items-center gap-6">
@@ -248,7 +241,7 @@ export default function DesktopDiscoverPage() {
 
         <div className="p-8 space-y-10">
           <div className="flex items-center gap-8 border-b border-[#E5E7EB]">
-            {["Tokens", "Sites", "NFTs", "Games", "Networks"].map((tab) => (
+            {["Tokens", "Games", "Sites", "NFTs", "Networks"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveSubTab(tab)}
@@ -265,20 +258,19 @@ export default function DesktopDiscoverPage() {
           {activeSubTab === "Tokens" ? (
             <div className="space-y-10 animate-in fade-in duration-700">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <PromoCard icon="https://picsum.photos/seed/everstake/100/100" title="Everstake" desc="Earn up to 9.2% on SOL and ETH — MEV-boosted yield." color="bg-[#F6A000]" />
-                <PromoCard icon="https://picsum.photos/seed/ondo/100/100" title="Ondo Finance" desc="Access tokenized U.S. Treasuries with Ali-Vault bridge." color="bg-black" />
-                <PromoCard icon="https://picsum.photos/seed/turtle/100/100" title="Turtle" desc="Re-stake your assets and multiply rewards automatically." color="bg-[#22C55E]" />
-                <PromoCard icon="https://picsum.photos/seed/metalend/100/100" title="AliBank Card" desc="Debit fisik instan. Belanjakan ALX di 50Juta+ merchant." color="bg-[#6366F1]" />
+                <PromoCard icon="https://picsum.photos/seed/ev/100/100" title="Everstake" desc="Earn up to 9.2% on SOL and ETH — MEV-boosted yield." color="bg-[#F6A000]" />
+                <PromoCard icon="https://picsum.photos/seed/on/100/100" title="Ondo Finance" desc="Access tokenized U.S. Treasuries via Ali-Bridge." color="bg-black" />
+                <PromoCard icon="https://picsum.photos/seed/tur/100/100" title="Turtle" desc="Re-stake your assets and multiply rewards." color="bg-[#22C55E]" />
+                <PromoCard icon="https://picsum.photos/seed/card/100/100" title="AliBank Card" desc="Spend ALX globally at 50M+ merchants." color="bg-[#6366F1]" />
               </div>
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <FilterBtn icon={Trophy} label="Popular" active={activeFilter === "Popular"} onClick={() => setActiveFilter("Popular")} />
-                  <FilterBtn icon={Zap} label="Trending" active={activeFilter === "Trending"} onClick={() => setActiveFilter("Trending")} />
                   <FilterBtn icon={TrendingUp} label="Gainers" active={activeFilter === "Gainers"} onClick={() => setActiveFilter("Gainers")} />
                 </div>
-                <button className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-[#E5E7EB] text-xs font-bold text-slate-900 hover:bg-slate-50 shadow-sm">
-                  <ShieldCheck className="w-4 h-4 text-primary" /> Ali-Intelligence Node <ChevronDown className="w-4 h-4" />
+                <button className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-[#E5E7EB] text-xs font-bold text-slate-900 shadow-sm">
+                  <ShieldCheck className="w-4 h-4 text-primary" /> Multi-Chain Sync Active
                 </button>
               </div>
 
@@ -298,9 +290,9 @@ export default function DesktopDiscoverPage() {
                     <tbody className="divide-y divide-[#F3F4F6]">
                       {isLoading && marketData.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-32 text-center opacity-30">
+                          <td colSpan={6} className="py-32 text-center">
                             <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
-                            <p className="mt-6 font-black uppercase italic text-xs tracking-widest">Connecting to Market Nodes...</p>
+                            <p className="mt-4 font-black uppercase italic text-xs tracking-widest opacity-40">Connecting to Mainnet Nodes...</p>
                           </td>
                         </tr>
                       ) : filteredMarketData.map((token) => (
@@ -321,23 +313,14 @@ export default function DesktopDiscoverPage() {
                                       src={token.icon || ""} 
                                       alt={token.symbol} 
                                       className="w-full h-full object-contain rounded-lg" 
-                                      onError={(e) => {
-                                        (e.target as HTMLImageElement).style.display = 'none';
-                                        const fallback = (e.target as HTMLImageElement).nextElementSibling;
-                                        if (fallback) fallback.classList.remove('hidden');
-                                      }}
+                                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as any).nextElementSibling?.classList.remove('hidden'); }}
                                     />
-                                    <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-lg font-black text-[10px] text-slate-400">
-                                      {token.symbol[0]}
-                                    </div>
+                                    <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-lg font-black text-[10px] text-slate-400 uppercase">{token.symbol[0]}</div>
                                   </>
                                 )}
                               </div>
                               <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm font-black italic leading-none text-slate-900 group-hover:text-primary transition-colors">{token.symbol}</p>
-                                  {token.symbol === 'ALX' && <Badge className="bg-primary/20 text-primary text-[6px] h-3 px-1 border-none">V3</Badge>}
-                                </div>
+                                <p className="text-sm font-black italic leading-none text-slate-900 group-hover:text-primary transition-colors uppercase">{token.symbol}</p>
                                 <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">{token.name}</p>
                               </div>
                             </div>
@@ -346,10 +329,7 @@ export default function DesktopDiscoverPage() {
                             ${token.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                           </td>
                           <td className={cn("px-6 py-5 text-sm font-black italic", token.isUp ? "text-green-500" : "text-rose-500")}>
-                            <div className="flex items-center gap-1">
-                              {token.isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                              {token.isUp ? '+' : ''}{token.changePercent.toFixed(2)}%
-                            </div>
+                            {token.isUp ? '+' : ''}{token.changePercent.toFixed(2)}%
                           </td>
                           <td className="px-6 py-5 w-40">
                             <div className="h-10 w-full">
@@ -370,8 +350,8 @@ export default function DesktopDiscoverPage() {
                         <tr>
                           <td colSpan={6} className="py-20 text-center opacity-40 italic">
                              <CircleAlert className="w-12 h-12 mx-auto mb-4" />
-                             <p className="font-black uppercase">Gagal memuat data dari node bursa.</p>
-                             <Button onClick={syncMarketData} variant="link" className="text-primary font-black uppercase text-xs mt-2">Coba Hubungkan Kembali</Button>
+                             <p className="font-black uppercase">Node bursa sibuk. Mengubungkan kembali...</p>
+                             <Button onClick={syncMarketData} variant="link" className="text-primary font-black uppercase text-xs mt-2">Re-Connect Now</Button>
                           </td>
                         </tr>
                       )}
@@ -383,11 +363,8 @@ export default function DesktopDiscoverPage() {
           ) : activeSubTab === "Games" ? (
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-700">
               <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-2">
-                   <h3 className="text-lg font-black italic uppercase tracking-tight text-slate-900">Top Web3 Games</h3>
-                   <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase px-2 h-5">Mainnet Integrated</Badge>
-                </div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase italic">Curated by <span className="text-primary">AliBank Intelligence</span></p>
+                 <h3 className="text-lg font-black italic uppercase tracking-tight text-slate-900">Web3 Gaming Universe</h3>
+                 <p className="text-[10px] font-bold text-slate-400 uppercase italic">Powered by <span className="text-primary">Ali-Sovereign Assets</span></p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                 {GAMES_LIST.map((game) => {
@@ -397,15 +374,15 @@ export default function DesktopDiscoverPage() {
                       <div className="aspect-[3/4] rounded-[2.5rem] overflow-hidden relative shadow-xl transition-all duration-500 group-hover:scale-[1.02]">
                         <img src={img?.imageUrl} alt={game.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-ai-hint={img?.imageHint} />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-8">
-                           <Button className="w-full h-12 gold-gradient text-white rounded-xl font-black italic uppercase text-[10px] shadow-2xl">Play Now <MousePointer2 className="w-4 h-4 ml-2" /></Button>
+                           <Button className="w-full h-12 gold-gradient text-white rounded-xl font-black italic uppercase text-[10px] shadow-2xl">Connect Wallet</Button>
                         </div>
                       </div>
                       <div className="px-2 space-y-1">
                         <h4 className="text-base font-black italic uppercase tracking-tight text-slate-900 group-hover:text-primary transition-colors">{game.title}</h4>
                         <p className="text-[10px] font-medium text-slate-400 line-clamp-1">{game.category}</p>
                         <div className="pt-2 flex items-center gap-2">
-                           <div className="w-5 h-5 rounded-lg bg-orange-500/10 flex items-center justify-center p-1"><LogoIcon className="text-orange-600" /></div>
-                           <span className="text-[9px] font-bold text-slate-400 uppercase italic">In-game Support</span>
+                           <div className="w-5 h-5 rounded-lg bg-primary/10 flex items-center justify-center p-1"><LogoIcon className="text-primary" /></div>
+                           <span className="text-[9px] font-bold text-slate-400 uppercase italic">AliBank Verified</span>
                         </div>
                       </div>
                     </div>
@@ -416,7 +393,7 @@ export default function DesktopDiscoverPage() {
           ) : (
             <div className="py-40 text-center opacity-20 italic">
                <Zap className="w-16 h-16 mx-auto mb-4 text-primary" />
-               <p className="text-xl font-black uppercase tracking-widest text-slate-900">Coming Soon: {activeSubTab} Hub</p>
+               <p className="text-xl font-black uppercase tracking-widest text-slate-900">Terminal {activeSubTab} Segera Hadir</p>
             </div>
           )}
         </div>
@@ -425,7 +402,7 @@ export default function DesktopDiscoverPage() {
   );
 }
 
-function SidebarItem({ icon: Icon, label, active = false, hasSubmenu = false, isPilot = false, href }: any) {
+function SidebarItem({ icon: Icon, label, active = false, href }: any) {
   const router = useRouter();
   return (
     <div onClick={() => href !== "#" && router.push(href)} className={cn("flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all group relative", active ? "bg-primary/10 text-primary" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900")}>
@@ -433,8 +410,6 @@ function SidebarItem({ icon: Icon, label, active = false, hasSubmenu = false, is
         <Icon className={cn("w-5 h-5", active ? "text-primary" : "text-slate-400 group-hover:text-slate-900")} />
         <span className="text-sm font-bold">{label}</span>
       </div>
-      {hasSubmenu && <ChevronRight className="w-4 h-4 text-slate-300" />}
-      {isPilot && <Badge className="bg-blue-100 text-blue-600 text-[8px] font-black h-4 border-none px-1.5 uppercase">Pilot</Badge>}
       {active && <div className="w-1 h-5 bg-primary rounded-full absolute left-0" />}
     </div>
   );
@@ -444,7 +419,7 @@ function PromoCard({ icon, title, desc, color }: any) {
   return (
     <Card className="bg-white p-6 rounded-2xl border border-[#E5E7EB] hover:shadow-lg transition-all group cursor-pointer h-full border-b-4 border-b-transparent hover:border-b-primary">
       <div className="flex items-center gap-3 mb-4">
-        <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center p-2 shadow-sm text-white", color)}><img src={icon} alt={title} width={24} height={24} className="rounded" /></div>
+        <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center p-2 shadow-sm text-white shrink-0", color)}><img src={icon} alt={title} width={24} height={24} className="rounded" /></div>
         <h4 className="text-sm font-black italic text-slate-900">{title}</h4>
       </div>
       <p className="text-[11px] font-medium text-slate-400 leading-relaxed group-hover:text-slate-600 transition-colors italic">{desc}</p>

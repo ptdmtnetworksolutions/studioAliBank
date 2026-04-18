@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -9,7 +10,6 @@ import {
   ShieldCheck, 
   Clock, 
   Loader2,
-  Bitcoin,
   Cpu,
   RefreshCw
 } from "lucide-react";
@@ -40,6 +40,10 @@ const NETWORKS = [
   { id: "137", name: "Polygon", symbol: "MATIC", color: "text-purple-500", icon: Zap },
 ];
 
+/**
+ * @fileOverview Komponen Gas Station Riil.
+ * Menarik data biaya jaringan langsung dari Infura Gas API menggunakan Kredensial Brankas.
+ */
 export function GasStation() {
   const router = useRouter();
   const db = useFirestore();
@@ -47,17 +51,24 @@ export function GasStation() {
   const [isEip1559, setIsEip1559] = useState(true);
   const [gasData, setGasData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
 
   const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
   const { data: config } = useDoc(apiKeysRef);
 
   const fetchGasPrices = useCallback(async () => {
-    if (!config?.infuraGasApiUrl) return;
+    // Prioritaskan URL dari config, atau bangun menggunakan Project ID
+    const infuraId = config?.infuraProjectId || "30ba607f7b6845bca3a645b110a0db22";
+    const gasApiBase = config?.infuraGasApiUrl || `https://gas.api.infura.io/v3/${infuraId}`;
     
     try {
-      // Infura Gas API expects networkId as query param
-      const url = `${config.infuraGasApiUrl}?networkId=${selectedNetwork.id}`;
-      const res = await fetch(url);
+      setIsError(false);
+      // Infura Gas API mengharapkan networkId sebagai parameter query
+      const url = `${gasApiBase}${gasApiBase.includes('?') ? '&' : '?'}networkId=${selectedNetwork.id}`;
+      
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error("Node Busy");
+      
       const data = await res.json();
       
       if (data) {
@@ -65,16 +76,18 @@ export function GasStation() {
         setIsLoading(false);
       }
     } catch (e) {
-      console.warn("Gas Station node busy");
+      console.warn("Gas Station node connection lag, retrying...");
+      setIsError(true);
     }
   }, [config, selectedNetwork]);
 
   useEffect(() => {
     fetchGasPrices();
-    const interval = setInterval(fetchGasPrices, 10000);
+    const interval = setInterval(fetchGasPrices, 12000); // Polling setiap 12 detik (Blok time rata-rata)
     return () => clearInterval(interval);
   }, [fetchGasPrices]);
 
+  // Ekstrak nilai riil dari respon Infura
   const displayGas = gasData?.standard?.suggestedMaxFeePerGas 
     ? Math.round(parseFloat(gasData.standard.suggestedMaxFeePerGas)) 
     : 0;
@@ -82,26 +95,24 @@ export function GasStation() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 transition-all group active:scale-95">
+        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 transition-all group active:scale-95 border border-transparent hover:border-primary/20">
           <div className="w-5 h-5 flex items-center justify-center relative">
-             <Fuel className="w-4 h-4 text-slate-600 group-hover:text-primary transition-colors" />
-             {selectedNetwork.id === "1" ? (
-               <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full border border-white flex items-center justify-center p-0.5">
-                  <Cpu className="text-white w-full h-full" />
-               </div>
-             ) : (
-               <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 bg-purple-500 rounded-full border border-white flex items-center justify-center p-0.5">
-                  <Zap className="text-white w-full h-full" />
-               </div>
-             )}
+             <Fuel className={cn("w-4 h-4 transition-colors", isError ? "text-rose-500" : "text-slate-600 group-hover:text-primary")} />
+             <div className={cn(
+               "absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border border-white flex items-center justify-center p-0.5 shadow-sm",
+               selectedNetwork.id === "1" ? "bg-blue-500" : "bg-purple-500"
+             )}>
+                <selectedNetwork.icon className="text-white w-full h-full" />
+             </div>
           </div>
-          <span className="text-[11px] font-black text-slate-700 italic">{isLoading ? "..." : displayGas}</span>
+          <span className="text-[11px] font-black text-slate-700 italic">
+            {isLoading ? (isError ? "OFF" : "...") : displayGas}
+          </span>
         </button>
       </PopoverTrigger>
       
       <PopoverContent className="w-[340px] rounded-[2.5rem] p-8 bg-white border-none shadow-[0_30px_80px_rgba(0,0,0,0.15)] animate-in zoom-in duration-300" align="end" sideOffset={15}>
         <div className="space-y-8">
-          {/* Header Section */}
           <div className="flex items-center justify-between">
             <span className="text-sm font-black text-slate-400 italic">Real-time gas prices</span>
             <div className="flex items-center gap-2">
@@ -110,7 +121,6 @@ export function GasStation() {
             </div>
           </div>
 
-          {/* Network Selector */}
           <Select 
             value={selectedNetwork.id} 
             onValueChange={(val) => {
@@ -141,52 +151,48 @@ export function GasStation() {
             </SelectContent>
           </Select>
 
-          {/* Base Fee */}
           <div className="flex items-center gap-2 px-1">
              <span className="text-[11px] font-black text-slate-400 uppercase italic">Base fee:</span>
              <span className="text-[11px] font-black text-slate-900 italic">
-               {isLoading ? "0.00" : (parseFloat(gasData?.estimatedBaseFee || "0.14")).toFixed(2)} GWEI
+               {isLoading ? "0.00" : parseFloat(gasData?.estimatedBaseFee || "0").toFixed(2)} GWEI
              </span>
           </div>
 
-          {/* Priority Fee Table */}
           <Card className="border-slate-100 bg-white rounded-3xl p-6 shadow-sm">
             <div className="space-y-6">
               <div className="flex items-center gap-2 text-slate-400">
-                <span className="text-[10px] font-black uppercase tracking-widest italic">Priority fee</span>
+                <span className="text-[10px] font-black uppercase tracking-widest italic">Priority fee (Tips)</span>
               </div>
               
               <div className="space-y-5">
                 <GasPriceRow 
                   label="Fast" 
-                  value={isLoading ? "0.00" : parseFloat(gasData?.fast?.suggestedMaxPriorityFeePerGas || "2.00").toFixed(2)} 
+                  value={isLoading ? "0.00" : parseFloat(gasData?.fast?.suggestedMaxPriorityFeePerGas || "0").toFixed(2)} 
                 />
                 <div className="h-px bg-slate-50" />
                 <GasPriceRow 
                   label="Average" 
-                  value={isLoading ? "0.00" : parseFloat(gasData?.standard?.suggestedMaxPriorityFeePerGas || "2.00").toFixed(2)} 
+                  value={isLoading ? "0.00" : parseFloat(gasData?.standard?.suggestedMaxPriorityFeePerGas || "0").toFixed(2)} 
                 />
                 <div className="h-px bg-slate-50" />
                 <GasPriceRow 
                   label="Safe" 
-                  value={isLoading ? "0.00" : parseFloat(gasData?.safeLow?.suggestedMaxPriorityFeePerGas || "0.00").toFixed(2)} 
+                  value={isLoading ? "0.00" : parseFloat(gasData?.safeLow?.suggestedMaxPriorityFeePerGas || "0").toFixed(2)} 
                 />
               </div>
             </div>
           </Card>
 
-          {/* Footer CTA */}
           <Button 
             onClick={() => router.push('/crypto/convert')}
             className="w-full h-16 bg-slate-950 hover:bg-slate-900 text-white rounded-3xl font-black italic uppercase text-xs tracking-widest transition-all active:scale-95"
           >
-            Buy more {selectedNetwork.symbol}
+            Settle more {selectedNetwork.symbol}
           </Button>
 
-          {/* Status Branding */}
           <div className="flex items-center justify-center gap-2 opacity-20 grayscale">
             <LogoIcon className="w-3 h-3" />
-            <span className="text-[8px] font-black uppercase tracking-widest">Powered by Ali-Node Infura</span>
+            <span className="text-[8px] font-black uppercase tracking-widest italic">Secured by Ali-Node Infura V3</span>
           </div>
         </div>
       </PopoverContent>
