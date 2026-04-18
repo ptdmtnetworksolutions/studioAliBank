@@ -39,6 +39,8 @@ import { cn } from "@/lib/utils";
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 
+const USDT_IDR_RATE = 15850;
+
 export function DashboardView({ 
   globalLiquidity, 
   allUsers, 
@@ -54,22 +56,26 @@ export function DashboardView({
   const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
   const { data: storedKeys } = useDoc(apiKeysRef);
 
-  // REKONSILIASI FINANSIAL: Menghitung total likuiditas riil di dompet nasabah
+  // REKONSILIASI FINANSIAL: Menghitung total likuiditas riil di dompet nasabah lintas aset
   const userLedgerStats = useMemo(() => {
-    if (!allUsers) return { totalUserIdr: 0, totalUserAlx: 0 };
+    if (!allUsers) return { totalUserIdr: 0, totalUserAlx: 0, totalUserUsdt: 0, totalUserBtc: 0, totalUserEth: 0 };
     return allUsers.reduce((acc: any, u: any) => {
       acc.totalUserIdr += (u.totalBalance || 0) + (u.savings || 0);
       acc.totalUserAlx += (u.cryptoBalances?.ALX || 0);
+      acc.totalUserUsdt += (u.cryptoBalances?.USDT || 0);
+      acc.totalUserBtc += (u.cryptoBalances?.BTC || 0);
+      acc.totalUserEth += (u.cryptoBalances?.ETH || 0);
       return acc;
-    }, { totalUserIdr: 0, totalUserAlx: 0 });
+    }, { totalUserIdr: 0, totalUserAlx: 0, totalUserUsdt: 0, totalUserBtc: 0, totalUserEth: 0 });
   }, [allUsers]);
 
-  // DETEKSI ANOMALI GLOBAL: Saldo User vs Injeksi Likuiditas
+  // DETEKSI ANOMALI GLOBAL: Saldo User vs Injeksi Likuiditas (IDR & Estimasi Kripto)
+  // Membandingkan total kewajiban IDR yang ada di dompet nasabah vs uang riil yang masuk via gateway
   const isAnomaly = userLedgerStats.totalUserIdr > (globalLiquidity?.totalFiatInjected || 0);
   const discrepancy = userLedgerStats.totalUserIdr - (globalLiquidity?.totalFiatInjected || 0);
 
   const aggregatedStats = useMemo(() => {
-    if (!auditLogs) return { tradingFees: 0, profitCapture: 0, alxSales: 0 };
+    if (!auditLogs) return { tradingFees: 0, profitCapture: 0, alxSales: 0, debtRecovered: 0 };
 
     return auditLogs.reduce((acc: any, log: any) => {
       const amount = log.amountIdr || 0;
@@ -83,9 +89,12 @@ export function DashboardView({
         if (log.category === "Ali-Exchange" || log.category === "Market Trade") {
           acc.alxSales += amount;
         }
+        if (log.category === "Debt Recovery" || log.category === "Legalization") {
+          acc.debtRecovered += amount;
+        }
       }
       return acc;
-    }, { tradingFees: 0, profitCapture: 0, alxSales: 0 });
+    }, { tradingFees: 0, profitCapture: 0, alxSales: 0, debtRecovered: 0 });
   }, [auditLogs]);
 
   return (
@@ -99,7 +108,7 @@ export function DashboardView({
 
       {isAnomaly && (
         <Card className="p-8 bg-rose-600 text-white rounded-[3rem] border-none shadow-2xl animate-in zoom-in duration-500 flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-10"><Skull className="w-32 h-32" /></div>
+          <div className="absolute top-0 right-0 p-4 opacity-10"><Skull className="w-32 h-32" /></div>
           <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center shrink-0 animate-pulse">
             <AlertTriangle className="w-10 h-10 text-white" />
           </div>
@@ -107,7 +116,7 @@ export function DashboardView({
             <h4 className="text-2xl font-black uppercase italic tracking-tighter">ANOMALI LIKUIDITAS TERDETEKSI!</h4>
             <p className="text-sm font-bold uppercase opacity-80 leading-relaxed">
               Saldo di dompet nasabah (Rp {userLedgerStats.totalUserIdr.toLocaleString()}) melebihi catatan likuiditas masuk resmi. 
-              Terdeteksi dana tidak ter-audit sebesar <span className="underline decoration-2">Rp {discrepancy.toLocaleString()}</span>.
+              Terdeteksi dana tak ter-audit sebesar <span className="underline decoration-2">Rp {discrepancy.toLocaleString()}</span>.
             </p>
           </div>
           <Button 
@@ -146,10 +155,11 @@ export function DashboardView({
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 relative z-10">
-            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Profit Futures/Games</span><p className="text-xl font-black italic text-primary">Rp {aggregatedStats.profitCapture.toLocaleString()}</p></div>
-            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Revenue Fee Platform</span><p className="text-xl font-black italic text-accent">Rp {aggregatedStats.tradingFees.toLocaleString()}</p></div>
-            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Aset ALX Beredar</span><p className="text-xl font-black italic text-blue-500">{userLedgerStats.totalUserAlx.toFixed(4)} ALX</p></div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 pt-4 relative z-10">
+            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Revenue Fee</span><p className="text-xl font-black italic text-primary">Rp {aggregatedStats.tradingFees.toLocaleString()}</p></div>
+            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Recovered</span><p className="text-xl font-black italic text-green-600">Rp {aggregatedStats.debtRecovered.toLocaleString()}</p></div>
+            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Koin ALX</span><p className="text-xl font-black italic text-blue-500">{userLedgerStats.totalUserAlx.toFixed(2)}</p></div>
+            <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">USDT Node</span><p className="text-xl font-black italic text-teal-600">{userLedgerStats.totalUserUsdt.toFixed(2)}</p></div>
           </div>
         </Card>
         
