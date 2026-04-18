@@ -74,6 +74,16 @@ import Image from "next/image";
 import { AlphaMarketView } from "@/components/crypto/AlphaMarketView";
 
 const ALX_PRICE_IDR = 194004;
+const DEFAULT_USDT_IDR_RATE = 15850;
+const MARKUP = 1.02;
+
+const INITIAL_COINS = [
+  { symbol: "ALX", price: 12.24, baseIdr: 194004, change: 1.14, isUp: true, isNative: true },
+  { symbol: "BTC", price: 66262.29, baseIdr: 1125133021, change: -3.76, isUp: false },
+  { symbol: "ETH", price: 1987.12, baseIdr: 33741277, change: -3.98, isUp: false },
+  { symbol: "SOL", price: 82.63, baseIdr: 1403056, change: -4.69, isUp: false },
+  { symbol: "BNB", price: 582.41, baseIdr: 9231200, change: -2.14, isUp: false },
+];
 
 function HandCoinIcon({ className }: { className?: string }) {
   return (
@@ -93,17 +103,6 @@ function HandCoinIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-
-const DEFAULT_USDT_IDR_RATE = 15850;
-const MARKUP = 1.02;
-
-const INITIAL_COINS = [
-  { symbol: "ALX", price: 12.24, baseIdr: 194004, change: 1.14, isUp: true, isNative: true },
-  { symbol: "BTC", price: 66262.29, baseIdr: 1125133021, change: -3.76, isUp: false },
-  { symbol: "ETH", price: 1987.12, baseIdr: 33741277, change: -3.98, isUp: false },
-  { symbol: "SOL", price: 82.63, baseIdr: 1403056, change: -4.69, isUp: false },
-  { symbol: "BNB", price: 582.41, baseIdr: 9231200, change: -2.14, isUp: false },
-];
 
 function DashboardContent() {
   const { user, loading: userLoading } = useUser();
@@ -133,19 +132,24 @@ function DashboardContent() {
   const isPulling = useRef(false);
   const threshold = 140;
 
+  // Real-time Data Definitions
+  const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
+  const { data: globalLiquidity } = useDoc(liquidityRef);
+
   const userDocRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, "users", user.uid);
   }, [db, user]);
-
   const { data: userData } = useDoc(userDocRef);
 
-  // FETCH TRANSAKSI & TOPUP UNTUK ANALISIS HUTANG MULTI-ASET
   const txQuery = useMemoFirebase(() => (db && user ? query(collection(db, "users", user.uid, "transactions"), orderBy("timestamp", "desc"), limit(200)) : null), [db, user]);
   const { data: userTxs } = useCollection(txQuery);
 
   const pendingTopupQuery = useMemoFirebase(() => (db && user ? query(collection(db, "topup_requests"), where("userId", "==", user.uid), where("status", "==", "pending")) : null), [db, user]);
   const { data: pendingTopups } = useCollection(pendingTopupQuery);
+
+  const notificationsQuery = useMemoFirebase(() => (db && user ? query(collection(db, "users", user.uid, "notifications"), where("read", "==", false)) : null), [db, user]);
+  const { data: unreadNotifications } = useCollection(notificationsQuery);
 
   const currentUsdtRate = useMemo(() => dynamicUsdtRate || DEFAULT_USDT_IDR_RATE, [dynamicUsdtRate]);
 
@@ -167,17 +171,14 @@ function DashboardContent() {
     return idrBalance + (alxHoldings * alxPriceIdr) + (usdtHoldings * currentUsdtRate) + (btcHoldings * btcPriceIdr) + (ethHoldings * ethPriceIdr);
   }, [userData, marketCoins, currentUsdtRate]);
 
-  // ANALISIS HUTANG MULTI-ASET (IDR + KRIPTO)
   const debtInfo = useMemo(() => {
     if (!userData || !userTxs) return { illegalDebtIdr: 0, cryptoDebts: [], pendingDebt: 0, hasDebt: false };
 
-    // 1. Check IDR Discrepancy
     const idrInflow = userTxs.filter(t => t.type === 'income' && t.amount).reduce((acc, t) => acc + (t.amount || 0), 0);
     const idrOutflow = userTxs.filter(t => t.type === 'expense' && t.amount).reduce((acc, t) => acc + (t.amount || 0), 0);
     const idrLedger = idrInflow - idrOutflow;
     const illegalDebtIdr = Math.max(0, (userData.totalBalance || 0) - idrLedger);
 
-    // 2. Check Crypto Discrepancies
     const assets = ['ALX', 'BTC', 'ETH', 'USDT'];
     const cryptoDebts: any[] = [];
     assets.forEach(asset => {
@@ -557,17 +558,17 @@ function DashboardContent() {
         )}
       </main>
 
-      <Sheet open={isTambahDanaOpen} onOpenChange={closeAddFunds}>
+      <Sheet open={isTambahDanaOpen} onOpenChange={setIsTambahDanaOpen}>
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
           <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
           <div className="px-6 space-y-6">
             <SheetHeader className="text-left"><SheetTitle className="text-2xl font-black italic uppercase tracking-tighter">Metode Top-Up</SheetTitle></SheetHeader>
             <div className="grid grid-cols-1 gap-3">
-              <button onClick={() => { closeAddFunds(false); router.push('/crypto/buy'); }} className="flex items-center justify-between p-5 rounded-2xl bg-muted/50 border border-border hover:border-primary/30 transition-all group">
+              <button onClick={() => { setIsTambahDanaOpen(false); router.push('/crypto/buy'); }} className="flex items-center justify-between p-5 rounded-2xl bg-muted/50 border border-border hover:border-primary/30 transition-all group">
                 <div className="flex items-center gap-4"><div className="w-12 h-12 rounded-xl gold-gradient flex items-center justify-center shadow-lg text-white"><Zap className="w-6 h-6" /></div><div className="text-left"><p className="text-sm font-black italic uppercase">Beli Kripto</p><p className="text-[9px] font-bold text-muted-foreground uppercase">Visa, Mastercard, QRIS, Bank Transfer</p></div></div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground/30 group-hover:text-primary transition-colors" />
               </button>
-              <button onClick={() => { closeAddFunds(false); router.push('/topup'); }} className="flex items-center justify-between p-5 rounded-2xl bg-muted/50 border border-border hover:border-primary/30 transition-all group">
+              <button onClick={() => { setIsTambahDanaOpen(false); router.push('/topup'); }} className="flex items-center justify-between p-5 rounded-2xl bg-muted/50 border border-border hover:border-primary/30 transition-all group">
                 <div className="flex items-center gap-4"><div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center text-green-600 border border-green-500/20"><HandCoinIcon className="w-6 h-6" /></div><div className="text-left"><p className="text-sm font-black italic uppercase">AliBank Pay</p><p className="text-[9px] font-bold text-muted-foreground uppercase">Gunakan kode unik untuk setoran instan</p></div></div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground/30 group-hover:text-primary transition-colors" />
               </button>
