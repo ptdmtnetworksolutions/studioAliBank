@@ -50,14 +50,16 @@ import {
   Cpu,
   Smartphone,
   RefreshCw,
-  Wallet
+  Wallet,
+  CreditCard,
+  History
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
-import { doc, collection, query, where, orderBy, limit } from "firebase/firestore";
+import { doc, collection, query, where, orderBy, limit, updateDoc, increment, addDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -75,6 +77,14 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
 import Image from "next/image";
 
 const ALX_PRICE_IDR = 194004;
@@ -126,6 +136,8 @@ function DashboardContent() {
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isPnlOpen, setIsPnlOpen] = useState(false);
+  const [isDebtPaymentOpen, setIsDebtPaymentOpen] = useState(false);
+  const [isProcessingDebt, setIsProcessingDebt] = useState(false);
   
   const [marketCoins, setMarketCoins] = useState(INITIAL_COINS);
   const [isMarketLoading, setIsMarketLoading] = useState(true);
@@ -176,7 +188,7 @@ function DashboardContent() {
   }, [userData, marketCoins, currentUsdtRate]);
 
   const debtInfo = useMemo(() => {
-    if (!userData || !userTxs) return { illegalDebtIdr: 0, cryptoDebts: [], pendingDebt: 0, hasDebt: false };
+    if (!userData || !userTxs) return { illegalDebtIdr: 0, totalDebtValIdr: 0, cryptoDebts: [], pendingDebt: 0, hasDebt: false };
 
     const idrInflow = userTxs.filter(t => t.type === 'income' && t.amount).reduce((acc, t) => acc + (t.amount || 0), 0);
     const idrOutflow = userTxs.filter(t => t.type === 'expense' && t.amount).reduce((acc, t) => acc + (t.amount || 0), 0);
@@ -185,14 +197,20 @@ function DashboardContent() {
 
     const assets = ['ALX', 'BTC', 'ETH', 'USDT'];
     const cryptoDebts: any[] = [];
+    let totalCryptoDebtValIdr = 0;
+
     assets.forEach(asset => {
       const cryptoIn = userTxs.filter(t => t.type === 'income' && t.cryptoCurrency === asset).reduce((acc, t) => acc + (t.cryptoAmount || t.toAmount || 0), 0);
       const cryptoOut = userTxs.filter(t => t.type === 'expense' && t.cryptoCurrency === asset).reduce((acc, t) => acc + (t.cryptoAmount || t.fromAmount || 0), 0);
       const cryptoLedger = cryptoIn - cryptoOut;
       const cryptoActual = userData.cryptoBalances?.[asset] || 0;
       const diff = Math.max(0, cryptoActual - cryptoLedger);
+      
       if (diff > 0.000001) {
-        cryptoDebts.push({ asset, amount: diff });
+        const priceMap: any = { ALX: 194004, BTC: 1100000000, ETH: 35000000, USDT: 15850 };
+        const val = diff * (priceMap[asset] || 0);
+        totalCryptoDebtValIdr += val;
+        cryptoDebts.push({ asset, amount: diff, valueIdr: val });
       }
     });
 
@@ -202,6 +220,7 @@ function DashboardContent() {
       illegalDebtIdr,
       cryptoDebts,
       pendingDebt,
+      totalDebtValIdr: illegalDebtIdr + totalCryptoDebtValIdr + pendingDebt,
       hasDebt: illegalDebtIdr > 1000 || cryptoDebts.length > 0 || pendingDebt > 0
     };
   }, [userData, userTxs, pendingTopups]);
@@ -350,6 +369,50 @@ function DashboardContent() {
     }
   };
 
+  const handleFullRepayment = async () => {
+    if (!user || !db || !userData) return;
+    setIsProcessingDebt(true);
+    
+    try {
+      const totalToPay = debtInfo.totalDebtValIdr;
+      if (userData.totalBalance < totalToPay) {
+        throw new Error("Saldo IDR Anda tidak cukup untuk pelunasan penuh. Silakan Top-up terlebih dahulu.");
+      }
+
+      await updateDoc(userDocRef!, {
+        totalBalance: increment(-totalToPay)
+      });
+
+      // Log kuitansi legalitas
+      await addDoc(collection(db, "users", user.uid, "transactions"), {
+        date: new Date().toISOString(),
+        description: "Pelunasan Hutang Ilegal (Full Settlement)",
+        category: "Legalization",
+        amount: totalToPay,
+        type: 'expense',
+        status: "success",
+        timestamp: serverTimestamp()
+      });
+
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `DEBT-SETTLE-${Date.now()}`,
+        category: "Debt Recovery",
+        amountIdr: totalToPay,
+        description: `Full illegal debt settlement by ${userData.name}. Account legalized.`,
+        status: "success",
+        timestamp: serverTimestamp(),
+        userEmail: user.email
+      });
+
+      toast({ title: "Akun Telah Dilegalkan", description: "Seluruh hutang ilegal Anda telah lunas." });
+      setIsDebtPaymentOpen(false);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Pelunasan", description: err.message });
+    } finally {
+      setIsProcessingDebt(false);
+    }
+  };
+
   const handleTouchStart = (e: React.TouchEvent) => {
     if (window.scrollY > 0) return;
     startY.current = e.touches[0].clientY;
@@ -443,36 +506,34 @@ function DashboardContent() {
         className="px-4 pt-2 space-y-6 will-change-transform"
         style={{ transform: `translateY(${pullY}px)`, transition: isPulling.current ? 'none' : 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' }}
       >
-        {/* SHARED DEBT ALERT SECTION */}
+        {/* GLOBAL DEBT ALERT SECTION - USER SIDE */}
         {debtInfo.hasDebt && (
-          <Card className="bg-rose-600 text-white rounded-2xl p-5 shadow-lg border-none animate-in zoom-in duration-500 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10"><Skull className="w-16 h-16" /></div>
-            <div className="flex items-center gap-4 relative z-10">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0"><ShieldAlert className="w-6 h-6 text-white" /></div>
-              <div className="flex-1 space-y-1">
-                <h3 className="text-xs font-black uppercase italic tracking-widest">Kewajiban Akun Terdeteksi</h3>
-                <p className="text-[10px] font-bold uppercase opacity-80 leading-tight">Sistem mendeteksi selisih saldo multi-aset yang belum diselesaikan secara riil.</p>
+          <Card className="bg-rose-600 text-white rounded-[2rem] p-6 shadow-xl border-none animate-in zoom-in duration-500 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10"><Skull className="w-24 h-24" /></div>
+            <div className="flex flex-col gap-4 relative z-10">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0 border border-white/10 shadow-lg"><ShieldAlert className="w-7 h-7 text-white" /></div>
+                <div className="flex-1 space-y-0.5">
+                  <h3 className="text-sm font-black uppercase italic tracking-widest">Status Keamanan Akun</h3>
+                  <p className="text-[10px] font-bold uppercase opacity-80 leading-tight">Terdeteksi kewajiban dana yang belum diselesaikan.</p>
+                </div>
               </div>
-            </div>
-            <div className="mt-4 space-y-2 relative z-10">
-              {debtInfo.illegalDebtIdr > 1000 && (
-                <div className="flex justify-between items-center bg-black/10 p-2 rounded-lg">
-                  <span className="text-[9px] font-black uppercase italic">Hutang IDR Ilegal</span>
-                  <span className="text-xs font-black italic">Rp {debtInfo.illegalDebtIdr.toLocaleString()}</span>
+              
+              <div className="bg-black/10 rounded-2xl p-4 space-y-2 border border-white/5">
+                <div className="flex justify-between items-center"><span className="text-[9px] font-black uppercase italic">Total Hutang Ilegal</span><span className="text-base font-black italic">Rp {debtInfo.totalDebtValIdr.toLocaleString()}</span></div>
+                <div className="h-px bg-white/10 w-full" />
+                <div className="grid grid-cols-2 gap-2">
+                   {debtInfo.illegalDebtIdr > 1000 && <div className="text-[8px] font-bold uppercase opacity-70">IDR: Rp{debtInfo.illegalDebtIdr.toLocaleString()}</div>}
+                   {debtInfo.cryptoDebts.map(c => <div key={c.asset} className="text-[8px] font-bold uppercase opacity-70">{c.asset}: {c.amount.toFixed(4)}</div>)}
                 </div>
-              )}
-              {debtInfo.cryptoDebts.map((c: any) => (
-                <div key={c.asset} className="flex justify-between items-center bg-black/10 p-2 rounded-lg">
-                  <span className="text-[9px] font-black uppercase italic">Hutang {c.asset} Ilegal</span>
-                  <span className="text-xs font-black italic">{c.amount.toFixed(6)} {c.asset}</span>
-                </div>
-              ))}
-              {debtInfo.pendingDebt > 0 && (
-                <div className="flex justify-between items-center bg-black/10 p-2 rounded-lg">
-                  <span className="text-[9px] font-black uppercase italic">Hutang Top-up Pending</span>
-                  <span className="text-xs font-black italic">Rp {debtInfo.pendingDebt.toLocaleString()}</span>
-                </div>
-              )}
+              </div>
+
+              <Button 
+                onClick={() => setIsDebtPaymentOpen(true)}
+                className="w-full h-12 bg-white text-rose-600 hover:bg-white/90 border-none font-black italic uppercase text-[10px] rounded-xl shadow-lg"
+              >
+                SELESAIKAN KEWAJIBAN SEKARANG
+              </Button>
             </div>
           </Card>
         )}
@@ -569,8 +630,8 @@ function DashboardContent() {
                 { name: "Referral", icon: UserPlus, href: "/profile" },
                 { name: "Lainnya", icon: Grid3X3, href: "/marketplace" },
               ].map((service, idx) => (
-                <div key={idx} className="flex flex-col items-center gap-2 cursor-pointer" onClick={() => router.push(service.href)}>
-                  <div className="w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center shadow-sm">
+                <div key={idx} className="flex flex-col items-center gap-3 cursor-pointer" onClick={() => router.push(service.href)}>
+                  <div className="w-12 h-12 rounded-2xl bg-muted border border-border flex items-center justify-center shadow-sm">
                     <service.icon className="w-6 h-6 text-foreground" />
                   </div>
                   <span className="text-[10px] font-bold text-muted-foreground italic text-center leading-none">{service.name}</span>
@@ -638,27 +699,61 @@ function DashboardContent() {
                 />
               </div>
             </section>
-            
-            {/* SWIFT PROMOS */}
-            <section className="pb-10">
-              <Carousel setApi={setSwiftApi} className="w-full">
-                <CarouselContent>
-                  <CarouselItem>
-                    <Card className="bg-[#1A1D1F] border-none rounded-[2rem] p-8 text-white relative overflow-hidden h-40">
-                       <div className="absolute top-0 right-0 p-4 opacity-10"><LogoIcon className="w-32 h-32" /></div>
-                       <div className="relative z-10 space-y-2">
-                         <Badge className="bg-primary text-black font-black text-[7px] uppercase">Ali-Vault Pro</Badge>
-                         <h3 className="text-xl font-black italic uppercase tracking-tighter">Amankan Aset Anda</h3>
-                         <p className="text-[10px] text-white/40 uppercase">Aktifkan Signature Mandiri Hari Ini.</p>
-                       </div>
-                    </Card>
-                  </CarouselItem>
-                </CarouselContent>
-              </Carousel>
-            </section>
           </div>
         )}
       </main>
+
+      {/* DIALOG PILIHAN PEMBAYARAN HUTANG */}
+      <Dialog open={isDebtPaymentOpen} onOpenChange={setIsDebtPaymentOpen}>
+        <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-0 overflow-hidden shadow-2xl">
+          <div className="bg-rose-600 h-2 w-full" />
+          <div className="p-8 space-y-8">
+            <DialogHeader className="text-center space-y-2">
+              <div className="w-14 h-14 rounded-2xl bg-rose-500/10 mx-auto flex items-center justify-center shadow-xl p-3 mb-2"><ShieldAlert className="text-rose-600 w-full h-full" /></div>
+              <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">Legalitas Akun</DialogTitle>
+              <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Selesaikan hutang ilegal Anda untuk membuka fitur penuh AliBank.</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <button 
+                onClick={handleFullRepayment}
+                disabled={isProcessingDebt}
+                className="w-full p-6 rounded-2xl bg-muted/50 border border-border flex items-center justify-between group hover:border-primary/40 transition-all text-left"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><CheckCircle2 className="w-5 h-5" /></div>
+                  <div>
+                    <p className="text-sm font-black italic uppercase">Pelunasan Penuh</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Bayar instan Rp{debtInfo.totalDebtValIdr.toLocaleString()} dari saldo IDR.</p>
+                  </div>
+                </div>
+                {isProcessingDebt ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4 opacity-30 group-hover:opacity-100" />}
+              </button>
+
+              <button 
+                onClick={() => { setIsDebtPaymentOpen(false); router.push('/debt-repayment'); }}
+                className="w-full p-6 rounded-2xl bg-muted/50 border border-border flex items-center justify-between group hover:border-primary/40 transition-all text-left"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent"><History className="w-5 h-5" /></div>
+                  <div>
+                    <p className="text-sm font-black italic uppercase">Program Cicilan (1 Thn)</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Restrukturisasi ke cicilan bulanan dengan bunga rendah.</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 opacity-30 group-hover:opacity-100" />
+              </button>
+            </div>
+
+            <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex gap-3">
+              <Info className="w-5 h-5 text-amber-500 shrink-0" />
+              <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+                Akun akan tetap berstatus "Dicurigai" di radar Admin hingga kewajiban diselesaikan atau program cicilan dimulai.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Sheet open={isTambahDanaOpen} onOpenChange={setIsTambahDanaOpen}>
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">

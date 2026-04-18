@@ -41,6 +41,21 @@
         }
       }
     },
+    "DebtPlan": {
+      "title": "DebtPlan",
+      "description": "Installment plan for illegal funds recovery.",
+      "type": "object",
+      "properties": {
+        "totalPrincipal": { "type": "number" },
+        "remainingBalance": { "type": "number" },
+        "interestRate": { "type": "number" },
+        "monthlyInstallment": { "type": "number" },
+        "monthsPaid": { "type": "number" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "nextDueDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "settled", "overdue"] }
+      }
+    },
     "FuturesPosition": {
       "title": "FuturesPosition",
       "description": "Active leveraged trading position with real balance impact.",
@@ -94,6 +109,10 @@
       {
         "path": "/users/{userId}",
         "definition": { "entityName": "UserProfile", "description": "User profile data." }
+      },
+      {
+        "path": "/users/{userId}/debt_plans/{planId}",
+        "definition": { "entityName": "DebtPlan", "description": "Active installment recovery plan." }
       },
       {
         "path": "/users/{userId}/futures_positions/{posId}",
