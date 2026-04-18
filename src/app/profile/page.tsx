@@ -10,34 +10,36 @@ import {
   Share2, 
   Copy, 
   ChevronRight, 
-  DollarSign, 
   User, 
-  CircleUserRound,
+  Zap, 
+  ShieldAlert, 
+  LogOut, 
+  Crown, 
+  Star, 
+  Loader2, 
+  Link2, 
+  Unlink,
+  ExternalLink,
+  ShieldCheck,
   LayoutGrid,
   Users,
-  Zap,
   Ticket,
   ArrowRightLeft,
   CalendarDays,
-  Target,
-  Smile,
-  ShieldAlert,
-  LogOut,
-  Trophy,
-  Crown,
-  Star
+  Smile
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useUser, useDoc, useFirestore, useAuth, useMemoFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { useMemo, useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useMetaMask } from "@/hooks/useMetaMask";
 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
@@ -49,6 +51,9 @@ export default function ProfilePage() {
   const db = useFirestore();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
+  
+  // MetaMask SDK Integration
+  const { account, connect, disconnect, isConnecting } = useMetaMask();
 
   useEffect(() => {
     setMounted(true);
@@ -61,7 +66,6 @@ export default function ProfilePage() {
     return user && (user.email === OWNER_EMAIL || user.uid === OWNER_UID);
   }, [user]);
 
-  // LOGIKA TIER MEMBERSHIP BERDASARKAN SALDO ALX
   const tierInfo = useMemo(() => {
     const alxBalance = userData?.cryptoBalances?.ALX || 0;
     if (alxBalance >= 10000) return { name: "Platinum VIP", color: "text-primary", bg: "bg-primary/10", icon: Crown, discount: "Zero Fee" };
@@ -73,6 +77,21 @@ export default function ProfilePage() {
     if (userData?.accountNumber) {
       navigator.clipboard.writeText(userData.accountNumber);
       toast({ title: "UID Disalin", description: "Nomor ID nasabah telah disalin." });
+    }
+  };
+
+  const handleLinkMetaMask = async () => {
+    try {
+      const address = await connect();
+      if (address && userDocRef) {
+        await updateDoc(userDocRef, {
+          externalWalletAddress: address,
+          lastWalletSync: new Date().toISOString()
+        });
+        toast({ title: "MetaMask Tertaut", description: "Alamat dompet riil Anda telah disinkronkan." });
+      }
+    } catch (e) {
+      toast({ variant: "destructive", title: "Koneksi Gagal" });
     }
   };
 
@@ -92,7 +111,6 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-20 flex flex-col font-body transition-colors duration-300">
-      {/* Header - Icons Right */}
       <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-md z-50">
         <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors">
           <X className="w-6 h-6 text-foreground" />
@@ -108,7 +126,6 @@ export default function ProfilePage() {
       </header>
 
       <main className="flex-1 px-5 pt-2 space-y-8 overflow-y-auto no-scrollbar pb-10">
-        {/* User Info Section */}
         <section className="flex items-start justify-between">
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 rounded-3xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-2 border-border relative shadow-xl">
@@ -151,7 +168,57 @@ export default function ProfilePage() {
           <ChevronRight className="w-5 h-5 text-muted-foreground/40 mt-6" onClick={() => router.push('/settings')} />
         </section>
 
-        {/* ADMIN ACCESS - SPECIAL BUTTON FOR OWNER */}
+        {/* METAMASK SDK SECTION - THE NATIVE BRIDGE */}
+        <section className="animate-in slide-in-from-top-4 duration-500">
+           <Card className="liquid-glass border-primary/20 p-6 rounded-[2.5rem] shadow-xl overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                 <LogoIcon className="w-24 h-24" />
+              </div>
+              <div className="flex flex-col gap-5">
+                 <div className="flex justify-between items-start">
+                    <div>
+                       <h3 className="text-sm font-black italic uppercase text-foreground">MetaMask Native Bridge</h3>
+                       <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Otentikasi Dompet Web3 Riil</p>
+                    </div>
+                    {account ? (
+                       <Badge className="bg-green-600 text-white font-black text-[8px] uppercase px-3 h-6 border-none animate-pulse">Connected</Badge>
+                    ) : (
+                       <Badge variant="outline" className="border-primary/20 text-primary font-black text-[8px] uppercase px-3 h-6">Not Linked</Badge>
+                    )}
+                 </div>
+
+                 {account ? (
+                    <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-between gap-4">
+                       <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center p-1.5 shrink-0 shadow-inner">
+                             <img src="https://raw.githubusercontent.com/MetaMask/metamask-extension/develop/app/images/logo/metamask-fox.svg" className="w-full h-full" alt="fox" />
+                          </div>
+                          <span className="text-[10px] font-mono font-bold text-accent truncate">{account}</span>
+                       </div>
+                       <button onClick={disconnect} className="p-2 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors">
+                          <Unlink className="w-4 h-4" />
+                       </button>
+                    </div>
+                 ) : (
+                    <Button 
+                       onClick={handleLinkMetaMask}
+                       disabled={isConnecting}
+                       className="w-full h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-lg group"
+                    >
+                       {isConnecting ? <Loader2 className="animate-spin w-5 h-5" /> : (
+                          <span className="flex items-center gap-3">
+                             <Link2 className="w-5 h-5 group-hover:rotate-45 transition-transform" /> TAUTKAN METAMASK SDK
+                          </span>
+                       )}
+                    </Button>
+                 )}
+                 <p className="text-[8px] font-medium text-muted-foreground leading-relaxed italic text-center px-4 uppercase">
+                    Hubungkan dompet eksternal Anda untuk penarikan dana otomatis dan tanda tangan transaksi on-chain yang lebih aman melalui node Infura AliBank.
+                 </p>
+              </div>
+           </Card>
+        </section>
+
         {isAdmin && (
           <section className="animate-in fade-in zoom-in duration-500">
             <Button 
@@ -172,24 +239,6 @@ export default function ProfilePage() {
           </section>
         )}
 
-        {/* ALX Utility Banner */}
-        <section className="animate-in slide-in-from-bottom-4 duration-500">
-          <Card className="liquid-glass border-primary/20 p-6 rounded-[2rem] flex items-center justify-between shadow-lg relative overflow-hidden group cursor-pointer" onClick={() => router.push('/crypto/market/alx')}>
-            <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform">
-              <LogoIcon className="w-32 h-32" />
-            </div>
-            <div className="relative z-10 space-y-1">
-              <Badge className="bg-primary text-black font-black text-[8px] uppercase px-2 mb-2">ALX BENEFITS</Badge>
-              <h3 className="text-base font-black italic uppercase tracking-tight">Membership Tier</h3>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase italic">{tierInfo.discount} on all trades</p>
-            </div>
-            <div className="w-12 h-12 rounded-2xl gold-gradient flex items-center justify-center shadow-xl relative z-10">
-              <tierInfo.icon className="text-white w-6 h-6" />
-            </div>
-          </Card>
-        </section>
-
-        {/* Recommended Grid Section */}
         <section className="space-y-6">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-sm font-black text-muted-foreground uppercase tracking-widest">Disarankan</h2>
@@ -228,7 +277,6 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        {/* Footer Mode Switcher */}
         <footer className="pt-6 space-y-4">
           <button className="w-full bg-muted/20 hover:bg-muted/40 transition-all rounded-2xl p-5 flex items-center justify-between group">
             <div className="flex items-center gap-3">
@@ -245,7 +293,6 @@ export default function ProfilePage() {
             </div>
           </button>
 
-          {/* LOGOUT BUTTON */}
           <Button 
             onClick={handleLogout}
             variant="destructive" 
