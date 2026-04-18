@@ -23,7 +23,9 @@ import {
   Star,
   Loader2,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Trophy,
+  ShieldCheck
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
