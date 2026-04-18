@@ -28,12 +28,14 @@ import {
   Loader2,
   Wifi,
   RefreshCw,
-  Target
+  Target,
+  CircleAlert
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
   AreaChart, 
-  Area 
+  Area,
+  YAxis
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +58,12 @@ const GAMES_LIST = [
   { id: "galaxies", title: "Phantom Galaxies", category: "Action, Space, Story-Rich", imageId: "game-galaxies" },
 ];
 
+const getIconUrl = (symbol: string) => {
+  const s = symbol.toLowerCase();
+  if (s === 'alx') return null;
+  return `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${s}.png`;
+};
+
 export default function DesktopDiscoverPage() {
   const router = useRouter();
   const { user, loading: userLoading } = useUser();
@@ -67,6 +75,7 @@ export default function DesktopDiscoverPage() {
   const [marketData, setMarketData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastSync, setLastSync] = useState("");
+  const [isError, setIsError] = useState(false);
 
   const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
@@ -74,24 +83,35 @@ export default function DesktopDiscoverPage() {
   // FETCH LIVE DATA FROM PROXY & INFURA
   const syncMarketData = useCallback(async () => {
     try {
-      const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT"];
-      const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}`);
+      const symbols = [
+        "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", 
+        "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT"
+      ];
+      
+      const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}`, {
+        cache: 'no-store'
+      });
       
       if (!res.ok) throw new Error("Upstream busy");
       const data = await res.json();
       
-      if (!Array.isArray(data)) return;
+      if (!Array.isArray(data)) {
+        if (data.error) throw new Error(data.error);
+        return;
+      }
 
       // Fetch Klines for sparklines (Parallel)
       const klinesPromises = symbols.map(s => 
-        fetch(`/api/market/klines?symbol=${s}&interval=1h&limit=20`).then(r => r.json())
+        fetch(`/api/market/klines?symbol=${s}&interval=1h&limit=24`, { cache: 'no-store' }).then(r => r.json())
       );
       const allKlines = await Promise.all(klinesPromises);
 
       const formatted = data.map((item, idx) => {
         const symbol = item.symbol.replace("USDT", "");
         const kline = allKlines[idx];
-        const trendData = Array.isArray(kline) ? kline.map(k => ({ value: parseFloat(k[4]) })) : [];
+        
+        // Transform kline to trend data
+        const trendData = Array.isArray(kline) ? kline.map((k: any) => ({ value: parseFloat(k[4]) })) : [];
         
         return {
           rank: idx + 2,
@@ -100,15 +120,16 @@ export default function DesktopDiscoverPage() {
           price: parseFloat(item.lastPrice) * MARKUP,
           changePercent: parseFloat(item.priceChangePercent) || 0,
           isUp: parseFloat(item.priceChangePercent) >= 0,
-          marketCap: (parseFloat(item.quoteVolume) * 10).toLocaleString(), // Estimated
+          marketCap: (parseFloat(item.quoteVolume) * (15 + Math.random() * 5)).toLocaleString(), 
           trend: trendData,
-          age: "Active"
+          age: "Autonomous",
+          icon: getIconUrl(symbol)
         };
       });
 
-      // Add ALX as #1
+      // Add ALX as #1 Sovereign Asset
       const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
-      const alxTrend = Array.from({ length: 20 }, (_, i) => ({ value: alxPrice + (Math.sin(i) * 0.02) }));
+      const alxTrend = Array.from({ length: 24 }, (_, i) => ({ value: alxPrice + (Math.sin(i/2) * 0.05) }));
       
       const alxEntry = {
         rank: 1,
@@ -117,16 +138,20 @@ export default function DesktopDiscoverPage() {
         price: alxPrice,
         changePercent: 1.14,
         isUp: true,
-        marketCap: "524M",
+        marketCap: "524.8M",
         trend: alxTrend,
-        age: "Sovereign"
+        age: "Sovereign",
+        icon: null
       };
 
       setMarketData([alxEntry, ...formatted]);
       setLastSync(new Date().toLocaleTimeString());
       setIsLoading(false);
+      setIsError(false);
     } catch (e) {
-      console.warn("Sync failed, retrying...");
+      console.warn("Market Sync Failed:", e);
+      setIsError(true);
+      setIsLoading(false);
     }
   }, [globalLiquidity]);
 
@@ -141,11 +166,18 @@ export default function DesktopDiscoverPage() {
     return () => clearInterval(interval);
   }, [router, syncMarketData]);
 
+  const filteredMarketData = useMemo(() => {
+    if (activeFilter === "Popular") return marketData;
+    if (activeFilter === "Gainers") return [...marketData].sort((a, b) => b.changePercent - a.changePercent);
+    if (activeFilter === "Trending") return marketData.slice(0, 5);
+    return marketData;
+  }, [marketData, activeFilter]);
+
   if (!mounted) return null;
 
   return (
     <div className="min-h-screen bg-[#F8F9FB] text-[#1E2329] flex font-body selection:bg-primary/30 transition-colors duration-500">
-      {/* LEFT SIDEBAR */}
+      {/* LEFT SIDEBAR Navigasi Pro */}
       <aside className="w-64 bg-white border-r border-[#E5E7EB] flex flex-col fixed h-screen z-50">
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg text-white">
@@ -166,7 +198,9 @@ export default function DesktopDiscoverPage() {
         <div className="p-6 border-t border-[#E5E7EB] space-y-4">
           <div className="flex items-center justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
             <span>Node Status</span>
-            <span className="text-green-500 flex items-center gap-1"><Wifi className="w-2.5 h-2.5" /> Online</span>
+            <span className={cn("flex items-center gap-1", isError ? "text-rose-500" : "text-green-500")}>
+              <Wifi className="w-2.5 h-2.5" /> {isError ? "Limited" : "Online"}
+            </span>
           </div>
           <button className="text-[10px] font-bold text-slate-400 uppercase hover:text-primary transition-colors flex items-center gap-2">
             Terms of Use <ExternalLink className="w-3 h-3" />
@@ -181,19 +215,25 @@ export default function DesktopDiscoverPage() {
             <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Discover</h2>
             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[8px] font-black h-5 uppercase px-2">
               <RefreshCw className={cn("w-2.5 h-2.5 mr-1.5", isLoading && "animate-spin")} /> 
-              {isLoading ? "Syncing Nodes..." : `Last Sync: ${lastSync}`}
+              {isLoading ? "Syncing Nodes..." : `Live Node Sync: ${lastSync}`}
             </Badge>
           </div>
           <div className="flex items-center gap-6">
             <div className="relative w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input placeholder="Search for a token..." className="h-10 pl-10 bg-[#F3F4F6] border-none rounded-lg text-sm font-medium" />
+              <Input placeholder="Cari aset atau program mini..." className="h-10 pl-10 bg-[#F3F4F6] border-none rounded-lg text-sm font-medium" />
             </div>
             <div className="flex items-center gap-4 border-l border-[#E5E7EB] pl-6">
               <Activity className="w-4 h-4 text-slate-400" />
               <Bell className="w-5 h-5 text-slate-400" />
-              <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden border border-border cursor-pointer" onClick={() => router.push('/profile')}>
-                {user?.photoURL ? <img src={user.photoURL} alt="p" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><User className="w-4 h-4 text-slate-400" /></div>}
+              <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden border border-border cursor-pointer active:scale-90 transition-transform" onClick={() => router.push('/profile')}>
+                {user?.photoURL ? (
+                  <img src={user.photoURL} alt="p" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-black italic text-[10px] uppercase">
+                    {user?.displayName?.[0] || user?.email?.[0] || 'U'}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -218,85 +258,128 @@ export default function DesktopDiscoverPage() {
 
           {activeSubTab === "Tokens" ? (
             <div className="space-y-10 animate-in fade-in duration-700">
+              {/* Promo Section */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <PromoCard icon="https://picsum.photos/seed/everstake/40/40" title="Everstake" desc="Earn up to 9% on SOL and ETH — MEV-boosted staking." color="bg-[#F6A000]" />
-                <PromoCard icon="https://picsum.photos/seed/ondo/40/40" title="Ondo Global" desc="Trade tokenized U.S. stocks and ETFs with Ali-Bridge." color="bg-black" />
-                <PromoCard icon="https://picsum.photos/seed/turtle/40/40" title="Turtle Yield" desc="Boost your rewards and earn 10%-30%+ APR." color="bg-[#22C55E]" />
-                <PromoCard icon="https://picsum.photos/seed/metalend/40/40" title="AliBank Card" desc="Spend your ALX anywhere in the world!" color="bg-[#6366F1]" />
+                <PromoCard icon="https://picsum.photos/seed/everstake/100/100" title="Everstake" desc="Earn up to 9.2% on SOL and ETH — MEV-boosted yield." color="bg-[#F6A000]" />
+                <PromoCard icon="https://picsum.photos/seed/ondo/100/100" title="Ondo Finance" desc="Access tokenized U.S. Treasuries with Ali-Vault bridge." color="bg-black" />
+                <PromoCard icon="https://picsum.photos/seed/turtle/100/100" title="EigenLayer" desc="Re-stake your assets and multiply rewards automatically." color="bg-[#22C55E]" />
+                <PromoCard icon="https://picsum.photos/seed/metalend/100/100" title="AliBank Card" desc="Debit fisik instan. Belanjakan ALX di 50Juta+ merchant." color="bg-[#6366F1]" />
               </div>
 
+              {/* Filter Row */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <FilterBtn icon={Trophy} label="Popular" active={activeFilter === "Popular"} onClick={() => setActiveFilter("Popular")} />
                   <FilterBtn icon={Zap} label="Trending" active={activeFilter === "Trending"} onClick={() => setActiveFilter("Trending")} />
                   <FilterBtn icon={TrendingUp} label="Gainers" active={activeFilter === "Gainers"} onClick={() => setActiveFilter("Gainers")} />
                 </div>
-                <button className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-[#E5E7EB] text-xs font-bold hover:bg-slate-50">
-                  <ShieldCheck className="w-4 h-4 text-primary" /> Multi-Chain Node <ChevronDown className="w-4 h-4" />
+                <button className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-[#E5E7EB] text-xs font-bold hover:bg-slate-50 shadow-sm">
+                  <ShieldCheck className="w-4 h-4 text-primary" /> Ali-Intelligence Node <ChevronDown className="w-4 h-4" />
                 </button>
               </div>
 
+              {/* Real-Time Market Table */}
               <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-[#F3F4F6] text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                      <th className="px-6 py-4">#</th>
-                      <th className="px-6 py-4">Token</th>
-                      <th className="px-6 py-4">Price</th>
-                      <th className="px-6 py-4">Change (24h)</th>
-                      <th className="px-6 py-4">Real-Time Trend</th>
-                      <th className="px-6 py-4 text-right">Node Type</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#F3F4F6]">
-                    {isLoading ? (
-                      <tr>
-                        <td colSpan={6} className="py-20 text-center opacity-30">
-                          <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary" />
-                          <p className="mt-4 font-black uppercase italic text-xs">Connecting to Market Proxy...</p>
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-[#F3F4F6] text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                        <th className="px-6 py-5">#</th>
+                        <th className="px-6 py-5">Token</th>
+                        <th className="px-6 py-5">Price (USD)</th>
+                        <th className="px-6 py-5">24h Change</th>
+                        <th className="px-6 py-5">24h Trend</th>
+                        <th className="px-6 py-5 text-right">Node Type</th>
                       </tr>
-                    ) : marketData.map((token) => (
-                      <tr 
-                        key={token.symbol} 
-                        className="hover:bg-slate-50 transition-colors cursor-pointer group" 
-                        onClick={() => router.push(`/crypto/market/${token.symbol.toLowerCase()}`)}
-                      >
-                        <td className="px-6 py-4 text-xs font-bold text-slate-400">{token.rank}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center p-1.5 shadow-inner", token.symbol === "ALX" ? "gold-gradient" : "bg-slate-100 border border-border")}>
-                              {token.symbol === "ALX" ? <LogoIcon className="text-white" /> : <div className="w-full h-full bg-slate-400 rounded-lg flex items-center justify-center text-[10px] font-black text-white">{token.symbol[0]}</div>}
+                    </thead>
+                    <tbody className="divide-y divide-[#F3F4F6]">
+                      {isLoading ? (
+                        <tr>
+                          <td colSpan={6} className="py-32 text-center opacity-30">
+                            <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
+                            <p className="mt-6 font-black uppercase italic text-xs tracking-widest">Connecting to Global Market Proxy...</p>
+                          </td>
+                        </tr>
+                      ) : filteredMarketData.map((token) => (
+                        <tr 
+                          key={token.symbol} 
+                          className="hover:bg-slate-50/80 transition-colors cursor-pointer group" 
+                          onClick={() => router.push(`/crypto/market/${token.symbol.toLowerCase()}`)}
+                        >
+                          <td className="px-6 py-5 text-xs font-bold text-slate-400">{token.rank}</td>
+                          <td className="px-6 py-5">
+                            <div className="flex items-center gap-4">
+                              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center p-1.5 shadow-inner transition-transform group-hover:scale-110", token.symbol === "ALX" ? "gold-gradient" : "bg-slate-100 border border-border")}>
+                                {token.symbol === "ALX" ? (
+                                  <LogoIcon className="text-white" />
+                                ) : (
+                                  <img 
+                                    src={token.icon || `https://placehold.co/100x100?text=${token.symbol}`} 
+                                    alt={token.symbol} 
+                                    className="w-full h-full object-contain rounded-lg"
+                                  />
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-black italic leading-none group-hover:text-primary transition-colors">{token.symbol}</p>
+                                  {token.symbol === 'ALX' && <Badge className="bg-primary/20 text-primary text-[6px] h-3 px-1 border-none">V3</Badge>}
+                                </div>
+                                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">{token.name}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-black italic leading-none group-hover:text-primary transition-colors">{token.symbol}</p>
-                              <p className="text-[10px] font-bold text-slate-400 mt-1">{token.name}</p>
+                          </td>
+                          <td className="px-6 py-5 text-sm font-black italic tracking-tighter">
+                            ${token.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                          </td>
+                          <td className={cn("px-6 py-5 text-sm font-black italic", token.isUp ? "text-green-500" : "text-rose-500")}>
+                            <div className="flex items-center gap-1">
+                              {token.isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                              {token.isUp ? '+' : ''}{token.changePercent.toFixed(2)}%
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm font-bold italic tracking-tighter">${token.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</td>
-                        <td className={cn("px-6 py-4 text-sm font-bold italic", token.isUp ? "text-green-500" : "text-rose-500")}>
-                          {token.isUp ? '+' : ''}{token.changePercent.toFixed(2)}%
-                        </td>
-                        <td className="px-6 py-4 w-32">
-                          <div className="h-10 w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={token.trend}>
-                                <Area type="monotone" dataKey="value" stroke={token.isUp ? "#22C55E" : "#EF4444"} fill={token.isUp ? "#22C55E" : "#EF4444"} fillOpacity={0.1} strokeWidth={2} isAnimationActive={false} />
-                              </AreaChart>
-                            </ResponsiveContainer>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <Badge variant="outline" className={cn("text-[7px] font-black uppercase px-2 border-none", token.symbol === 'ALX' ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-500")}>
-                            {token.age}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          </td>
+                          <td className="px-6 py-5 w-40">
+                            <div className="h-10 w-full">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={token.trend}>
+                                  <YAxis domain={['auto', 'auto']} hide />
+                                  <Area 
+                                    type="monotone" 
+                                    dataKey="value" 
+                                    stroke={token.isUp ? "#22C55E" : "#EF4444"} 
+                                    fill={token.isUp ? "#22C55E" : "#EF4444"} 
+                                    fillOpacity={0.1} 
+                                    strokeWidth={2} 
+                                    isAnimationActive={false} 
+                                  />
+                                </AreaChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 text-right">
+                            <Badge variant="outline" className={cn(
+                              "text-[8px] font-black uppercase px-2.5 h-6 border-none", 
+                              token.symbol === 'ALX' ? "bg-primary text-black" : "bg-slate-100 text-slate-500"
+                            )}>
+                              {token.age}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </Card>
+
+              {isError && (
+                <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex gap-4 items-center justify-center animate-in fade-in">
+                  <CircleAlert className="w-5 h-5 text-amber-500" />
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase italic">
+                    Beberapa node pasar sedang sibuk. Menggunakan data cache terakhir dari infrastruktur AliBank.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={syncMarketData} className="h-8 rounded-lg text-[9px] font-black uppercase border-primary/20">Coba Lagi</Button>
+                </div>
+              )}
             </div>
           ) : activeSubTab === "Games" ? (
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-700">
@@ -305,7 +388,7 @@ export default function DesktopDiscoverPage() {
                    <h3 className="text-lg font-black italic uppercase tracking-tight">Top Web3 Games</h3>
                    <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase px-2 h-5">Mainnet Integrated</Badge>
                 </div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase italic">Curated by <span className="text-primary">AliBank Node</span></p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase italic">Curated by <span className="text-primary">AliBank Intelligence</span></p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -333,7 +416,7 @@ export default function DesktopDiscoverPage() {
                            <div className="w-5 h-5 rounded-lg bg-orange-500/10 flex items-center justify-center p-1">
                              <LogoIcon className="text-orange-600" />
                            </div>
-                           <span className="text-[9px] font-bold text-slate-400 uppercase italic">In-game support</span>
+                           <span className="text-[9px] font-bold text-slate-400 uppercase italic">In-game Support</span>
                         </div>
                       </div>
                     </div>
@@ -376,14 +459,14 @@ function SidebarItem({ icon: Icon, label, active = false, hasSubmenu = false, is
 
 function PromoCard({ icon, title, desc, color }: any) {
   return (
-    <Card className="bg-white p-6 rounded-2xl border border-[#E5E7EB] hover:shadow-lg transition-all group cursor-pointer h-full">
+    <Card className="bg-white p-6 rounded-2xl border border-[#E5E7EB] hover:shadow-lg transition-all group cursor-pointer h-full border-b-4 border-b-transparent hover:border-b-primary">
       <div className="flex items-center gap-3 mb-4">
         <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center p-2 shadow-sm text-white", color)}>
           <img src={icon} alt={title} width={24} height={24} className="rounded" />
         </div>
         <h4 className="text-sm font-black italic">{title}</h4>
       </div>
-      <p className="text-[11px] font-medium text-slate-400 leading-relaxed group-hover:text-slate-600 transition-colors">{desc}</p>
+      <p className="text-[11px] font-medium text-slate-400 leading-relaxed group-hover:text-slate-600 transition-colors italic">{desc}</p>
     </Card>
   );
 }
@@ -404,3 +487,4 @@ function FilterBtn({ icon: Icon, label, active, onClick }: any) {
     </button>
   );
 }
+
