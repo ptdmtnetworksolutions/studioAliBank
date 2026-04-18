@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -47,6 +46,7 @@ import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { GasStation } from "@/components/crypto/GasStation";
 
 const MARKUP = 1.02; 
 const USDT_IDR_RATE = 15850;
@@ -58,14 +58,12 @@ const GAMES_LIST = [
   { id: "galaxies", title: "Phantom Galaxies", category: "Action, Space, Story-Rich", imageId: "game-galaxies" },
 ];
 
-// Menggunakan coincap assets untuk dukungan koin modern (NEAR, SHIB, ARB)
 const getIconUrl = (symbol: string) => {
   const s = symbol.toLowerCase();
   if (s === 'alx') return null;
   return `https://assets.coincap.io/assets/icons/${s}@2x.png`;
 };
 
-// DAFTAR 20 KOIN PRIORITAS UNTUK STABILITAS NODE
 const GLOBAL_SYMBOLS = [
   "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", 
   "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT",
@@ -103,7 +101,6 @@ export default function DesktopDiscoverPage() {
         return;
       }
 
-      // STRATEGI CHUNKING: Ambil Klines dalam kelompok 5 koin untuk stabilitas maksimal
       const CHUNK_SIZE = 5;
       const allTrends: Record<string, any[]> = {};
       
@@ -235,9 +232,11 @@ export default function DesktopDiscoverPage() {
           <div className="flex items-center gap-6">
             <div className="relative w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input placeholder="Cari aset atau program mini..." className="h-10 pl-10 bg-[#F3F4F6] border-none rounded-lg text-sm font-medium" />
+              <Input placeholder="Search for a token..." className="h-10 pl-10 bg-[#F3F4F6] border-none rounded-lg text-sm font-medium" />
             </div>
+            
             <div className="flex items-center gap-4 border-l border-[#E5E7EB] pl-6">
+              <GasStation />
               <Activity className="w-4 h-4 text-slate-400" />
               <Bell className="w-5 h-5 text-slate-400" />
               <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden border border-border cursor-pointer" onClick={() => router.push('/profile')}>
