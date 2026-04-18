@@ -42,7 +42,7 @@ const NETWORKS = [
 
 /**
  * @fileOverview Komponen Gas Station Riil.
- * Menarik data biaya jaringan langsung dari Infura Gas API menggunakan Kredensial Brankas.
+ * Menarik data biaya jaringan melalui Proxy Server AliBank untuk keamanan Project Secret.
  */
 export function GasStation() {
   const router = useRouter();
@@ -53,41 +53,37 @@ export function GasStation() {
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
-  const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
-  const { data: config } = useDoc(apiKeysRef);
-
   const fetchGasPrices = useCallback(async () => {
-    // Prioritaskan URL dari config, atau bangun menggunakan Project ID
-    const infuraId = config?.infuraProjectId || "30ba607f7b6845bca3a645b110a0db22";
-    const gasApiBase = config?.infuraGasApiUrl || `https://gas.api.infura.io/v3/${infuraId}`;
-    
     try {
-      setIsError(false);
-      // Infura Gas API mengharapkan networkId sebagai parameter query
-      const url = `${gasApiBase}${gasApiBase.includes('?') ? '&' : '?'}networkId=${selectedNetwork.id}`;
-      
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) throw new Error("Node Busy");
+      // Gunakan server-side proxy agar Project Secret tetap aman
+      const res = await fetch(`/api/network/gas?networkId=${selectedNetwork.id}&t=${Date.now()}`, { 
+        cache: 'no-store' 
+      });
       
       const data = await res.json();
       
-      if (data) {
+      if (data && !data.error) {
         setGasData(data);
+        setIsLoading(false);
+        setIsError(false);
+      } else if (data.error) {
+        setIsError(true);
         setIsLoading(false);
       }
     } catch (e) {
-      console.warn("Gas Station node connection lag, retrying...");
+      console.warn("Gas Station node connection lag...");
       setIsError(true);
+      setIsLoading(false);
     }
-  }, [config, selectedNetwork]);
+  }, [selectedNetwork.id]);
 
   useEffect(() => {
     fetchGasPrices();
-    const interval = setInterval(fetchGasPrices, 12000); // Polling setiap 12 detik (Blok time rata-rata)
+    const interval = setInterval(fetchGasPrices, 15000);
     return () => clearInterval(interval);
   }, [fetchGasPrices]);
 
-  // Ekstrak nilai riil dari respon Infura
+  // Ekstrak nilai riil: Menggunakan suggestedMaxFeePerGas sebagai indikator utama GWEI
   const displayGas = gasData?.standard?.suggestedMaxFeePerGas 
     ? Math.round(parseFloat(gasData.standard.suggestedMaxFeePerGas)) 
     : 0;
@@ -102,11 +98,14 @@ export function GasStation() {
                "absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border border-white flex items-center justify-center p-0.5 shadow-sm",
                selectedNetwork.id === "1" ? "bg-blue-500" : "bg-purple-500"
              )}>
-                <selectedNetwork.icon className="text-white w-full h-full" />
+                <selectedNetwork.icon className="text-white w-[80%] h-[80%]" />
              </div>
           </div>
-          <span className="text-[11px] font-black text-slate-700 italic">
-            {isLoading ? (isError ? "OFF" : "...") : displayGas}
+          <span className={cn(
+            "text-[11px] font-black italic",
+            isError ? "text-rose-600" : "text-slate-700"
+          )}>
+            {isLoading ? "..." : (isError ? "OFF" : displayGas)}
           </span>
         </button>
       </PopoverTrigger>
@@ -127,6 +126,7 @@ export function GasStation() {
               const net = NETWORKS.find(n => n.id === val);
               if (net) setSelectedNetwork(net);
               setIsLoading(true);
+              setIsError(false);
             }}
           >
             <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-slate-100 px-5 focus:ring-0 focus:ring-offset-0 group hover:border-primary/20 transition-all">
@@ -154,7 +154,7 @@ export function GasStation() {
           <div className="flex items-center gap-2 px-1">
              <span className="text-[11px] font-black text-slate-400 uppercase italic">Base fee:</span>
              <span className="text-[11px] font-black text-slate-900 italic">
-               {isLoading ? "0.00" : parseFloat(gasData?.estimatedBaseFee || "0").toFixed(2)} GWEI
+               {isLoading ? "0.00" : (isError ? "N/A" : parseFloat(gasData?.estimatedBaseFee || "0").toFixed(2))} GWEI
              </span>
           </div>
 
@@ -167,17 +167,17 @@ export function GasStation() {
               <div className="space-y-5">
                 <GasPriceRow 
                   label="Fast" 
-                  value={isLoading ? "0.00" : parseFloat(gasData?.fast?.suggestedMaxPriorityFeePerGas || "0").toFixed(2)} 
+                  value={isLoading || isError ? "0.00" : parseFloat(gasData?.fast?.suggestedMaxPriorityFeePerGas || "0").toFixed(2)} 
                 />
                 <div className="h-px bg-slate-50" />
                 <GasPriceRow 
                   label="Average" 
-                  value={isLoading ? "0.00" : parseFloat(gasData?.standard?.suggestedMaxPriorityFeePerGas || "0").toFixed(2)} 
+                  value={isLoading || isError ? "0.00" : parseFloat(gasData?.standard?.suggestedMaxPriorityFeePerGas || "0").toFixed(2)} 
                 />
                 <div className="h-px bg-slate-50" />
                 <GasPriceRow 
                   label="Safe" 
-                  value={isLoading ? "0.00" : parseFloat(gasData?.safeLow?.suggestedMaxPriorityFeePerGas || "0").toFixed(2)} 
+                  value={isLoading || isError ? "0.00" : parseFloat(gasData?.safeLow?.suggestedMaxPriorityFeePerGas || "0").toFixed(2)} 
                 />
               </div>
             </div>
