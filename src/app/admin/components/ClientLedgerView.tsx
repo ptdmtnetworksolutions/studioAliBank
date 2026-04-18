@@ -37,7 +37,8 @@ import {
   RefreshCw,
   ExternalLink,
   HandCoins,
-  Skull
+  Skull,
+  CheckCircle2
 } from "lucide-react";
 import { 
   getDocs, 
@@ -241,7 +242,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
             <div className="w-32 h-32 rounded-[2.5rem] gold-gradient flex items-center justify-center p-1.5 shadow-2xl relative z-10">
               <div className="w-full h-full rounded-[2.2rem] bg-background flex items-center justify-center overflow-hidden border-[6px] border-background">
                 {selectedUser.avatarUrl ? (
-                  <Image src={selectedUser.avatarUrl} alt="av" width={128} height={128} className="object-cover" />
+                  <Image src={selectedUser.avatarUrl} alt="av" width={128} height={128} className="object-cover w-full h-full" />
                 ) : (
                   <User className="w-12 h-12 text-muted-foreground" />
                 )}
@@ -280,7 +281,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
                   <SearchCode className="w-8 h-8 text-white" />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <h4 className="text-xl font-black uppercase italic italic tracking-tighter">DETEKSI PHANTOM FUNDS: HUTANG INJEKSI ILEGAL</h4>
+                  <h4 className="text-xl font-black uppercase italic tracking-tighter">DETEKSI PHANTOM FUNDS: HUTANG INJEKSI ILEGAL</h4>
                   <p className="text-xs font-bold uppercase opacity-80 leading-relaxed">
                     Sistem mendeteksi selisih sebesar <span className="underline decoration-2 text-yellow-300 font-black">Rp {ledgerStats.illegalDebt.toLocaleString()}</span> yang masuk tanpa dokumen transaksi resmi. Dana ini dicatat sebagai **HUTANG NASABAH** kepada bank karena tidak memiliki riwayat pembayaran riil yang sah.
                   </p>
