@@ -196,7 +196,6 @@ export default function CryptoBuyPage() {
     setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : "0");
   };
 
-  // KRITIS: HANYA BOLEH DIPANGGIL SETELAH PROOF PEMBAYARAN VALID (SNAP SUCCESS / PAYPAL APPROVED)
   const finalizeTransaction = async (paymentDetails: any) => {
     if (!user || !db || !userDocRef || !userData) return;
     setIsProcessing(true);
@@ -247,7 +246,6 @@ export default function CryptoBuyPage() {
     }
   };
 
-  // PROSEDUR AMAN: UNTUK TRANSFER MANUAL, BUAT REQUEST PENDING
   const handleManualBankRequest = async () => {
     if (!user || !db || !userData) return;
     setIsProcessing(true);
@@ -270,16 +268,6 @@ export default function CryptoBuyPage() {
         createdAt: new Date().toISOString()
       });
 
-      await addDoc(collection(db, "users", user.uid, "transactions"), {
-        date: new Date().toISOString(),
-        description: `Pengisian Saldo ${selectedAsset.symbol} (Menunggu Verifikasi)`,
-        category: "Top Up",
-        amount: totalAmountIdr,
-        type: 'income',
-        status: "pending",
-        timestamp: serverTimestamp()
-      });
-
       setIsCheckoutDialogOpen(false);
       setStep('pending_verification');
       toast({ title: "Permintaan Dibuat", description: "Silakan transfer sesuai instruksi." });
@@ -290,7 +278,6 @@ export default function CryptoBuyPage() {
     }
   };
 
-  // PROSEDUR AMAN: INTEGRASI MIDTRANS SNAP
   const handleMidtransPayment = async () => {
     if (!user || !db || !systemKeys?.midtransServerKey) {
       toast({ variant: "destructive", title: "Konfigurasi Error", description: "Gateway Midtrans belum aktif di Vault." });
@@ -314,7 +301,7 @@ export default function CryptoBuyPage() {
             finalizeTransaction({ id: result.transaction_id, gateway: "Midtrans Snap" });
           },
           onPending: () => {
-            handleManualBankRequest(); // Fallback to pending state
+            handleManualBankRequest();
           },
           onError: () => {
             toast({ variant: "destructive", title: "Pembayaran Gagal" });
@@ -443,7 +430,9 @@ export default function CryptoBuyPage() {
         />
       )}
       <Script 
-        src="https://app.sandbox.midtrans.com/snap/snap.js" 
+        src={systemKeys?.midtransServerKey?.startsWith('SB-') 
+          ? "https://app.sandbox.midtrans.com/snap/snap.js" 
+          : "https://app.midtrans.com/snap/snap.js"}
         data-client-key={systemKeys?.midtransClientKey}
       />
       
@@ -589,7 +578,7 @@ export default function CryptoBuyPage() {
                 <Button 
                   onClick={handleMidtransPayment} 
                   disabled={isProcessing}
-                  className="w-full h-16 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl flex items-center justify-center gap-3"
+                  className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl flex items-center justify-center gap-3"
                 >
                   {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : <><Zap className="w-5 h-5" /> BAYAR DENGAN SNAP</>}
                 </Button>
@@ -605,7 +594,7 @@ export default function CryptoBuyPage() {
               
               <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3 mt-4">
                 <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0" />
-                <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">Node keamanan SSL AliBank V3 melindungi setiap transaksi Anda. Saldo hanya akan dikreditkan setelah dana riil terverifikasi.</p>
+                <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic">Node keamanan SSL AliBank V3 melindungi setiap transaksi Anda.</p>
               </div>
             </div>
           </div>
@@ -618,7 +607,7 @@ export default function CryptoBuyPage() {
           <div className="px-6 pb-2 shrink-0">
             <SheetHeader className="text-left mb-6">
               <SheetTitle className="text-2xl font-black italic uppercase tracking-tight">Pilih Mata Uang</SheetTitle>
-              <SheetDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pilih mata uang pembayaran default Anda.</SheetDescription>
+              <SheetDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pilih mata uang pembayaran.</SheetDescription>
             </SheetHeader>
             <div className="relative mb-4"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Cari Mata Uang..." value={currencySearch} onChange={(e) => setCurrencySearch(e.target.value)} className="h-12 pl-12 bg-muted/50 border-none rounded-xl text-xs font-bold" /></div>
           </div>

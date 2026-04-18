@@ -19,7 +19,7 @@ const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
 /**
  * Mengeksekusi penarikan dana dari Vault AliBank.
- * Kontrak user: withdraw(uint256 _amount) -> Mengirim ke msg.sender (Pemilik Kunci)
+ * Menggunakan Kredensial riil dari Vault Firestore/Secret Manager.
  */
 export async function executeVaultWithdrawalAction(
   recipient: string, 
@@ -33,35 +33,52 @@ export async function executeVaultWithdrawalAction(
   }
 
   try {
-    // 2. Ambil Kunci Vault (Private Key MetaMask Anda)
-    const privateKey = await getVaultPrivateKey();
-
-    // 3. Ambil Konfigurasi dari Firestore
+    // 2. Ambil Konfigurasi dari Firestore
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     const db = getFirestore(app);
     const keySnap = await getDoc(doc(db, "system", "api_keys"));
     
-    const config = keySnap.exists() ? keySnap.data() : {};
-    const rpcUrl = config.ethereumRpcUrl || "https://ethereum-rpc.publicnode.com";
+    if (!keySnap.exists()) {
+      throw new Error("Konfigurasi API Keys tidak ditemukan di Brankas.");
+    }
+
+    const config = keySnap.data();
+    
+    // 3. Ambil Kunci Vault (Private Key MetaMask Anda)
+    // Mencoba Secret Manager (GCP), fallback ke field vaultPrivateKey di Firestore
+    const privateKey = await getVaultPrivateKey();
+
+    if (!privateKey || privateKey === "YOUR_KEY") {
+      throw new Error("Kunci Privat Vault belum diset atau masih menggunakan placeholder.");
+    }
+
+    // 4. Inisialisasi Provider (Prioritaskan Infura dari Vault)
+    let rpcUrl = config.ethereumRpcUrl;
+    if (config.infuraProjectId) {
+      rpcUrl = `https://mainnet.infura.io/v3/${config.infuraProjectId}`;
+    }
+    
+    if (!rpcUrl) {
+      rpcUrl = "https://ethereum-rpc.publicnode.com"; // Terakhir
+    }
+
     const contractAddress = config.vaultContractAddress || "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 
-    // 4. Inisialisasi Provider & Wallet
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     const wallet = new ethers.Wallet(privateKey, provider);
 
     // 5. Cek Saldo Dompet untuk Gas
     const walletBalance = await provider.getBalance(wallet.address);
-    if (walletBalance === 0n) {
-      throw new Error(`Dompet MetaMask Anda (${wallet.address}) tidak memiliki saldo ETH untuk membayar biaya GAS. Isi minimal 0.005 ETH agar bisa melakukan penarikan.`);
+    if (walletBalance < ethers.parseEther("0.002")) {
+      throw new Error(`Dompet MetaMask Anda (${wallet.address}) tidak memiliki cukup saldo ETH untuk biaya GAS (Minimal 0.002 ETH). Saldo saat ini: ${ethers.formatEther(walletBalance)} ETH.`);
     }
 
     // 6. Inisialisasi Interface Kontrak
     const vaultContract = new ethers.Contract(contractAddress, AliBankVaultABI, wallet);
 
-    // 7. Eksekusi Fungsi Withdraw (Mengirim ke wallet yang memegang Private Key)
-    // Catatan: Kontrak Anda tidak menerima alamat tujuan, dia mengirim otomatis ke msg.sender.
+    // 7. Eksekusi Fungsi Withdraw
     const tx = await vaultContract.withdraw(ethers.parseEther(amount), {
-      gasLimit: 100000 
+      gasLimit: 120000 
     });
 
     console.log(`Withdrawal Initiated: ${tx.hash}`);

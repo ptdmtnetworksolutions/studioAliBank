@@ -70,7 +70,6 @@ export function DashboardView({
   }, [allUsers]);
 
   // DETEKSI ANOMALI GLOBAL: Saldo User vs Injeksi Likuiditas (IDR & Estimasi Kripto)
-  // Membandingkan total kewajiban IDR yang ada di dompet nasabah vs uang riil yang masuk via gateway
   const isAnomaly = userLedgerStats.totalUserIdr > (globalLiquidity?.totalFiatInjected || 0);
   const discrepancy = userLedgerStats.totalUserIdr - (globalLiquidity?.totalFiatInjected || 0);
 
@@ -100,10 +99,10 @@ export function DashboardView({
   return (
     <div className="animate-in fade-in duration-700 space-y-10">
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <NodeStatusCard label="ALX Network" status={storedKeys?.polygonRpcUrl ? "Online" : "Offline"} icon={Zap} color="text-primary" />
-        <NodeStatusCard label="Vault Node" status={storedKeys?.ethereumRpcUrl ? "Online" : "Offline"} icon={Cpu} color="text-blue-500" />
+        <NodeStatusCard label="ALX Network" status={(storedKeys?.polygonRpcUrl || storedKeys?.infuraProjectId) ? "Online" : "Offline"} icon={Zap} color="text-primary" />
+        <NodeStatusCard label="Vault Node" status={(storedKeys?.ethereumRpcUrl || storedKeys?.infuraProjectId) ? "Online" : "Offline"} icon={Cpu} color="text-blue-500" />
         <NodeStatusCard label="PayPal Bridge" status={storedKeys?.paypalClientId ? "Online" : "Offline"} icon={Globe} color="text-indigo-500" />
-        <NodeStatusCard label="Forensic Engine" status="Active" icon={ShieldAlert} color="text-rose-500" />
+        <NodeStatusCard label="Midtrans Node" status={storedKeys?.midtransServerKey ? "Online" : "Offline"} icon={ShieldCheck} color="text-emerald-500" />
       </section>
 
       {isAnomaly && (

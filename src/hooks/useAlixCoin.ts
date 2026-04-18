@@ -45,9 +45,12 @@ export function useAlixCoin() {
       console.warn("Firestore RPC fetch failed, using fallbacks.");
     }
 
+    // Prioritaskan Infura dari User
     const rpcsToTry = [];
+    if (infuraId) {
+      rpcsToTry.push(`https://polygon-mainnet.infura.io/v3/${infuraId}`);
+    }
     if (dynamicRpc) rpcsToTry.push(dynamicRpc);
-    if (infuraId) rpcsToTry.push(`https://polygon-mainnet.infura.io/v3/${infuraId}`);
     rpcsToTry.push(...FALLBACK_RPCS);
 
     let success = false;
