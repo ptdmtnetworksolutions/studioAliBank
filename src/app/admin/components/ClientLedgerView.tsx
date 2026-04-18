@@ -94,7 +94,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
         const localSnap = await getDocs(qLocal);
         setUserTxs(localSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
-        // 2. DEEP SCAN: Cari bukti di Audit Global yang berkaitan dengan email nasabah
+        // 2. DEEP SCAN: Cari bukti di Audit Global menggunakan INDEKS yang sudah di-enable
         const qGlobal = query(
           collection(db, "system", "audit", "global_transactions"),
           where("userEmail", "==", selectedUser.email),
@@ -108,7 +108,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
             const match = err.message.match(/https:\/\/console\.firebase\.google\.com[^\s]*/);
             if (match) setIndexUrl(match[0]);
           }
-          console.error("Firestore Index Missing:", err);
+          console.error("Firestore Query Warning:", err);
           return { docs: [] };
         });
         
@@ -125,7 +125,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
   }, [selectedUser, db]);
 
   const ledgerStats = useMemo(() => {
-    if (!userTxs.length) return { totalIn: 0, totalOut: 0, discrepancy: selectedUser?.totalBalance || 0, ledgerBalance: 0 };
+    if (!selectedUser) return { totalIn: 0, totalOut: 0, discrepancy: 0, ledgerBalance: 0 };
     
     const ALX_PRICE_IDR = 194004;
 
@@ -196,7 +196,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
                       {u.avatarUrl ? (
                         <img src={u.avatarUrl} alt="av" className="w-full h-full object-cover" />
                       ) : (
-                        <span className="font-black text-foreground uppercase">{u.name[0]}</span>
+                        <span className="font-black text-foreground uppercase">{u.name?.[0] || 'U'}</span>
                       )}
                     </div>
                   </div>
