@@ -22,16 +22,30 @@ import {
   ArrowUpRight,
   User,
   AlertTriangle,
-  Fingerprint
+  Fingerprint,
+  X,
+  ExternalLink,
+  Cpu,
+  Clock,
+  Lock
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export function AuditLogsView({ auditLogs, allUsers }: any) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilter, setActiveFilter] = useState<'all' | 'anomaly' | 'risky'>('all');
+  const [selectedLog, setSelectedLog] = useState<any>(null);
   const itemsPerPage = 15;
 
   // ANALITIK FORENSIK GLOBAL: Deteksi Ketidaksesuaian Saldo Lintas Seluruh Node
@@ -51,7 +65,6 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
       
       if (isLarge || isManual || isClientSource) riskyCount++;
       
-      // Kriteria anomali: Nilai besar, input manual, atau sumber tidak resmi
       return isLarge || isClientSource || isManual;
     });
 
@@ -60,17 +73,27 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
 
   const filteredLogs = useMemo(() => {
     if (!auditLogs) return [];
-    if (!searchTerm) return auditLogs;
+    
+    let logs = auditLogs;
+
+    // Apply Card Filter
+    if (activeFilter === 'anomaly') {
+      logs = forensicStats.anomalies;
+    } else if (activeFilter === 'risky') {
+      logs = auditLogs.filter((l: any) => (l.amountIdr || 0) > 10000000 || l.category === "Manual Adjustment");
+    }
+
+    if (!searchTerm) return logs;
     
     const s = searchTerm.toLowerCase();
-    return auditLogs.filter((log: any) => 
+    return logs.filter((log: any) => 
       log.id?.toLowerCase().includes(s) ||
       log.description?.toLowerCase().includes(s) ||
       log.category?.toLowerCase().includes(s) ||
       log.userEmail?.toLowerCase().includes(s) ||
       log.gateway?.toLowerCase().includes(s)
     );
-  }, [auditLogs, searchTerm]);
+  }, [auditLogs, searchTerm, activeFilter, forensicStats.anomalies]);
 
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
   const paginatedLogs = useMemo(() => {
@@ -104,6 +127,8 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
           sub="Input Tanpa Rekaman Resmi" 
           color="text-rose-500" 
           status="CRITICAL"
+          onClick={() => setActiveFilter('anomaly')}
+          active={activeFilter === 'anomaly'}
         />
         <ForensicCard 
           icon={Activity} 
@@ -112,6 +137,8 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
           sub="Di atas Rp10jt / Manual" 
           color="text-amber-500" 
           status="WARNING"
+          onClick={() => setActiveFilter('risky')}
+          active={activeFilter === 'risky'}
         />
         <ForensicCard 
           icon={Database} 
@@ -120,6 +147,8 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
           sub="Total Entri Buku Besar" 
           color="text-blue-500" 
           status="SYNCED"
+          onClick={() => setActiveFilter('all')}
+          active={activeFilter === 'all'}
         />
         <ForensicCard 
           icon={TrendingUp} 
@@ -128,19 +157,25 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
           sub="Akumulasi Seluruh Node" 
           color="text-primary" 
           status="LIVE"
+          onClick={() => setActiveFilter('all')}
         />
       </div>
 
       <Card className="border-none bg-card rounded-[3rem] overflow-hidden shadow-sm relative">
         <div className="p-8 border-b border-border bg-muted/30 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Cari Email Nasabah, ID Transaksi, atau Gateway..." 
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              className="h-12 pl-12 bg-background border-none rounded-2xl text-xs font-bold shadow-none focus:ring-2 focus:ring-primary/20" 
-            />
+          <div className="flex items-center gap-4 w-full max-w-md">
+            <div className="relative w-full">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="Cari Email Nasabah, ID Transaksi, atau Gateway..." 
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                className="h-12 pl-12 bg-background border-none rounded-2xl text-xs font-bold shadow-none focus:ring-2 focus:ring-primary/20" 
+              />
+            </div>
+            {activeFilter !== 'all' && (
+              <Button variant="ghost" size="icon" onClick={() => setActiveFilter('all')} className="rounded-xl shrink-0"><X className="w-4 h-4" /></Button>
+            )}
           </div>
           
           <div className="flex items-center gap-6">
@@ -172,10 +207,14 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                 const isAnomaly = isLarge || isManual || isClientOnly;
                 
                 return (
-                  <tr key={log.id || Math.random()} className={cn(
-                    "hover:bg-muted/30 transition-colors group",
-                    isAnomaly && "bg-rose-500/[0.02]"
-                  )}>
+                  <tr 
+                    key={log.id || Math.random()} 
+                    onClick={() => setSelectedLog(log)}
+                    className={cn(
+                      "hover:bg-muted/30 transition-colors group cursor-pointer",
+                      isAnomaly && "bg-rose-500/[0.02]"
+                    )}
+                  >
                     <td className="px-8 py-5">
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2">
@@ -260,6 +299,78 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
         )}
       </Card>
 
+      {/* DETAILED LOG DIALOG */}
+      <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
+        <DialogContent className="max-w-2xl rounded-[3rem] p-0 bg-background border-none shadow-2xl overflow-hidden">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Detail Log Audit: {selectedLog?.id}</DialogTitle>
+            <DialogDescription>Rincian teknis transaksi untuk keperluan audit forensik.</DialogDescription>
+          </DialogHeader>
+
+          <div className={cn(
+            "h-3 w-full",
+            (selectedLog?.amountIdr > 10000000 || selectedLog?.source === 'client') ? "bg-rose-600" : "gold-gradient"
+          )} />
+          
+          <div className="p-10 space-y-8">
+            <header className="flex justify-between items-start">
+              <div className="space-y-1">
+                <Badge variant="outline" className="border-primary/20 text-primary font-black text-[8px] uppercase px-2 h-5 mb-2">Audit Trace Node</Badge>
+                <h2 className="text-2xl font-black italic uppercase tracking-tighter text-foreground">{selectedLog?.category}</h2>
+                <p className="text-[10px] font-mono text-muted-foreground uppercase">Ref ID: {selectedLog?.id}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] font-black uppercase text-muted-foreground mb-1">Status Keamanan</p>
+                {(selectedLog?.amountIdr > 10000000 || selectedLog?.source === 'client') ? (
+                   <Badge className="bg-rose-600 text-white font-black text-[9px] px-3 h-6 uppercase italic animate-pulse">SUSPICIOUS</Badge>
+                ) : (
+                   <Badge className="bg-green-500 text-white font-black text-[9px] px-3 h-6 uppercase italic">VERIFIED</Badge>
+                )}
+              </div>
+            </header>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <LogDetailItem icon={User} label="Nasabah Terkait" value={selectedLog?.userEmail || 'System Node'} />
+               <LogDetailItem icon={Clock} label="Timestamp Presisi" value={selectedLog?.timestamp?.toDate?.().toLocaleString('id-ID') || selectedLog?.date || '---'} />
+               <LogDetailItem icon={Globe} label="Gateway / Jalur" value={selectedLog?.gateway || selectedLog?.source || 'Internal'} />
+               <LogDetailItem icon={Cpu} label="Node Eksekusi" value={selectedLog?.source === 'client' ? 'Client Bridge' : 'Core Sovereign'} />
+            </div>
+
+            <Card className="p-8 rounded-[2rem] bg-muted/30 border border-border shadow-inner text-center space-y-2">
+               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Nilai Transaksi Riil</p>
+               <h3 className="text-4xl font-black italic tracking-tighter text-foreground">
+                 Rp {selectedLog?.amountIdr?.toLocaleString()}
+               </h3>
+               {selectedLog?.cryptoCurrency && (
+                 <p className="text-xs font-black text-primary uppercase italic">
+                   {selectedLog?.cryptoAmount?.toFixed(8)} {selectedLog?.cryptoCurrency}
+                 </p>
+               )}
+            </Card>
+
+            <div className="space-y-3">
+               <p className="text-[9px] font-black uppercase text-muted-foreground ml-2">Deskripsi Operasional</p>
+               <div className="p-5 rounded-2xl bg-accent/5 border border-primary/10">
+                 <p className="text-xs font-bold text-foreground italic leading-relaxed uppercase">
+                   {selectedLog?.description || "Tidak ada deskripsi tambahan."}
+                 </p>
+               </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex gap-3">
+               <ShieldCheck className="w-5 h-5 text-amber-500 shrink-0" />
+               <p className="text-[9px] font-bold text-muted-foreground leading-relaxed italic uppercase">
+                 Log ini telah diamankan oleh sistem Ali-Intelligence Node V3.5 dan sah sebagai bukti audit operasional internal.
+               </p>
+            </div>
+
+            <Button onClick={() => setSelectedLog(null)} className="w-full h-14 rounded-2xl bg-foreground text-background font-black italic uppercase shadow-xl hover:scale-[1.01] transition-all">
+              TUTUP TERMINAL AUDIT
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* FORENSIC STAMP FOOTER */}
       <div className="p-8 rounded-[2.5rem] bg-amber-500/5 border border-amber-500/10 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-6">
@@ -282,9 +393,15 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
   );
 }
 
-function ForensicCard({ icon: Icon, label, value, sub, color, status }: any) {
+function ForensicCard({ icon: Icon, label, value, sub, color, status, onClick, active }: any) {
   return (
-    <Card className="border-none bg-card rounded-[2.5rem] p-8 shadow-sm h-44 flex flex-col justify-between hover:shadow-md transition-all group border border-border/50">
+    <Card 
+      onClick={onClick}
+      className={cn(
+        "border-none bg-card rounded-[2.5rem] p-8 shadow-sm h-44 flex flex-col justify-between hover:shadow-md transition-all group cursor-pointer border-2",
+        active ? "border-primary bg-primary/[0.02]" : "border-border/50"
+      )}
+    >
       <div className="flex justify-between items-start">
         <div className={cn("w-12 h-12 rounded-2xl bg-muted flex items-center justify-center transition-transform group-hover:scale-110", color)}>
           <Icon className="w-6 h-6" />
@@ -297,5 +414,19 @@ function ForensicCard({ icon: Icon, label, value, sub, color, status }: any) {
         <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1 opacity-60 italic">{sub}</p>
       </div>
     </Card>
+  );
+}
+
+function LogDetailItem({ icon: Icon, label, value }: any) {
+  return (
+    <div className="p-4 rounded-xl bg-muted/30 border border-border flex items-center gap-4">
+      <div className="w-9 h-9 rounded-lg bg-background flex items-center justify-center text-primary shadow-sm shrink-0">
+        <Icon className="w-4 h-4" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest leading-none mb-1">{label}</p>
+        <p className="text-[11px] font-bold uppercase truncate italic">{value || '---'}</p>
+      </div>
+    </div>
   );
 }
