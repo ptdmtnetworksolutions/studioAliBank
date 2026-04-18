@@ -43,7 +43,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
-import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
+import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
@@ -273,7 +273,7 @@ export default function DesktopDiscoverPage() {
                   <FilterBtn icon={Zap} label="Trending" active={activeFilter === "Trending"} onClick={() => setActiveFilter("Trending")} />
                   <FilterBtn icon={TrendingUp} label="Gainers" active={activeFilter === "Gainers"} onClick={() => setActiveFilter("Gainers")} />
                 </div>
-                <button className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-[#E5E7EB] text-xs font-bold hover:bg-slate-50 shadow-sm">
+                <button className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-[#E5E7EB] text-xs font-bold text-slate-900 hover:bg-slate-50 shadow-sm">
                   <ShieldCheck className="w-4 h-4 text-primary" /> Ali-Intelligence Node <ChevronDown className="w-4 h-4" />
                 </button>
               </div>
@@ -322,14 +322,14 @@ export default function DesktopDiscoverPage() {
                               </div>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <p className="text-sm font-black italic leading-none group-hover:text-primary transition-colors">{token.symbol}</p>
+                                  <p className="text-sm font-black italic leading-none text-slate-900 group-hover:text-primary transition-colors">{token.symbol}</p>
                                   {token.symbol === 'ALX' && <Badge className="bg-primary/20 text-primary text-[6px] h-3 px-1 border-none">V3</Badge>}
                                 </div>
                                 <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">{token.name}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-5 text-sm font-black italic tracking-tighter">
+                          <td className="px-6 py-5 text-sm font-black italic tracking-tighter text-slate-900">
                             ${token.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                           </td>
                           <td className={cn("px-6 py-5 text-sm font-black italic", token.isUp ? "text-green-500" : "text-rose-500")}>
@@ -385,7 +385,7 @@ export default function DesktopDiscoverPage() {
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-700">
               <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-2">
-                   <h3 className="text-lg font-black italic uppercase tracking-tight">Top Web3 Games</h3>
+                   <h3 className="text-lg font-black italic uppercase tracking-tight text-slate-900">Top Web3 Games</h3>
                    <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase px-2 h-5">Mainnet Integrated</Badge>
                 </div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase italic">Curated by <span className="text-primary">AliBank Intelligence</span></p>
@@ -410,7 +410,7 @@ export default function DesktopDiscoverPage() {
                         </div>
                       </div>
                       <div className="px-2 space-y-1">
-                        <h4 className="text-base font-black italic uppercase tracking-tight group-hover:text-primary transition-colors">{game.title}</h4>
+                        <h4 className="text-base font-black italic uppercase tracking-tight text-slate-900 group-hover:text-primary transition-colors">{game.title}</h4>
                         <p className="text-[10px] font-medium text-slate-400 line-clamp-1">{game.category}</p>
                         <div className="pt-2 flex items-center gap-2">
                            <div className="w-5 h-5 rounded-lg bg-orange-500/10 flex items-center justify-center p-1">
@@ -427,7 +427,7 @@ export default function DesktopDiscoverPage() {
           ) : (
             <div className="py-40 text-center opacity-20 italic">
                <Zap className="w-16 h-16 mx-auto mb-4 text-primary" />
-               <p className="text-xl font-black uppercase tracking-widest">Coming Soon: {activeSubTab} Hub</p>
+               <p className="text-xl font-black uppercase tracking-widest text-slate-900">Coming Soon: {activeSubTab} Hub</p>
             </div>
           )}
         </div>
@@ -464,7 +464,7 @@ function PromoCard({ icon, title, desc, color }: any) {
         <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center p-2 shadow-sm text-white", color)}>
           <img src={icon} alt={title} width={24} height={24} className="rounded" />
         </div>
-        <h4 className="text-sm font-black italic">{title}</h4>
+        <h4 className="text-sm font-black italic text-slate-900">{title}</h4>
       </div>
       <p className="text-[11px] font-medium text-slate-400 leading-relaxed group-hover:text-slate-600 transition-colors italic">{desc}</p>
     </Card>
@@ -487,4 +487,3 @@ function FilterBtn({ icon: Icon, label, active, onClick }: any) {
     </button>
   );
 }
-
