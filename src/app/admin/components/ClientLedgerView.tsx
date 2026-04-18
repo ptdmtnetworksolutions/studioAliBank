@@ -35,7 +35,9 @@ import {
   SearchCode,
   FileWarning,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  HandCoins,
+  Skull
 } from "lucide-react";
 import { 
   getDocs, 
@@ -57,6 +59,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userTxs, setUserTxs] = useState<any[]>([]);
+  const [pendingTopups, setPendingTopups] = useState<any[]>([]);
   const [globalAuditMatches, setGlobalAuditMatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isForensicLoading, setIsForensicLoading] = useState(false);
@@ -94,7 +97,17 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
         const localSnap = await getDocs(qLocal);
         setUserTxs(localSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
-        // 2. DEEP SCAN: Cari bukti di Audit Global menggunakan INDEKS yang sudah di-enable
+        // 2. Ambil Topup Requests (Hutang Manual yang belum dibayar)
+        const qTopup = query(
+          collection(db, "topup_requests"),
+          where("userId", "==", selectedUser.id),
+          where("status", "==", "pending"),
+          limit(20)
+        );
+        const topupSnap = await getDocs(qTopup);
+        setPendingTopups(topupSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+        // 3. DEEP SCAN: Cari bukti di Audit Global
         const qGlobal = query(
           collection(db, "system", "audit", "global_transactions"),
           where("userEmail", "==", selectedUser.email),
@@ -108,7 +121,6 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
             const match = err.message.match(/https:\/\/console\.firebase\.google\.com[^\s]*/);
             if (match) setIndexUrl(match[0]);
           }
-          console.error("Firestore Query Warning:", err);
           return { docs: [] };
         });
         
@@ -125,7 +137,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
   }, [selectedUser, db]);
 
   const ledgerStats = useMemo(() => {
-    if (!selectedUser) return { totalIn: 0, totalOut: 0, discrepancy: 0, ledgerBalance: 0 };
+    if (!selectedUser) return { totalIn: 0, totalOut: 0, illegalDebt: 0, pendingDebt: 0, ledgerBalance: 0 };
     
     const ALX_PRICE_IDR = 194004;
 
@@ -144,13 +156,16 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
     const ledgerBal = inflow - outflow;
     const actualBal = selectedUser?.totalBalance || 0;
 
+    const pendingManualDebt = pendingTopups.reduce((acc, curr) => acc + (curr.totalToTransfer || curr.amount || 0), 0);
+
     return {
       totalIn: inflow,
       totalOut: outflow,
-      discrepancy: actualBal - ledgerBal,
+      illegalDebt: actualBal - ledgerBal, // Dana yang ada di dompet tapi tidak ada riwayat masuknya
+      pendingDebt: pendingManualDebt, // Dana yang diminta topup tapi belum dibayar
       ledgerBalance: ledgerBal
     };
-  }, [userTxs, selectedUser]);
+  }, [userTxs, selectedUser, pendingTopups]);
 
   const disconnectedLogs = useMemo(() => {
     const localIds = new Set(userTxs.map(t => t.id || t.invoiceId || t.orderId));
@@ -161,13 +176,13 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
     <div className="animate-in fade-in duration-700 space-y-10">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h2 className="text-3xl font-black italic uppercase tracking-tighter text-foreground">Buku Besar Nasabah</h2>
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Terminal Rekonsiliasi Dana Riil & Pembuktian Audit</p>
+          <h2 className="text-3xl font-black italic uppercase tracking-tighter text-foreground">Buku Besar & Matriks Hutang</h2>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Terminal Rekonsiliasi Dana Ilegal & Piutang Nasabah</p>
         </div>
         <div className="relative w-full max-w-md">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
-            placeholder="Cari Nasabah (UID/Email/Nama)..." 
+            placeholder="Cari Nasabah untuk Audit Hutang..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="h-12 pl-12 bg-card border-none rounded-2xl text-xs font-bold shadow-sm focus:ring-2 focus:ring-primary/20"
@@ -179,7 +194,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
         <div className="space-y-6">
           <div className="flex items-center gap-2 px-2">
             <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest italic">
-              {searchTerm ? 'Hasil Pencarian' : 'Nasabah Terbaru (Pilih untuk Audit)'}
+              {searchTerm ? 'Hasil Pencarian' : 'Daftar Nasabah (Pilih untuk Cek Hutang)'}
             </h4>
           </div>
           
@@ -208,7 +223,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
                 </div>
                 <div className="mt-4 pt-4 border-t border-border/50 flex justify-between items-end">
                    <div>
-                     <p className="text-[8px] font-black text-muted-foreground uppercase">Saldo Utama</p>
+                     <p className="text-[8px] font-black text-muted-foreground uppercase">Saldo Ter-injeksi</p>
                      <p className="text-xs font-black italic text-foreground">Rp{u.totalBalance?.toLocaleString()}</p>
                    </div>
                    <Badge variant="outline" className="text-[7px] font-black uppercase border-primary/20 text-primary">UID: {u.accountNumber}</Badge>
@@ -247,7 +262,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
               <div className="flex flex-wrap gap-4 pt-4 justify-center md:justify-start">
                  <div className="p-3 bg-muted rounded-xl border border-border"><p className="text-[8px] font-black text-muted-foreground uppercase">UID Rekening</p><p className="text-xs font-mono font-bold">{selectedUser.accountNumber}</p></div>
                  <div className="p-3 bg-muted rounded-xl border border-border"><p className="text-[8px] font-black text-muted-foreground uppercase">Level Akun</p><p className="text-xs font-black italic uppercase">{selectedUser.tier || 'Regular'}</p></div>
-                 <div className="p-3 bg-muted rounded-xl border border-border"><p className="text-[8px] font-black text-muted-foreground uppercase">Terdaftar</p><p className="text-xs font-black italic">{selectedUser.createdAt?.toDate ? selectedUser.createdAt.toDate().toLocaleDateString() : '---'}</p></div>
+                 <div className="p-3 bg-muted rounded-xl border border-border"><p className="text-[8px] font-black text-muted-foreground uppercase">Status Hutang</p><p className={cn("text-xs font-black italic uppercase", ledgerStats.illegalDebt > 1000 ? "text-rose-600" : "text-green-600")}>{ledgerStats.illegalDebt > 1000 ? 'MENCURIGAKAN' : 'BERSIH'}</p></div>
               </div>
             </div>
 
@@ -256,18 +271,18 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
             </Button>
           </div>
 
-          {/* DEEP SCAN ALERT */}
-          {Math.abs(ledgerStats.discrepancy) > 1000 && (
+          {/* DEEP SCAN ALERT - PHANTOM FUNDS DETECTED */}
+          {ledgerStats.illegalDebt > 1000 && (
             <Card className="p-8 bg-rose-600 text-white rounded-[2.5rem] border-none shadow-2xl animate-in zoom-in duration-500 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-8 opacity-10"><ShieldAlert className="w-32 h-32" /></div>
+              <div className="absolute top-0 right-0 p-8 opacity-10"><Skull className="w-32 h-32" /></div>
               <div className="flex items-center gap-6 relative z-10">
                 <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center animate-pulse">
                   <SearchCode className="w-8 h-8 text-white" />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <h4 className="text-xl font-black uppercase italic italic tracking-tighter">HASIL DEEP SCAN: INJEKSI DANA TANPA RIWAYAT</h4>
+                  <h4 className="text-xl font-black uppercase italic italic tracking-tighter">DETEKSI PHANTOM FUNDS: HUTANG INJEKSI ILEGAL</h4>
                   <p className="text-xs font-bold uppercase opacity-80 leading-relaxed">
-                    Sistem mendeteksi selisih sebesar <span className="underline decoration-2 text-yellow-300">Rp {Math.abs(ledgerStats.discrepancy).toLocaleString()}</span> yang masuk ke saldo profil tanpa melalui dokumen kuitansi digital. Dana ini diidentifikasi sebagai **Injeksi Database Langsung (Manual Root Edit)**.
+                    Sistem mendeteksi selisih sebesar <span className="underline decoration-2 text-yellow-300 font-black">Rp {ledgerStats.illegalDebt.toLocaleString()}</span> yang masuk tanpa dokumen transaksi resmi. Dana ini dicatat sebagai **HUTANG NASABAH** kepada bank karena tidak memiliki riwayat pembayaran riil yang sah.
                   </p>
                 </div>
               </div>
@@ -276,16 +291,23 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
 
           {/* RECONCILIATION SUMMARY */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <LedgerStatCard label="Saldo Dompet Saat Ini" value={`Rp ${selectedUser.totalBalance?.toLocaleString()}`} sub="Current Wallet Value" color="text-foreground" icon={Wallet} />
-            <LedgerStatCard label="Total Dana Masuk" value={`Rp ${ledgerStats.totalIn.toLocaleString()}`} sub="Total Ledger Inflow" color="text-green-600" icon={TrendingUp} />
-            <LedgerStatCard label="Total Dana Keluar" value={`Rp ${ledgerStats.totalOut.toLocaleString()}`} sub="Total Ledger Outflow" color="text-rose-600" icon={TrendingDown} />
+            <LedgerStatCard label="Saldo Dompet Saat Ini" value={`Rp ${selectedUser.totalBalance?.toLocaleString()}`} sub="Current Liquid Value" color="text-foreground" icon={Wallet} />
+            <LedgerStatCard label="Total Dana Masuk Sah" value={`Rp ${ledgerStats.totalIn.toLocaleString()}`} sub="Verified Inflow" color="text-green-600" icon={TrendingUp} />
             <LedgerStatCard 
-              label="Selisih Tak Ter-Audit" 
-              value={`Rp ${Math.abs(ledgerStats.discrepancy).toLocaleString()}`} 
-              sub={ledgerStats.discrepancy === 0 ? "Clean Ledger" : "Anomaly Detected"} 
-              color={ledgerStats.discrepancy === 0 ? "text-blue-500" : "text-rose-600"} 
-              icon={ShieldAlert} 
-              isAnomaly={Math.abs(ledgerStats.discrepancy) > 1000}
+              label="Hutang Injeksi Ilegal" 
+              value={`Rp ${Math.max(0, ledgerStats.illegalDebt).toLocaleString()}`} 
+              sub={ledgerStats.illegalDebt <= 1000 ? "Clean Account" : "Saldo Tanpa Riwayat"} 
+              color={ledgerStats.illegalDebt <= 1000 ? "text-blue-500" : "text-rose-600"} 
+              icon={Skull} 
+              isAnomaly={ledgerStats.illegalDebt > 1000}
+            />
+            <LedgerStatCard 
+              label="Hutang Topup Pending" 
+              value={`Rp ${ledgerStats.pendingDebt.toLocaleString()}`} 
+              sub="Manual Requests" 
+              color="text-amber-600" 
+              icon={HandCoins} 
+              isAnomaly={ledgerStats.pendingDebt > 0}
             />
           </div>
 
@@ -294,10 +316,10 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
             <Card className="lg:col-span-8 border-none bg-card rounded-[3rem] overflow-hidden shadow-sm">
               <div className="p-8 border-b border-border bg-muted/30 flex justify-between items-center">
                 <h4 className="text-lg font-black italic uppercase tracking-tighter flex items-center gap-3">
-                  <History className="w-5 h-5 text-primary" /> Rincian Riwayat Buku Besar
+                  <History className="w-5 h-5 text-primary" /> Riwayat Buku Besar Ter-Audit
                 </h4>
                 <button className="h-10 px-5 rounded-xl gold-gradient text-white flex items-center gap-2 text-[10px] font-black uppercase italic shadow-lg">
-                  <Download className="w-3.5 h-3.5 mr-2" /> Ekspor Bukti Audit
+                  <Download className="w-3.5 h-3.5 mr-2" /> Download Laporan Hutang
                 </button>
               </div>
 
@@ -308,7 +330,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
                       <th className="px-8 py-6">Timestamp</th>
                       <th className="px-8 py-6">Aktivitas</th>
                       <th className="px-8 py-6">Metode</th>
-                      <th className="px-8 py-6 text-right">Nominal</th>
+                      <th className="px-8 py-6 text-right">Nominal (Sah)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -326,7 +348,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
                           <p className="text-[10px] font-black uppercase italic text-foreground">{tx.description}</p>
                         </td>
                         <td className="px-8 py-5">
-                          <p className="text-[10px] font-black uppercase italic">{tx.gateway || "Ali-Bridge Node"}</p>
+                          <p className="text-[10px] font-black uppercase italic">{tx.gateway || "Internal Node"}</p>
                         </td>
                         <td className="px-8 py-5 text-right font-black italic">
                           <span className={tx.type === 'income' ? "text-green-600" : "text-rose-600"}>
@@ -335,75 +357,59 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
                         </td>
                       </tr>
                     ))}
+                    {!isLoading && userTxs.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-20 text-center opacity-40 italic">
+                          <Skull className="w-12 h-12 mx-auto mb-2" />
+                          <p className="text-xs font-black uppercase">Nasabah memiliki Saldo tetapi TIDAK ADA riwayat masuk sah.</p>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
             </Card>
 
-            {/* DEEP SCAN RESULTS: TEMUAN BUKTI EKSTERNAL */}
+            {/* PENDING DEBTS & DISCONNECTED LOGS */}
             <div className="lg:col-span-4 space-y-6">
               <h4 className="text-sm font-black uppercase italic tracking-widest px-2 flex items-center gap-2">
-                <SearchCheck className="w-4 h-4 text-primary" /> Temuan Bukti Eksternal
+                <HandCoins className="w-4 h-4 text-primary" /> Hutang Top-up Manual
               </h4>
               
-              {isForensicLoading ? (
-                <div className="p-10 flex flex-col items-center gap-3 bg-card rounded-[2rem] border border-border">
-                  <RefreshCw className="w-6 h-6 animate-spin text-primary" />
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground animate-pulse">Scanning Global Audit Logs...</p>
-                </div>
-              ) : indexError ? (
-                <Card className="p-8 rounded-[2rem] bg-amber-500/5 border border-amber-500/20 shadow-sm space-y-4">
-                  <div className="flex justify-between items-start">
-                    <Badge className="bg-amber-500 text-white font-black text-[8px] h-5 uppercase italic">Index Required</Badge>
-                    <AlertTriangle className="w-4 h-4 text-amber-500" />
-                  </div>
-                  <p className="text-[10px] font-bold text-foreground leading-relaxed uppercase">
-                    Pencarian audit global memerlukan Indeks Komposit di Firestore.
-                  </p>
-                  {indexUrl && (
-                    <Button 
-                      onClick={() => window.open(indexUrl, '_blank')}
-                      className="w-full bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black uppercase h-10 rounded-xl"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" /> AKTIFKAN INDEKS SEKARANG
-                    </Button>
-                  )}
-                  <p className="text-[8px] text-muted-foreground italic uppercase">Klik tombol di atas lalu pilih "Create Index" di Firebase Console.</p>
-                </Card>
-              ) : disconnectedLogs.length > 0 ? (
+              {pendingTopups.length > 0 ? (
                 <div className="space-y-4">
-                  {disconnectedLogs.map((log) => (
-                    <Card key={log.id} className="p-6 rounded-[2rem] bg-amber-500/5 border border-amber-500/20 shadow-sm space-y-4 animate-in slide-in-from-right-4">
+                  {pendingTopups.map((req) => (
+                    <Card key={req.id} className="p-6 rounded-[2rem] bg-amber-500/5 border border-amber-500/20 shadow-sm space-y-4">
                       <div className="flex justify-between items-start">
-                        <Badge className="bg-amber-500 text-white font-black text-[8px] h-5 uppercase italic">Broken Ledger Link</Badge>
-                        <AlertTriangle className="w-4 h-4 text-amber-500" />
+                        <Badge className="bg-amber-500 text-white font-black text-[8px] h-5 uppercase italic">PENDING PAYMENT</Badge>
+                        <Clock className="w-4 h-4 text-amber-500" />
                       </div>
                       <p className="text-[10px] font-bold text-foreground leading-relaxed uppercase">
-                        Ditemukan catatan di Audit Global sebesar **Rp {log.amountIdr?.toLocaleString()}** ({log.category}), namun tidak tercatat di buku besar nasabah.
+                        Nasabah meminta top-up sebesar **Rp {(req.totalToTransfer || req.amount).toLocaleString()}** via {req.type === 'crypto_deposit' ? 'Crypto' : 'Bank'}, namun dana riil belum diverifikasi.
                       </p>
                       <div className="pt-3 border-t border-amber-500/10 flex justify-between items-center text-[8px] font-mono font-bold text-muted-foreground">
-                        <span>REF: {log.id.slice(0, 12)}</span>
-                        <span>{log.timestamp?.toDate ? log.timestamp.toDate().toLocaleDateString() : '---'}</span>
+                        <span>UNIQUE: {req.uniqueCode || '---'}</span>
+                        <span>{new Date(req.createdAt).toLocaleDateString()}</span>
                       </div>
                     </Card>
                   ))}
                 </div>
               ) : (
                 <Card className="p-8 rounded-[2rem] border-2 border-dashed border-border flex flex-col items-center justify-center text-center opacity-40 space-y-3">
-                   <FileWarning className="w-10 h-10" />
+                   <CheckCircle2 className="w-10 h-10" />
                    <p className="text-[10px] font-bold uppercase italic leading-tight">
-                     Tidak ditemukan bukti transaksi pendukung di Audit Global. Dana dikategorikan sebagai **MURNI ILEGAL / DATA GLITCH**.
+                     Tidak ada permintaan top-up manual yang tertunda.
                    </p>
                 </Card>
               )}
 
               <Card className="p-6 rounded-[2rem] bg-[#1A1D1F] text-white space-y-4 shadow-xl">
                  <div className="flex items-center gap-3">
-                    <Database className="w-5 h-5 text-primary" />
-                    <h5 className="text-[11px] font-black uppercase italic tracking-widest">Sertifikasi Node V3.5</h5>
+                    <LogoIcon className="w-5 h-5 text-primary" />
+                    <h5 className="text-[11px] font-black uppercase italic tracking-widest">Sertifikasi Audit V3.5</h5>
                  </div>
                  <p className="text-[9px] font-medium text-white/50 leading-relaxed uppercase italic">
-                   Laporan forensik ini menggunakan algoritma rekonsiliasi lintas-node ISO8583. Hasil "Saldo Tak Ter-Audit" adalah bukti mutlak adanya manipulasi field saldo langsung tanpa melalui logika aplikasi.
+                   Jika nasabah memiliki saldo tanpa kuitansi (Illegal Debt), ini membuktikan adanya manipulasi field 'totalBalance' secara langsung di database. Laporan ini sah sebagai bukti pembekuan akun.
                  </p>
               </Card>
             </div>
@@ -424,7 +430,7 @@ function LedgerStatCard({ label, value, sub, icon: Icon, color, isAnomaly }: any
         <div className={cn("w-12 h-12 rounded-2xl bg-muted flex items-center justify-center", color)}>
           <Icon className="w-6 h-6" />
         </div>
-        {isAnomaly && <Badge className="bg-rose-600 text-white font-black text-[7px] uppercase italic">ANOMALY</Badge>}
+        {isAnomaly && <Badge className="bg-rose-600 text-white font-black text-[7px] uppercase italic">DEBT/ANOMALY</Badge>}
       </div>
       <div>
         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest leading-none mb-1.5">{label}</p>
