@@ -37,6 +37,7 @@ export function ApiManagementView({ storedKeys }: any) {
   const [isSaving, setIsSaving] = useState(false);
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [keys, setKeys] = useState({
+    infuraProjectId: "",
     paypalClientId: "",
     paypalClientSecret: "",
     paypalWebhookId: "",
@@ -55,6 +56,7 @@ export function ApiManagementView({ storedKeys }: any) {
   useEffect(() => {
     if (storedKeys) {
       setKeys({
+        infuraProjectId: storedKeys.infuraProjectId || "",
         paypalClientId: storedKeys.paypalClientId || "",
         paypalClientSecret: storedKeys.paypalClientSecret || "",
         paypalWebhookId: storedKeys.paypalWebhookId || "",
@@ -121,6 +123,16 @@ export function ApiManagementView({ storedKeys }: any) {
               <Wallet className="w-4 h-4" /> Brankas Pusat (Tanda Tangan Privat)
             </h3>
             <div className="grid grid-cols-1 gap-6">
+              <KeyField 
+                label="MetaMask Developer API (Infura)" 
+                icon={Zap} 
+                value={keys.infuraProjectId} 
+                placeholder="30ba607f..."
+                onChange={(v: any) => setKeys({...keys, infuraProjectId: v})}
+                show={showKeys['infura']}
+                onToggle={() => toggleShow('infura')}
+                description="Token otentikasi utama untuk node RPC Infura (Ethereum & Polygon)."
+              />
               <KeyField 
                 label="Kontrak Pintar Brankas (Vault)" 
                 icon={ShieldCheck} 

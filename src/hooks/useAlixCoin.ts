@@ -28,6 +28,7 @@ export function useAlixCoin() {
 
   const fetchData = useCallback(async () => {
     let dynamicRpc = "";
+    let infuraId = "";
     let dynamicAddress = ALX_ADDRESS_DEFAULT;
 
     try {
@@ -37,13 +38,18 @@ export function useAlixCoin() {
       if (keySnap.exists()) {
         const data = keySnap.data();
         if (data.polygonRpcUrl) dynamicRpc = data.polygonRpcUrl;
+        if (data.infuraProjectId) infuraId = data.infuraProjectId;
         if (data.alxContractAddress) dynamicAddress = data.alxContractAddress;
       }
     } catch (e) {
       console.warn("Firestore RPC fetch failed, using fallbacks.");
     }
 
-    const rpcsToTry = dynamicRpc ? [dynamicRpc, ...FALLBACK_RPCS] : FALLBACK_RPCS;
+    const rpcsToTry = [];
+    if (dynamicRpc) rpcsToTry.push(dynamicRpc);
+    if (infuraId) rpcsToTry.push(`https://polygon-mainnet.infura.io/v3/${infuraId}`);
+    rpcsToTry.push(...FALLBACK_RPCS);
+
     let success = false;
 
     for (const rpcUrl of rpcsToTry) {

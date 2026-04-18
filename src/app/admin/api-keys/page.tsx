@@ -58,6 +58,7 @@ function APIKeysContent() {
 
   // API Key States
   const [keys, setKeys] = useState({
+    infuraProjectId: "30ba607f7b6845bca3a645b110a0db22", // Default from user
     paypalClientId: "",
     paypalClientSecret: "",
     paypalWebhookId: "",
@@ -79,6 +80,7 @@ function APIKeysContent() {
   useEffect(() => {
     if (storedKeys) {
       setKeys({
+        infuraProjectId: storedKeys.infuraProjectId || "30ba607f7b6845bca3a645b110a0db22",
         paypalClientId: storedKeys.paypalClientId || "",
         paypalClientSecret: storedKeys.paypalClientSecret || "",
         paypalWebhookId: storedKeys.paypalWebhookId || "",
@@ -183,6 +185,16 @@ function APIKeysContent() {
                 </div>
                 
                 <div className="grid grid-cols-1 gap-6">
+                  <KeyField 
+                    label="MetaMask Developer API (Infura)" 
+                    icon={Zap} 
+                    value={keys.infuraProjectId} 
+                    placeholder="30ba607f..."
+                    onChange={(v: any) => setKeys({...keys, infuraProjectId: v})}
+                    show={showKeys['infura']}
+                    onToggle={() => toggleShow('infura')}
+                    description="Digunakan sebagai node RPC utama untuk sinkronisasi saldo Ethereum & Polygon yang cepat."
+                  />
                   <KeyField 
                     label="Kontrak Pintar Brankas (Vault)" 
                     icon={ShieldCheck} 
