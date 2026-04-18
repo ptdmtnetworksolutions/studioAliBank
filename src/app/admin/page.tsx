@@ -52,7 +52,7 @@ import { VaultControlView } from "./components/VaultControlView";
 import { TokenomicsView } from "./components/TokenomicsView";
 import { ApiManagementView } from "./components/ApiManagementView";
 import { InventoryView } from "./components/InventoryView";
-import { AuditLogsView as AuditLogsMod } from "./components/AuditLogsView";
+import { AuditLogsView } from "./components/AuditLogsView";
 import { PendingRequestsView } from "./components/PendingRequestsView";
 import { KycVerificationView } from "./components/KycVerificationView";
 import { ClientLedgerView } from "./components/ClientLedgerView";
@@ -327,4 +327,3 @@ function SidebarItem({ icon: Icon, label, active, onClick, className }: any) {
 export default function AdminControlPage() {
   return <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>}><AdminContent /></Suspense>;
 }
-
