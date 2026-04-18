@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -22,7 +21,8 @@ import {
   ShieldAlert,
   ArrowUpRight,
   User,
-  AlertTriangle
+  AlertTriangle,
+  Fingerprint
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -34,29 +34,29 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
   const [searchTerm, setSearchTerm] = useState("");
   const itemsPerPage = 15;
 
-  // ANALITIK FORENSIK: Deteksi Ketidaksesuaian Saldo Lintas Node
+  // ANALITIK FORENSIK GLOBAL: Deteksi Ketidaksesuaian Saldo Lintas Seluruh Node
   const forensicStats = useMemo(() => {
-    if (!auditLogs || !allUsers) return { anomalies: [], totalValue: 0, riskyCount: 0 };
+    if (!auditLogs) return { anomalies: [], totalValue: 0, riskyCount: 0 };
     
     let totalValue = 0;
     let riskyCount = 0;
     
-    // Identifikasi transaksi berisiko (Besar & Cepat)
     const anomalies = auditLogs.filter((log: any) => {
       const amt = log.amountIdr || 0;
       totalValue += amt;
       
       const isLarge = amt > 10000000;
-      const isManual = log.category === "Manual Adjustment";
+      const isManual = log.category === "Manual Adjustment" || log.category === "Adjustment";
       const isClientSource = log.source === 'client';
       
-      if (isLarge || isManual) riskyCount++;
+      if (isLarge || isManual || isClientSource) riskyCount++;
       
+      // Kriteria anomali: Nilai besar, input manual, atau sumber tidak resmi
       return isLarge || isClientSource || isManual;
     });
 
     return { anomalies, totalValue, riskyCount };
-  }, [auditLogs, allUsers]);
+  }, [auditLogs]);
 
   const filteredLogs = useMemo(() => {
     if (!auditLogs) return [];
@@ -84,24 +84,24 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
         <div>
           <div className="flex items-center gap-3 mb-1">
             <h2 className="text-3xl font-black italic uppercase tracking-tighter">Pusat Forensik Keuangan</h2>
-            <Badge className="bg-rose-600 text-white font-black text-[8px] h-5 uppercase italic animate-pulse">Deep Scan Active</Badge>
+            <Badge className="bg-rose-600 text-white font-black text-[8px] h-5 uppercase italic animate-pulse">Global Deep Scan Active</Badge>
           </div>
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Audit Menyeluruh Lintas Nasabah & Deteksi Sumber Dana Gaib</p>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Audit Menyeluruh Lintas Nasabah & Deteksi Sumber Dana Ilegal</p>
         </div>
         <div className="flex gap-3">
-          <button className="h-11 px-6 rounded-xl gold-gradient text-white flex items-center gap-2 text-xs font-black uppercase italic shadow-lg">
-            <Download className="w-4 h-4" /> Cetak Laporan Kepatuhan
+          <button className="h-11 px-6 rounded-xl gold-gradient text-white flex items-center gap-2 text-xs font-black uppercase italic shadow-lg hover:scale-[1.02] transition-transform">
+            <Download className="w-4 h-4" /> Cetak Laporan Kepatuhan AML
           </button>
         </div>
       </header>
 
-      {/* FORENSIC INDICATORS */}
+      {/* FORENSIC INDICATORS PANEL */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <ForensicCard 
           icon={ShieldAlert} 
           label="Anomali Terdeteksi" 
           value={forensicStats.anomalies.length} 
-          sub="Transaksi Butuh Review" 
+          sub="Input Tanpa Rekaman Resmi" 
           color="text-rose-500" 
           status="CRITICAL"
         />
@@ -115,7 +115,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
         />
         <ForensicCard 
           icon={Database} 
-          label="Rekaman Lintas Node" 
+          label="Rekaman Ter-Audit" 
           value={auditLogs?.length || 0} 
           sub="Total Entri Buku Besar" 
           color="text-blue-500" 
@@ -131,7 +131,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
         />
       </div>
 
-      <Card className="border-none bg-card rounded-[3rem] overflow-hidden shadow-sm">
+      <Card className="border-none bg-card rounded-[3rem] overflow-hidden shadow-sm relative">
         <div className="p-8 border-b border-border bg-muted/30 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="relative w-full max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -139,7 +139,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
               placeholder="Cari Email Nasabah, ID Transaksi, atau Gateway..." 
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              className="h-12 pl-12 bg-background border-none rounded-2xl text-xs font-bold shadow-none" 
+              className="h-12 pl-12 bg-background border-none rounded-2xl text-xs font-bold shadow-none focus:ring-2 focus:ring-primary/20" 
             />
           </div>
           
@@ -153,19 +153,23 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[900px]">
+          <table className="w-full text-left min-w-[1000px]">
             <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
               <tr>
                 <th className="px-8 py-6">Konteks & Waktu</th>
                 <th className="px-8 py-6">Sumber / Gateway</th>
                 <th className="px-8 py-6">Nasabah</th>
-                <th className="px-8 py-6">Status Audit</th>
+                <th className="px-8 py-6">Status Keamanan</th>
                 <th className="px-8 py-6 text-right">Nilai Nominal</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {paginatedLogs.map((log: any) => {
-                const isAnomaly = (log.amountIdr > 10000000) || (log.category === "Manual Adjustment") || log.source === 'client';
+                const amount = log.amountIdr || 0;
+                const isManual = log.category === "Manual Adjustment" || log.category === "Adjustment";
+                const isLarge = amount > 10000000;
+                const isClientOnly = log.source === 'client';
+                const isAnomaly = isLarge || isManual || isClientOnly;
                 
                 return (
                   <tr key={log.id || Math.random()} className={cn(
@@ -174,20 +178,31 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                   )}>
                     <td className="px-8 py-5">
                       <div className="space-y-1.5">
-                        <Badge className="bg-muted text-foreground border-none text-[8px] font-black h-5 uppercase px-2">
-                          {log.category}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className={cn(
+                            "border-none text-[8px] font-black h-5 uppercase px-2",
+                            isManual ? "bg-amber-100 text-amber-600" : "bg-muted text-foreground"
+                          )}>
+                            {log.category}
+                          </Badge>
+                          {isClientOnly && <Badge className="bg-blue-100 text-blue-600 border-none text-[8px] font-black h-5 uppercase px-2">CLIENT SIDE</Badge>}
+                        </div>
                         <p className="text-[10px] font-bold text-muted-foreground font-mono italic">
-                          {log.timestamp?.toDate?.().toLocaleString('id-ID') || '---'}
+                          {log.timestamp?.toDate?.().toLocaleString('id-ID') || log.date || '---'}
                         </p>
                       </div>
                     </td>
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-2">
-                        <div className="p-2 rounded-lg bg-muted text-primary"><Zap className="w-3.5 h-3.5" /></div>
+                        <div className={cn(
+                          "p-2 rounded-lg bg-muted",
+                          isManual ? "text-amber-500" : "text-primary"
+                        )}>
+                          <Zap className="w-3.5 h-3.5" />
+                        </div>
                         <div>
                           <p className="text-[11px] font-black uppercase italic text-foreground">{log.gateway || log.source || "Node Inti"}</p>
-                          <p className="text-[8px] font-bold text-muted-foreground uppercase">{log.description?.slice(0, 40)}...</p>
+                          <p className="text-[8px] font-bold text-muted-foreground uppercase max-w-[200px] truncate">{log.description}</p>
                         </div>
                       </div>
                     </td>
@@ -198,13 +213,13 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                         </div>
                         <div>
                           <p className="text-[10px] font-black italic uppercase text-foreground">{log.userEmail?.split('@')[0] || 'Sistem'}</p>
-                          <p className="text-[8px] font-bold text-muted-foreground uppercase">{log.userEmail || 'Internal'}</p>
+                          <p className="text-[8px] font-bold text-muted-foreground uppercase">{log.userEmail || 'Internal Node'}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-8 py-5">
                       {isAnomaly ? (
-                        <div className="flex items-center gap-2 text-rose-600">
+                        <div className="flex items-center gap-2 text-rose-600 animate-pulse">
                           <AlertTriangle className="w-4 h-4" />
                           <span className="text-[10px] font-black uppercase italic">Dicurigai</span>
                         </div>
@@ -221,9 +236,13 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                           "text-sm font-black italic tracking-tighter",
                           isAnomaly ? "text-rose-600" : "text-foreground"
                         )}>
-                          Rp {log.amountIdr?.toLocaleString('id-ID') || '0'}
+                          Rp {amount.toLocaleString('id-ID')}
                         </p>
-                        {log.amountUsd && <p className="text-[8px] font-bold text-muted-foreground uppercase italic">$ {log.amountUsd.toFixed(2)}</p>}
+                        {log.cryptoCurrency && (
+                          <p className="text-[8px] font-bold text-primary uppercase italic">
+                            {log.cryptoAmount?.toFixed(6)} {log.cryptoCurrency}
+                          </p>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -232,17 +251,31 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
             </tbody>
           </table>
         </div>
+
+        {paginatedLogs.length === 0 && (
+          <div className="py-20 text-center space-y-4 opacity-20 italic">
+            <Fingerprint className="w-16 h-16 mx-auto" />
+            <p className="text-sm font-black uppercase tracking-widest">Buku Besar Audit Kosong</p>
+          </div>
+        )}
       </Card>
 
-      <div className="p-8 rounded-[2.5rem] bg-amber-500/5 border border-amber-500/10 flex flex-col md:flex-row items-center gap-6">
-        <div className="w-16 h-16 rounded-3xl bg-amber-500 flex items-center justify-center shrink-0 shadow-xl p-4">
-          <ShieldAlert className="text-white w-full h-full" />
+      {/* FORENSIC STAMP FOOTER */}
+      <div className="p-8 rounded-[2.5rem] bg-amber-500/5 border border-amber-500/10 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex items-center gap-6">
+          <div className="w-16 h-16 rounded-3xl bg-amber-500 flex items-center justify-center shrink-0 shadow-xl p-4">
+            <ShieldAlert className="text-white w-full h-full" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-sm font-black uppercase italic tracking-tight text-amber-600">Protokol Keamanan Ali-Intelligence Node V3.5</h4>
+            <p className="text-[10px] font-medium text-muted-foreground leading-relaxed uppercase italic max-w-2xl">
+              Sistem secara otomatis menandai anomali pada log audit jika terdeteksi <span className="text-rose-600 font-bold">Injeksi Saldo Tanpa Ledger</span> atau transaksi manual yang melebihi batas kewajaran. Gunakan data ini sebagai bukti sah untuk pembekuan aset nasabah.
+            </p>
+          </div>
         </div>
-        <div className="space-y-1 text-center md:text-left">
-          <h4 className="text-sm font-black uppercase italic tracking-tight text-amber-600">Protokol Keamanan V3.5 - Pencucian Uang (AML)</h4>
-          <p className="text-[10px] font-medium text-muted-foreground leading-relaxed uppercase italic max-w-3xl">
-            Sistem secara otomatis menandai transaksi di atas <span className="text-rose-600 font-bold">Rp10.000.000</span> atau transaksi yang dilakukan secara manual oleh nasabah tanpa verifikasi gateway yang sah. Anda disarankan melakukan pembekuan saldo jika menemukan ketidaksesuaian pada tab <span className="text-blue-500 font-bold">"Rekaman Nasabah"</span>.
-          </p>
+        <div className="flex items-center gap-3 opacity-40 grayscale shrink-0">
+          <LogoIcon className="w-8 h-8" />
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">AliBank Forensic Unit</span>
         </div>
       </div>
     </div>
