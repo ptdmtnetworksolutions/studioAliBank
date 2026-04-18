@@ -17,7 +17,8 @@ import {
   Clock,
   ShieldCheck,
   Menu,
-  X
+  X,
+  BookOpenCheck
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
@@ -54,6 +55,7 @@ import { InventoryView } from "./components/InventoryView";
 import { AuditLogsView as AuditLogsMod } from "./components/AuditLogsView";
 import { PendingRequestsView } from "./components/PendingRequestsView";
 import { KycVerificationView } from "./components/KycVerificationView";
+import { ClientLedgerView } from "./components/ClientLedgerView";
 
 import { useAlixCoin } from '@/hooks/useAlixCoin';
 
@@ -188,6 +190,7 @@ function AdminContent() {
       <SidebarItem icon={LayoutGrid} label="Dasbor" active={activeTab === 'dashboard'} onClick={() => handleTabChange('dashboard')} />
       <SidebarItem icon={ShieldCheck} label="Pusat KYC" active={activeTab === 'kyc'} onClick={() => handleTabChange('kyc')} />
       <SidebarItem icon={Clock} label="Permintaan Tertunda" active={activeTab === 'pending'} onClick={() => handleTabChange('pending')} />
+      <SidebarItem icon={BookOpenCheck} label="Buku Besar Nasabah" active={activeTab === 'ledger'} onClick={() => handleTabChange('ledger')} />
       <SidebarItem icon={Users} label="Nasabah" active={activeTab === 'users'} onClick={() => handleTabChange('users')} />
       <SidebarItem icon={Wallet} label="Kontrol Brankas" active={activeTab === 'vault'} onClick={() => handleTabChange('vault')} />
       <SidebarItem icon={Coins} label="Tokenomik" active={activeTab === 'tokenomics'} onClick={() => handleTabChange('tokenomics')} />
@@ -285,6 +288,7 @@ function AdminContent() {
           )}
           {activeTab === 'kyc' && <KycVerificationView allUsers={allUsers} />}
           {activeTab === 'pending' && <PendingRequestsView topupRequests={topupRequests} />}
+          {activeTab === 'ledger' && <ClientLedgerView allUsers={allUsers} />}
           {activeTab === 'users' && <ClientsView allUsers={allUsers} />}
           {activeTab === 'vault' && <VaultControlView onChainEth={onChainEth} VAULT_CONTRACT={VAULT_CONTRACT} auditLogs={combinedAuditLogs} />}
           {activeTab === 'tokenomics' && (
@@ -304,7 +308,7 @@ function AdminContent() {
           )}
           {activeTab === 'api' && <ApiManagementView storedKeys={storedKeys} />}
           {activeTab === 'inventory' && <InventoryView marketplaceProducts={marketplaceProducts} />}
-          {activeTab === 'audit' && <AuditLogsMod auditLogs={combinedAuditLogs} />}
+          {activeTab === 'audit' && <AuditLogsView auditLogs={combinedAuditLogs} />}
         </div>
       </main>
     </div>
@@ -323,3 +327,4 @@ function SidebarItem({ icon: Icon, label, active, onClick, className }: any) {
 export default function AdminControlPage() {
   return <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>}><AdminContent /></Suspense>;
 }
+
