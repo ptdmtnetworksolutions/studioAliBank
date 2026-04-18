@@ -8,17 +8,10 @@ import {
   History, 
   ChevronDown, 
   ArrowUpDown, 
-  Info, 
-  Gift, 
-  Sparkles,
-  RefreshCw,
-  PlusCircle,
   Loader2,
   CheckCircle2,
   Bitcoin,
   Cpu,
-  Coins,
-  ShieldCheck,
   Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,7 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const MARKUP = 1.02; // AliBank 2% PROFIT MARGIN
+const MARKUP = 1.02; // AliBank 2% Profit Margin
 const USDT_IDR_RATE = 15850;
 
 type AssetKey = 'ALX' | 'BTC' | 'ETH' | 'USDT' | 'IDR';
@@ -46,15 +39,14 @@ interface AssetConfig {
   name: string;
   icon: any;
   color: string;
-  isNative?: boolean;
 }
 
 const ASSETS: AssetConfig[] = [
-  { symbol: 'ALX', name: 'Alix Coin', icon: LogoIcon, color: 'gold-gradient', isNative: true },
+  { symbol: 'ALX', name: 'Alix Coin', icon: LogoIcon, color: 'gold-gradient' },
   { symbol: 'BTC', name: 'Bitcoin', icon: Bitcoin, color: 'bg-orange-500' },
   { symbol: 'ETH', name: 'Ethereum', icon: Cpu, color: 'bg-blue-500' },
   { symbol: 'USDT', name: 'TetherUS', icon: Zap, color: 'bg-[#0D9488]' },
-  { symbol: 'IDR', name: 'Rupiah', icon: () => <span className="text-white font-black text-sm">Rp</span>, color: 'bg-rose-600' },
+  { symbol: 'IDR', name: 'Rupiah', icon: () => <span className="text-white font-black text-[10px]">Rp</span>, color: 'bg-rose-600' },
 ];
 
 export default function ConvertPage() {
@@ -64,12 +56,11 @@ export default function ConvertPage() {
   const { toast } = useToast();
   
   const [mounted, setMounted] = useState(false);
-  const [fromAsset, setFromAsset] = useState<AssetKey>('USDT');
-  const [toAsset, setToAsset] = useState<AssetKey>('BTC');
+  const [fromAsset, setFromAsset] = useState<AssetKey>('ETH');
+  const [toAsset, setToAsset] = useState<AssetKey>('USDT');
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState<'input' | 'success'>('input');
-  const [congestion, setCongestion] = useState(1.0); // Faktor kepadatan jaringan
   
   const [prices, setPrices] = useState<Record<AssetKey, number>>({
     ALX: 12.24,
@@ -84,7 +75,7 @@ export default function ConvertPage() {
 
   const fetchPrices = useCallback(async () => {
     try {
-      const symbols = ["BTCUSDT", "ETHUSDT", "USDTIDR"];
+      const symbols = ["BTCUSDT", "ETHUSDT", "USDTIDRT"];
       const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}`);
       if (res.ok) {
         const data = await res.json();
@@ -92,7 +83,7 @@ export default function ConvertPage() {
         
         const btcData = data.find((d: any) => d.symbol === 'BTCUSDT');
         const ethData = data.find((d: any) => d.symbol === 'ETHUSDT');
-        const usdtIdrData = data.find((d: any) => d.symbol === 'USDTIDR');
+        const usdtIdrData = data.find((d: any) => d.symbol === 'USDTIDRT');
 
         if (btcData) newPrices.BTC = parseFloat(btcData.lastPrice);
         if (ethData) newPrices.ETH = parseFloat(ethData.lastPrice);
@@ -100,8 +91,6 @@ export default function ConvertPage() {
         if (globalLiquidity?.lastAlxPriceUsdt) newPrices.ALX = globalLiquidity.lastAlxPriceUsdt;
 
         setPrices(newPrices);
-        // Simulasi fluktuasi gas jaringan secara riil
-        setCongestion(0.9 + Math.random() * 0.4);
       }
     } catch (e) {
       console.warn("Price sync failed", e);
@@ -115,50 +104,20 @@ export default function ConvertPage() {
     return () => clearInterval(interval);
   }, [fetchPrices]);
 
-  const gasFee = useMemo(() => {
-    // KALKULASI GAS FEE RIIL BERDASARKAN STANDAR BLOCKCHAIN MAINNET
-    // Jika volume sangat besar (seperti 5500 BTC), node membutuhkan resource kliring lebih tinggi
-    const inputAmount = parseFloat(amount) || 0;
-    const valueInUsdt = inputAmount * prices[fromAsset];
-    
-    // Faktor penambah biaya untuk transaksi raksasa (Slippage/Liquidity handling)
-    const volumeImpact = valueInUsdt > 1000000 ? (valueInUsdt * 0.00005) : 0;
-
-    let baseGas = 0;
-    if (toAsset === 'BTC') baseGas = 0.00042 * congestion; // ~ $28 - $40
-    else if (toAsset === 'ETH') baseGas = 0.0065 * congestion; // ~ $15 - $25
-    else if (toAsset === 'ALX') baseGas = 0.01; // Polygon tetap murah
-    else if (toAsset === 'USDT') baseGas = 18.5 * congestion; // ERC-20 standard ~$18
-    else if (toAsset === 'IDR') baseGas = 0; // Internal
-
-    // Total Gas = Biaya Dasar Jaringan + Dampak Volume Likuiditas
-    // Untuk USDT, konversi volumeImpact kembali ke unit USDT
-    if (toAsset === 'USDT') return parseFloat((baseGas + (valueInUsdt > 1000000 ? 50 : 0)).toFixed(2));
-    if (toAsset === 'BTC') return parseFloat((baseGas + (volumeImpact / prices.BTC)).toFixed(8));
-    if (toAsset === 'ETH') return parseFloat((baseGas + (volumeImpact / prices.ETH)).toFixed(8));
-    
-    return baseGas;
-  }, [toAsset, amount, fromAsset, prices, congestion]);
-
   const convertedValue = useMemo(() => {
     const num = parseFloat(amount);
-    if (isNaN(num) || num <= 0) return "0.00";
-    
+    if (isNaN(num) || num <= 0) return "0";
     const valueInUsdt = num * prices[fromAsset];
     const rawOutput = valueInUsdt / (prices[toAsset] * MARKUP);
-    
-    // Kurangi estimasi gas dari output jika bukan IDR
-    const afterGas = rawOutput > (toAsset === 'IDR' ? 0 : gasFee / (toAsset === 'USDT' ? 1 : 1)) 
-      ? rawOutput - (toAsset === 'IDR' ? 0 : (toAsset === 'USDT' ? gasFee / prices.USDT : (toAsset === 'BTC' ? gasFee : (toAsset === 'ETH' ? gasFee : 0))))
-      : 0;
-    
-    return toAsset === 'IDR' ? Math.floor(afterGas * USDT_IDR_RATE).toString() : afterGas.toFixed(8);
-  }, [amount, fromAsset, toAsset, prices, gasFee]);
+    return toAsset === 'IDR' ? Math.floor(rawOutput * USDT_IDR_RATE).toString() : rawOutput.toFixed(6);
+  }, [amount, fromAsset, toAsset, prices]);
+
+  const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const { data: userData } = useDoc(userDocRef);
 
   const handleConvert = async () => {
     if (!user || !db || !userData) return;
     const numAmount = parseFloat(amount);
-    
     if (isNaN(numAmount) || numAmount <= 0) return;
 
     let balance = 0;
@@ -166,21 +125,15 @@ export default function ConvertPage() {
     else balance = userData.cryptoBalances?.[fromAsset] || 0;
 
     if (balance < numAmount) {
-      toast({ 
-        variant: "destructive", 
-        title: "Saldo Tidak Cukup", 
-        description: `Anda membutuhkan saldo ${fromAsset} yang lebih besar.` 
-      });
+      toast({ variant: "destructive", title: "Saldo Tidak Cukup" });
       return;
     }
 
     setIsProcessing(true);
     try {
       const resultNum = parseFloat(convertedValue);
-      const userDocRef = doc(db, "users", user.uid);
-      const tradeTime = new Date().toISOString();
+      const userRef = doc(db, "users", user.uid);
 
-      // 1. Update Saldo User
       const userUpdates: any = {};
       if (fromAsset === 'IDR') userUpdates.totalBalance = increment(-numAmount);
       else userUpdates[`cryptoBalances.${fromAsset}`] = increment(-numAmount);
@@ -188,54 +141,29 @@ export default function ConvertPage() {
       if (toAsset === 'IDR') userUpdates.totalBalance = increment(resultNum);
       else userUpdates[`cryptoBalances.${toAsset}`] = increment(resultNum);
 
-      await updateDoc(userDocRef, userUpdates);
+      await updateDoc(userRef, userUpdates);
 
-      // 2. Update Likuiditas Sistem
-      const systemRef = doc(db, "system", "liquidity");
-      const amountInIdr = numAmount * (fromAsset === 'IDR' ? 1 : prices[fromAsset] * USDT_IDR_RATE);
-      
-      await updateDoc(systemRef, {
-        totalAlixTrades: increment(1),
-        totalInternalAumIdr: increment(amountInIdr)
-      });
-
-      // 3. Log Audit
-      await addDoc(collection(db, "system", "audit", "global_transactions"), {
-        id: `SWAP-${Date.now()}`,
-        category: "Ali-Exchange",
-        description: `Swap: ${numAmount} ${fromAsset} to ${resultNum} ${toAsset} for ${userData.name}`,
-        amountIdr: amountInIdr,
-        status: "success",
-        timestamp: serverTimestamp(),
-        userEmail: user.email
-      });
-
-      // 4. Riwayat User
       await addDoc(collection(db, "users", user.uid, "transactions"), {
-        date: tradeTime,
+        date: new Date().toISOString(),
         description: `Swap ${fromAsset} ke ${toAsset}`,
         category: "Trading",
         fromAmount: numAmount,
         fromCurrency: fromAsset,
         toAmount: resultNum,
         toCurrency: toAsset,
-        gasFee: gasFee,
         type: 'income',
         status: "success",
         timestamp: serverTimestamp()
       });
 
       setStep('success');
-      toast({ title: "Konversi Berhasil", description: "Aset Anda telah diperbarui secara instan." });
+      toast({ title: "Swap Berhasil" });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Gagal Konversi", description: err.message });
+      toast({ variant: "destructive", title: "Gagal", description: err.message });
     } finally {
       setIsProcessing(false);
     }
   };
-
-  const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
-  const { data: userData } = useDoc(userDocRef);
 
   if (!mounted) return null;
 
@@ -244,176 +172,136 @@ export default function ConvertPage() {
 
   if (step === 'success') {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-500 overflow-hidden">
-        <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-4">
-          <CheckCircle2 className="w-10 h-10 text-green-600" />
+      <div className="min-h-screen bg-[#0F1113] flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-500">
+        <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mb-6">
+          <CheckCircle2 className="w-12 h-12 text-green-600" />
         </div>
-        <h2 className="text-xl font-black italic uppercase tracking-tight text-foreground mb-1">Swap Berhasil</h2>
-        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-6 italic">Ali-Secure Settlement Node V3</p>
-        
-        <div className="w-full bg-muted/50 rounded-[2rem] p-6 mb-8 space-y-4 shadow-inner border border-border/50">
-          <div>
-            <p className="text-[9px] font-black uppercase text-muted-foreground mb-1">Total Diterima</p>
-            <p className="text-3xl font-black italic text-foreground">
-              {convertedValue} {toAsset}
-            </p>
-          </div>
-          <div className="h-px bg-border" />
-          <div className="space-y-2">
-            <div className="flex justify-between items-center text-[9px] font-bold uppercase text-muted-foreground">
-              <span>Biaya Jaringan (Gas)</span>
-              <span className="text-rose-500">{gasFee} {toAsset}</span>
-            </div>
-            <div className="flex justify-between items-center text-[9px] font-bold uppercase text-muted-foreground">
-              <span>Kurs Eksekusi</span>
-              <span>1 {fromAsset} ≈ {(prices[fromAsset]/prices[toAsset]/MARKUP).toFixed(8)} {toAsset}</span>
-            </div>
-          </div>
-        </div>
-
-        <Button 
-          className="w-full h-14 bg-primary text-primary-foreground font-black italic uppercase rounded-2xl shadow-xl"
-          onClick={() => router.push('/')}
-        >
-          SELESAI
-        </Button>
+        <h2 className="text-2xl font-black italic uppercase mb-2">Swap Berhasil</h2>
+        <Card className="w-full max-w-sm bg-[#171A1D] border-none rounded-[2rem] p-8 mb-8 text-center">
+          <p className="text-[10px] font-black text-white/40 uppercase">Total Diterima</p>
+          <p className="text-3xl font-black text-primary italic">{convertedValue} {toAsset}</p>
+        </Card>
+        <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl" onClick={() => router.push('/')}>Selesai</Button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
-      <header className="px-4 h-12 flex items-center justify-between sticky top-0 bg-background z-50">
-        <button onClick={() => router.back()} className="p-1 hover:bg-muted rounded-full transition-colors"><ArrowLeft className="w-5 h-5" /></button>
-        <h1 className="text-base font-black tracking-tight italic uppercase">Ali-Convert Node</h1>
-        <div className="flex gap-2">
-          <History onClick={() => router.push('/transactions')} className="w-4 h-4 text-muted-foreground cursor-pointer" />
-        </div>
+    <div className="min-h-screen bg-[#0F1113] text-white flex flex-col font-body overflow-hidden">
+      {/* HEADER */}
+      <header className="px-6 h-16 flex items-center justify-between sticky top-0 bg-[#0F1113] z-50">
+        <button onClick={() => router.back()} className="p-1 hover:bg-white/5 rounded-full transition-colors">
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+        <h1 className="text-base font-black uppercase italic tracking-widest">Swap</h1>
+        <button className="p-1 hover:bg-white/5 rounded-full transition-colors">
+          <Settings2 className="w-5 h-5 text-white/60" />
+        </button>
       </header>
 
-      <main className="flex-1 px-4 pt-1 space-y-3 overflow-hidden">
-        <div className="bg-primary/10 border border-primary/20 rounded-xl p-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Sparkles className="w-4 h-4 text-primary shrink-0" />
-            <p className="text-[9px] font-bold text-foreground leading-tight uppercase italic">Konversi instan dengan proteksi harga AliBank.</p>
-          </div>
-          <Badge className="bg-primary text-primary-foreground text-[7px] font-black italic border-none h-4">MARKUP +2%</Badge>
-        </div>
-
-        <div className="flex items-center justify-between px-1">
-          <div className="flex flex-col">
-            <p className="text-[11px] font-black text-foreground italic">
-              Rate: 
-              <span className="text-green-500 ml-1">
-                1 {fromAsset} ≈ {(prices[fromAsset]/prices[toAsset]/MARKUP).toFixed(fromAsset === 'IDR' ? 8 : 4)} {toAsset}
-              </span>
-            </p>
-            <span className="text-[7px] font-bold text-muted-foreground uppercase tracking-widest italic">Node Harga Live Global</span>
-          </div>
-          <div className="flex flex-col items-end">
-            <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black uppercase">Gas: {gasFee} {toAsset}</Badge>
-            <span className="text-[6px] font-bold text-muted-foreground uppercase mt-1 italic">Status: {congestion > 1.2 ? 'Padat' : 'Lancar'}</span>
-          </div>
-        </div>
-
-        <div className="space-y-1 mt-4">
-          {/* FROM SLOT */}
-          <div className="space-y-1">
-            <div className="flex justify-between items-center px-1">
-              <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Jual</label>
-              <span className="text-[9px] font-black text-muted-foreground italic">
-                Saldo: {fromAsset === 'IDR' ? `Rp${(userData?.totalBalance ?? 0).toLocaleString()}` : `${(userData?.cryptoBalances?.[fromAsset] ?? 0).toFixed(6)} ${fromAsset}`}
-              </span>
-            </div>
-            <div className="bg-muted/30 rounded-2xl p-4 flex items-center justify-between border border-border shadow-sm">
+      <main className="flex-1 flex flex-col pt-4">
+        {/* FROM SECTION */}
+        <div className="px-6 py-8 space-y-2 group">
+          <div className="flex justify-between items-center">
+            <input 
+              type="number" 
+              placeholder="0" 
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-1/2 bg-transparent text-6xl font-black italic outline-none tracking-tighter text-white placeholder:text-white/10" 
+            />
+            <div className="flex flex-col items-end gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <div className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 p-1 rounded-xl transition-all">
-                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2.5 shadow-md", currentFromAsset.color)}>
-                      <currentFromAsset.icon className="text-white" />
+                  <button className="flex items-center gap-2 bg-[#1C2024] hover:bg-[#252A2E] pl-2 pr-4 py-2 rounded-full border border-white/5 shadow-xl transition-all active:scale-95">
+                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-1.5", currentFromAsset.color)}>
+                      <currentFromAsset.icon className="text-white w-full h-full" />
                     </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm font-black italic uppercase tracking-tighter">{fromAsset}</span>
-                      <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                    </div>
-                  </div>
+                    <span className="text-sm font-black italic uppercase tracking-tighter">{fromAsset}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-white/40" />
+                  </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-background border-border rounded-xl">
+                <DropdownMenuContent className="bg-[#1C2024] border-white/10 text-white rounded-2xl p-2 min-w-[140px]">
                   {ASSETS.filter(a => a.symbol !== toAsset).map((a) => (
-                    <DropdownMenuItem key={a.symbol} onClick={() => setFromAsset(a.symbol)} className="font-black italic uppercase text-xs">
-                      {a.symbol} - {a.name}
+                    <DropdownMenuItem key={a.symbol} onClick={() => setFromAsset(a.symbol)} className="rounded-xl p-3 flex items-center gap-3 cursor-pointer focus:bg-white/5">
+                      <div className={cn("w-6 h-6 rounded-full flex items-center justify-center p-1", a.color)}><a.icon className="text-white w-full h-full" /></div>
+                      <span className="font-black italic uppercase text-xs">{a.symbol}</span>
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <input 
-                type="number" 
-                placeholder="0.00" 
-                value={amount} 
-                onChange={(e) => setAmount(e.target.value)} 
-                className="w-1/2 bg-transparent text-right text-2xl font-black italic outline-none tracking-tighter text-foreground" 
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-center -my-4 relative z-20">
-            <button 
-              onClick={() => { const oldFrom = fromAsset; setFromAsset(toAsset); setToAsset(oldFrom); setAmount(""); }} 
-              className="w-10 h-10 bg-background border-4 border-muted rounded-full shadow-xl flex items-center justify-center text-primary active:scale-90 transition-transform"
-            >
-              <ArrowUpDown className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* TO SLOT */}
-          <div className="space-y-1">
-            <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Dapatkan</label>
-            <div className="bg-muted/30 rounded-2xl p-4 flex items-center justify-between border border-border shadow-sm">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <div className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 p-1 rounded-xl transition-all">
-                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2.5 shadow-md", currentToAsset.color)}>
-                      <currentToAsset.icon className="text-white" />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm font-black italic uppercase tracking-tighter">{toAsset}</span>
-                      <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                    </div>
-                  </div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-background border-border rounded-xl">
-                  {ASSETS.filter(a => a.symbol !== fromAsset).map((a) => (
-                    <DropdownMenuItem key={a.symbol} onClick={() => setToAsset(a.symbol)} className="font-black italic uppercase text-xs">
-                      {a.symbol} - {a.name}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <p className="text-2xl font-black text-muted-foreground/60 italic tracking-tighter">{convertedValue}</p>
+              <p className="text-[11px] font-bold text-white/30 italic mr-1">
+                {fromAsset === 'IDR' ? `Rp${(userData?.totalBalance ?? 0).toLocaleString()}` : `${(userData?.cryptoBalances?.[fromAsset] ?? 0).toFixed(6)} ${fromAsset}`} 
+                <button 
+                  onClick={() => setAmount((fromAsset === 'IDR' ? (userData?.totalBalance ?? 0) : (userData?.cryptoBalances?.[fromAsset] ?? 0)).toString())}
+                  className="text-blue-500 font-black ml-1.5 hover:underline"
+                >
+                  Maks
+                </button>
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3 mt-4">
-          <Info className="w-5 h-5 text-blue-500 shrink-0" />
-          <div className="space-y-1">
-            <p className="text-[9px] font-black text-blue-600 uppercase">Kalkulasi Gas Real-Time</p>
-            <p className="text-[9px] font-bold text-muted-foreground leading-relaxed uppercase italic">
-              Biaya gas sebesar <span className="text-foreground font-black">{gasFee} {toAsset}</span> mencakup biaya siar jaringan blockchain dan penanganan likuiditas {parseFloat(amount) > 1000000 ? 'prioritas' : 'standar'}.
-            </p>
+        {/* DIVIDER WITH SWAP ICON */}
+        <div className="relative h-px bg-white/5 w-full flex justify-center items-center">
+          <button 
+            onClick={() => { const old = fromAsset; setFromAsset(toAsset); setToAsset(old); setAmount(""); }}
+            className="w-10 h-10 bg-[#1C2024] border-[4px] border-[#0F1113] rounded-full flex items-center justify-center text-white/60 active:scale-90 transition-transform shadow-xl z-20"
+          >
+            <ArrowUpDown className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* TO SECTION */}
+        <div className="px-6 py-8 space-y-2">
+          <div className="flex justify-between items-center">
+            <div className="text-6xl font-black italic tracking-tighter text-white/40">
+              {convertedValue}
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 bg-[#1C2024] hover:bg-[#252A2E] pl-2 pr-4 py-2 rounded-full border border-white/5 shadow-xl transition-all active:scale-95">
+                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-1.5", currentToAsset.color)}>
+                      <currentToAsset.icon className="text-white w-full h-full" />
+                    </div>
+                    <span className="text-sm font-black italic uppercase tracking-tighter">{toAsset}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-white/40" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-[#1C2024] border-white/10 text-white rounded-2xl p-2 min-w-[140px]">
+                  {ASSETS.filter(a => a.symbol !== fromAsset).map((a) => (
+                    <DropdownMenuItem key={a.symbol} onClick={() => setToAsset(a.symbol)} className="rounded-xl p-3 flex items-center gap-3 cursor-pointer focus:bg-white/5">
+                      <div className={cn("w-6 h-6 rounded-full flex items-center justify-center p-1", a.color)}><a.icon className="text-white w-full h-full" /></div>
+                      <span className="font-black italic uppercase text-xs">{a.symbol}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <button className="text-[10px] font-mono font-bold text-white/20 underline decoration-white/10 hover:text-white/40 transition-colors mr-1">
+                {userData?.walletAddress ? `${userData.walletAddress.slice(0, 4)}...${userData.walletAddress.slice(-4)}` : 'Node Not Linked'}
+              </button>
+            </div>
           </div>
         </div>
       </main>
 
-      <div className="p-4 bg-background border-t border-border mt-auto pb-10">
+      {/* FOOTER CTA */}
+      <footer className="p-6 bg-[#0F1113] pb-12">
         <Button 
-          disabled={!amount || isProcessing} 
-          onClick={handleConvert} 
-          className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-[1.5rem] shadow-xl text-sm tracking-[0.2em]"
+          disabled={!amount || parseFloat(amount) <= 0 || isProcessing}
+          onClick={handleConvert}
+          className={cn(
+            "w-full h-16 rounded-3xl font-black italic uppercase transition-all duration-300 border-none shadow-none text-base",
+            (!amount || parseFloat(amount) <= 0) 
+              ? "bg-transparent text-white/20 hover:bg-transparent" 
+              : "gold-gradient text-white shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95"
+          )}
         >
-          {isProcessing ? <Loader2 className="animate-spin w-6 h-6" /> : 'KONFIRMASI SWAP ASET'}
+          {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (!amount || parseFloat(amount) <= 0 ? "Pilih jumlah" : "Konfirmasi Swap")}
         </Button>
-      </div>
+      </footer>
     </div>
   );
 }
