@@ -39,12 +39,12 @@ const getIconUrl = (symbol: string) => {
   return `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${s}.png`;
 };
 
+// DAFTAR 20 KOIN PRIORITAS UNTUK STABILITAS MOBILE
 const GLOBAL_SYMBOLS = [
-  "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT",
-  "MATICUSDT", "LTCUSDT", "SHIBUSDT", "DAIUSDT", "BCHUSDT", "AVAXUSDT", "UNIUSDT", "ATOMUSDT", "XLMUSDT", "XMRUSDT",
-  "ETCUSDT", "ICPUSDT", "FILUSDT", "LDOUSDT", "APTUSDT", "HBARUSDT", "NEARUSDT", "ARBUSDT", "VETUSDT", "OPUSDT",
-  "GRTUSDT", "RNDRUSDT", "MKRUSDT", "STXUSDT", "INJUSDT", "THETAUSDT", "FTMUSDT", "ALGOUSDT", "EGLDUSDT", "TIAUSDT",
-  "FLOWUSDT", "SEIUSDT", "DYDXUSDT", "MANAUSDT", "SANDUSDT", "IMXUSDT", "KASUSDT"
+  "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", 
+  "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT",
+  "MATICUSDT", "LTCUSDT", "SHIBUSDT", "AVAXUSDT", "UNIUSDT", 
+  "ATOMUSDT", "XLMUSDT", "XMRUSDT", "NEARUSDT", "ARBUSDT"
 ];
 
 export default function MobileMarketPage() {
@@ -99,7 +99,7 @@ export default function MobileMarketPage() {
   useEffect(() => {
     if (mounted) {
       fetchMarketData();
-      const interval = setInterval(fetchMarketData, 15000);
+      const interval = setInterval(fetchMarketData, 20000);
       return () => clearInterval(interval);
     }
   }, [mounted, fetchMarketData]);
@@ -137,7 +137,7 @@ export default function MobileMarketPage() {
         {activeTab === "Pasar" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between px-1">
-               <h3 className="text-xs font-black uppercase italic text-muted-foreground tracking-widest">Aset Global (48)</h3>
+               <h3 className="text-xs font-black uppercase italic text-muted-foreground tracking-widest">Aset Global</h3>
                {isLoading && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
             </div>
             {isLoading ? (

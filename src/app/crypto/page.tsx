@@ -64,13 +64,12 @@ const getIconUrl = (symbol: string) => {
   return `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${s}.png`;
 };
 
-// DAFTAR 47 KOIN EKSTERNAL + 1 ALX = 48 TOTAL
+// DAFTAR 20 KOIN PRIORITAS UNTUK STABILITAS NODE
 const GLOBAL_SYMBOLS = [
-  "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT",
-  "MATICUSDT", "LTCUSDT", "SHIBUSDT", "DAIUSDT", "BCHUSDT", "AVAXUSDT", "UNIUSDT", "ATOMUSDT", "XLMUSDT", "XMRUSDT",
-  "ETCUSDT", "ICPUSDT", "FILUSDT", "LDOUSDT", "APTUSDT", "HBARUSDT", "NEARUSDT", "ARBUSDT", "VETUSDT", "OPUSDT",
-  "GRTUSDT", "RNDRUSDT", "MKRUSDT", "STXUSDT", "INJUSDT", "THETAUSDT", "FTMUSDT", "ALGOUSDT", "EGLDUSDT", "TIAUSDT",
-  "FLOWUSDT", "SEIUSDT", "DYDXUSDT", "MANAUSDT", "SANDUSDT", "IMXUSDT", "KASUSDT"
+  "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", 
+  "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT",
+  "MATICUSDT", "LTCUSDT", "SHIBUSDT", "AVAXUSDT", "UNIUSDT", 
+  "ATOMUSDT", "XLMUSDT", "XMRUSDT", "NEARUSDT", "ARBUSDT"
 ];
 
 export default function DesktopDiscoverPage() {
@@ -99,13 +98,12 @@ export default function DesktopDiscoverPage() {
       
       if (!tickerData || tickerData.error || !Array.isArray(tickerData)) {
         setIsError(true);
-        // Jangan reset marketData agar UI tidak kosong saat error sementara
         setIsLoading(false);
         return;
       }
 
-      // STRATEGI CHUNKING: Ambil Klines dalam kelompok 8 koin untuk stabilitas
-      const CHUNK_SIZE = 8;
+      // STRATEGI CHUNKING: Ambil Klines dalam kelompok 5 koin untuk stabilitas maksimal
+      const CHUNK_SIZE = 5;
       const allTrends: Record<string, any[]> = {};
       
       for (let i = 0; i < GLOBAL_SYMBOLS.length; i += CHUNK_SIZE) {
@@ -123,9 +121,8 @@ export default function DesktopDiscoverPage() {
           }
         });
 
-        // Jeda kecil antar chunk untuk menghindari blokir node
         if (i + CHUNK_SIZE < GLOBAL_SYMBOLS.length) {
-          await new Promise(r => setTimeout(r, 200));
+          await new Promise(r => setTimeout(r, 300));
         }
       }
 
@@ -181,7 +178,7 @@ export default function DesktopDiscoverPage() {
       return;
     }
     syncMarketData();
-    const interval = setInterval(syncMarketData, 30000); // 30 detik untuk stabilitas beban
+    const interval = setInterval(syncMarketData, 45000); 
     return () => clearInterval(interval);
   }, [router, syncMarketData]);
 
@@ -189,7 +186,7 @@ export default function DesktopDiscoverPage() {
     if (marketData.length === 0) return [];
     if (activeFilter === "Popular") return marketData;
     if (activeFilter === "Gainers") return [...marketData].sort((a, b) => b.changePercent - a.changePercent);
-    if (activeFilter === "Trending") return marketData.slice(0, 15);
+    if (activeFilter === "Trending") return marketData.slice(0, 10);
     return marketData;
   }, [marketData, activeFilter]);
 
@@ -231,7 +228,7 @@ export default function DesktopDiscoverPage() {
             <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Discover</h2>
             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[8px] font-black h-5 uppercase px-2">
               <RefreshCw className={cn("w-2.5 h-2.5 mr-1.5", isLoading && "animate-spin")} /> 
-              {isLoading ? "Syncing 48 Nodes..." : `Live Node Sync: ${lastSync}`}
+              {isLoading ? "Syncing Nodes..." : `Live Node Sync: ${lastSync}`}
             </Badge>
           </div>
           <div className="flex items-center gap-6">
@@ -303,7 +300,7 @@ export default function DesktopDiscoverPage() {
                         <tr>
                           <td colSpan={6} className="py-32 text-center opacity-30">
                             <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
-                            <p className="mt-6 font-black uppercase italic text-xs tracking-widest">Connecting to 48 Market Nodes...</p>
+                            <p className="mt-6 font-black uppercase italic text-xs tracking-widest">Connecting to Market Nodes...</p>
                           </td>
                         </tr>
                       ) : filteredMarketData.map((token) => (
