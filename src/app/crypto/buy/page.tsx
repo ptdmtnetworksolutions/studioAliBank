@@ -111,7 +111,7 @@ export default function CryptoBuyPage() {
   const renderInProgress = useRef(false);
   const retryCount = useRef(0);
 
-  const apiKeysRef = useMemoFirebase(() => (db && user ? doc(db, "system", "api_keys") : null), [db, user]);
+  const apiKeysRef = useMemoFirebase(() => (db && user ? doc(db, "system", "public_keys") : null), [db, user]);
   const { data: systemKeys } = useDoc(apiKeysRef);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
@@ -279,7 +279,7 @@ export default function CryptoBuyPage() {
   };
 
   const handleMidtransPayment = async () => {
-    if (!user || !db || !systemKeys?.midtransServerKey) {
+    if (!user || !db || !systemKeys?.midtransClientKey) {
       toast({ variant: "destructive", title: "Konfigurasi Error", description: "Gateway Midtrans belum aktif di Vault." });
       return;
     }
@@ -291,8 +291,7 @@ export default function CryptoBuyPage() {
         orderId,
         totalAmountIdr,
         userData?.name || "User",
-        user.email || "",
-        systemKeys.midtransServerKey
+        user.email || ""
       );
 
       if (res.token) {
@@ -430,7 +429,7 @@ export default function CryptoBuyPage() {
         />
       )}
       <Script 
-        src={systemKeys?.midtransServerKey?.startsWith('SB-') 
+        src={systemKeys?.midtransClientKey?.startsWith('SB-') 
           ? "https://app.sandbox.midtrans.com/snap/snap.js" 
           : "https://app.midtrans.com/snap/snap.js"}
         data-client-key={systemKeys?.midtransClientKey}

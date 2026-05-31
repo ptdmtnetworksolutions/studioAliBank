@@ -173,7 +173,7 @@ function AdminMobileContent() {
     setSyncing(true);
     try {
       const provider = new JsonRpcProvider(GLOBAL_RPC);
-      const bal = await provider.getBalance(ALX_CONTRACT).catch(() => 0n);
+      const bal = await provider.getBalance(ALX_CONTRACT).catch(() => BigInt(0));
       setVaultEth(formatEther(bal));
       toast({ title: "Vault Synced", description: "Data On-Chain diperbarui." });
     } catch (e) {} finally { setSyncing(false); }

@@ -98,7 +98,7 @@ export default function CheckoutPage() {
   const renderInProgress = useRef(false);
   const retryCount = useRef(0);
 
-  const apiKeysRef = useMemoFirebase(() => (db && user ? doc(db, "system", "api_keys") : null), [db, user]);
+  const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "public_keys") : null), [db]);
   const { data: systemKeys } = useDoc(apiKeysRef);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);

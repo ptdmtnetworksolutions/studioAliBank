@@ -34,7 +34,7 @@ export function useAlixCoin() {
     try {
       const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
       const db = getFirestore(app);
-      const keySnap = await getDoc(doc(db, "system", "api_keys"));
+      const keySnap = await getDoc(doc(db, "system", "public_keys"));
       if (keySnap.exists()) {
         const data = keySnap.data();
         if (data.polygonRpcUrl) dynamicRpc = data.polygonRpcUrl;
@@ -99,7 +99,7 @@ export function useAlixCoin() {
     try {
       const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
       const db = getFirestore(app);
-      const keySnap = await getDoc(doc(db, "system", "api_keys"));
+      const keySnap = await getDoc(doc(db, "system", "public_keys"));
       if (keySnap.exists()) dynamicAddress = keySnap.data().alxContractAddress || ALX_ADDRESS_DEFAULT;
     } catch (e) {}
 
@@ -107,7 +107,7 @@ export function useAlixCoin() {
     const amountWei = ethers.parseEther(amount);
     
     const network = await signer.provider?.getNetwork();
-    if (network?.chainId !== 137n) {
+    if (network?.chainId !== BigInt(137)) {
       throw new Error("MetaMask harus berada di jaringan Polygon Mainnet.");
     }
 
@@ -125,7 +125,7 @@ export function useAlixCoin() {
     try {
       const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
       const db = getFirestore(app);
-      const keySnap = await getDoc(doc(db, "system", "api_keys"));
+      const keySnap = await getDoc(doc(db, "system", "public_keys"));
       if (keySnap.exists()) dynamicAddress = keySnap.data().alxContractAddress || ALX_ADDRESS_DEFAULT;
     } catch (e) {}
 
@@ -133,7 +133,7 @@ export function useAlixCoin() {
     const amountWei = ethers.parseEther(amount);
     
     const network = await signer.provider?.getNetwork();
-    if (network?.chainId !== 137n) throw new Error("Gunakan jaringan Polygon.");
+    if (network?.chainId !== BigInt(137)) throw new Error("Gunakan jaringan Polygon.");
 
     const tx = await contract.burn(amountWei);
     await tx.wait();
@@ -146,14 +146,14 @@ export function useAlixCoin() {
     try {
       const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
       const db = getFirestore(app);
-      const keySnap = await getDoc(doc(db, "system", "api_keys"));
+      const keySnap = await getDoc(doc(db, "system", "public_keys"));
       if (keySnap.exists()) dynamicAddress = keySnap.data().alxContractAddress || ALX_ADDRESS_DEFAULT;
     } catch (e) {}
 
     const contract = new ethers.Contract(dynamicAddress, AlixCoinABI, signer);
     
     const network = await signer.provider?.getNetwork();
-    if (network?.chainId !== 137n) throw new Error("Gunakan jaringan Polygon.");
+    if (network?.chainId !== BigInt(137)) throw new Error("Gunakan jaringan Polygon.");
 
     const tx = isPaused 
       ? await contract.unpause()

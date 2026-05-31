@@ -83,12 +83,31 @@ export function ApiManagementView({ storedKeys }: any) {
     setIsSaving(true);
     
     const docRef = doc(db, "system", "api_keys");
+    const publicDocRef = doc(db, "system", "public_keys");
+
+    const publicKeys = {
+      infuraProjectId: keys.infuraProjectId,
+      infuraGasApiUrl: keys.infuraGasApiUrl,
+      paypalClientId: keys.paypalClientId,
+      midtransClientKey: keys.midtransClientKey,
+      polygonRpcUrl: keys.polygonRpcUrl,
+      ethereumRpcUrl: keys.ethereumRpcUrl,
+      alxContractAddress: keys.alxContractAddress,
+      vaultContractAddress: keys.vaultContractAddress,
+    };
     
-    setDoc(docRef, {
-      ...keys,
-      updatedAt: serverTimestamp(),
-      updatedBy: user?.email
-    }, { merge: true })
+    Promise.all([
+      setDoc(docRef, {
+        ...keys,
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.email
+      }, { merge: true }),
+      setDoc(publicDocRef, {
+        ...publicKeys,
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.email
+      }, { merge: true })
+    ])
       .then(() => {
         toast({ title: "Brankas Kredensial Diperbarui", description: "Node kliring AliBank telah disinkronkan." });
       })

@@ -24,11 +24,10 @@ export async function GET(request: NextRequest) {
 
     // Cobalah mengambil kunci dari Vault, jika gagal (karena no-auth di server) gunakan default
     try {
-      const keySnap = await getDoc(doc(db, "system", "api_keys"));
+      const keySnap = await getDoc(doc(db, "system", "public_keys"));
       if (keySnap.exists()) {
         const config = keySnap.data();
         if (config.infuraProjectId) projectId = config.infuraProjectId;
-        if (config.infuraProjectSecret) projectSecret = config.infuraProjectSecret;
       }
     } catch (fsError) {
       // Ini normal terjadi di server-side client SDK tanpa auth context

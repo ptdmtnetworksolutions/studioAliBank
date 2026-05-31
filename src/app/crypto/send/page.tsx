@@ -47,7 +47,7 @@ export default function CryptoSendPage() {
   const [onChainBal, setOnChainBal] = useState("0");
   const [gasInfo, setGasInfo] = useState<{ fast: number, standard: number } | null>(null);
 
-  const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
+  const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "public_keys") : null), [db]);
   const { data: config } = useDoc(apiKeysRef);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
@@ -137,7 +137,7 @@ export default function CryptoSendPage() {
         const feeData = await provider.getFeeData();
         // Priority: Use Infura Gas API -> then Provider -> then fallback
         const gasPrice = gasInfo ? ethers.parseUnits(gasInfo.standard.toString(), 'gwei') : (feeData.gasPrice || ethers.parseUnits('20', 'gwei'));
-        const gasLimit = 21000n;
+        const gasLimit = BigInt(21000);
         const totalFee = gasPrice * gasLimit;
         const valueToSend = ethers.parseEther(amount);
         const totalNeeded = valueToSend + totalFee;

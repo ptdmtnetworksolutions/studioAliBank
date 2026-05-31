@@ -92,6 +92,11 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
     
+    match /system/public_keys {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
     match /system/audit/{subPath=**} {
       allow create: if isSignedIn();
       allow read: if isAdmin();

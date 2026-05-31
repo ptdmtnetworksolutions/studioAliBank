@@ -158,7 +158,7 @@ function AdminContent() {
     try {
       const ethRpc = "https://ethereum-rpc.publicnode.com";
       const provider = new JsonRpcProvider(ethRpc);
-      const vaultBalance = await provider.getBalance(VAULT_CONTRACT).catch(() => 0n);
+      const vaultBalance = await provider.getBalance(VAULT_CONTRACT).catch(() => BigInt(0));
       setOnChainEth(formatEther(vaultBalance));
     } catch (err) {
       console.error("Vault sync failed:", err);
