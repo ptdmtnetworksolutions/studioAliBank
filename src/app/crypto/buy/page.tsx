@@ -107,6 +107,14 @@ export default function CryptoBuyPage() {
   const [gatewayError, setGatewayError] = useState<string | null>(null);
   const [step, setStep] = useState<'input' | 'pending_verification' | 'success'>('input');
   
+  // Bank transfer state
+  const [bankStep, setBankStep] = useState<'instructions' | 'upload'>('instructions');
+  const [uniqueCode, setUniqueCode] = useState(0);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
+  const proofInputRef = useRef<HTMLInputElement>(null);
+
   const [currencySearch, setCurrencySearch] = useState("");
   const paypalContainerRef = useRef<HTMLDivElement>(null);
   const renderInProgress = useRef(false);
@@ -254,22 +262,48 @@ export default function CryptoBuyPage() {
     }
   };
 
-  const handleManualBankRequest = async () => {
+  // Initialize bank transfer: generate unique code and show instructions
+  const handleInitBankTransfer = () => {
+    const code = Math.floor(100 + Math.random() * 899);
+    setUniqueCode(code);
+    setBankStep('instructions');
+    setProofFile(null);
+    setProofPreview(null);
+  };
+
+  const handleProofSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProofFile(file);
+    setProofPreview(URL.createObjectURL(file));
+    setBankStep('upload');
+  };
+
+  const handleSubmitBankTransfer = async () => {
     if (!user || !db || !userData) return;
-    setIsProcessing(true);
-    const uniqueCode = Math.floor(100 + Math.random() * 899);
+    setIsUploadingProof(true);
     const finalAmount = totalAmountIdr + uniqueCode;
 
     try {
+      let proofImageUrl = "";
+
+      // Upload proof image if provided
+      if (proofFile && storage) {
+        const storageRef = ref(storage, `transfer_proofs/${user.uid}/${Date.now()}_${proofFile.name}`);
+        await uploadBytes(storageRef, proofFile);
+        proofImageUrl = await getDownloadURL(storageRef);
+      }
+
       await addDoc(collection(db, "topup_requests"), {
         userId: user.uid,
-        userName: userData.name,
+        userName: userData.name || user.email,
         userEmail: user.email,
         amount: totalAmountIdr,
         uniqueCode: uniqueCode,
         totalToTransfer: finalAmount,
         asset: selectedAsset.symbol,
         estimatedAsset: parseFloat(estimatedCrypto),
+        proofImage: proofImageUrl,
         status: "pending",
         type: "bank_transfer",
         timestamp: serverTimestamp(),
@@ -278,17 +312,32 @@ export default function CryptoBuyPage() {
 
       setIsCheckoutDialogOpen(false);
       setStep('pending_verification');
-      toast({ title: "Permintaan Dibuat", description: "Silakan transfer sesuai instruksi." });
+      toast({ title: "Bukti Dikirim", description: "Admin akan memverifikasi dalam 1x24 jam." });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Gagal", description: err.message });
+      toast({ variant: "destructive", title: "Gagal Mengirim Bukti", description: err.message });
     } finally {
-      setIsProcessing(false);
+      setIsUploadingProof(false);
     }
   };
 
   const handleMidtransPayment = async () => {
-    if (!user || !db || !systemKeys?.midtransClientKey) {
-      toast({ variant: "destructive", title: "Konfigurasi Error", description: "Gateway Midtrans belum aktif di Vault." });
+    if (!user || !db) {
+      toast({ variant: "destructive", title: "Sesi Tidak Valid", description: "Silakan login ulang." });
+      return;
+    }
+
+    // Check if Snap SDK is loaded
+    if (typeof window === 'undefined' || !window.snap) {
+      toast({ 
+        variant: "destructive", 
+        title: "Gateway Belum Siap", 
+        description: "SDK Midtrans Snap sedang dimuat. Tunggu beberapa detik lalu coba lagi." 
+      });
+      return;
+    }
+
+    if (!systemKeys?.midtransClientKey) {
+      toast({ variant: "destructive", title: "Konfigurasi Error", description: "Gateway Midtrans belum aktif di Vault. Hubungi admin." });
       return;
     }
     
@@ -298,32 +347,47 @@ export default function CryptoBuyPage() {
       const res = await createMidtransSnapTokenAction(
         orderId,
         totalAmountIdr,
-        userData?.name || "User",
+        userData?.name || user.email || "User",
         user.email || ""
       );
 
-      if (res.token) {
-        window.snap.pay(res.token, {
-          onSuccess: (result: any) => {
-            finalizeTransaction({ id: result.transaction_id, gateway: "Midtrans Snap" });
-          },
-          onPending: () => {
-            handleManualBankRequest();
-          },
-          onError: () => {
-            toast({ variant: "destructive", title: "Pembayaran Gagal" });
-          },
-          onClose: () => {
-            setIsProcessing(false);
-          }
-        });
+      if (!res.token) {
+        throw new Error('Token pembayaran tidak diterima dari Midtrans.');
       }
+
+      window.snap.pay(res.token, {
+        onSuccess: (result: any) => {
+          setIsProcessing(false);
+          finalizeTransaction({ id: result.transaction_id, gateway: "Midtrans Snap" });
+        },
+        onPending: (result: any) => {
+          setIsProcessing(false);
+          setIsCheckoutDialogOpen(false);
+          setStep('pending_verification');
+          toast({ title: "Pembayaran Tertunda", description: "Selesaikan pembayaran sesuai instruksi Midtrans." });
+        },
+        onError: (result: any) => {
+          setIsProcessing(false);
+          toast({ variant: "destructive", title: "Pembayaran Gagal", description: "Terjadi kesalahan di gateway Midtrans." });
+        },
+        onClose: () => {
+          setIsProcessing(false);
+        }
+      });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Snap Error", description: err.message });
-    } finally {
       setIsProcessing(false);
     }
   };
+  // Reset bank transfer state when dialog opens
+  useEffect(() => {
+    if (isCheckoutDialogOpen && selectedPayment.id === 'bank') {
+      setBankStep('instructions');
+      setUniqueCode(0);
+      setProofFile(null);
+      setProofPreview(null);
+    }
+  }, [isCheckoutDialogOpen, selectedPayment.id]);
 
   const renderPayPalButtons = useCallback(async () => {
     if (!paypalContainerRef.current || !isCheckoutDialogOpen || !systemKeys?.paypalClientId) return;
@@ -641,13 +705,104 @@ export default function CryptoBuyPage() {
                   {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : <><Zap className="w-5 h-5" /> BAYAR DENGAN SNAP</>}
                 </Button>
               ) : (
-                <Button 
-                  onClick={handleManualBankRequest} 
-                  disabled={isProcessing}
-                  className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase italic shadow-xl flex items-center justify-center gap-3"
-                >
-                  {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : <><Banknote className="w-5 h-5" /> DAPATKAN INSTRUKSI TRANSFER</>}
-                </Button>
+                // BANK TRANSFER FLOW
+                <div className="space-y-4">
+                  {bankStep === 'instructions' ? (
+                    <div className="space-y-4">
+                      <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-3">
+                        <p className="text-[9px] font-black uppercase text-amber-600 tracking-widest">Rekening Tujuan Transfer</p>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase">Bank</span>
+                            <span className="text-sm font-black italic">BCA</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase">No. Rekening</span>
+                            <span className="text-sm font-black italic font-mono">1234567890</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase">Atas Nama</span>
+                            <span className="text-sm font-black italic">PT AliBank Digital</span>
+                          </div>
+                        </div>
+                        <div className="h-px bg-amber-500/20" />
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-black uppercase text-amber-700">Total Transfer (inc. kode unik)</span>
+                          <span className="text-lg font-black italic text-amber-700">
+                            Rp {uniqueCode > 0 ? (totalAmountIdr + uniqueCode).toLocaleString('id-ID') : totalAmountIdr.toLocaleString('id-ID')}
+                          </span>
+                        </div>
+                        {uniqueCode > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-[9px] font-bold text-muted-foreground uppercase">Kode Unik (3 digit terakhir)</span>
+                            <Badge className="bg-primary/20 text-primary font-black italic border-none text-sm px-3">{uniqueCode}</Badge>
+                          </div>
+                        )}
+                      </div>
+                      {uniqueCode === 0 ? (
+                        <Button 
+                          onClick={handleInitBankTransfer}
+                          className="w-full h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl"
+                        >
+                          <Banknote className="w-5 h-5 mr-2" /> Tampilkan Instruksi Transfer
+                        </Button>
+                      ) : (
+                        <Button 
+                          onClick={() => setBankStep('upload')}
+                          className="w-full h-14 bg-slate-800 text-white rounded-2xl font-black uppercase italic shadow-xl"
+                        >
+                          <Upload className="w-5 h-5 mr-2" /> Sudah Transfer? Upload Bukti
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Upload Bukti Transfer</p>
+                      <input 
+                        ref={proofInputRef}
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={handleProofSelect}
+                      />
+                      {proofPreview ? (
+                        <div className="relative rounded-2xl overflow-hidden border border-border">
+                          <img src={proofPreview} alt="Bukti" className="w-full max-h-48 object-cover" />
+                          <button 
+                            onClick={() => { setProofFile(null); setProofPreview(null); }}
+                            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div 
+                          onClick={() => proofInputRef.current?.click()}
+                          className="w-full h-32 rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+                        >
+                          <Upload className="w-8 h-8 text-muted-foreground" />
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase">Tap untuk pilih foto bukti transfer</p>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-3">
+                        <Button 
+                          variant="outline"
+                          onClick={() => setBankStep('instructions')}
+                          className="h-12 rounded-xl font-black uppercase italic text-[10px]"
+                        >
+                          Kembali
+                        </Button>
+                        <Button 
+                          onClick={handleSubmitBankTransfer}
+                          disabled={isUploadingProof}
+                          className="h-12 gold-gradient text-white rounded-xl font-black uppercase italic shadow-lg text-[10px]"
+                        >
+                          {isUploadingProof ? <Loader2 className="animate-spin w-4 h-4" /> : <><CheckCircle2 className="w-4 h-4 mr-1" /> Konfirmasi</>}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
               
               <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3 mt-4">

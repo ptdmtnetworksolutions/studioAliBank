@@ -4,70 +4,71 @@
 /**
  * @fileOverview Server Actions untuk integrasi Midtrans yang aman.
  * Menangani pembuatan Snap Token tanpa mengekspos Server Key ke klien.
+ * Menggunakan Firebase Admin SDK untuk membaca kunci dari Firestore secara aman.
  */
 
-import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
-import { firebaseConfig } from '@/firebase/config';
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
+
+function getAdminApp(): App {
+  if (getApps().length > 0) {
+    return getApps()[0];
+  }
+  // In Firebase App Hosting / GCP, Application Default Credentials are auto-configured
+  // In local dev, set GOOGLE_APPLICATION_CREDENTIALS env var or use projectId only
+  try {
+    return initializeApp({ projectId: 'darmedia-pos' });
+  } catch (e) {
+    return getApps()[0];
+  }
+}
 
 async function getMidtransServerKey(): Promise<string> {
-  const projectId = process.env.GCP_PROJECT_ID || 'darmedia-pos';
-  
-  // 1. Try GCP Secret Manager
-  try {
-    const client = new SecretManagerServiceClient();
-    const [version] = await client.accessSecretVersion({
-      name: `projects/${projectId}/secrets/MIDTRANS_SERVER_KEY/versions/latest`,
-    });
-    const payload = version.payload?.data?.toString();
-    if (payload) return payload;
-  } catch (error: any) {
-    console.warn('Secret Manager for Midtrans key failed, trying env/Firestore fallback...');
-  }
-
-  // 2. Try Env variables
+  // 1. Try environment variable (fastest, for production via apphosting.yaml secrets)
   if (process.env.MIDTRANS_SERVER_KEY) {
     return process.env.MIDTRANS_SERVER_KEY;
   }
 
-  // 3. Fallback: Firestore
+  // 2. Read from Firestore using Admin SDK (bypasses security rules)
   try {
-    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-    const db = getFirestore(app);
-    const snap = await getDoc(doc(db, "system", "api_keys"));
-    if (snap.exists()) {
-      return snap.data().midtransServerKey || "";
+    const adminApp = getAdminApp();
+    const adminDb = getAdminFirestore(adminApp);
+    const snap = await adminDb.doc('system/api_keys').get();
+    if (snap.exists) {
+      const data = snap.data();
+      const key = data?.midtransServerKey;
+      if (key && typeof key === 'string' && key.length > 0) {
+        return key;
+      }
     }
-  } catch (e) {
-    console.error('Firestore fallback for Midtrans server key failed:', e);
+  } catch (e: any) {
+    console.error('[Midtrans] Admin Firestore read failed:', e?.message || e);
   }
-  
-  return "";
+
+  return '';
 }
 
 export async function createMidtransSnapTokenAction(
   orderId: string,
   amount: number,
   customerName: string,
-  customerEmail: string,
-  serverKey?: string
+  customerEmail: string
 ) {
-  const actualServerKey = serverKey || await getMidtransServerKey();
+  const actualServerKey = await getMidtransServerKey();
   if (!actualServerKey) {
-    throw new Error('Midtrans Server Key belum dikonfigurasi.');
+    throw new Error('Midtrans Server Key belum dikonfigurasi. Pastikan MIDTRANS_SERVER_KEY sudah diisi di Admin > API Management.');
   }
 
-  // Basic Auth header menggunakan Server Key (Tanpa password)
+  // Basic Auth header using Server Key (no password)
   const authHeader = Buffer.from(`${actualServerKey}:`).toString('base64');
 
-  try {
-    // Gunakan URL Production atau Sandbox berdasarkan prefix key
-    const isProduction = !actualServerKey.startsWith('SB-');
-    const baseUrl = isProduction 
-      ? 'https://app.midtrans.com/snap/v1/transactions' 
-      : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
+  // Determine environment: SB- prefix means sandbox
+  const isProduction = !actualServerKey.startsWith('SB-');
+  const baseUrl = isProduction
+    ? 'https://app.midtrans.com/snap/v1/transactions'
+    : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
 
+  try {
     const response = await fetch(baseUrl, {
       method: 'POST',
       headers: {
@@ -97,15 +98,16 @@ export async function createMidtransSnapTokenAction(
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error_messages?.[0] || 'Gagal membuat token pembayaran Midtrans.');
+      console.error('[Midtrans] API error:', JSON.stringify(data));
+      throw new Error(data.error_messages?.[0] || `Gagal membuat token Midtrans (${response.status}).`);
     }
 
     return {
-      token: data.token,
-      redirect_url: data.redirect_url
+      token: data.token as string,
+      redirect_url: data.redirect_url as string
     };
   } catch (err: any) {
-    console.error('Midtrans Action Error:', err);
-    throw new Error(err.message || 'Hambatan node kliring Midtrans terdeteksi.');
+    console.error('[Midtrans Action Error]:', err?.message || err);
+    throw new Error(err.message || 'Hambatan koneksi gateway Midtrans terdeteksi.');
   }
 }
