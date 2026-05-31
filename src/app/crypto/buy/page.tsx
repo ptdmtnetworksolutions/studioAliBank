@@ -103,6 +103,7 @@ export default function CryptoBuyPage() {
   const [isCheckoutDialogOpen, setIsCheckoutDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paypalReady, setPaypalReady] = useState(false);
+  const [paypalRendered, setPaypalRendered] = useState(false);
   const [gatewayError, setGatewayError] = useState<string | null>(null);
   const [step, setStep] = useState<'input' | 'pending_verification' | 'success'>('input');
   
@@ -110,6 +111,13 @@ export default function CryptoBuyPage() {
   const paypalContainerRef = useRef<HTMLDivElement>(null);
   const renderInProgress = useRef(false);
   const retryCount = useRef(0);
+
+  // Check if PayPal SDK is already loaded (e.g. page reload / script cached)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.paypal) {
+      setPaypalReady(true);
+    }
+  }, []);
 
   const apiKeysRef = useMemoFirebase(() => (db && user ? doc(db, "system", "public_keys") : null), [db, user]);
   const { data: systemKeys } = useDoc(apiKeysRef);
@@ -321,12 +329,14 @@ export default function CryptoBuyPage() {
     if (!paypalContainerRef.current || !isCheckoutDialogOpen || !systemKeys?.paypalClientId) return;
     if (selectedPayment.id !== 'card') return;
 
-    if (typeof window === 'undefined' || !window.paypal) {
-      if (retryCount.current < 20) {
+    // Check both the state flag and the actual window object
+    const paypalSdkLoaded = (typeof window !== 'undefined') && !!window.paypal;
+    if (!paypalSdkLoaded) {
+      if (retryCount.current < 30) {
         retryCount.current++;
-        setTimeout(renderPayPalButtons, 1000);
+        setTimeout(renderPayPalButtons, 500);
       } else {
-        setGatewayError("Gagal memuat terminal PayPal.");
+        setGatewayError("Gagal memuat SDK PayPal. Periksa koneksi internet Anda dan muat ulang halaman.");
       }
       return;
     }
@@ -334,12 +344,16 @@ export default function CryptoBuyPage() {
     if (renderInProgress.current) return;
     renderInProgress.current = true;
     setGatewayError(null);
-    paypalContainerRef.current.innerHTML = "";
+
+    // Clear any previous buttons
+    if (paypalContainerRef.current) {
+      paypalContainerRef.current.innerHTML = "";
+    }
 
     try {
       await window.paypal.Buttons({
         style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
-        createOrder: (data: any, actions: any) => {
+        createOrder: (_data: any, actions: any) => {
           return actions.order.create({
             purchase_units: [{
               amount: { currency_code: "USD", value: usdValue },
@@ -347,7 +361,7 @@ export default function CryptoBuyPage() {
             }]
           });
         },
-        onApprove: async (data: any, actions: any) => {
+        onApprove: async (_data: any, actions: any) => {
           setIsProcessing(true);
           try {
             const details = await actions.order.capture();
@@ -355,20 +369,29 @@ export default function CryptoBuyPage() {
               await finalizeTransaction({ id: details.id, gateway: "PayPal" });
             }
           } catch (err) {
-            toast({ variant: "destructive", title: "Kliring Gagal" });
+            toast({ variant: "destructive", title: "Kliring Gagal", description: "Pembayaran tidak dapat diselesaikan." });
           } finally {
             setIsProcessing(false);
           }
         },
-        onError: (err: any) => {
-          setGatewayError("Hambatan node PayPal terdeteksi.");
+        onCancel: () => {
+          renderInProgress.current = false;
+        },
+        onError: (_err: any) => {
+          setGatewayError("Hambatan node PayPal terdeteksi. Silakan coba lagi.");
           renderInProgress.current = false;
         }
       }).render(paypalContainerRef.current);
+      setPaypalRendered(true);
       renderInProgress.current = false;
     } catch (err) {
       renderInProgress.current = false;
-      setTimeout(renderPayPalButtons, 1000);
+      if (retryCount.current < 5) {
+        retryCount.current++;
+        setTimeout(renderPayPalButtons, 1500);
+      } else {
+        setGatewayError("Gagal merender tombol PayPal.");
+      }
     }
   }, [isCheckoutDialogOpen, selectedPayment.id, usdValue, estimatedCrypto, selectedAsset.symbol, systemKeys?.paypalClientId, toast]);
 
@@ -376,9 +399,21 @@ export default function CryptoBuyPage() {
     if (isCheckoutDialogOpen && selectedPayment.id === 'card') {
       retryCount.current = 0;
       renderInProgress.current = false;
-      setTimeout(renderPayPalButtons, 800);
+      setPaypalRendered(false);
+      setGatewayError(null);
+      // Small delay to let DOM settle, then try rendering
+      setTimeout(renderPayPalButtons, 600);
     }
   }, [isCheckoutDialogOpen, selectedPayment.id, renderPayPalButtons]);
+
+  // When paypalReady fires (onLoad callback), trigger rendering if dialog is open
+  useEffect(() => {
+    if (paypalReady && isCheckoutDialogOpen && selectedPayment.id === 'card' && !paypalRendered) {
+      retryCount.current = 0;
+      renderInProgress.current = false;
+      setTimeout(renderPayPalButtons, 300);
+    }
+  }, [paypalReady, isCheckoutDialogOpen, selectedPayment.id, paypalRendered, renderPayPalButtons]);
 
   if (!mounted) return null;
 
@@ -424,8 +459,15 @@ export default function CryptoBuyPage() {
     <div className="h-screen bg-background text-foreground flex flex-col font-body overflow-hidden">
       {systemKeys?.paypalClientId && (
         <Script 
+          key={`paypal-sdk-${systemKeys.paypalClientId}`}
           src={`https://www.paypal.com/sdk/js?client-id=${systemKeys.paypalClientId}&currency=USD&intent=capture`} 
-          onLoad={() => setPaypalReady(true)} 
+          strategy="afterInteractive"
+          onLoad={() => {
+            setPaypalReady(true);
+          }}
+          onError={() => {
+            setGatewayError("Gagal menghubungi server kliring PayPal. Periksa koneksi internet Anda.");
+          }}
         />
       )}
       <Script 
@@ -564,13 +606,30 @@ export default function CryptoBuyPage() {
 
             <div className="space-y-4">
               {selectedPayment.id === 'card' ? (
-                <div className="min-h-[150px] flex flex-col items-center justify-center">
+                <div className="min-h-[160px] flex flex-col items-center justify-center">
                   {gatewayError ? (
-                    <div className="text-center p-4"><ShieldAlert className="w-8 h-8 text-rose-500 mx-auto mb-2" /><p className="text-[10px] font-bold text-rose-500 uppercase italic">{gatewayError}</p></div>
-                  ) : (
-                    <div ref={paypalContainerRef} className="w-full flex justify-center" style={{ minHeight: '150px' }}>
-                       {!paypalReady && <Loader2 className="animate-spin text-primary" />}
+                    <div className="text-center p-4 space-y-3">
+                      <ShieldAlert className="w-8 h-8 text-rose-500 mx-auto" />
+                      <p className="text-[10px] font-bold text-rose-500 uppercase italic">{gatewayError}</p>
+                      <button 
+                        onClick={() => { setGatewayError(null); retryCount.current = 0; renderInProgress.current = false; setPaypalRendered(false); setTimeout(renderPayPalButtons, 300); }}
+                        className="text-[9px] font-black uppercase underline text-primary"
+                      >Coba Lagi</button>
                     </div>
+                  ) : (
+                    <>
+                      {/* PayPal container - always rendered so ref is stable */}
+                      <div ref={paypalContainerRef} className="w-full" style={{ minHeight: '150px' }} />
+                      {/* Overlay loading spinner while PayPal SDK is loading */}
+                      {(!paypalReady || !paypalRendered) && !gatewayError && (
+                        <div className="flex flex-col items-center gap-3 py-4">
+                          <Loader2 className="animate-spin text-primary w-6 h-6" />
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                            {!paypalReady ? "Menghubungi server PayPal..." : "Memuat tombol pembayaran..."}
+                          </p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               ) : selectedPayment.id === 'midtrans' ? (
