@@ -718,11 +718,11 @@ export default function CryptoBuyPage() {
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-[10px] font-bold text-muted-foreground uppercase">No. Rekening</span>
-                            <span className="text-sm font-black italic font-mono">1234567890</span>
+                            <span className="text-sm font-black italic font-mono">3210902545</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-[10px] font-bold text-muted-foreground uppercase">Atas Nama</span>
-                            <span className="text-sm font-black italic">PT AliBank Digital</span>
+                            <span className="text-sm font-black italic">DZ******* **I **DLO</span>
                           </div>
                         </div>
                         <div className="h-px bg-amber-500/20" />
