@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V13.0 - SUPREME ADMIN & ROOT ACCESS
+     * ALIBANK SECURITY RULES V14.0 - SUPREME ADMIN & ROOT ACCESS
      * Memberikan kontrol mutlak dan dukungan kueri rekonsiliasi global.
      */
 
