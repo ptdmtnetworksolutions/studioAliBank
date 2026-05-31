@@ -17,27 +17,31 @@ service firebase.storage {
 
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == 'alidzulfikar075@gmail.com' || 
-        request.auth.token.email == 'dzulfikaraliridlo@gmail.com' ||
         request.auth.uid == 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2' ||
-        request.auth.uid == 'Y6sEzvQ767NHxuwwTVxRwrGf5Wy1'
+        request.auth.uid == 'Y6sEzvQ767NHxuwwTVxRwrGf5Wy1' ||
+        (request.auth.token != null && 
+         'email' in request.auth.token && (
+           request.auth.token.email == 'alidzulfikar075@gmail.com' || 
+           request.auth.token.email == 'dzulfikaraliridlo@gmail.com'
+         )
+        )
       );
     }
 
     // --- Jalur Dokumen KYC (Kritis) ---
-    match /kyc_documents/{userId}/{allPaths=**} {
+    match /kyc_documents/{userId}/{fileName} {
       // Nasabah hanya bisa akses folder miliknya sendiri untuk upload dan read
       // Admin bisa akses semua untuk verifikasi
       allow read, write: if isOwner(userId) || isAdmin();
     }
 
     // --- Jalur Bukti Pembayaran ---
-    match /payment_proofs/{userId}/{allPaths=**} {
+    match /payment_proofs/{userId}/{fileName} {
       allow read, write: if isOwner(userId) || isAdmin();
     }
 
     // --- Jalur Avatar Profil ---
-    match /avatars/{userId}/{allPaths=**} {
+    match /avatars/{userId} {
       allow read: if isSignedIn();
       allow write: if isOwner(userId) || isAdmin();
     }

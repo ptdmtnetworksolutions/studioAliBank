@@ -50,7 +50,7 @@ import { extractKtpData } from "@/ai/flows/ocr-ktp-flow";
 
 export default function KycPage() {
   const router = useRouter();
-  const { user } = useUser();
+  const { user, loading } = useUser();
   const db = useFirestore();
   const storage = useStorage();
   const { toast } = useToast();
@@ -93,6 +93,12 @@ export default function KycPage() {
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (mounted && !loading && !user) {
+      router.push('/login');
+    }
+  }, [mounted, user, loading, router]);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
 
@@ -252,7 +258,13 @@ export default function KycPage() {
     }
   };
 
-  if (!mounted) return null;
+  if (!mounted || loading || !user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-20 flex flex-col font-body">
