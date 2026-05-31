@@ -84,6 +84,7 @@ export function ClientsView({ allUsers }: any) {
   const [alxAdjustment, setAlxAdjustment] = useState("");
   const [userTxs, setUserTxs] = useState<any[]>([]);
   const [loadingSub, setLoadingSub] = useState(false);
+  const [isProcessingKyc, setIsProcessingKyc] = useState<string | null>(null);
   
   const [auditDetailView, setAuditDetailType] = useState<'none' | 'inflow' | 'outflow' | 'discrepancy'>('none');
 
@@ -158,6 +159,44 @@ export function ClientsView({ allUsers }: any) {
     if (!confirm("BEKUKAN & HAPUS NASABAH? Tindakan ini permanen dan akan mematikan akses likuiditas nasabah.")) return;
     await deleteDoc(doc(db!, "users", uid));
     toast({ title: "Nasabah Dinonaktifkan" });
+  };
+
+  const handleManualVerifyKyc = async (user: any) => {
+    if (!db || isProcessingKyc) return;
+    setIsProcessingKyc(user.id);
+    
+    try {
+      const userRef = doc(db, "users", user.id);
+      
+      await updateDoc(userRef, {
+        kycStatus: "verified",
+        tier: "Premium Verified"
+      });
+
+      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `KYC-MAN-${Date.now()}`,
+        category: "Verifikasi Identitas",
+        description: `Super Admin menyetujui KYC secara manual untuk ${user.name}. Status akun: TERVERIFIKASI.`,
+        status: "berhasil",
+        timestamp: serverTimestamp(),
+        userEmail: user.email
+      });
+
+      await addDoc(collection(db, "users", user.id, "notifications"), {
+        title: "KYC Berhasil (Manual)",
+        message: "Selamat! Identitas Anda telah diverifikasi secara manual oleh Admin. Akses likp2p/order-historyuiditas penuh sekarang terbuka.",
+        type: "success",
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
+      toast({ title: "KYC Diaktifkan", description: `Nasabah ${user.name} kini Premium Verified.` });
+      setSelectedUser((prev: any) => prev ? { ...prev, kycStatus: "verified", tier: "Premium Verified" } : null);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Mengaktifkan", description: err.message });
+    } finally {
+      setIsProcessingKyc(null);
+    }
   };
 
   const forensicCheck = useMemo(() => {
@@ -559,13 +598,13 @@ export function ClientsView({ allUsers }: any) {
                 </div>
               </TabsContent>
 
-              <TabsContent value="kyc" className="animate-in fade-in duration-500">
+              <TabsContent value="kyc" className="animate-in fade-in duration-500 space-y-6">
                 {selectedUser?.kycData ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <section className="space-y-4">
                       <h4 className="text-sm font-black uppercase italic tracking-widest text-primary flex items-center gap-2"><FileText className="w-4 h-4" /> Data Identitas Terenkripsi</h4>
                       <div className="grid grid-cols-1 gap-3">
-                        <KycItem label="NIK" value={selectedUser.kycData.idNumber} isMono />
+                        <KycItem label="NIK" value={selectedUser.kycData.idNumber || selectedUser.kycData.nik} isMono />
                         <KycItem label="Nama KTP" value={selectedUser.kycData.nama} />
                         <KycItem label="Alamat" value={selectedUser.kycData.alamat} />
                       </div>
@@ -583,7 +622,37 @@ export function ClientsView({ allUsers }: any) {
                     </section>
                   </div>
                 ) : (
-                  <div className="py-20 text-center opacity-20 italic font-black uppercase tracking-widest">Nasabah belum melengkapi dokumen identitas.</div>
+                  <div className="py-12 text-center opacity-40 italic font-black uppercase tracking-widest">
+                    Nasabah belum melengkapi dokumen identitas.
+                  </div>
+                )}
+
+                {selectedUser?.kycStatus !== 'verified' ? (
+                  <div className="p-6 rounded-3xl bg-primary/5 border border-primary/20 flex flex-col md:flex-row justify-between items-center gap-4 mt-6">
+                    <div>
+                      <h4 className="text-xs font-black uppercase italic tracking-wider text-primary">Verifikasi KYC Manual</h4>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Aktifkan status KYC premium nasabah ini secara manual tanpa dokumen fisik.</p>
+                    </div>
+                    <Button
+                      onClick={() => handleManualVerifyKyc(selectedUser)}
+                      disabled={isProcessingKyc === selectedUser?.id}
+                      className="h-12 px-6 gold-gradient text-white rounded-xl font-black uppercase italic shadow-lg shrink-0"
+                    >
+                      {isProcessingKyc === selectedUser?.id ? (
+                        <Loader2 className="animate-spin w-4 h-4" />
+                      ) : (
+                        <><ShieldCheck className="w-4 h-4 mr-2" /> Aktifkan KYC Sekarang</>
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="p-6 rounded-3xl bg-green-500/5 border border-green-500/20 flex items-center gap-4 mt-6 text-green-600">
+                    <CheckCircle2 className="w-8 h-8 shrink-0" />
+                    <div>
+                      <h4 className="text-xs font-black uppercase italic tracking-wider">KYC Terverifikasi</h4>
+                      <p className="text-[10px] font-bold opacity-80 uppercase mt-1">Nasabah ini telah berstatus Premium Verified dengan akses likuiditas penuh.</p>
+                    </div>
+                  </div>
                 )}
               </TabsContent>
             </Tabs>
