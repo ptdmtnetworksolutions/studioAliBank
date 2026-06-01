@@ -83,6 +83,25 @@ const ASSETS = [
   { symbol: "ALX", name: "Alix Coin", priceUsd: 12.24, isNative: true },
   { symbol: "USDT", name: "TetherUS", priceUsd: 1.00, isNative: false },
   { symbol: "BTC", name: "Bitcoin", priceUsd: 66450.00, isNative: false },
+  { symbol: "ETH", name: "Ethereum", priceUsd: 2420.00, isNative: false },
+  { symbol: "BNB", name: "BNB", priceUsd: 575.20, isNative: false },
+  { symbol: "SOL", name: "Solana", priceUsd: 145.50, isNative: false },
+  { symbol: "XRP", name: "Ripple", priceUsd: 0.52, isNative: false },
+  { symbol: "ADA", name: "Cardano", priceUsd: 0.45, isNative: false },
+  { symbol: "DOGE", name: "Dogecoin", priceUsd: 0.14, isNative: false },
+  { symbol: "TRX", name: "TRON", priceUsd: 0.12, isNative: false },
+  { symbol: "DOT", name: "Polkadot", priceUsd: 6.50, isNative: false },
+  { symbol: "LINK", name: "Chainlink", priceUsd: 15.20, isNative: false },
+  { symbol: "MATIC", name: "Polygon", priceUsd: 0.68, isNative: false },
+  { symbol: "LTC", name: "Litecoin", priceUsd: 82.40, isNative: false },
+  { symbol: "SHIB", name: "Shiba Inu", priceUsd: 0.000022, isNative: false },
+  { symbol: "AVAX", name: "Avalanche", priceUsd: 34.80, isNative: false },
+  { symbol: "UNI", name: "Uniswap", priceUsd: 7.20, isNative: false },
+  { symbol: "ATOM", name: "Cosmos", priceUsd: 8.40, isNative: false },
+  { symbol: "XLM", name: "Stellar", priceUsd: 0.11, isNative: false },
+  { symbol: "XMR", name: "Monero", priceUsd: 172.50, isNative: false },
+  { symbol: "NEAR", name: "NEAR Protocol", priceUsd: 5.80, isNative: false },
+  { symbol: "ARB", name: "Arbitrum", priceUsd: 0.95, isNative: false }
 ];
 
 export default function CryptoBuyPage() {
@@ -97,7 +116,11 @@ export default function CryptoBuyPage() {
   const [activeTab, setActiveTab] = useState<'beli' | 'jual' | 'convert'>('beli');
   const [amount, setAmount] = useState("0");
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
-  const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
+  
+  const [coinsList, setCoinsList] = useState(ASSETS);
+  const [selectedAssetSymbol, setSelectedAssetSymbol] = useState<string>("ALX");
+  const selectedAsset = useMemo(() => coinsList.find(c => c.symbol === selectedAssetSymbol) || coinsList[0], [coinsList, selectedAssetSymbol]);
+
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS[0]);
   const [dynamicUsdtRate, setDynamicUsdtRate] = useState(15850);
   const [isRateLoading, setIsRateLoading] = useState(true);
@@ -139,17 +162,39 @@ export default function CryptoBuyPage() {
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
+  const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
+  const { data: globalLiquidity } = useDoc(liquidityRef);
+
   const fetchRealTimeRate = useCallback(async () => {
     try {
       setIsRateLoading(true);
-      const res = await fetch(`/api/market/ticker?symbol=USDTIDRT&t=${Date.now()}`, { 
+      const symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT", "MATICUSDT", "LTCUSDT", "SHIBUSDT", "AVAXUSDT", "UNIUSDT", "ATOMUSDT", "XLMUSDT", "XMRUSDT", "NEARUSDT", "ARBUSDT", "USDTIDRT"];
+      const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}&t=${Date.now()}`, { 
         cache: 'no-store'
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.lastPrice) {
-          const newRate = parseFloat(data.lastPrice);
-          setDynamicUsdtRate(newRate);
+        if (Array.isArray(data)) {
+          const usdtIdrData = data.find((d: any) => d.symbol === 'USDTIDRT');
+          if (usdtIdrData) {
+            setDynamicUsdtRate(parseFloat(usdtIdrData.lastPrice));
+          }
+          
+          setCoinsList(prev => {
+            return prev.map(coin => {
+              if (coin.symbol === 'USDT') return { ...coin, priceUsd: 1.00 };
+              if (coin.symbol === 'ALX') {
+                return { ...coin, priceUsd: globalLiquidity?.lastAlxPriceUsdt || 12.24 };
+              }
+              const pair = `${coin.symbol}USDT`;
+              const marketData = data.find((d: any) => d.symbol === pair);
+              if (marketData) {
+                return { ...coin, priceUsd: parseFloat(marketData.lastPrice) };
+              }
+              return coin;
+            });
+          });
+
           setLastSync(new Date().toLocaleTimeString());
           setIsRateLoading(false);
         }
@@ -160,7 +205,7 @@ export default function CryptoBuyPage() {
       console.warn("Real-time rate sync failed, maintaining previous state:", e);
       setIsRateLoading(false);
     }
-  }, []);
+  }, [globalLiquidity]);
 
   useEffect(() => {
     setMounted(true);
@@ -628,7 +673,27 @@ export default function CryptoBuyPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" onClick={() => setIsAssetSheetOpen(true)}>
                   <div className="flex items-center gap-4">
-                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2", selectedAsset.isNative ? "gold-gradient" : "bg-teal-600")}>{selectedAsset.isNative ? <LogoIcon className="text-white" /> : <div className="w-full h-full bg-white/20 rounded-full flex items-center justify-center font-black text-white text-[10px]">{selectedAsset.symbol[0]}</div>}</div>
+                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center overflow-hidden shrink-0", selectedAsset.isNative ? "gold-gradient text-white p-2" : "bg-muted relative p-1 shadow-sm")}>
+                      {selectedAsset.isNative ? (
+                        <LogoIcon className="w-full h-full text-white" />
+                      ) : (
+                        <>
+                          <img 
+                            src={`https://assets.coincap.io/assets/icons/${selectedAsset.symbol.toLowerCase()}@2x.png`} 
+                            className="object-cover w-full h-full rounded-full" 
+                            alt={selectedAsset.symbol} 
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                              if (fallback) fallback.classList.remove('hidden');
+                            }}
+                          />
+                          <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-full font-black text-xs text-slate-400">
+                            {selectedAsset.symbol[0]}
+                          </div>
+                        </>
+                      )}
+                    </div>
                     <div><p className="text-xs font-black italic">{activeTab === 'jual' ? 'Jual' : 'Beli'}</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-600 text-[7px] font-black h-4 px-1.5 border-none uppercase">Live Node</Badge></div></div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
@@ -795,8 +860,26 @@ export default function CryptoBuyPage() {
                           className="flex items-center justify-between p-5 bg-muted/20 hover:bg-muted/40 rounded-2xl border border-border/50 cursor-pointer transition-all hover:border-primary/30"
                         >
                           <div className="flex items-center gap-4">
-                            <div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2 shadow-inner", selectedAsset.isNative ? "gold-gradient" : "bg-teal-600/10 text-teal-500")}>
-                              {selectedAsset.isNative ? <LogoIcon className="text-white w-5 h-5" /> : <div className="w-full h-full bg-teal-500 rounded-full flex items-center justify-center font-black text-white text-[10px]">{selectedAsset.symbol[0]}</div>}
+                            <div className={cn("w-10 h-10 rounded-full flex items-center justify-center overflow-hidden shrink-0", selectedAsset.isNative ? "gold-gradient text-white p-2" : "bg-muted relative p-1 shadow-inner")}>
+                              {selectedAsset.isNative ? (
+                                <LogoIcon className="text-white w-full h-full" />
+                              ) : (
+                                <>
+                                  <img 
+                                    src={`https://assets.coincap.io/assets/icons/${selectedAsset.symbol.toLowerCase()}@2x.png`} 
+                                    className="object-cover w-full h-full rounded-full" 
+                                    alt={selectedAsset.symbol} 
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                      const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                      if (fallback) fallback.classList.remove('hidden');
+                                    }}
+                                  />
+                                  <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-full font-black text-xs text-slate-400">
+                                    {selectedAsset.symbol[0]}
+                                  </div>
+                                </>
+                              )}
                             </div>
                             <div className="text-left">
                               <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-1">{activeTab === 'jual' ? 'Koin Dijual' : 'Aset Dibeli'}</p>
@@ -1167,10 +1250,44 @@ export default function CryptoBuyPage() {
           <div className="px-6 space-y-6">
             <SheetHeader><SheetTitle className="text-xl font-black italic uppercase tracking-tight">Pilih Aset</SheetTitle></SheetHeader>
             <div className="space-y-2">
-              {ASSETS.map((asset) => (
-                <div key={asset.symbol} onClick={() => { setSelectedAsset(asset); setIsAssetSheetOpen(false); }} className={cn("p-5 rounded-2xl border-2 flex items-center justify-between transition-all cursor-pointer", selectedAsset.symbol === asset.symbol ? "border-primary bg-primary/5" : "border-muted bg-card hover:border-primary/10")}>
-                  <div className="flex items-center gap-4"><div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2 shadow-md", asset.isNative ? "gold-gradient" : "bg-muted")}>{asset.isNative ? <LogoIcon className="text-white" /> : <div className="w-full h-full bg-slate-400 rounded-full flex items-center justify-center font-black text-white text-[10px]">{asset.symbol[0]}</div>}</div><div><h4 className="text-sm font-black italic uppercase leading-none">{asset.name}</h4><div className="flex items-center gap-2 mt-1.5"><span className="text-[10px] font-bold text-muted-foreground uppercase">{asset.symbol}</span></div></div></div>
-                  <div className="text-right"><p className="text-sm font-black italic text-foreground">${asset.priceUsd.toLocaleString()}</p></div>
+              {coinsList.map((asset) => (
+                <div key={asset.symbol} onClick={() => { setSelectedAssetSymbol(asset.symbol); setIsAssetSheetOpen(false); }} className={cn("p-5 rounded-2xl border border-border flex items-center justify-between transition-all cursor-pointer", selectedAsset.symbol === asset.symbol ? "border-primary bg-primary/5" : "bg-card hover:border-primary/10")}>
+                  <div className="flex items-center gap-4">
+                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center overflow-hidden shrink-0", asset.isNative ? "gold-gradient text-white p-2" : "bg-muted relative p-1 shadow-md")}>
+                      {asset.isNative ? (
+                        <LogoIcon className="text-white w-full h-full" />
+                      ) : (
+                        <>
+                          <img 
+                            src={`https://assets.coincap.io/assets/icons/${asset.symbol.toLowerCase()}@2x.png`} 
+                            className="object-cover w-full h-full rounded-full" 
+                            alt={asset.symbol} 
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                              if (fallback) fallback.classList.remove('hidden');
+                            }}
+                          />
+                          <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-full font-black text-xs text-slate-400">
+                            {asset.symbol[0]}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black italic uppercase leading-none">{asset.name}</h4>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">{asset.symbol}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-black italic text-foreground">
+                      ${asset.priceUsd >= 1 
+                        ? asset.priceUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
+                        : asset.priceUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
