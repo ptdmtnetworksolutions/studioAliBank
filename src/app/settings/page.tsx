@@ -27,7 +27,13 @@ import {
   Smartphone,
   Check,
   Camera,
-  Upload
+  Upload,
+  Copy,
+  Settings,
+  LayoutGrid,
+  ArrowRightLeft,
+  Zap,
+  Ticket
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useUser, useDoc, useFirestore, useMemoFirebase, useAuth, useStorage } from "@/firebase";
@@ -66,6 +72,8 @@ export default function SettingsHubPage() {
   const storage = useStorage();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(true);
+  const [activeTab, setActiveTab] = useState<'account' | 'payment' | 'preferences' | 'about'>('account');
   
   // Dialog visibility states
   const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
@@ -93,10 +101,17 @@ export default function SettingsHubPage() {
 
   useEffect(() => {
     setMounted(true);
+    document.title = "Pengaturan - AliBank V3";
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
-  const { data: userData, loading } = useDoc(userDocRef);
+  const { data: userData, isLoading } = useDoc(userDocRef);
 
   useEffect(() => {
     if (userData) {
@@ -214,129 +229,391 @@ export default function SettingsHubPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20 flex flex-col font-body transition-colors duration-300">
-      <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background z-50 border-b border-border/50">
-        <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors">
-          <ArrowLeft className="w-6 h-6" />
-        </button>
-        <h1 className="text-lg font-black italic uppercase tracking-tighter">Pengaturan</h1>
-        <div className="w-10" />
-      </header>
-
-      <main className="flex-1 px-5 pt-6 space-y-8 overflow-y-auto no-scrollbar">
-        {/* PROFILE SECTION */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest">Akun & Profil</h2>
-            <Badge className={cn(
-              "text-[8px] font-black uppercase px-2 h-5 border-none",
-              userData?.kycStatus === 'verified' ? "bg-green-500/10 text-green-600" : 
-              userData?.kycStatus === 'pending' ? "bg-amber-500/10 text-amber-600" :
-              userData?.kycStatus === 'rejected' ? "bg-rose-500/10 text-rose-600" :
-              "bg-muted text-muted-foreground"
-            )}>
-              {userData?.kycStatus === 'verified' ? 'Verified' : 
-               userData?.kycStatus === 'pending' ? 'Pending' :
-               userData?.kycStatus === 'rejected' ? 'Rejected' : 'Unverified'}
-            </Badge>
-          </div>
-          
-          <Card className="p-0 border-none bg-muted/30 overflow-hidden rounded-[1.5rem]">
-            <SettingsItem 
-              icon={User} 
-              label="Informasi Pribadi" 
-              value={userData?.name} 
-              onClick={() => setIsPersonalInfoOpen(true)} 
-            />
-            <div className="h-px bg-border mx-4" />
-            <SettingsItem 
-              icon={ShieldCheck} 
-              label="Verifikasi Identitas (KYC)" 
-              value={
-                userData?.kycStatus === 'verified' ? "Selesai" : 
-                userData?.kycStatus === 'pending' ? "Sedang Ditinjau" : 
-                "Klik untuk Verifikasi"
-              }
-              onClick={() => router.push('/settings/kyc')} 
-            />
-            <div className="h-px bg-border mx-4" />
-            <SettingsItem 
-              icon={Lock} 
-              label="Ubah Kata Sandi" 
-              onClick={() => setIsChangePasswordOpen(true)} 
-            />
-          </Card>
-        </section>
-
-        {/* WITHDRAWAL METHODS SECTION */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest italic">Metode Penerimaan Dana</h2>
-            <button 
-              onClick={() => setIsAddMethodOpen(true)}
-              className="text-[10px] font-black text-primary uppercase italic flex items-center gap-1"
-            >
-              <Plus className="w-3 h-3" /> Tambah
+    <>
+      {isMobile ? (
+        <div className="min-h-screen bg-background text-foreground pb-20 flex flex-col font-body transition-colors duration-300">
+          <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background z-50 border-b border-border/50">
+            <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors">
+              <ArrowLeft className="w-6 h-6" />
             </button>
-          </div>
+            <h1 className="text-lg font-black italic uppercase tracking-tighter">Pengaturan</h1>
+            <div className="w-10" />
+          </header>
 
-          <div className="space-y-3">
-            {userData?.withdrawalMethods?.map((method: any) => (
-              <div key={method.id} className="p-5 rounded-2xl bg-card border border-border flex items-center justify-between group">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                    {method.type === 'bank' ? <Landmark className="w-5 h-5" /> : <Smartphone className="w-5 h-5" />}
-                  </div>
-                  <div>
-                    <p className="text-sm font-black italic uppercase leading-none">{method.provider}</p>
-                    <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">{method.accountNumber}</p>
-                  </div>
-                </div>
-                <button onClick={() => handleRemoveMethod(method)} className="p-2 hover:bg-rose-100 text-rose-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Trash2 className="w-4 h-4" />
+          <main className="flex-1 px-5 pt-6 space-y-8 overflow-y-auto no-scrollbar">
+            {/* PROFILE SECTION */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between px-1">
+                <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest">Akun & Profil</h2>
+                <Badge className={cn(
+                  "text-[8px] font-black uppercase px-2 h-5 border-none",
+                  userData?.kycStatus === 'verified' ? "bg-green-500/10 text-green-600" : 
+                  userData?.kycStatus === 'pending' ? "bg-amber-500/10 text-amber-600" :
+                  userData?.kycStatus === 'rejected' ? "bg-rose-500/10 text-rose-600" :
+                  "bg-muted text-muted-foreground"
+                )}>
+                  {userData?.kycStatus === 'verified' ? 'Verified' : 
+                   userData?.kycStatus === 'pending' ? 'Pending' :
+                   userData?.kycStatus === 'rejected' ? 'Rejected' : 'Unverified'}
+                </Badge>
+              </div>
+              
+              <Card className="p-0 border-none bg-muted/30 overflow-hidden rounded-[1.5rem]">
+                <SettingsItem 
+                  icon={User} 
+                  label="Informasi Pribadi" 
+                  value={userData?.name} 
+                  onClick={() => setIsPersonalInfoOpen(true)} 
+                />
+                <div className="h-px bg-border mx-4" />
+                <SettingsItem 
+                  icon={ShieldCheck} 
+                  label="Verifikasi Identitas (KYC)" 
+                  value={
+                    userData?.kycStatus === 'verified' ? "Selesai" : 
+                    userData?.kycStatus === 'pending' ? "Sedang Ditinjau" : 
+                    "Klik untuk Verifikasi"
+                  }
+                  onClick={() => router.push('/settings/kyc')} 
+                />
+                <div className="h-px bg-border mx-4" />
+                <SettingsItem 
+                  icon={Lock} 
+                  label="Ubah Kata Sandi" 
+                  onClick={() => setIsChangePasswordOpen(true)} 
+                />
+              </Card>
+            </section>
+
+            {/* WITHDRAWAL METHODS SECTION */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between px-1">
+                <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest italic">Metode Penerimaan Dana</h2>
+                <button 
+                  onClick={() => setIsAddMethodOpen(true)}
+                  className="text-[10px] font-black text-primary uppercase italic flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" /> Tambah
                 </button>
               </div>
-            ))}
-            {(!userData?.withdrawalMethods || userData.withdrawalMethods.length === 0) && (
-              <Card className="p-8 border-dashed border-2 border-border bg-transparent text-center space-y-3 rounded-2xl">
-                <AlertCircle className="w-8 h-8 text-muted-foreground/30 mx-auto" />
-                <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                  Belum ada rekening atau e-wallet terdaftar. Tambahkan sekarang untuk dapat mencairkan aset Anda.
-                </p>
+
+              <div className="space-y-3">
+                {userData?.withdrawalMethods?.map((method: any) => (
+                  <div key={method.id} className="p-5 rounded-2xl bg-card border border-border flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                        {method.type === 'bank' ? <Landmark className="w-5 h-5" /> : <Smartphone className="w-5 h-5" />}
+                      </div>
+                      <div>
+                        <p className="text-sm font-black italic uppercase leading-none">{method.provider}</p>
+                        <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">{method.accountNumber}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => handleRemoveMethod(method)} className="p-2 hover:bg-rose-100 text-rose-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                {(!userData?.withdrawalMethods || userData.withdrawalMethods.length === 0) && (
+                  <Card className="p-8 border-dashed border-2 border-border bg-transparent text-center space-y-3 rounded-2xl">
+                    <AlertCircle className="w-8 h-8 text-muted-foreground/30 mx-auto" />
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+                      Belum ada rekening atau e-wallet terdaftar. Tambahkan sekarang untuk dapat mencairkan aset Anda.
+                    </p>
+                  </Card>
+                )}
+              </div>
+            </section>
+
+            {/* APP PREFERENCES */}
+            <section className="space-y-4">
+              <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Aplikasi</h2>
+              <Card className="p-0 border-none bg-muted/30 overflow-hidden rounded-[1.5rem]">
+                <SettingsItem icon={Globe} label="Bahasa" value="Bahasa Indonesia" onClick={() => {}} />
+                <div className="h-px bg-border mx-4" />
+                <SettingsItem icon={Moon} label="Tampilan Tema" value="Otomatis" onClick={() => {}} />
+                <div className="h-px bg-border mx-4" />
+                <SettingsItem icon={Bell} label="Notifikasi" onClick={() => router.push('/notifications')} />
               </Card>
-            )}
-          </div>
-        </section>
+            </section>
 
-        {/* APP PREFERENCES */}
-        <section className="space-y-4">
-          <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Aplikasi</h2>
-          <Card className="p-0 border-none bg-muted/30 overflow-hidden rounded-[1.5rem]">
-            <SettingsItem icon={Globe} label="Bahasa" value="Bahasa Indonesia" onClick={() => {}} />
-            <div className="h-px bg-border mx-4" />
-            <SettingsItem icon={Moon} label="Tampilan Tema" value="Otomatis" onClick={() => {}} />
-            <div className="h-px bg-border mx-4" />
-            <SettingsItem icon={Bell} label="Notifikasi" onClick={() => router.push('/notifications')} />
-          </Card>
-        </section>
+            {/* ABOUT */}
+            <section className="space-y-4">
+              <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Tentang</h2>
+              <Card className="p-0 border-none bg-muted/30 overflow-hidden rounded-[1.5rem]">
+                <SettingsItem icon={Info} label="Versi Aplikasi" value="v3.5.2-stable" onClick={() => {}} />
+                <div className="h-px bg-border mx-4" />
+                <SettingsItem icon={ShieldCheck} label="Kebijakan Privasi" onClick={() => {}} />
+              </Card>
+            </section>
 
-        {/* ABOUT */}
-        <section className="space-y-4">
-          <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Tentang</h2>
-          <Card className="p-0 border-none bg-muted/30 overflow-hidden rounded-[1.5rem]">
-            <SettingsItem icon={Info} label="Versi Aplikasi" value="v3.5.2-stable" onClick={() => {}} />
-            <div className="h-px bg-border mx-4" />
-            <SettingsItem icon={ShieldCheck} label="Kebijakan Privasi" onClick={() => {}} />
-          </Card>
-        </section>
+            <footer className="py-10 text-center space-y-4 opacity-30 grayscale">
+              <div className="flex items-center justify-center gap-2">
+                <LogoIcon className="w-5 h-5" />
+                <span className="text-[10px] font-black uppercase tracking-widest italic">AliBank V3 Global Node</span>
+              </div>
+            </footer>
+          </main>
+        </div>
+      ) : (
+        <div className="min-h-screen bg-background text-foreground flex font-body selection:bg-primary/30 w-full">
+          {/* SIDEBAR NAVIGATION */}
+          <aside className="w-64 bg-card border-r border-border flex flex-col fixed h-screen z-50">
+            <div className="p-6 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg text-white">
+                <LogoIcon />
+              </div>
+              <span className="font-bold text-xl tracking-tighter italic uppercase">AliBank</span>
+            </div>
+            <nav className="flex-1 px-4 space-y-1 pt-4">
+              <SidebarItem icon={User} label="Profil Saya" href="/profile" />
+              <SidebarItem icon={LayoutGrid} label="Dashboard" href="/" />
+              <SidebarItem icon={ArrowRightLeft} label="Move crypto" href="/crypto/buy" />
+              <SidebarItem icon={Zap} label="Discover" href="/crypto" />
+              <SidebarItem icon={Ticket} label="Card / Marketplace" href="/marketplace" />
+              <SidebarItem icon={Settings} label="Settings" active href="#" />
+            </nav>
+            <div className="p-6 border-t border-border space-y-4">
+              <div className="flex items-center justify-between text-[8px] font-black text-muted-foreground uppercase tracking-widest">
+                <span>Sovereign Hub</span>
+                <span className="flex items-center gap-1 text-green-500">
+                  <ShieldCheck className="w-2.5 h-2.5" /> SECURE
+                </span>
+              </div>
+            </div>
+          </aside>
 
-        <footer className="py-10 text-center space-y-4 opacity-30 grayscale">
-          <div className="flex items-center justify-center gap-2">
-            <LogoIcon className="w-5 h-5" />
-            <span className="text-[10px] font-black uppercase tracking-widest italic">AliBank V3 Global Node</span>
-          </div>
-        </footer>
-      </main>
+          {/* MAIN CONTAINER */}
+          <main className="ml-64 flex-1 flex flex-col min-w-0">
+            {/* HEADER */}
+            <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 sticky top-0 z-40">
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-black text-foreground uppercase italic tracking-tight">Pengaturan</h2>
+              </div>
+              <div className="flex items-center gap-6">
+                <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border">
+                  {userData?.avatarUrl ? (
+                    <img src={userData.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-black italic text-[10px] uppercase">
+                      {userData?.name?.[0] || 'U'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </header>
+
+            {/* CONTAINER CONTENT */}
+            <div className="p-8 space-y-8 max-w-[1200px] w-full mx-auto">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                
+                {/* LEFT NAVIGATION SUBMENU */}
+                <div className="md:col-span-1 space-y-2">
+                  <TabMenuItem 
+                    icon={User} 
+                    label="Akun & Profil" 
+                    active={activeTab === 'account'} 
+                    onClick={() => setActiveTab('account')} 
+                  />
+                  <TabMenuItem 
+                    icon={Landmark} 
+                    label="Metode Penerimaan" 
+                    active={activeTab === 'payment'} 
+                    onClick={() => setActiveTab('payment')} 
+                  />
+                  <TabMenuItem 
+                    icon={Globe} 
+                    label="Preferensi" 
+                    active={activeTab === 'preferences'} 
+                    onClick={() => setActiveTab('preferences')} 
+                  />
+                  <TabMenuItem 
+                    icon={Info} 
+                    label="Tentang Aplikasi" 
+                    active={activeTab === 'about'} 
+                    onClick={() => setActiveTab('about')} 
+                  />
+                </div>
+
+                {/* RIGHT ACTIVE TAB PANEL */}
+                <div className="md:col-span-3 space-y-6">
+                  {activeTab === 'account' && (
+                    <Card className="rounded-[2.5rem] bg-card border border-border p-8 shadow-sm space-y-8 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none" />
+                      
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-6 border-b border-border/50 pb-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-20 h-20 rounded-3xl bg-muted border border-border flex items-center justify-center overflow-hidden relative shadow-lg shrink-0">
+                            {userData?.avatarUrl ? (
+                              <img src={userData.avatarUrl} alt="Avatar" className="object-cover w-full h-full" />
+                            ) : (
+                              <User className="w-10 h-10 text-muted-foreground" />
+                            )}
+                            {isUploading && (
+                              <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-black tracking-tight">{userData?.name || "Nasabah AliBank"}</h3>
+                            <p className="text-xs text-muted-foreground font-mono">{user?.email}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-3">
+                          <Button 
+                            variant="outline" 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="h-10 rounded-xl border-border hover:bg-muted font-bold text-xs"
+                          >
+                            Ganti Foto
+                          </Button>
+                          <input type="file" ref={fileInputRef} onChange={handleAvatarUpload} accept="image/*" className="hidden" />
+                          <Button 
+                            onClick={() => setIsPersonalInfoOpen(true)}
+                            className="h-10 gold-gradient text-white rounded-xl font-black italic uppercase text-xs"
+                          >
+                            Edit Profil
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <DetailBlock label="Nama Lengkap" value={userData?.name} />
+                        <DetailBlock label="Alamat Email" value={userData?.email} isMono />
+                        <DetailBlock label="Nomor Telepon" value={userData?.phone || "-"} />
+                        <DetailBlock label="ID Nasabah (UID)" value={userData?.accountNumber} isMono copyable />
+                        <DetailBlock 
+                          label="Status KYC" 
+                          customValue={
+                            <Badge className={cn(
+                              "text-[9px] font-black h-5 border-none px-2 rounded-md italic uppercase",
+                              userData?.kycStatus === 'verified' ? "bg-green-500/10 text-green-500" : "bg-amber-500/10 text-amber-500"
+                            )}>
+                              {userData?.kycStatus === 'verified' ? 'Terverifikasi' : 'Belum Verifikasi'}
+                            </Badge>
+                          } 
+                        />
+                      </div>
+
+                      <div className="pt-6 border-t border-border/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                          <h4 className="text-sm font-black uppercase italic">Keamanan Akun</h4>
+                          <p className="text-xs text-muted-foreground mt-0.5">Perbarui kata sandi Anda secara berkala untuk menjaga keamanan aset.</p>
+                        </div>
+                        <Button variant="outline" className="h-10 rounded-xl border-border text-foreground hover:bg-muted font-bold text-xs shrink-0" onClick={() => setIsChangePasswordOpen(true)}>
+                          Ubah Kata Sandi
+                        </Button>
+                      </div>
+                    </Card>
+                  )}
+
+                  {activeTab === 'payment' && (
+                    <Card className="rounded-[2.5rem] bg-card border border-border p-8 shadow-sm space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-base font-black uppercase italic">Metode Penerimaan Dana</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5">Rekening bank atau e-wallet terdaftar untuk penarikan dana.</p>
+                        </div>
+                        <Button 
+                          onClick={() => setIsAddMethodOpen(true)}
+                          className="h-10 px-4 gold-gradient text-white rounded-xl font-black italic uppercase text-xs flex items-center gap-1.5"
+                        >
+                          <Plus className="w-4 h-4" /> Tambah Rekening
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {userData?.withdrawalMethods?.map((method: any) => (
+                          <div key={method.id} className="p-5 rounded-2xl bg-muted/30 border border-border/50 flex items-center justify-between group">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 shadow-inner">
+                                {method.type === 'bank' ? <Landmark className="w-5 h-5" /> : <Smartphone className="w-5 h-5" />}
+                              </div>
+                              <div>
+                                <p className="text-sm font-black italic uppercase leading-none">{method.provider}</p>
+                                <p className="text-[10px] font-bold font-mono text-muted-foreground mt-1.5 uppercase">{method.accountNumber}</p>
+                                <p className="text-[9px] font-bold text-primary mt-0.5 uppercase tracking-wide">{method.accountName}</p>
+                              </div>
+                            </div>
+                            <button onClick={() => handleRemoveMethod(method)} className="p-2 hover:bg-rose-100 text-rose-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                        
+                        {(!userData?.withdrawalMethods || userData.withdrawalMethods.length === 0) && (
+                          <Card className="col-span-2 p-12 border-dashed border-2 border-border bg-transparent text-center space-y-4 rounded-[2rem]">
+                            <AlertCircle className="w-10 h-10 text-muted-foreground/30 mx-auto" />
+                            <div className="space-y-1">
+                              <p className="text-xs font-black uppercase italic">Belum Ada Rekening Terdaftar</p>
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed max-w-md mx-auto italic">
+                                Silakan tambahkan nomor rekening bank lokal atau nomor akun e-wallet Anda untuk mempermudah proses pencairan saldo tunai.
+                              </p>
+                            </div>
+                          </Card>
+                        )}
+                      </div>
+                    </Card>
+                  )}
+
+                  {activeTab === 'preferences' && (
+                    <Card className="rounded-[2.5rem] bg-card border border-border p-8 shadow-sm space-y-6">
+                      <div>
+                        <h3 className="text-base font-black uppercase italic">Preferensi Aplikasi</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">Atur opsi bahasa, tema visual, dan notifikasi perbankan Anda.</p>
+                      </div>
+                      
+                      <div className="divide-y divide-border/50">
+                        <PreferenceItem icon={Globe} label="Bahasa Sistem" value="Bahasa Indonesia (ID)" desc="Ubah bahasa antarmuka aplikasi." />
+                        <PreferenceItem icon={Moon} label="Tampilan Tema" value="Otomatis (Sistem)" desc="Ganti tema gelap, terang, atau ikuti pengaturan perangkat." />
+                        <PreferenceItem icon={Bell} label="Notifikasi Instan" value="Aktif" desc="Kelola pemberitahuan transaksi masuk dan keamanan akun." onClick={() => router.push('/notifications')} />
+                      </div>
+                    </Card>
+                  )}
+
+                  {activeTab === 'about' && (
+                    <Card className="rounded-[2.5rem] bg-card border border-border p-8 shadow-sm flex flex-col justify-between min-h-[300px] relative overflow-hidden">
+                      <div className="absolute inset-0 bg-primary/5 opacity-5" />
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-base font-black uppercase italic">Tentang AliBank V3</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5">Informasi sistem, lisensi, dan kebijakan layanan perbankan kripto elit.</p>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center py-3 border-b border-border/50">
+                            <span className="text-xs font-bold text-muted-foreground uppercase">Versi Core</span>
+                            <Badge variant="outline" className="font-mono font-bold text-[10px] border-primary/20 text-primary">v3.5.2-stable</Badge>
+                          </div>
+                          <div className="flex justify-between items-center py-3 border-b border-border/50 cursor-pointer hover:text-primary transition-colors group">
+                            <span className="text-xs font-bold text-muted-foreground uppercase group-hover:text-foreground transition-colors">Kebijakan Privasi</span>
+                            <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:translate-x-1 transition-transform" />
+                          </div>
+                          <div className="flex justify-between items-center py-3 border-b border-border/50 cursor-pointer hover:text-primary transition-colors group">
+                            <span className="text-xs font-bold text-muted-foreground uppercase group-hover:text-foreground transition-colors">Syarat & Ketentuan</span>
+                            <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:translate-x-1 transition-transform" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 pt-6 border-t border-border/50">
+                        <LogoIcon className="w-10 h-10 text-muted-foreground" />
+                        <div>
+                          <p className="text-xs font-black uppercase italic leading-none text-foreground">AliBank Client Core</p>
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1 block">Autonomous Node V3</span>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          </main>
+        </div>
+      )}
 
       {/* DIALOG INFORMASI PRIBADI */}
       <Dialog open={isPersonalInfoOpen} onOpenChange={setIsPersonalInfoOpen}>
@@ -617,7 +894,7 @@ export default function SettingsHubPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 
@@ -636,6 +913,85 @@ function SettingsItem({ icon: Icon, label, value, onClick }: any) {
       <div className="flex items-center gap-2">
         {value && <span className="text-[10px] font-bold text-muted-foreground uppercase italic truncate max-w-[120px]">{value}</span>}
         <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:translate-x-1 transition-transform" />
+      </div>
+    </div>
+  );
+}
+
+function SidebarItem({ icon: Icon, label, active = false, href }: any) {
+  const router = useRouter();
+  return (
+    <div onClick={() => href !== "#" && router.push(href)} className={cn("flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all group relative", active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
+      <div className="flex items-center gap-3">
+        <Icon className={cn("w-5 h-5", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+        <span className="text-sm font-bold">{label}</span>
+      </div>
+      {active && <div className="w-1 h-5 bg-primary rounded-full absolute left-0 top-1/2 -translate-y-1/2" />}
+    </div>
+  );
+}
+
+function TabMenuItem({ icon: Icon, label, active = false, onClick }: any) {
+  return (
+    <div 
+      onClick={onClick} 
+      className={cn(
+        "flex items-center gap-3 px-4 py-3.5 rounded-2xl cursor-pointer transition-all border font-bold text-sm group",
+        active 
+          ? "bg-primary/10 text-primary border-primary/20 shadow-sm" 
+          : "text-muted-foreground hover:bg-muted hover:text-foreground border-transparent"
+      )}
+    >
+      <Icon className={cn("w-5 h-5", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function DetailBlock({ label, value, customValue, isMono = false, copyable = false }: any) {
+  const { toast } = useToast();
+  
+  const handleCopy = () => {
+    if (value) {
+      navigator.clipboard.writeText(value);
+      toast({ title: "Disalin", description: `${label} telah disalin.` });
+    }
+  };
+
+  return (
+    <div className="space-y-1.5 p-4 rounded-2xl bg-muted/20 border border-border/50">
+      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">{label}</p>
+      {customValue ? customValue : (
+        <div className="flex items-center justify-between gap-2">
+          <span className={cn("text-sm font-bold text-foreground", isMono && "font-mono")}>
+            {value || "-"}
+          </span>
+          {copyable && value && (
+            <button onClick={handleCopy} className="text-muted-foreground hover:text-primary transition-colors p-1">
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PreferenceItem({ icon: Icon, label, desc, value, onClick }: any) {
+  return (
+    <div onClick={onClick} className={cn("flex items-center justify-between py-4 group", onClick && "cursor-pointer hover:text-primary transition-colors")}>
+      <div className="flex items-center gap-4">
+        <div className="w-10 h-10 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors shrink-0">
+          <Icon className="w-5 h-5" />
+        </div>
+        <div>
+          <p className="text-sm font-black uppercase italic leading-none text-foreground">{label}</p>
+          <span className="text-[10px] font-medium text-muted-foreground mt-1 block uppercase">{desc}</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {value && <span className="text-xs font-bold text-muted-foreground uppercase italic">{value}</span>}
+        {onClick && <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:translate-x-1 transition-transform" />}
       </div>
     </div>
   );
