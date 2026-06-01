@@ -47,10 +47,26 @@ import { ResponsiveContainer, AreaChart, Area, YAxis } from "recharts";
 const MARKUP = 1.02;
 const INITIAL_COINS = [
   { symbol: "ALX", price: 12.24, baseIdr: 194004, change: 1.14, isUp: true, isNative: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 12.24 + Math.sin(i / 2) * 0.05 })) },
-  { symbol: "BTC", price: 66410.20, baseIdr: 1052601670, change: -0.45, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 66410.20 - Math.cos(i) * 300 })) },
-  { symbol: "ETH", price: 2420.08, baseIdr: 38358268, change: 3.73, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 2420.08 + Math.sin(i) * 40 })) },
+  { symbol: "BTC", price: 66450.00, baseIdr: 1053232500, change: -0.45, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 66450.00 - Math.cos(i) * 300 })) },
+  { symbol: "ETH", price: 2420.00, baseIdr: 38357000, change: 3.73, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 2420.00 + Math.sin(i) * 40 })) },
+  { symbol: "BNB", price: 575.20, baseIdr: 9116920, change: -1.20, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 575.20 - Math.sin(i) * 8 })) },
   { symbol: "SOL", price: 145.50, baseIdr: 2306175, change: 2.50, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 145.50 + Math.sin(i) * 5 })) },
-  { symbol: "BNB", price: 575.20, baseIdr: 9116920, change: -1.20, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 575.20 - Math.sin(i) * 8 })) }
+  { symbol: "XRP", price: 0.52, baseIdr: 8242, change: 0.85, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 0.52 + Math.sin(i) * 0.01 })) },
+  { symbol: "ADA", price: 0.45, baseIdr: 7132, change: -1.10, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 0.45 - Math.sin(i) * 0.01 })) },
+  { symbol: "DOGE", price: 0.14, baseIdr: 2219, change: 4.20, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 0.14 + Math.sin(i) * 0.005 })) },
+  { symbol: "TRX", price: 0.12, baseIdr: 1902, change: 0.30, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 0.12 + Math.sin(i) * 0.002 })) },
+  { symbol: "DOT", price: 6.50, baseIdr: 103025, change: -2.40, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 6.50 - Math.sin(i) * 0.1 })) },
+  { symbol: "LINK", price: 15.20, baseIdr: 240920, change: 1.80, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 15.20 + Math.sin(i) * 0.2 })) },
+  { symbol: "MATIC", price: 0.68, baseIdr: 10778, change: -0.95, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 0.68 - Math.sin(i) * 0.01 })) },
+  { symbol: "LTC", price: 82.40, baseIdr: 1306040, change: 1.15, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 82.40 + Math.sin(i) * 1.5 })) },
+  { symbol: "SHIB", price: 0.000022, baseIdr: 0.348, change: 5.40, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 0.000022 + Math.sin(i) * 0.000001 })) },
+  { symbol: "AVAX", price: 34.80, baseIdr: 551580, change: -1.50, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 34.80 - Math.sin(i) * 0.5 })) },
+  { symbol: "UNI", price: 7.20, baseIdr: 114120, change: 0.90, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 7.20 + Math.sin(i) * 0.1 })) },
+  { symbol: "ATOM", price: 8.40, baseIdr: 133140, change: -2.10, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 8.40 - Math.sin(i) * 0.15 })) },
+  { symbol: "XLM", price: 0.11, baseIdr: 1743, change: 0.25, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 0.11 + Math.sin(i) * 0.002 })) },
+  { symbol: "XMR", price: 172.50, baseIdr: 2734125, change: 0.60, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 172.50 + Math.sin(i) * 2.0 })) },
+  { symbol: "NEAR", price: 5.80, baseIdr: 91930, change: 3.10, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 5.80 + Math.sin(i) * 0.1 })) },
+  { symbol: "ARB", price: 0.95, baseIdr: 15057, change: -1.80, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 0.95 - Math.sin(i) * 0.02 })) }
 ];
 
 function DashboardContent() {
@@ -97,7 +113,13 @@ function DashboardContent() {
   // Fetch real-time market data (USDT price & other tickers)
   const fetchMarketData = useCallback(async () => {
     try {
-      const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "USDTIDRT"];
+      const symbols = [
+        "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", 
+        "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT",
+        "MATICUSDT", "LTCUSDT", "SHIBUSDT", "AVAXUSDT", "UNIUSDT", 
+        "ATOMUSDT", "XLMUSDT", "XMRUSDT", "NEARUSDT", "ARBUSDT",
+        "USDTIDRT"
+      ];
       const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}&t=${Date.now()}`);
       if (!res.ok) throw new Error('Market sync failed');
       const data = await res.json();
@@ -136,7 +158,7 @@ function DashboardContent() {
         trend: Array.from({ length: 12 }, (_, i) => ({ value: alxPrice + Math.sin(i / 2) * 0.05 }))
       };
 
-      setMarketCoins([alxData, ...formatted.filter((c: any) => c.symbol !== "USDT" && c.symbol !== "IDR" && c.symbol !== "IDRT")].slice(0, 5));
+      setMarketCoins([alxData, ...formatted.filter((c: any) => c.symbol !== "USDT" && c.symbol !== "IDR" && c.symbol !== "IDRT")]);
       setLastSync(new Date().toLocaleTimeString());
       setIsError(false);
     } catch (e) {
@@ -155,21 +177,24 @@ function DashboardContent() {
 
   // Balance calculation (IDR and USD value)
   const totalValueCalculated = useMemo(() => {
-    const idrBalance = userData?.totalBalance ?? 0;
-    const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
-    const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
-    const btcHoldings = userData?.cryptoBalances?.BTC ?? 0;
-    const ethHoldings = userData?.cryptoBalances?.ETH ?? 0;
+    let totalIdr = userData?.totalBalance ?? 0;
     
-    const alxMarket = marketCoins.find(c => c.symbol === "ALX");
-    const btcMarket = marketCoins.find(c => c.symbol === "BTC");
-    const ethMarket = marketCoins.find(c => c.symbol === "ETH");
+    if (userData?.cryptoBalances) {
+      Object.entries(userData.cryptoBalances).forEach(([sym, amountRaw]) => {
+        const amount = amountRaw as number;
+        if (amount <= 0) return;
+        
+        if (sym === 'USDT') {
+          totalIdr += amount * currentUsdtRate;
+        } else {
+          const coinMarket = marketCoins.find(c => c.symbol === sym) || INITIAL_COINS.find(c => c.symbol === sym);
+          const priceUsd = coinMarket?.price ?? 0;
+          totalIdr += amount * priceUsd * currentUsdtRate;
+        }
+      });
+    }
     
-    const alxPriceIdr = (alxMarket?.price ?? 12.24) * currentUsdtRate;
-    const btcPriceIdr = (btcMarket?.price ?? 66000) * currentUsdtRate;
-    const ethPriceIdr = (ethMarket?.price ?? 2000) * currentUsdtRate;
-    
-    return idrBalance + (alxHoldings * alxPriceIdr) + (usdtHoldings * currentUsdtRate) + (btcHoldings * btcPriceIdr) + (ethHoldings * ethPriceIdr);
+    return totalIdr;
   }, [userData, marketCoins, currentUsdtRate]);
 
   const totalValueUsd = useMemo(() => {
@@ -177,28 +202,24 @@ function DashboardContent() {
   }, [totalValueCalculated, currentUsdtRate]);
 
   const pnlData = useMemo(() => {
-    const alxHoldings = userData?.cryptoBalances?.ALX ?? 0;
-    const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
-    const btcHoldings = userData?.cryptoBalances?.BTC ?? 0;
-    const ethHoldings = userData?.cryptoBalances?.ETH ?? 0;
+    let totalPnl = 0;
     
-    const alxMarket = marketCoins.find(c => c.symbol === "ALX");
-    const btcMarket = marketCoins.find(c => c.symbol === "BTC");
-    const ethMarket = marketCoins.find(c => c.symbol === "ETH");
-    const usdtMarket = marketCoins.find(c => c.symbol === "USDT") || { change: 0.01 };
-
-    const alxPriceIdr = (alxMarket?.price ?? 12.24) * currentUsdtRate;
-    const btcPriceIdr = (btcMarket?.price ?? 66000) * currentUsdtRate;
-    const ethPriceIdr = (ethMarket?.price ?? 2000) * currentUsdtRate;
-
-    const alxPnl = (alxHoldings * alxPriceIdr * (alxMarket?.change ?? 0)) / 100;
-    const usdtPnl = (usdtHoldings * currentUsdtRate * (usdtMarket.change ?? 0)) / 100;
-    const btcPnl = (btcHoldings * btcPriceIdr * (btcMarket?.change ?? 0)) / 100;
-    const ethPnl = (ethHoldings * ethPriceIdr * (ethMarket?.change ?? 0)) / 100;
+    if (userData?.cryptoBalances) {
+      Object.entries(userData.cryptoBalances).forEach(([sym, amountRaw]) => {
+        const amount = amountRaw as number;
+        if (amount <= 0) return;
+        
+        const coinMarket = marketCoins.find(c => c.symbol === sym) || INITIAL_COINS.find(c => c.symbol === sym);
+        if (coinMarket) {
+          const change = coinMarket.change ?? 0;
+          const priceUsd = coinMarket.price ?? 0;
+          const valIdr = amount * priceUsd * currentUsdtRate;
+          totalPnl += (valIdr * change) / 100;
+        }
+      });
+    }
     
-    const totalPnl = alxPnl + usdtPnl + btcPnl + ethPnl;
     const pnlPercent = totalValueCalculated > 0 ? (totalPnl / totalValueCalculated) * 100 : 0;
-
     return {
       total: totalPnl,
       percent: pnlPercent,
@@ -218,7 +239,7 @@ function DashboardContent() {
 
     let totalCryptoDebtValIdr = 0;
     const cryptoDebts: any[] = [];
-    const assets = ['ALX', 'BTC', 'ETH', 'USDT'];
+    const assets = ["ALX", "BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "DOGE", "TRX", "DOT", "LINK", "MATIC", "LTC", "SHIB", "AVAX", "UNI", "ATOM", "XLM", "XMR", "NEAR", "ARB", "USDT"];
     assets.forEach(asset => {
       const cryptoIn = userTxs.filter(t => t.type === 'income' && t.cryptoCurrency === asset && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.cryptoAmount || t.toAmount || 0), 0);
       const cryptoOut = userTxs.filter(t => t.type === 'expense' && t.cryptoCurrency === asset && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.cryptoAmount || t.fromAmount || 0), 0);
@@ -226,7 +247,13 @@ function DashboardContent() {
       const cryptoActual = userData.cryptoBalances?.[asset] || 0;
       const diff = Math.max(0, cryptoActual - cryptoLedger);
       if (diff > 0.000001) {
-        const priceMap: any = { ALX: 194004, BTC: 1100000000, ETH: 35000000, USDT: 15850 };
+        const priceMap: any = { 
+          ALX: 194004, BTC: 1100000000, ETH: 35000000, USDT: 15850,
+          SOL: 2300000, BNB: 9100000, XRP: 8200, ADA: 7100, DOGE: 2200,
+          TRX: 1900, DOT: 103000, LINK: 240000, MATIC: 10700, LTC: 1300000,
+          SHIB: 0.35, AVAX: 550000, UNI: 114000, ATOM: 133000, XLM: 1700,
+          XMR: 2700000, NEAR: 91000, ARB: 15000
+        };
         const val = diff * (priceMap[asset] || 0);
         totalCryptoDebtValIdr += val;
         cryptoDebts.push({ asset, amount: diff, valueIdr: val });
@@ -464,57 +491,92 @@ function DashboardContent() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
-                    <DesktopAssetRow 
-                      name="Alix Coin" 
-                      symbol="ALX" 
-                      amount={userData?.cryptoBalances?.ALX ?? 0} 
-                      priceUsd={marketCoins.find(c => c.symbol === "ALX")?.price ?? 12.24} 
-                      priceIdr={(marketCoins.find(c => c.symbol === "ALX")?.price ?? 12.24) * currentUsdtRate}
-                      changePercent={1.14}
-                      isUp={true}
-                      isNative={true}
-                      trend={marketCoins.find(c => c.symbol === "ALX")?.trend || []}
-                    />
-                    <DesktopAssetRow 
-                      name="Bitcoin" 
-                      symbol="BTC" 
-                      amount={userData?.cryptoBalances?.BTC ?? 0} 
-                      priceUsd={marketCoins.find(c => c.symbol === "BTC")?.price ?? 66000} 
-                      priceIdr={(marketCoins.find(c => c.symbol === "BTC")?.price ?? 66000) * currentUsdtRate}
-                      changePercent={marketCoins.find(c => c.symbol === "BTC")?.change ?? -0.45}
-                      isUp={marketCoins.find(c => c.symbol === "BTC")?.isUp ?? false}
-                      trend={marketCoins.find(c => c.symbol === "BTC")?.trend || []}
-                    />
-                    <DesktopAssetRow 
-                      name="Ethereum" 
-                      symbol="ETH" 
-                      amount={userData?.cryptoBalances?.ETH ?? 0} 
-                      priceUsd={marketCoins.find(c => c.symbol === "ETH")?.price ?? 2400} 
-                      priceIdr={(marketCoins.find(c => c.symbol === "ETH")?.price ?? 2400) * currentUsdtRate}
-                      changePercent={marketCoins.find(c => c.symbol === "ETH")?.change ?? 3.73}
-                      isUp={marketCoins.find(c => c.symbol === "ETH")?.isUp ?? true}
-                      trend={marketCoins.find(c => c.symbol === "ETH")?.trend || []}
-                    />
-                    <DesktopAssetRow 
-                      name="Tether USD" 
-                      symbol="USDT" 
-                      amount={userData?.cryptoBalances?.USDT ?? 0} 
-                      priceUsd={1.00} 
-                      priceIdr={currentUsdtRate}
-                      changePercent={0.01}
-                      isUp={true}
-                      trend={Array.from({ length: 12 }, () => ({ value: 1 }))}
-                    />
-                    <DesktopAssetRow 
-                      name="Rupiah" 
-                      symbol="IDR" 
-                      amount={userData?.totalBalance ?? 0} 
-                      priceUsd={1 / currentUsdtRate} 
-                      priceIdr={1}
-                      changePercent={0.0}
-                      isUp={true}
-                      trend={Array.from({ length: 12 }, () => ({ value: 1 }))}
-                    />
+                    {(() => {
+                      const COIN_NAMES: Record<string, string> = {
+                        "ALX": "Alix Coin",
+                        "BTC": "Bitcoin",
+                        "ETH": "Ethereum",
+                        "BNB": "Binance Coin",
+                        "SOL": "Solana",
+                        "XRP": "Ripple",
+                        "ADA": "Cardano",
+                        "DOGE": "Dogecoin",
+                        "TRX": "TRON",
+                        "DOT": "Polkadot",
+                        "LINK": "Chainlink",
+                        "MATIC": "Polygon",
+                        "LTC": "Litecoin",
+                        "SHIB": "Shiba Inu",
+                        "AVAX": "Avalanche",
+                        "UNI": "Uniswap",
+                        "ATOM": "Cosmos",
+                        "XLM": "Stellar",
+                        "XMR": "Monero",
+                        "NEAR": "Near Protocol",
+                        "ARB": "Arbitrum",
+                        "USDT": "Tether USD",
+                        "IDR": "Rupiah",
+                      };
+
+                      const ASSET_SYMBOLS_ORDER = [
+                        "ALX", "BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "DOGE", "TRX", "DOT", 
+                        "LINK", "MATIC", "LTC", "SHIB", "AVAX", "UNI", "ATOM", "XLM", "XMR", "NEAR", "ARB",
+                        "USDT", "IDR"
+                      ];
+
+                      return ASSET_SYMBOLS_ORDER.map((sym) => {
+                        const isAlx = sym === "ALX";
+                        const isUsdt = sym === "USDT";
+                        const isIdr = sym === "IDR";
+                        
+                        let name = COIN_NAMES[sym] || sym;
+                        let amount = 0;
+                        let priceUsd = 0;
+                        let priceIdr = 0;
+                        let changePercent = 0;
+                        let isUp = true;
+                        let trend: any[] = [];
+                        
+                        if (isIdr) {
+                          amount = userData?.totalBalance ?? 0;
+                          priceUsd = 1 / currentUsdtRate;
+                          priceIdr = 1;
+                          changePercent = 0;
+                          isUp = true;
+                          trend = Array.from({ length: 12 }, () => ({ value: 1 }));
+                        } else if (isUsdt) {
+                          amount = userData?.cryptoBalances?.USDT ?? 0;
+                          priceUsd = 1.00;
+                          priceIdr = currentUsdtRate;
+                          changePercent = 0.01;
+                          isUp = true;
+                          trend = Array.from({ length: 12 }, () => ({ value: 1 }));
+                        } else {
+                          amount = userData?.cryptoBalances?.[sym] ?? 0;
+                          const coin = marketCoins.find(c => c.symbol === sym) || INITIAL_COINS.find(c => c.symbol === sym);
+                          priceUsd = coin?.price ?? 0;
+                          priceIdr = coin?.baseIdr ?? (priceUsd * currentUsdtRate);
+                          changePercent = coin?.change ?? 0;
+                          isUp = coin?.isUp ?? true;
+                          trend = coin?.trend ?? [];
+                        }
+                        
+                        return (
+                          <DesktopAssetRow 
+                            key={sym}
+                            name={name}
+                            symbol={sym}
+                            amount={amount}
+                            priceUsd={priceUsd}
+                            priceIdr={priceIdr}
+                            changePercent={changePercent}
+                            isUp={isUp}
+                            isNative={isAlx}
+                            trend={trend}
+                          />
+                        );
+                      });
+                    })()}
                   </tbody>
                 </table>
               </div>
@@ -602,12 +664,45 @@ function DesktopActionBtn({ icon: Icon, label, desc, onClick }: any) {
 
 // Portfolio Asset Row component
 function DesktopAssetRow({ name, symbol, amount, priceUsd, priceIdr, changePercent, isUp, isNative = false, trend }: any) {
+  const router = useRouter();
+
+  const handleRowClick = () => {
+    if (symbol === 'IDR') {
+      router.push('/deposits');
+    } else {
+      router.push(`/crypto/market/${symbol.toLowerCase()}`);
+    }
+  };
+
   return (
-    <tr className="hover:bg-muted/30 transition-colors cursor-default group">
+    <tr 
+      onClick={handleRowClick}
+      className="hover:bg-muted/30 transition-colors cursor-pointer group"
+    >
       <td className="py-4">
         <div className="flex items-center gap-3">
-          <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shadow-inner shrink-0", isNative ? "gold-gradient text-white" : "bg-muted")}>
-            {isNative ? <LogoIcon className="p-1.5 w-full h-full" /> : <span className="font-black text-xs">{symbol[0]}</span>}
+          <div className={cn("w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shrink-0", isNative ? "gold-gradient text-white" : (symbol === 'IDR' ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-muted relative"))}>
+            {isNative ? (
+              <LogoIcon className="p-1.5 w-full h-full text-white" />
+            ) : symbol === 'IDR' ? (
+              <span className="font-black text-[10px] italic">Rp</span>
+            ) : (
+              <>
+                <img 
+                  src={`https://assets.coincap.io/assets/icons/${symbol.toLowerCase()}@2x.png`} 
+                  className="object-cover w-full h-full" 
+                  alt={symbol} 
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                    if (fallback) fallback.classList.remove('hidden');
+                  }}
+                />
+                <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-full font-black text-xs text-slate-400">
+                  {symbol[0]}
+                </div>
+              </>
+            )}
           </div>
           <div>
             <div className="flex items-center gap-1.5">
@@ -619,7 +714,7 @@ function DesktopAssetRow({ name, symbol, amount, priceUsd, priceIdr, changePerce
         </div>
       </td>
       <td className="py-4 text-right">
-        <p className="text-xs font-black italic leading-none">{amount.toFixed(6).replace(/\.?0+$/, "")}</p>
+        <p className="text-xs font-black italic leading-none">{amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 6 })}</p>
         <span className="text-[8px] font-bold text-muted-foreground uppercase mt-1 block leading-none">{symbol}</span>
       </td>
       <td className="py-4 text-right">
