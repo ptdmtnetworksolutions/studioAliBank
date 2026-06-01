@@ -30,7 +30,12 @@ import {
   Wifi,
   X,
   Banknote,
-  Clock
+  Clock,
+  User,
+  LayoutGrid,
+  Ticket,
+  Settings,
+  ArrowRightLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -88,6 +93,7 @@ export default function CryptoBuyPage() {
   const { toast } = useToast();
   
   const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(true);
   const [activeTab, setActiveTab] = useState<'beli' | 'jual' | 'convert'>('beli');
   const [amount, setAmount] = useState("0");
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
@@ -159,8 +165,16 @@ export default function CryptoBuyPage() {
   useEffect(() => {
     setMounted(true);
     fetchRealTimeRate();
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
     const interval = setInterval(fetchRealTimeRate, 15000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("resize", handleResize);
+    };
   }, [fetchRealTimeRate]);
 
   const getRateToIdr = useCallback((code: string) => {
@@ -567,101 +581,347 @@ export default function CryptoBuyPage() {
         data-client-key={systemKeys?.midtransClientKey}
       />
       
-      <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background z-50">
-        <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors"><ArrowLeft className="w-6 h-6" /></button>
-        <div className="flex items-center gap-2">
-           <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[8px] font-black italic h-6 uppercase flex items-center gap-1.5 px-2.5">
-             <Wifi className={cn("w-2.5 h-2.5", isRateLoading ? "animate-pulse text-amber-500" : "text-green-500")} />
-             Kurs: Rp{isRateLoading ? "..." : dynamicUsdtRate.toLocaleString('id-ID')}
-           </Badge>
-           <button className="p-2 hover:bg-muted rounded-full" onClick={() => router.push('/transactions')}><History className="w-5 h-5 text-muted-foreground" /></button>
-        </div>
-      </header>
-
-      <main className="flex-1 px-5 pt-1 flex flex-col justify-between">
-        <div className="space-y-6">
-          <div className="bg-muted/60 p-1 rounded-full flex w-fit mx-auto mb-2">
-            {['Beli', 'Jual', 'Convert'].map((tab) => (
-              <button 
-                key={tab} 
-                onClick={() => tab === 'Convert' ? router.push('/crypto/convert') : setActiveTab(tab.toLowerCase() as any)} 
-                className={cn(
-                  "px-8 py-1.5 rounded-full text-xs font-black transition-all uppercase italic", 
-                  activeTab === tab.toLowerCase() ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-                )}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-col items-center justify-center space-y-2">
+      {isMobile ? (
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background z-50">
+            <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors"><ArrowLeft className="w-6 h-6" /></button>
             <div className="flex items-center gap-2">
-              <span className={cn("text-6xl font-black tracking-tighter italic", amount === "0" ? "text-muted-foreground/20" : "text-foreground")}>{amount}</span>
-              <div className="flex items-center gap-1 cursor-pointer bg-muted/50 px-3 py-1.5 rounded-xl border border-border" onClick={() => setIsCurrencySheetOpen(true)}>
-                <span className="text-sm font-black uppercase tracking-tighter">{selectedCurrency.code}</span>
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
-              </div>
+               <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[8px] font-black italic h-6 uppercase flex items-center gap-1.5 px-2.5">
+                 <Wifi className={cn("w-2.5 h-2.5", isRateLoading ? "animate-pulse text-amber-500" : "text-green-500")} />
+                 Kurs: Rp{isRateLoading ? "..." : dynamicUsdtRate.toLocaleString('id-ID')}
+               </Badge>
+               <button className="p-2 hover:bg-muted rounded-full" onClick={() => router.push('/transactions')}><History className="w-5 h-5 text-muted-foreground" /></button>
             </div>
-            <div className="flex items-center gap-2 text-muted-foreground font-bold italic">
-              <ArrowUpDown className="w-3.5 h-3.5 text-primary" />
-              <span className="text-xs">{estimatedCrypto} {selectedAsset.symbol}</span>
-            </div>
-          </div>
+          </header>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" onClick={() => setIsAssetSheetOpen(true)}>
-              <div className="flex items-center gap-4">
-                <div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2", selectedAsset.isNative ? "gold-gradient" : "bg-teal-600")}>{selectedAsset.isNative ? <LogoIcon className="text-white" /> : <div className="w-full h-full bg-white/20 rounded-full flex items-center justify-center font-black text-white text-[10px]">{selectedAsset.symbol[0]}</div>}</div>
-                <div><p className="text-xs font-black italic">{activeTab === 'jual' ? 'Jual' : 'Beli'}</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-600 text-[7px] font-black h-4 px-1.5 border-none uppercase">Live Node</Badge></div></div>
+          <main className="flex-1 px-5 pt-1 flex flex-col justify-between overflow-y-auto no-scrollbar">
+            <div className="space-y-6">
+              <div className="bg-muted/60 p-1 rounded-full flex w-fit mx-auto mb-2">
+                {['Beli', 'Jual', 'Convert'].map((tab) => (
+                  <button 
+                    key={tab} 
+                    onClick={() => tab === 'Convert' ? router.push('/crypto/convert') : setActiveTab(tab.toLowerCase() as any)} 
+                    className={cn(
+                      "px-8 py-1.5 rounded-full text-xs font-black transition-all uppercase italic", 
+                      activeTab === tab.toLowerCase() ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                    )}
+                  >
+                    {tab}
+                  </button>
+                ))}
               </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
-            </div>
-            
-            <div 
-              className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" 
-              onClick={() => {
-                if (activeTab !== 'jual') {
-                  setIsPaymentSheetOpen(true);
-                }
-              }}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 shadow-sm text-primary">
-                  {activeTab === 'jual' ? (
-                    <Landmark className="w-5 h-5" />
-                  ) : (
-                    <selectedPayment.icon className="w-5 h-5" />
-                  )}
+
+              <div className="flex flex-col items-center justify-center space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className={cn("text-6xl font-black tracking-tighter italic", amount === "0" ? "text-muted-foreground/20" : "text-foreground")}>{amount}</span>
+                  <div className="flex items-center gap-1 cursor-pointer bg-muted/50 px-3 py-1.5 rounded-xl border border-border" onClick={() => setIsCurrencySheetOpen(true)}>
+                    <span className="text-sm font-black uppercase tracking-tighter">{selectedCurrency.code}</span>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-black italic">
-                    {activeTab === 'jual' ? "Penerima" : "Metode pembayaran"}
-                  </p>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase">
-                    {activeTab === 'jual' ? "Saldo Dompet AliBank (Instan)" : selectedPayment.name}
-                  </p>
+                <div className="flex items-center gap-2 text-muted-foreground font-bold italic">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs">{estimatedCrypto} {selectedAsset.symbol}</span>
                 </div>
               </div>
-              {activeTab !== 'jual' && <ChevronRight className="w-4 h-4 text-muted-foreground/30" />}
-            </div>
-          </div>
-        </div>
 
-        <div className="pb-10 space-y-6">
-          <Button disabled={amount === "0" || isProcessing} onClick={() => setIsCheckoutDialogOpen(true)} className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest">
-            {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : 'LANJUTKAN'}
-          </Button>
-          <div className="grid grid-cols-3 gap-y-1">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-              <button key={n} onClick={() => handleKeyPress(n.toString())} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">{n}</button>
-            ))}
-            <button onClick={() => setAmount(prev => prev.includes(',') ? prev : prev + ',')} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">,</button>
-            <button onClick={() => handleKeyPress("0")} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">0</button>
-            <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-3 transition-colors"><Delete className="w-7 h-7" /></button>
-          </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" onClick={() => setIsAssetSheetOpen(true)}>
+                  <div className="flex items-center gap-4">
+                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2", selectedAsset.isNative ? "gold-gradient" : "bg-teal-600")}>{selectedAsset.isNative ? <LogoIcon className="text-white" /> : <div className="w-full h-full bg-white/20 rounded-full flex items-center justify-center font-black text-white text-[10px]">{selectedAsset.symbol[0]}</div>}</div>
+                    <div><p className="text-xs font-black italic">{activeTab === 'jual' ? 'Jual' : 'Beli'}</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-600 text-[7px] font-black h-4 px-1.5 border-none uppercase">Live Node</Badge></div></div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
+                </div>
+                
+                <div 
+                  className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" 
+                  onClick={() => {
+                    if (activeTab !== 'jual') {
+                      setIsPaymentSheetOpen(true);
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 shadow-sm text-primary">
+                      {activeTab === 'jual' ? (
+                        <Landmark className="w-5 h-5" />
+                      ) : (
+                        <selectedPayment.icon className="w-5 h-5" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-black italic">
+                        {activeTab === 'jual' ? "Penerima" : "Metode pembayaran"}
+                      </p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">
+                        {activeTab === 'jual' ? "Saldo Dompet AliBank (Instan)" : selectedPayment.name}
+                      </p>
+                    </div>
+                  </div>
+                  {activeTab !== 'jual' && <ChevronRight className="w-4 h-4 text-muted-foreground/30" />}
+                </div>
+              </div>
+            </div>
+
+            <div className="pb-10 space-y-6">
+              <Button disabled={amount === "0" || isProcessing} onClick={() => setIsCheckoutDialogOpen(true)} className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest">
+                {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : 'LANJUTKAN'}
+              </Button>
+              <div className="grid grid-cols-3 gap-y-1">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                  <button key={n} onClick={() => handleKeyPress(n.toString())} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">{n}</button>
+                ))}
+                <button onClick={() => setAmount(prev => prev.includes(',') ? prev : prev + ',')} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">,</button>
+                <button onClick={() => handleKeyPress("0")} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">0</button>
+                <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-3 transition-colors"><Delete className="w-7 h-7" /></button>
+              </div>
+            </div>
+          </main>
         </div>
-      </main>
+      ) : (
+        <div className="min-h-screen bg-background text-foreground flex font-body selection:bg-primary/30 w-full">
+          {/* SIDEBAR NAVIGATION */}
+          <aside className="w-64 bg-card border-r border-border flex flex-col fixed h-screen z-50 animate-in fade-in slide-in-from-left duration-300">
+            <div className="p-6 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg text-white">
+                <LogoIcon />
+              </div>
+              <span className="font-bold text-xl tracking-tighter italic uppercase">AliBank</span>
+            </div>
+            <nav className="flex-1 px-4 space-y-1 pt-4">
+              <SidebarItem icon={User} label="Profil Saya" href="/profile" />
+              <SidebarItem icon={LayoutGrid} label="Dashboard" href="/" />
+              <SidebarItem icon={ArrowRightLeft} label="Move crypto" active href="#" />
+              <SidebarItem icon={Zap} label="Discover" href="/crypto" />
+              <SidebarItem icon={Ticket} label="Card / Marketplace" href="/marketplace" />
+              <SidebarItem icon={Settings} label="Settings" href="/settings" />
+            </nav>
+            <div className="p-6 border-t border-border space-y-4">
+              <div className="flex items-center justify-between text-[8px] font-black text-muted-foreground uppercase tracking-widest">
+                <span>Sovereign Hub</span>
+                <span className="flex items-center gap-1 text-green-500">
+                  <ShieldCheck className="w-2.5 h-2.5" /> SECURE
+                </span>
+              </div>
+            </div>
+          </aside>
+
+          {/* MAIN CONTAINER */}
+          <main className="ml-64 flex-1 flex flex-col min-w-0">
+            {/* HEADER */}
+            <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 sticky top-0 z-40">
+              <h2 className="text-xl font-black text-foreground uppercase italic tracking-tight flex items-center gap-3">
+                <span>Move Crypto & Assets</span>
+                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] font-black italic h-6 uppercase flex items-center gap-1.5 px-2.5">
+                  <Wifi className={cn("w-2.5 h-2.5", isRateLoading ? "animate-pulse text-amber-500" : "text-green-500")} />
+                  Kurs: Rp{isRateLoading ? "..." : dynamicUsdtRate.toLocaleString('id-ID')}
+                </Badge>
+              </h2>
+              <div className="flex items-center gap-6">
+                <button className="p-2 hover:bg-muted rounded-full relative" onClick={() => router.push('/transactions')}>
+                  <History className="w-5 h-5 text-muted-foreground" />
+                </button>
+                <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border">
+                  <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-black italic text-[10px] uppercase">
+                    {userData?.name?.[0] || user?.email?.[0] || "U"}
+                  </div>
+                </div>
+              </div>
+            </header>
+
+            {/* CONTAINER CONTENT */}
+            <div className="p-8 space-y-8 max-w-[1200px] w-full mx-auto overflow-y-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* LEFT / CENTER COLUMN (FORM) */}
+                <div className="lg:col-span-2 space-y-8">
+                  {/* TRANSACTION FORM PANEL */}
+                  <Card className="rounded-[2.5rem] bg-card border border-border p-8 shadow-sm space-y-8">
+                    {/* Beli / Jual Tabs */}
+                    <div className="bg-muted/60 p-1.5 rounded-full flex w-fit">
+                      {['Beli', 'Jual', 'Convert'].map((tab) => (
+                        <button 
+                          key={tab} 
+                          onClick={() => tab === 'Convert' ? router.push('/crypto/convert') : setActiveTab(tab.toLowerCase() as any)} 
+                          className={cn(
+                            "px-8 py-2.5 rounded-full text-xs font-black transition-all uppercase italic", 
+                            activeTab === tab.toLowerCase() ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          {tab}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Numeric Input & Selectors */}
+                    <div className="space-y-6">
+                      <div className="flex flex-col space-y-2">
+                        <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest pl-1">Jumlah Transaksi</label>
+                        <div className="flex items-center justify-between bg-muted/30 p-6 rounded-2xl border border-border/50">
+                          <input 
+                            type="text" 
+                            value={amount}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (/^\d*([.,]\d*)?$/.test(val)) {
+                                setAmount(val);
+                              }
+                            }}
+                            className="bg-transparent border-none text-5xl font-black tracking-tighter italic text-foreground focus:outline-none focus:ring-0 w-full"
+                          />
+                          <button 
+                            onClick={() => setIsCurrencySheetOpen(true)}
+                            className="flex items-center gap-2 bg-card hover:bg-muted/80 px-4 py-2.5 rounded-xl border border-border shrink-0 shadow-sm transition-all"
+                          >
+                            <span className="text-sm font-black uppercase tracking-tighter">{selectedCurrency.code}</span>
+                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Estimate conversion view */}
+                      <div className="flex items-center justify-between px-2 text-xs font-bold text-muted-foreground italic">
+                        <span>Estimasi Konversi Kripto:</span>
+                        <div className="flex items-center gap-1 text-primary">
+                          <ArrowUpDown className="w-3.5 h-3.5" />
+                          <span>{estimatedCrypto} {selectedAsset.symbol}</span>
+                        </div>
+                      </div>
+
+                      {/* Select Asset & Payment/Receiver */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div 
+                          onClick={() => setIsAssetSheetOpen(true)}
+                          className="flex items-center justify-between p-5 bg-muted/20 hover:bg-muted/40 rounded-2xl border border-border/50 cursor-pointer transition-all hover:border-primary/30"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2 shadow-inner", selectedAsset.isNative ? "gold-gradient" : "bg-teal-600/10 text-teal-500")}>
+                              {selectedAsset.isNative ? <LogoIcon className="text-white w-5 h-5" /> : <div className="w-full h-full bg-teal-500 rounded-full flex items-center justify-center font-black text-white text-[10px]">{selectedAsset.symbol[0]}</div>}
+                            </div>
+                            <div className="text-left">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-1">{activeTab === 'jual' ? 'Koin Dijual' : 'Aset Dibeli'}</p>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-black text-foreground uppercase leading-none">{selectedAsset.symbol}</span>
+                                <Badge className="bg-green-500/10 text-green-600 text-[6px] font-black h-3.5 px-1 border-none uppercase">Live Node</Badge>
+                              </div>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
+                        </div>
+
+                        <div 
+                          onClick={() => { if (activeTab !== 'jual') setIsPaymentSheetOpen(true); }}
+                          className={cn(
+                            "flex items-center justify-between p-5 bg-muted/20 rounded-2xl border border-border/50 transition-all",
+                            activeTab !== 'jual' ? "hover:bg-muted/40 cursor-pointer hover:border-primary/30" : "opacity-80"
+                          )}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center p-2.5 shadow-sm text-primary">
+                              {activeTab === 'jual' ? (
+                                <Landmark className="w-5 h-5" />
+                              ) : (
+                                <selectedPayment.icon className="w-5 h-5" />
+                              )}
+                            </div>
+                            <div className="text-left">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-1">
+                                {activeTab === 'jual' ? "Penerima Hasil" : "Metode Pembayaran"}
+                              </p>
+                              <p className="text-xs font-black text-foreground truncate max-w-[150px]">
+                                {activeTab === 'jual' ? "Saldo Dompet (Instan)" : selectedPayment.name}
+                              </p>
+                            </div>
+                          </div>
+                          {activeTab !== 'jual' && <ChevronRight className="w-4 h-4 text-muted-foreground/30" />}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Keypad for Mouse Click Entry & Submit Button */}
+                    <div className="space-y-6 pt-4 border-t border-border/50">
+                      <div className="flex gap-6 items-end">
+                        <div className="flex-1">
+                          <Button 
+                            disabled={amount === "0" || isProcessing} 
+                            onClick={() => setIsCheckoutDialogOpen(true)} 
+                            className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest transition-transform active:scale-[0.98]"
+                          >
+                            {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : 'LANJUTKAN TRANSAKSI'}
+                          </Button>
+                        </div>
+                        <div className="w-48 bg-muted/20 border border-border/50 rounded-2xl p-2.5 grid grid-cols-3 gap-1 shrink-0">
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                            <button key={n} type="button" onClick={() => handleKeyPress(n.toString())} className="text-base font-black italic hover:bg-muted active:bg-muted/80 py-1.5 rounded-lg transition-colors">{n}</button>
+                          ))}
+                          <button type="button" onClick={() => setAmount(prev => prev.includes(',') ? prev : prev + ',')} className="text-base font-black italic hover:bg-muted py-1.5 rounded-lg transition-colors">,</button>
+                          <button type="button" onClick={() => handleKeyPress("0")} className="text-base font-black italic hover:bg-muted py-1.5 rounded-lg transition-colors">0</button>
+                          <button type="button" onClick={handleDelete} className="flex items-center justify-center hover:bg-muted py-1.5 rounded-lg transition-colors text-rose-500"><Delete className="w-4 h-4" /></button>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* RIGHT COLUMN (INFO WIDGETS) */}
+                <div className="space-y-8 animate-in fade-in slide-in-from-right duration-500">
+                  {/* TRANSACTION SUMMARY CARD */}
+                  <Card className="rounded-[2.5rem] bg-card border border-border p-6 shadow-sm space-y-6">
+                    <h3 className="text-xs font-black uppercase italic text-muted-foreground tracking-widest pl-1">Ringkasan Transaksi</h3>
+                    <div className="space-y-4 text-xs">
+                      <div className="flex justify-between items-center py-2.5 border-b border-border/50">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Jenis Transaksi</span>
+                        <Badge className={cn("uppercase font-black text-[9px] px-2 h-5 border-none", activeTab === 'jual' ? "bg-rose-500/10 text-rose-500" : "bg-green-500/10 text-green-500")}>
+                          {activeTab === 'jual' ? "Jual Kripto" : "Beli Kripto"}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between items-center py-2.5 border-b border-border/50">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Aset Digital</span>
+                        <span className="font-black text-foreground uppercase">{selectedAsset.symbol} ({selectedAsset.name})</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2.5 border-b border-border/50">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Jumlah Pembayaran</span>
+                        <span className="font-black text-foreground">{amount} {selectedCurrency.code}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2.5 border-b border-border/50">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Estimasi Diterima</span>
+                        <span className="font-black text-primary uppercase italic">{estimatedCrypto} {selectedAsset.symbol}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2.5 border-b border-border/50">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Metode Kliring</span>
+                        <span className="font-black text-foreground">{activeTab === 'jual' ? "Saldo Dompet" : selectedPayment.name}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2.5">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Sinkronisasi Kurs</span>
+                        <div className="text-right">
+                          <span className="font-bold text-foreground block text-[10px]">Rp {dynamicUsdtRate.toLocaleString('id-ID')} / USD</span>
+                          <span className="text-[8px] font-bold text-muted-foreground uppercase block mt-0.5">SINKRONISASI AKTIF {lastSync ? `Pukul ${lastSync}` : ""}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* TRUST & SSL CARD */}
+                  <Card className="rounded-[2.5rem] bg-card border border-border p-6 shadow-sm space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black uppercase italic leading-none mb-1">Keamanan Transaksi</h4>
+                        <span className="text-[8px] font-bold text-muted-foreground uppercase">Node Enkripsi SSL v3</span>
+                      </div>
+                    </div>
+                    <p className="text-[10px] font-bold text-muted-foreground leading-relaxed uppercase italic pl-1">
+                      Setiap dana yang masuk dienkripsi dengan protokol pengamanan berlapis AliBank. Dana real-time akan dikliring secara aman melalui provider gerbang pembayaran resmi.
+                    </p>
+                  </Card>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      )}
 
       <Sheet open={isPaymentSheetOpen} onOpenChange={setIsPaymentSheetOpen}>
         <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
@@ -917,6 +1177,19 @@ export default function CryptoBuyPage() {
           </div>
         </SheetContent>
       </Sheet>
+    </div>
+  );
+}
+
+function SidebarItem({ icon: Icon, label, active = false, href }: any) {
+  const router = useRouter();
+  return (
+    <div onClick={() => href !== "#" && router.push(href)} className={cn("flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all group relative", active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
+      <div className="flex items-center gap-3">
+        <Icon className={cn("w-5 h-5", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+        <span className="text-sm font-bold">{label}</span>
+      </div>
+      {active && <div className="w-1 h-5 bg-primary rounded-full absolute left-0 top-1/2 -translate-y-1/2" />}
     </div>
   );
 }
