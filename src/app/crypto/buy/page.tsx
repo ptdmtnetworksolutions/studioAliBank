@@ -145,6 +145,7 @@ export default function CryptoBuyPage() {
   const proofInputRef = useRef<HTMLInputElement>(null);
 
   const [currencySearch, setCurrencySearch] = useState("");
+  const [assetSearch, setAssetSearch] = useState("");
   const paypalContainerRef = useRef<HTMLDivElement>(null);
   const renderInProgress = useRef(false);
   const retryCount = useRef(0);
@@ -1006,22 +1007,54 @@ export default function CryptoBuyPage() {
         </div>
       )}
 
-      <Sheet open={isPaymentSheetOpen} onOpenChange={setIsPaymentSheetOpen}>
-        <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
-          <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
-          <div className="px-6 space-y-6">
-            <SheetHeader className="text-left">
-              <SheetTitle className="text-xl font-black italic uppercase tracking-tight">Metode Pembayaran</SheetTitle>
-              <SheetDescription className="text-[10px] font-bold text-muted-foreground uppercase">Pilih gerbang kliring untuk penyelesaian dana.</SheetDescription>
-            </SheetHeader>
+      {isMobile ? (
+        <Sheet open={isPaymentSheetOpen} onOpenChange={setIsPaymentSheetOpen}>
+          <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
+            <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
+            <div className="px-6 space-y-6">
+              <SheetHeader className="text-left">
+                <SheetTitle className="text-xl font-black italic uppercase tracking-tight">Metode Pembayaran</SheetTitle>
+                <SheetDescription className="text-[10px] font-bold text-muted-foreground uppercase">Pilih gerbang kliring untuk penyelesaian dana.</SheetDescription>
+              </SheetHeader>
+              <div className="space-y-3">
+                {PAYMENT_METHODS.map((method) => (
+                  <div 
+                    key={method.id} 
+                    onClick={() => { setSelectedPayment(method); setIsPaymentSheetOpen(false); }}
+                    className={cn(
+                      "p-5 rounded-2xl border-2 flex items-center justify-between transition-all cursor-pointer",
+                      selectedPayment.id === method.id ? "border-primary bg-primary/5" : "border-muted bg-card hover:border-primary/10"
+                    )}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-primary"><method.icon className="w-5 h-5" /></div>
+                      <div className="text-left">
+                        <p className="text-sm font-black italic uppercase">{method.name}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase">{method.desc}</p>
+                      </div>
+                    </div>
+                    {selectedPayment.id === method.id && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Dialog open={isPaymentSheetOpen} onOpenChange={setIsPaymentSheetOpen}>
+          <DialogContent className="max-w-md bg-background border border-border/50 rounded-[2rem] p-6 shadow-2xl">
+            <DialogHeader className="text-left mb-4">
+              <DialogTitle className="text-xl font-black italic uppercase tracking-tight">Metode Pembayaran</DialogTitle>
+              <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase">Pilih gerbang kliring untuk penyelesaian dana.</DialogDescription>
+            </DialogHeader>
             <div className="space-y-3">
               {PAYMENT_METHODS.map((method) => (
                 <div 
                   key={method.id} 
                   onClick={() => { setSelectedPayment(method); setIsPaymentSheetOpen(false); }}
                   className={cn(
-                    "p-5 rounded-2xl border-2 flex items-center justify-between transition-all cursor-pointer",
-                    selectedPayment.id === method.id ? "border-primary bg-primary/5" : "border-muted bg-card"
+                    "p-5 rounded-2xl border border-border flex items-center justify-between transition-all cursor-pointer",
+                    selectedPayment.id === method.id ? "border-primary bg-primary/5" : "bg-card hover:border-primary/10"
                   )}
                 >
                   <div className="flex items-center gap-4">
@@ -1035,9 +1068,9 @@ export default function CryptoBuyPage() {
                 </div>
               ))}
             </div>
-          </div>
-        </SheetContent>
-      </Sheet>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <Dialog open={isCheckoutDialogOpen} onOpenChange={setIsCheckoutDialogOpen}>
         <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-0 overflow-hidden shadow-2xl">
@@ -1221,39 +1254,143 @@ export default function CryptoBuyPage() {
         </DialogContent>
       </Dialog>
 
-      <Sheet open={isCurrencySheetOpen} onOpenChange={setIsCurrencySheetOpen}>
-        <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-[80vh] overflow-hidden flex flex-col">
-          <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6 shrink-0" />
-          <div className="px-6 pb-2 shrink-0">
-            <SheetHeader className="text-left mb-6">
-              <SheetTitle className="text-2xl font-black italic uppercase tracking-tight">Pilih Mata Uang</SheetTitle>
-              <SheetDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pilih mata uang pembayaran.</SheetDescription>
-            </SheetHeader>
-            <div className="relative mb-4"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Cari Mata Uang..." value={currencySearch} onChange={(e) => setCurrencySearch(e.target.value)} className="h-12 pl-12 bg-muted/50 border-none rounded-xl text-xs font-bold" /></div>
-          </div>
-          <div className="px-6 pb-6 overflow-y-auto no-scrollbar flex-1">
-            <div className="space-y-1">
-              {currencies.filter(c => c.code.toLowerCase().includes(currencySearch.toLowerCase())).map((c) => (
-                <div key={c.code} onClick={() => { setSelectedCurrency(c); setIsCurrencySheetOpen(false); setCurrencySearch(""); }} className={cn("flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all", selectedCurrency.code === c.code ? "bg-primary/10 border border-primary/20" : "hover:bg-muted/50")}>
-                  <div className="flex items-center gap-4"><div className={cn("w-11 h-11 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm border-2 border-background shrink-0", c.color)}>{c.symbol.length > 2 ? c.code[0] : c.symbol}</div><div><h4 className="text-base font-black italic uppercase leading-none">{c.code}</h4><p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 italic">{c.name}</p></div></div>
-                  {selectedCurrency.code === c.code && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
-                </div>
-              ))}
+      {isMobile ? (
+        <Sheet open={isCurrencySheetOpen} onOpenChange={setIsCurrencySheetOpen}>
+          <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-[80vh] overflow-hidden flex flex-col">
+            <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6 shrink-0" />
+            <div className="px-6 pb-2 shrink-0">
+              <SheetHeader className="text-left mb-6">
+                <SheetTitle className="text-2xl font-black italic uppercase tracking-tight">Pilih Mata Uang</SheetTitle>
+                <SheetDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pilih mata uang pembayaran.</SheetDescription>
+              </SheetHeader>
+              <div className="relative mb-4"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Cari Mata Uang..." value={currencySearch} onChange={(e) => setCurrencySearch(e.target.value)} className="h-12 pl-12 bg-muted/50 border-none rounded-xl text-xs font-bold" /></div>
             </div>
-          </div>
-        </SheetContent>
-      </Sheet>
+            <div className="px-6 pb-6 overflow-y-auto no-scrollbar flex-1">
+              <div className="space-y-1">
+                {currencies.filter(c => c.code.toLowerCase().includes(currencySearch.toLowerCase())).map((c) => (
+                  <div key={c.code} onClick={() => { setSelectedCurrency(c); setIsCurrencySheetOpen(false); setCurrencySearch(""); }} className={cn("flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all", selectedCurrency.code === c.code ? "bg-primary/10 border border-primary/20" : "hover:bg-muted/50")}>
+                    <div className="flex items-center gap-4"><div className={cn("w-11 h-11 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm border-2 border-background shrink-0", c.color)}>{c.symbol.length > 2 ? c.code[0] : c.symbol}</div><div><h4 className="text-base font-black italic uppercase leading-none">{c.code}</h4><p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 italic">{c.name}</p></div></div>
+                    {selectedCurrency.code === c.code && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Dialog open={isCurrencySheetOpen} onOpenChange={setIsCurrencySheetOpen}>
+          <DialogContent className="max-w-md bg-background border border-border/50 rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[80vh] overflow-hidden">
+            <DialogHeader className="text-left mb-4 shrink-0">
+              <DialogTitle className="text-xl font-black italic uppercase tracking-tight">Pilih Mata Uang</DialogTitle>
+              <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pilih mata uang pembayaran.</DialogDescription>
+            </DialogHeader>
+            <div className="relative mb-4 shrink-0">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Cari Mata Uang..." value={currencySearch} onChange={(e) => setCurrencySearch(e.target.value)} className="h-12 pl-12 bg-muted/50 border-none rounded-xl text-xs font-bold" />
+            </div>
+            <div className="overflow-y-auto no-scrollbar flex-1 pr-1">
+              <div className="space-y-1">
+                {currencies.filter(c => c.code.toLowerCase().includes(currencySearch.toLowerCase())).map((c) => (
+                  <div key={c.code} onClick={() => { setSelectedCurrency(c); setIsCurrencySheetOpen(false); setCurrencySearch(""); }} className={cn("flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all", selectedCurrency.code === c.code ? "bg-primary/10 border border-primary/20" : "hover:bg-muted/50")}>
+                    <div className="flex items-center gap-4"><div className={cn("w-11 h-11 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm border-2 border-background shrink-0", c.color)}>{c.symbol.length > 2 ? c.code[0] : c.symbol}</div><div><h4 className="text-base font-black italic uppercase leading-none">{c.code}</h4><p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 italic">{c.name}</p></div></div>
+                    {selectedCurrency.code === c.code && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
-      <Sheet open={isAssetSheetOpen} onOpenChange={setIsAssetSheetOpen}>
-        <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto pb-10">
-          <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-6" />
-          <div className="px-6 space-y-6">
-            <SheetHeader><SheetTitle className="text-xl font-black italic uppercase tracking-tight">Pilih Aset</SheetTitle></SheetHeader>
-            <div className="space-y-2">
-              {coinsList.map((asset) => (
-                <div key={asset.symbol} onClick={() => { setSelectedAssetSymbol(asset.symbol); setIsAssetSheetOpen(false); }} className={cn("p-5 rounded-2xl border border-border flex items-center justify-between transition-all cursor-pointer", selectedAsset.symbol === asset.symbol ? "border-primary bg-primary/5" : "bg-card hover:border-primary/10")}>
-                  <div className="flex items-center gap-4">
-                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center overflow-hidden shrink-0", asset.isNative ? "gold-gradient text-white p-2" : "bg-muted relative p-1 shadow-md")}>
+      {isMobile ? (
+        <Sheet open={isAssetSheetOpen} onOpenChange={(open) => { setIsAssetSheetOpen(open); if (!open) setAssetSearch(""); }}>
+          <SheetContent side="bottom" className="rounded-t-[2.5rem] p-0 border-none bg-background h-auto max-h-[85vh] overflow-hidden flex flex-col pb-10">
+            <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-4 shrink-0" />
+            <div className="px-6 flex-1 flex flex-col min-h-0">
+              <SheetHeader className="text-left mb-4 shrink-0"><SheetTitle className="text-xl font-black italic uppercase tracking-tight">Pilih Aset</SheetTitle></SheetHeader>
+              {/* Search bar */}
+              <div className="relative mb-4 shrink-0">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cari koin..."
+                  value={assetSearch}
+                  onChange={(e) => setAssetSearch(e.target.value)}
+                  className="pl-10 h-10 rounded-xl bg-muted/40 border-border/40 text-sm"
+                />
+              </div>
+              <div className="space-y-2 overflow-y-auto no-scrollbar flex-1 pb-6 min-h-0">
+                {coinsList.filter(a => 
+                  a.name.toLowerCase().includes(assetSearch.toLowerCase()) ||
+                  a.symbol.toLowerCase().includes(assetSearch.toLowerCase())
+                ).map((asset) => (
+                  <div key={asset.symbol} onClick={() => { setSelectedAssetSymbol(asset.symbol); setIsAssetSheetOpen(false); setAssetSearch(""); }} className={cn("p-5 rounded-2xl border border-border flex items-center justify-between transition-all cursor-pointer", selectedAsset.symbol === asset.symbol ? "border-primary bg-primary/5" : "bg-card hover:border-primary/10")}>
+                    <div className="flex items-center gap-4">
+                      <div className={cn("w-10 h-10 rounded-full flex items-center justify-center overflow-hidden shrink-0", asset.isNative ? "gold-gradient text-white p-2" : "bg-muted relative p-1 shadow-md")}>
+                        {asset.isNative ? (
+                          <LogoIcon className="text-white w-full h-full" />
+                        ) : (
+                          <>
+                            <img 
+                              src={`https://assets.coincap.io/assets/icons/${asset.symbol.toLowerCase()}@2x.png`} 
+                              className="object-cover w-full h-full rounded-full" 
+                              alt={asset.symbol} 
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                if (fallback) fallback.classList.remove('hidden');
+                              }}
+                            />
+                            <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-full font-black text-xs text-slate-400">
+                              {asset.symbol[0]}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black italic uppercase leading-none">{asset.name}</h4>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">{asset.symbol}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black italic text-foreground">
+                        ${asset.priceUsd >= 1 
+                          ? asset.priceUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
+                          : asset.priceUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Dialog open={isAssetSheetOpen} onOpenChange={(open) => { setIsAssetSheetOpen(open); if (!open) setAssetSearch(""); }}>
+          <DialogContent className="max-w-sm w-full bg-background border border-border/50 rounded-[2rem] p-6 shadow-2xl flex flex-col" style={{ maxHeight: '75vh' }}>
+            <DialogHeader className="text-left mb-3 shrink-0">
+              <DialogTitle className="text-lg font-black italic uppercase tracking-tight">Pilih Aset</DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">{coinsList.length} aset tersedia</DialogDescription>
+            </DialogHeader>
+            {/* Search bar */}
+            <div className="relative mb-3 shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Cari koin..."
+                value={assetSearch}
+                onChange={(e) => setAssetSearch(e.target.value)}
+                className="pl-9 h-9 rounded-xl bg-muted/40 border-border/40 text-xs"
+              />
+            </div>
+            <div className="overflow-y-auto no-scrollbar flex-1 min-h-0 space-y-1.5 pr-0.5">
+              {coinsList.filter(a =>
+                a.name.toLowerCase().includes(assetSearch.toLowerCase()) ||
+                a.symbol.toLowerCase().includes(assetSearch.toLowerCase())
+              ).map((asset) => (
+                <div key={asset.symbol} onClick={() => { setSelectedAssetSymbol(asset.symbol); setIsAssetSheetOpen(false); setAssetSearch(""); }} className={cn("p-3.5 rounded-2xl border flex items-center justify-between transition-all cursor-pointer", selectedAsset.symbol === asset.symbol ? "border-primary bg-primary/5" : "border-border/60 bg-card hover:border-primary/30 hover:bg-muted/30")}>
+                  <div className="flex items-center gap-3">
+                    <div className={cn("w-9 h-9 rounded-full flex items-center justify-center overflow-hidden shrink-0", asset.isNative ? "gold-gradient text-white p-1.5" : "bg-muted relative p-1 shadow-md")}>
                       {asset.isNative ? (
                         <LogoIcon className="text-white w-full h-full" />
                       ) : (
@@ -1275,25 +1412,24 @@ export default function CryptoBuyPage() {
                       )}
                     </div>
                     <div>
-                      <h4 className="text-sm font-black italic uppercase leading-none">{asset.name}</h4>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase">{asset.symbol}</span>
-                      </div>
+                      <h4 className="text-xs font-black italic uppercase leading-none">{asset.name}</h4>
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase">{asset.symbol}</span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-black italic text-foreground">
+                  <div className="text-right shrink-0 ml-2">
+                    <p className="text-xs font-black italic text-foreground">
                       ${asset.priceUsd >= 1 
                         ? asset.priceUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
                         : asset.priceUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                     </p>
+                    {selectedAsset.symbol === asset.symbol && <div className="w-1.5 h-1.5 rounded-full bg-primary ml-auto mt-1" />}
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        </SheetContent>
-      </Sheet>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
