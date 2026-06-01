@@ -12,10 +12,16 @@ import {
   Cpu,
   Zap,
   Info,
-  Pencil
+  Pencil,
+  User,
+  LayoutGrid,
+  ArrowRightLeft,
+  Ticket,
+  Settings,
+  ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card"; // FIXED: Added missing import
+import { Card } from "@/components/ui/card";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -57,6 +63,7 @@ export default function ConvertPage() {
   const { toast } = useToast();
   
   const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(true);
   const [fromAsset, setFromAsset] = useState<AssetKey>('ETH');
   const [toAsset, setToAsset] = useState<AssetKey>('USDT');
   const [amount, setAmount] = useState("");
@@ -103,8 +110,16 @@ export default function ConvertPage() {
   useEffect(() => {
     setMounted(true);
     fetchPrices();
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
     const interval = setInterval(fetchPrices, 15000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("resize", handleResize);
+    };
   }, [fetchPrices]);
 
   const convertedValue = useMemo(() => {
@@ -197,144 +212,379 @@ export default function ConvertPage() {
 
   return (
     <div className="min-h-screen bg-[#0F1113] text-white flex flex-col font-body overflow-hidden">
-      {/* HEADER */}
-      <header className="px-6 h-16 flex items-center justify-between sticky top-0 bg-[#0F1113] z-50">
-        <button onClick={() => router.back()} className="p-1 hover:bg-white/5 rounded-full transition-colors">
-          <ArrowLeft className="w-6 h-6" />
-        </button>
-        <h1 className="text-base font-black uppercase italic tracking-widest">Swap</h1>
-        <button className="p-1 hover:bg-white/5 rounded-full transition-colors">
-          <Settings2 className="w-5 h-5 text-white/60" />
-        </button>
-      </header>
+      {isMobile ? (
+        <div className="flex flex-col flex-1 overflow-hidden">
+          {/* HEADER */}
+          <header className="px-6 h-16 flex items-center justify-between sticky top-0 bg-[#0F1113] z-50">
+            <button onClick={() => router.back()} className="p-1 hover:bg-white/5 rounded-full transition-colors">
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <h1 className="text-base font-black uppercase italic tracking-widest">Swap</h1>
+            <button className="p-1 hover:bg-white/5 rounded-full transition-colors">
+              <Settings2 className="w-5 h-5 text-white/60" />
+            </button>
+          </header>
 
-      <main className="flex-1 flex flex-col pt-4 overflow-y-auto no-scrollbar">
-        {/* FROM SECTION */}
-        <div className="px-6 py-4 space-y-2">
-          <div className="flex justify-between items-center h-20">
-            <div className="flex-1 flex flex-col">
-              <input 
-                type="number" 
-                placeholder="0" 
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full bg-transparent text-6xl font-black italic outline-none tracking-tighter text-white placeholder:text-white/10" 
-              />
-              <p className="text-sm font-medium text-white/30 italic mt-1">${fromUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+          <main className="flex-1 flex flex-col pt-4 overflow-y-auto no-scrollbar">
+            {/* FROM SECTION */}
+            <div className="px-6 py-4 space-y-2">
+              <div className="flex justify-between items-center h-20">
+                <div className="flex-1 flex flex-col">
+                  <input 
+                    type="number" 
+                    placeholder="0" 
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="w-full bg-transparent text-6xl font-black italic outline-none tracking-tighter text-white placeholder:text-white/10" 
+                  />
+                  <p className="text-sm font-medium text-white/30 italic mt-1">${fromUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center gap-2 bg-[#1C2024] hover:bg-[#252A2E] pl-2 pr-4 py-2 rounded-full border border-white/5 shadow-xl transition-all active:scale-95">
+                        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-1.5 shadow-inner", currentFromAsset.color)}>
+                          <currentFromAsset.icon className="text-white w-full h-full" />
+                        </div>
+                        <span className="text-sm font-black italic uppercase tracking-tighter">{fromAsset}</span>
+                        <ChevronDown className="w-3.5 h-3.5 text-white/40" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="bg-[#1C2024] border-white/10 text-white rounded-2xl p-2 min-w-[140px] shadow-2xl">
+                      {ASSETS.filter(a => a.symbol !== toAsset).map((a) => (
+                        <DropdownMenuItem key={a.symbol} onClick={() => setFromAsset(a.symbol)} className="rounded-xl p-3 flex items-center gap-3 cursor-pointer focus:bg-white/5">
+                          <div className={cn("w-6 h-6 rounded-full flex items-center justify-center p-1", a.color)}><a.icon className="text-white w-full h-full" /></div>
+                          <span className="font-black italic uppercase text-xs">{a.symbol}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <div className="flex items-center gap-1.5 mr-1">
+                     <span className={cn("text-[10px] font-black uppercase italic", isInsufficient ? "text-rose-500" : "text-white/30")}>
+                        {userBalance.toFixed(fromAsset === 'IDR' ? 0 : 4)} {fromAsset}
+                     </span>
+                     <button 
+                      onClick={() => setAmount(userBalance.toString())}
+                      className="text-blue-500 font-black text-[9px] uppercase hover:underline"
+                    >
+                      Maks
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex flex-col items-end gap-2 shrink-0">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 bg-[#1C2024] hover:bg-[#252A2E] pl-2 pr-4 py-2 rounded-full border border-white/5 shadow-xl transition-all active:scale-95">
-                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-1.5 shadow-inner", currentFromAsset.color)}>
-                      <currentFromAsset.icon className="text-white w-full h-full" />
-                    </div>
-                    <span className="text-sm font-black italic uppercase tracking-tighter">{fromAsset}</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-white/40" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-[#1C2024] border-white/10 text-white rounded-2xl p-2 min-w-[140px] shadow-2xl">
-                  {ASSETS.filter(a => a.symbol !== toAsset).map((a) => (
-                    <DropdownMenuItem key={a.symbol} onClick={() => setFromAsset(a.symbol)} className="rounded-xl p-3 flex items-center gap-3 cursor-pointer focus:bg-white/5">
-                      <div className={cn("w-6 h-6 rounded-full flex items-center justify-center p-1", a.color)}><a.icon className="text-white w-full h-full" /></div>
-                      <span className="font-black italic uppercase text-xs">{a.symbol}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <div className="flex items-center gap-1.5 mr-1">
-                 <span className={cn("text-[10px] font-black uppercase italic", isInsufficient ? "text-rose-500" : "text-white/30")}>
-                    {userBalance.toFixed(fromAsset === 'IDR' ? 0 : 4)} {fromAsset}
-                 </span>
-                 <button 
-                  onClick={() => setAmount(userBalance.toString())}
-                  className="text-blue-500 font-black text-[9px] uppercase hover:underline"
-                >
-                  Maks
+
+            {/* DIVIDER WITH SWAP ICON */}
+            <div className="relative h-px bg-white/5 w-full flex justify-center items-center my-2">
+              <button 
+                onClick={() => { const old = fromAsset; setFromAsset(toAsset); setToAsset(old); setAmount(""); }}
+                className="w-10 h-10 bg-[#1C2024] border-[4px] border-[#0F1113] rounded-full flex items-center justify-center text-white/60 active:scale-90 transition-transform shadow-xl z-20"
+              >
+                <ArrowUpDown className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* TO SECTION */}
+            <div className="px-6 py-4 space-y-2">
+              <div className="flex justify-between items-center h-20">
+                <div className="flex-1 flex flex-col">
+                  <div className="text-6xl font-black italic tracking-tighter text-white">
+                    {convertedValue}
+                  </div>
+                  <p className="text-sm font-medium text-white/30 italic mt-1">${toUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center gap-2 bg-[#1C2024] hover:bg-[#252A2E] pl-2 pr-4 py-2 rounded-full border border-white/5 shadow-xl transition-all active:scale-95">
+                        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-1.5 shadow-inner", currentToAsset.color)}>
+                          <currentToAsset.icon className="text-white w-full h-full" />
+                        </div>
+                        <span className="text-sm font-black italic uppercase tracking-tighter">{toAsset}</span>
+                        <ChevronDown className="w-3.5 h-3.5 text-white/40" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="bg-[#1C2024] border-white/10 text-white rounded-2xl p-2 min-w-[140px] shadow-2xl">
+                      {ASSETS.filter(a => a.symbol !== fromAsset).map((a) => (
+                        <DropdownMenuItem key={a.symbol} onClick={() => setToAsset(a.symbol)} className="rounded-xl p-3 flex items-center gap-3 cursor-pointer focus:bg-white/5">
+                          <div className={cn("w-6 h-6 rounded-full flex items-center justify-center p-1", a.color)}><a.icon className="text-white w-full h-full" /></div>
+                          <span className="font-black italic uppercase text-xs">{a.symbol}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold text-white/20 italic mr-1">
+                    <span>Wallet 1 / AliBank</span>
+                    <Pencil className="w-2.5 h-2.5" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* DETAILED INFO SECTION */}
+            <div className="mt-8 px-6 space-y-4 pb-10">
+              <DetailRow label="Tarif" value={`1 ${fromAsset} = ${(prices[fromAsset]/prices[toAsset]/MARKUP).toFixed(4)} ${toAsset}`} icon />
+              <DetailRow label="Biaya jaringan" value="$0.0004" icon />
+              <DetailRow label="Selip" value="2%" edit icon />
+              <DetailRow label="Dampak harga" value="0%" icon />
+              <DetailRow label="Minimum yang diterima" value={`${(parseFloat(convertedValue) * 0.98).toFixed(4)} ${toAsset}`} icon />
+              <DetailRow label="Penerima" value="Wallet 1 / AliBank" edit />
+            </div>
+          </main>
+
+          {/* FOOTER CTA */}
+          <footer className="p-6 bg-[#0F1113] pb-12 space-y-4">
+            <Button 
+              disabled={!amount || parseFloat(amount) <= 0 || isProcessing}
+              onClick={handleConvert}
+              className={cn(
+                "w-full h-16 rounded-3xl font-black italic uppercase transition-all duration-300 border-none shadow-none text-base",
+                isInsufficient 
+                  ? "bg-[#1C2024] text-white/20" 
+                  : (!amount || parseFloat(amount) <= 0)
+                    ? "bg-[#1C2024] text-white/20"
+                    : "gold-gradient text-white shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95"
+              )}
+            >
+              {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (isInsufficient ? "Dana tidak cukup" : !amount ? "Pilih jumlah" : "Konfirmasi Swap")}
+            </Button>
+            <p className="text-center text-[10px] font-bold text-white/30 uppercase tracking-tighter">
+              Termasuk biaya MM sebesar 0.875%.
+            </p>
+          </footer>
+        </div>
+      ) : (
+        <div className="min-h-screen bg-background text-foreground flex font-body selection:bg-primary/30 w-full text-white">
+          {/* SIDEBAR NAVIGATION */}
+          <aside className="w-64 bg-card border-r border-border flex flex-col fixed h-screen z-50 animate-in fade-in slide-in-from-left duration-300 text-white">
+            <div className="p-6 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg text-white">
+                <LogoIcon />
+              </div>
+              <span className="font-bold text-xl tracking-tighter italic uppercase text-white">AliBank</span>
+            </div>
+            <nav className="flex-1 px-4 space-y-1 pt-4">
+              <SidebarItem icon={User} label="Profil Saya" href="/profile" />
+              <SidebarItem icon={LayoutGrid} label="Dashboard" href="/" />
+              <SidebarItem icon={ArrowRightLeft} label="Move crypto" active href="#" />
+              <SidebarItem icon={Zap} label="Discover" href="/crypto" />
+              <SidebarItem icon={Ticket} label="Card / Marketplace" href="/marketplace" />
+              <SidebarItem icon={Settings} label="Settings" href="/settings" />
+            </nav>
+            <div className="p-6 border-t border-border space-y-4 text-white">
+              <div className="flex items-center justify-between text-[8px] font-black text-muted-foreground uppercase tracking-widest">
+                <span>Sovereign Hub</span>
+                <span className="flex items-center gap-1 text-green-500">
+                  <ShieldCheck className="w-2.5 h-2.5" /> SECURE
+                </span>
+              </div>
+            </div>
+          </aside>
+
+          {/* MAIN CONTAINER */}
+          <main className="ml-64 flex-1 flex flex-col min-w-0 bg-[#0F1113]">
+            {/* HEADER */}
+            <header className="h-16 bg-[#171A1D] border-b border-white/5 flex items-center justify-between px-8 sticky top-0 z-40">
+              <h2 className="text-xl font-black text-white uppercase italic tracking-tight flex items-center gap-3">
+                <span>Convert & Swap Assets</span>
+              </h2>
+              <div className="flex items-center gap-6">
+                <button className="p-2 hover:bg-white/5 rounded-full relative" onClick={() => router.back()}>
+                  <ArrowLeft className="w-5 h-5 text-white/60" />
                 </button>
+                <div className="w-8 h-8 rounded-full bg-[#1C2024] overflow-hidden border border-white/5">
+                  <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-black italic text-[10px] uppercase">
+                    {userData?.name?.[0] || user?.email?.[0] || "U"}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
+            </header>
 
-        {/* DIVIDER WITH SWAP ICON */}
-        <div className="relative h-px bg-white/5 w-full flex justify-center items-center my-2">
-          <button 
-            onClick={() => { const old = fromAsset; setFromAsset(toAsset); setToAsset(old); setAmount(""); }}
-            className="w-10 h-10 bg-[#1C2024] border-[4px] border-[#0F1113] rounded-full flex items-center justify-center text-white/60 active:scale-90 transition-transform shadow-xl z-20"
-          >
-            <ArrowUpDown className="w-4 h-4" />
-          </button>
-        </div>
+            {/* CONTAINER CONTENT */}
+            <div className="p-8 space-y-8 max-w-[1200px] w-full mx-auto overflow-y-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* LEFT / CENTER COLUMN (FORM) */}
+                <div className="lg:col-span-2 space-y-8 animate-in fade-in slide-in-from-bottom duration-500">
+                  {/* TRANSACTION FORM PANEL */}
+                  <Card className="rounded-[2.5rem] bg-[#171A1D] border border-white/5 p-8 shadow-sm space-y-8">
+                    <div className="space-y-6">
+                      
+                      {/* FROM ASSET CONTAINER */}
+                      <div className="p-6 bg-[#1E2226]/50 rounded-2xl border border-white/5 flex items-center justify-between">
+                        <div className="flex-1 flex flex-col mr-4">
+                          <label className="text-[10px] font-black uppercase text-white/40 tracking-widest mb-1.5 pl-0.5">Dari</label>
+                          <input 
+                            type="number" 
+                            placeholder="0" 
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            className="bg-transparent border-none text-5xl font-black tracking-tighter italic text-white focus:outline-none focus:ring-0 w-full placeholder:text-white/10"
+                          />
+                          <span className="text-[10px] font-bold text-white/30 italic mt-1">${fromUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="flex items-center gap-2 bg-[#1C2024] hover:bg-[#252A2E] pl-2 pr-4 py-2 rounded-full border border-white/5 shadow-xl transition-all active:scale-95 text-white">
+                                <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-1.5 shadow-inner", currentFromAsset.color)}>
+                                  <currentFromAsset.icon className="text-white w-full h-full" />
+                                </div>
+                                <span className="text-sm font-black italic uppercase tracking-tighter">{fromAsset}</span>
+                                <ChevronDown className="w-3.5 h-3.5 text-white/40" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="bg-[#1C2024] border-white/10 text-white rounded-2xl p-2 min-w-[140px] shadow-2xl">
+                              {ASSETS.filter(a => a.symbol !== toAsset).map((a) => (
+                                <DropdownMenuItem key={a.symbol} onClick={() => setFromAsset(a.symbol)} className="rounded-xl p-3 flex items-center gap-3 cursor-pointer focus:bg-white/5">
+                                  <div className={cn("w-6 h-6 rounded-full flex items-center justify-center p-1", a.color)}><a.icon className="text-white w-full h-full" /></div>
+                                  <span className="font-black italic uppercase text-xs text-white">{a.symbol}</span>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <div className="flex items-center gap-2 mr-1">
+                            <span className={cn("text-[10px] font-black uppercase italic", isInsufficient ? "text-rose-500" : "text-white/30")}>
+                              Saldo: {userBalance.toFixed(fromAsset === 'IDR' ? 0 : 4)} {fromAsset}
+                            </span>
+                            <button 
+                              onClick={() => setAmount(userBalance.toString())}
+                              className="text-blue-500 font-black text-[9px] uppercase hover:underline"
+                            >
+                              Maks
+                            </button>
+                          </div>
+                        </div>
+                      </div>
 
-        {/* TO SECTION */}
-        <div className="px-6 py-4 space-y-2">
-          <div className="flex justify-between items-center h-20">
-            <div className="flex-1 flex flex-col">
-              <div className="text-6xl font-black italic tracking-tighter text-white">
-                {convertedValue}
-              </div>
-              <p className="text-sm font-medium text-white/30 italic mt-1">${toUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-            </div>
-            <div className="flex flex-col items-end gap-2 shrink-0">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 bg-[#1C2024] hover:bg-[#252A2E] pl-2 pr-4 py-2 rounded-full border border-white/5 shadow-xl transition-all active:scale-95">
-                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-1.5 shadow-inner", currentToAsset.color)}>
-                      <currentToAsset.icon className="text-white w-full h-full" />
+                      {/* SWITCH / SWAP DIRECTION BUTTON */}
+                      <div className="flex justify-center -my-2 relative z-20">
+                        <button 
+                          onClick={() => { const old = fromAsset; setFromAsset(toAsset); setToAsset(old); setAmount(""); }}
+                          className="w-11 h-11 bg-[#1C2024] hover:bg-[#252A2E] border-[4px] border-[#171A1D] rounded-full flex items-center justify-center text-white/60 hover:text-white active:scale-90 transition-all shadow-2xl"
+                        >
+                          <ArrowUpDown className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* TO ASSET CONTAINER */}
+                      <div className="p-6 bg-[#1E2226]/50 rounded-2xl border border-white/5 flex items-center justify-between">
+                        <div className="flex-1 flex flex-col mr-4">
+                          <label className="text-[10px] font-black uppercase text-white/40 tracking-widest mb-1.5 pl-0.5">Ke</label>
+                          <div className="text-5xl font-black tracking-tighter italic text-white h-[60px] flex items-center leading-none">
+                            {convertedValue}
+                          </div>
+                          <span className="text-[10px] font-bold text-white/30 italic mt-1">${toUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="flex items-center gap-2 bg-[#1C2024] hover:bg-[#252A2E] pl-2 pr-4 py-2 rounded-full border border-white/5 shadow-xl transition-all active:scale-95 text-white">
+                                <div className={cn("w-8 h-8 rounded-full flex items-center justify-center p-1.5 shadow-inner", currentToAsset.color)}>
+                                  <currentToAsset.icon className="text-white w-full h-full" />
+                                </div>
+                                <span className="text-sm font-black italic uppercase tracking-tighter">{toAsset}</span>
+                                <ChevronDown className="w-3.5 h-3.5 text-white/40" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="bg-[#1C2024] border-white/10 text-white rounded-2xl p-2 min-w-[140px] shadow-2xl">
+                              {ASSETS.filter(a => a.symbol !== fromAsset).map((a) => (
+                                <DropdownMenuItem key={a.symbol} onClick={() => setToAsset(a.symbol)} className="rounded-xl p-3 flex items-center gap-3 cursor-pointer focus:bg-white/5">
+                                  <div className={cn("w-6 h-6 rounded-full flex items-center justify-center p-1", a.color)}><a.icon className="text-white w-full h-full" /></div>
+                                  <span className="font-black italic uppercase text-xs text-white">{a.symbol}</span>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <div className="flex items-center gap-1 text-[9px] font-mono font-bold text-white/20 italic mr-1">
+                            <span>Wallet 1 / AliBank</span>
+                            <Pencil className="w-2.5 h-2.5" />
+                          </div>
+                        </div>
+                      </div>
+
                     </div>
-                    <span className="text-sm font-black italic uppercase tracking-tighter">{toAsset}</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-white/40" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-[#1C2024] border-white/10 text-white rounded-2xl p-2 min-w-[140px] shadow-2xl">
-                  {ASSETS.filter(a => a.symbol !== fromAsset).map((a) => (
-                    <DropdownMenuItem key={a.symbol} onClick={() => setToAsset(a.symbol)} className="rounded-xl p-3 flex items-center gap-3 cursor-pointer focus:bg-white/5">
-                      <div className={cn("w-6 h-6 rounded-full flex items-center justify-center p-1", a.color)}><a.icon className="text-white w-full h-full" /></div>
-                      <span className="font-black italic uppercase text-xs">{a.symbol}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold text-white/20 italic mr-1">
-                <span>Wallet 1 / AliBank</span>
-                <Pencil className="w-2.5 h-2.5" />
+
+                    {/* Swap Actions */}
+                    <div className="pt-4 space-y-4">
+                      <Button 
+                        disabled={!amount || parseFloat(amount) <= 0 || isProcessing}
+                        onClick={handleConvert}
+                        className={cn(
+                          "w-full h-16 rounded-2xl font-black italic uppercase transition-all duration-300 border-none shadow-none text-base",
+                          isInsufficient 
+                            ? "bg-[#1C2024] text-white/20" 
+                            : (!amount || parseFloat(amount) <= 0)
+                              ? "bg-[#1C2024] text-white/20"
+                              : "gold-gradient text-white shadow-2xl shadow-primary/20 hover:scale-[1.01] active:scale-95"
+                        )}
+                      >
+                        {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (isInsufficient ? "Dana tidak cukup" : !amount ? "Pilih jumlah" : "Konfirmasi Swap")}
+                      </Button>
+                      <p className="text-center text-[10px] font-bold text-white/30 uppercase tracking-tighter">
+                        Termasuk biaya MM sebesar 0.875%.
+                      </p>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* RIGHT COLUMN (DETAILS & SECURE INFO) */}
+                <div className="space-y-8 text-white animate-in fade-in slide-in-from-right duration-500">
+                  {/* TRANSACTION METRICS CARD */}
+                  <Card className="rounded-[2.5rem] bg-[#171A1D] border border-white/5 p-6 shadow-sm space-y-6">
+                    <h3 className="text-xs font-black uppercase italic text-white/40 tracking-widest pl-1">Metrik Swap</h3>
+                    <div className="space-y-4 text-xs">
+                      <div className="flex justify-between items-center py-2.5 border-b border-white/5">
+                        <span className="text-[10px] font-bold text-white/40 uppercase">Kurs Penukaran</span>
+                        <span className="font-black text-white/80">{`1 ${fromAsset} = ${(prices[fromAsset]/prices[toAsset]/MARKUP).toFixed(4)} ${toAsset}`}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2.5 border-b border-white/5">
+                        <span className="text-[10px] font-bold text-white/40 uppercase">Biaya Jaringan</span>
+                        <span className="font-black text-white/80">$0.0004</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2.5 border-b border-white/5">
+                        <span className="text-[10px] font-bold text-white/40 uppercase">Batas Toleransi Selip</span>
+                        <div className="flex items-center gap-1 text-white/80 font-black">
+                          <span>2%</span>
+                          <Pencil className="w-2.5 h-2.5 text-white/20" />
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center py-2.5 border-b border-white/5">
+                        <span className="text-[10px] font-bold text-white/40 uppercase">Dampak Harga</span>
+                        <span className="font-black text-white/80">0%</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2.5 border-b border-white/5">
+                        <span className="text-[10px] font-bold text-white/40 uppercase">Minimum Diterima</span>
+                        <span className="font-black text-white/80">{`${(parseFloat(convertedValue) * 0.98).toFixed(4)} ${toAsset}`}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2.5">
+                        <span className="text-[10px] font-bold text-white/40 uppercase">Penerima</span>
+                        <span className="font-black text-white/80">Wallet 1 / AliBank</span>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* SECURITY SSL CARD */}
+                  <Card className="rounded-[2.5rem] bg-[#171A1D] border border-white/5 p-6 shadow-sm space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black uppercase italic leading-none mb-1">Enkripsi Nodes</h4>
+                        <span className="text-[8px] font-bold text-white/30 uppercase">Secure SSL Gateway</span>
+                      </div>
+                    </div>
+                    <p className="text-[10px] font-bold text-white/40 leading-relaxed uppercase italic pl-1">
+                      Transaksi swap ini dilakukan secara instan di dalam ledger blockchain privat AliBank. Seluruh aset Anda dijamin 100% aman dan dilindungi enkripsi end-to-end.
+                    </p>
+                  </Card>
+                </div>
+
               </div>
             </div>
-          </div>
+          </main>
         </div>
-
-        {/* DETAILED INFO SECTION */}
-        <div className="mt-8 px-6 space-y-4 pb-10">
-          <DetailRow label="Tarif" value={`1 ${fromAsset} = ${(prices[fromAsset]/prices[toAsset]/MARKUP).toFixed(4)} ${toAsset}`} icon />
-          <DetailRow label="Biaya jaringan" value="$0.0004" icon />
-          <DetailRow label="Selip" value="2%" edit icon />
-          <DetailRow label="Dampak harga" value="0%" icon />
-          <DetailRow label="Minimum yang diterima" value={`${(parseFloat(convertedValue) * 0.98).toFixed(4)} ${toAsset}`} icon />
-          <DetailRow label="Penerima" value="Wallet 1 / AliBank" edit />
-        </div>
-      </main>
-
-      {/* FOOTER CTA */}
-      <footer className="p-6 bg-[#0F1113] pb-12 space-y-4">
-        <Button 
-          disabled={!amount || parseFloat(amount) <= 0 || isProcessing}
-          onClick={handleConvert}
-          className={cn(
-            "w-full h-16 rounded-3xl font-black italic uppercase transition-all duration-300 border-none shadow-none text-base",
-            isInsufficient 
-              ? "bg-[#1C2024] text-white/20" 
-              : (!amount || parseFloat(amount) <= 0)
-                ? "bg-[#1C2024] text-white/20"
-                : "gold-gradient text-white shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95"
-          )}
-        >
-          {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (isInsufficient ? "Dana tidak cukup" : !amount ? "Pilih jumlah" : "Konfirmasi Swap")}
-        </Button>
-        <p className="text-center text-[10px] font-bold text-white/30 uppercase tracking-tighter">
-          Termasuk biaya MM sebesar 0.875%.
-        </p>
-      </footer>
+      )}
     </div>
   );
 }
@@ -351,6 +601,19 @@ function DetailRow({ label, value, edit = false, icon = false }: { label: string
         {edit && <Pencil className="w-2.5 h-2.5 text-white/20" />}
         {label === "Tarif" && <ChevronDown className="w-3 h-3 text-white/20 rotate-[-90deg]" />}
       </div>
+    </div>
+  );
+}
+
+function SidebarItem({ icon: Icon, label, active = false, href }: any) {
+  const router = useRouter();
+  return (
+    <div onClick={() => href !== "#" && router.push(href)} className={cn("flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all group relative text-white/60 hover:text-white hover:bg-white/5", active ? "bg-primary/10 text-primary hover:text-primary" : "")}>
+      <div className="flex items-center gap-3">
+        <Icon className={cn("w-5 h-5", active ? "text-primary" : "text-white/60 group-hover:text-white")} />
+        <span className="text-sm font-bold">{label}</span>
+      </div>
+      {active && <div className="w-1 h-5 bg-primary rounded-full absolute left-0 top-1/2 -translate-y-1/2" />}
     </div>
   );
 }
