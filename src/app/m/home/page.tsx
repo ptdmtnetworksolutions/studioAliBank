@@ -38,6 +38,42 @@ import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 import { useToast } from "@/hooks/use-toast";
 
+const getIconUrl = (symbol: string) => {
+  const s = symbol.toLowerCase();
+  if (s === 'alx') return null;
+  return `https://assets.coincap.io/assets/icons/${s}@2x.png`;
+};
+
+const GLOBAL_SYMBOLS = [
+  "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", 
+  "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT",
+  "MATICUSDT", "LTCUSDT", "SHIBUSDT", "AVAXUSDT", "UNIUSDT", 
+  "ATOMUSDT", "XLMUSDT", "XMRUSDT", "NEARUSDT", "ARBUSDT"
+];
+
+const FALLBACK_COINS = [
+  { symbol: "BTC", price: 66450.00, change: -0.45, isUp: false, icon: getIconUrl("BTC") },
+  { symbol: "ETH", price: 2420.00, change: 3.73, isUp: true, icon: getIconUrl("ETH") },
+  { symbol: "BNB", price: 575.20, change: -1.20, isUp: false, icon: getIconUrl("BNB") },
+  { symbol: "SOL", price: 145.50, change: 2.50, isUp: true, icon: getIconUrl("SOL") },
+  { symbol: "XRP", price: 0.52, change: 0.85, isUp: true, icon: getIconUrl("XRP") },
+  { symbol: "ADA", price: 0.45, change: -1.10, isUp: false, icon: getIconUrl("ADA") },
+  { symbol: "DOGE", price: 0.14, change: 4.20, isUp: true, icon: getIconUrl("DOGE") },
+  { symbol: "TRX", price: 0.12, change: 0.30, isUp: true, icon: getIconUrl("TRX") },
+  { symbol: "DOT", price: 6.50, change: -2.40, isUp: false, icon: getIconUrl("DOT") },
+  { symbol: "LINK", price: 15.20, change: 1.80, isUp: true, icon: getIconUrl("LINK") },
+  { symbol: "MATIC", price: 0.68, change: -0.95, isUp: false, icon: getIconUrl("MATIC") },
+  { symbol: "LTC", price: 82.40, change: 1.15, isUp: true, icon: getIconUrl("LTC") },
+  { symbol: "SHIB", price: 0.000022, change: 5.40, isUp: true, icon: getIconUrl("SHIB") },
+  { symbol: "AVAX", price: 34.80, change: -1.50, isUp: false, icon: getIconUrl("AVAX") },
+  { symbol: "UNI", price: 7.20, change: 0.90, isUp: true, icon: getIconUrl("UNI") },
+  { symbol: "ATOM", price: 8.40, change: -2.10, isUp: false, icon: getIconUrl("ATOM") },
+  { symbol: "XLM", price: 0.11, change: 0.25, isUp: true, icon: getIconUrl("XLM") },
+  { symbol: "XMR", price: 172.50, change: 0.60, isUp: true, icon: getIconUrl("XMR") },
+  { symbol: "NEAR", price: 5.80, change: 3.10, isUp: true, icon: getIconUrl("NEAR") },
+  { symbol: "ARB", price: 0.95, change: -1.80, isUp: false, icon: getIconUrl("ARB") }
+];
+
 function MobileHomePageContent() {
   const { user, loading: userLoading } = useUser();
   const db = useFirestore();
@@ -49,13 +85,16 @@ function MobileHomePageContent() {
   const [activeTab, setActiveTab] = useState<'bursa' | 'dompet'>('bursa');
   
   // Real-time market state
-  const [marketCoins, setMarketCoins] = useState<any[]>([
-    { symbol: "ALX", price: 12.24, baseIdr: 194004, change: 1.14, isUp: true, isNative: true },
-    { symbol: "BTC", price: 66410.20, baseIdr: 1052601670, change: -0.45, isUp: false },
-    { symbol: "ETH", price: 2420.08, baseIdr: 38358268, change: 3.73, isUp: true },
-    { symbol: "SOL", price: 145.50, baseIdr: 2306175, change: 2.50, isUp: true },
-    { symbol: "BNB", price: 575.20, baseIdr: 9116920, change: -1.20, isUp: false }
-  ]);
+  const [marketCoins, setMarketCoins] = useState<any[]>(() => {
+    const alxPrice = 12.24;
+    const rate = 15850;
+    const alxData = { symbol: "ALX", price: alxPrice, baseIdr: alxPrice * rate, change: 1.14, isUp: true, isNative: true, icon: null };
+    const formattedFallback = FALLBACK_COINS.map(c => ({
+      ...c,
+      baseIdr: c.price * rate
+    }));
+    return [alxData, ...formattedFallback];
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [dynamicUsdtRate, setDynamicUsdtRate] = useState(15850);
   const currentUsdtRate = useMemo(() => dynamicUsdtRate || 15850, [dynamicUsdtRate]);
@@ -110,45 +149,61 @@ function MobileHomePageContent() {
 
   // Market Ticker fetcher
   const fetchMarketData = useCallback(async () => {
+    const rate = currentUsdtRate;
+    const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
+    const alxData = {
+      symbol: "ALX",
+      price: alxPrice,
+      baseIdr: alxPrice * rate,
+      change: 1.14,
+      isUp: true,
+      isNative: true,
+      icon: null
+    };
+
     try {
-      const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "USDTIDRT"];
-      const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}&t=${Date.now()}`);
+      const symbolsToFetch = [...GLOBAL_SYMBOLS, "USDTIDRT"];
+      const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbolsToFetch))}&t=${Date.now()}`);
       if (!res.ok) throw new Error('Market sync failed');
       const data = await res.json();
 
-      const formatted = data.map((item: any) => {
-        let symbol = item.symbol.replace("USDT", "").replace("IDR", "").replace("IDRT", "");
-        if (symbol === "") symbol = "USDT";
-        let price = parseFloat(item.lastPrice);
-        if (item.symbol === "USDTIDRT") setDynamicUsdtRate(price);
-        price = price * 1.02; // markup 2%
-        return {
-          symbol: symbol,
-          price: symbol === "USDT" ? 1 : price,
-          change: parseFloat(item.priceChangePercent) || 0,
-          isUp: (parseFloat(item.priceChangePercent) || 0) >= 0,
-          baseIdr: symbol === "USDT" ? price : price * (data.find((d:any) => d.symbol === "USDTIDRT")?.lastPrice || 15850)
-        };
-      });
+      if (!Array.isArray(data)) {
+        throw new Error('Invalid response from market API');
+      }
 
-      const currentUsdtPrice = parseFloat(data.find((d:any) => d.symbol === "USDTIDRT")?.lastPrice || 15850);
-      const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
-      const alxData = {
-        symbol: "ALX",
-        price: alxPrice,
-        baseIdr: alxPrice * currentUsdtPrice,
-        change: 1.14,
-        isUp: true,
-        isNative: true
-      };
+      const usdtIdrItem = data.find((d: any) => d.symbol === "USDTIDRT");
+      const latestUsdtRate = usdtIdrItem ? parseFloat(usdtIdrItem.lastPrice) : rate;
+      if (usdtIdrItem) {
+        setDynamicUsdtRate(latestUsdtRate);
+      }
 
-      setMarketCoins([alxData, ...formatted.filter((c: any) => c.symbol !== "USDT" && c.symbol !== "IDR" && c.symbol !== "IDRT")].slice(0, 5));
+      const formatted = data
+        .filter((item: any) => item.symbol !== "USDTIDRT")
+        .map((item: any) => {
+          let symbol = item.symbol.replace("USDT", "");
+          let price = parseFloat(item.lastPrice) * 1.02; // markup 2%
+          return {
+            symbol: symbol,
+            price: price,
+            change: parseFloat(item.priceChangePercent) || 0,
+            isUp: (parseFloat(item.priceChangePercent) || 0) >= 0,
+            baseIdr: price * latestUsdtRate,
+            icon: getIconUrl(symbol)
+          };
+        });
+
+      setMarketCoins([alxData, ...formatted]);
     } catch (e) {
-      console.warn("Mobile market load error:", e);
+      console.warn("Mobile market load error, using fallback:", e);
+      const fallbackFormatted = FALLBACK_COINS.map(c => ({
+        ...c,
+        baseIdr: c.price * rate
+      }));
+      setMarketCoins([alxData, ...fallbackFormatted]);
     } finally {
       setIsLoading(false);
     }
-  }, [globalLiquidity]);
+  }, [globalLiquidity, currentUsdtRate]);
 
   useEffect(() => {
     if (mounted) {
@@ -366,11 +421,25 @@ function MobileHomePageContent() {
                 {marketCoins.map((coin) => (
                   <div key={coin.symbol} className="flex items-center justify-between cursor-pointer active:opacity-75" onClick={() => router.push(`/crypto/market/${coin.symbol.toLowerCase()}`)}>
                     <div className="flex items-center gap-3">
-                      <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shadow-inner", coin.isNative ? "gold-gradient" : "bg-muted")}>
+                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-sm relative overflow-hidden", coin.isNative ? "gold-gradient" : "bg-muted border border-border/10")}>
                         {coin.isNative ? (
                           <LogoIcon className="text-white p-2 w-full h-full" />
                         ) : (
-                          <span className="font-black text-xs uppercase text-foreground">{coin.symbol[0]}</span>
+                          <>
+                            <img 
+                              src={coin.icon || ""} 
+                              className="object-cover w-full h-full" 
+                              alt={coin.symbol} 
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                if (fallback) fallback.classList.remove('hidden');
+                              }}
+                            />
+                            <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-lg font-black text-[10px] text-slate-400">
+                              {coin.symbol[0]}
+                            </div>
+                          </>
                         )}
                       </div>
                       <div>

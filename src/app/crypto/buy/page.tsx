@@ -221,18 +221,36 @@ export default function CryptoBuyPage() {
 
     try {
       const userUpdates: any = {};
-      userUpdates[`cryptoBalances.${selectedAsset.symbol}`] = increment(cryptoAmount);
+      
+      if (activeTab === 'jual') {
+        const userCryptoBalance = userData?.cryptoBalances?.[selectedAsset.symbol] ?? 0;
+        if (userCryptoBalance < cryptoAmount) {
+          throw new Error(`Saldo ${selectedAsset.symbol} Anda tidak mencukupi untuk melakukan penjualan.`);
+        }
+        userUpdates[`cryptoBalances.${selectedAsset.symbol}`] = increment(-cryptoAmount);
+        userUpdates.totalBalance = increment(fiatAmountIdr);
+      } else {
+        userUpdates[`cryptoBalances.${selectedAsset.symbol}`] = increment(cryptoAmount);
+      }
 
       await updateDoc(userDocRef, userUpdates);
-      await updateDoc(doc(db, "system", "liquidity"), {
-        totalUsdInjected: increment(parseFloat(usdValue)),
-        totalFiatInjected: increment(fiatAmountIdr)
-      });
+      
+      if (activeTab === 'jual') {
+        await updateDoc(doc(db, "system", "liquidity"), {
+          totalUsdInjected: increment(-parseFloat(usdValue)),
+          totalFiatInjected: increment(-fiatAmountIdr)
+        });
+      } else {
+        await updateDoc(doc(db, "system", "liquidity"), {
+          totalUsdInjected: increment(parseFloat(usdValue)),
+          totalFiatInjected: increment(fiatAmountIdr)
+        });
+      }
 
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
-        id: `BUY-${paymentDetails.id || Date.now()}`,
+        id: `${activeTab === 'jual' ? 'SELL' : 'BUY'}-${paymentDetails.id || Date.now()}`,
         category: "Market Execution",
-        gateway: paymentDetails.gateway || selectedPayment.name,
+        gateway: activeTab === 'jual' ? "Saldo Dompet" : (paymentDetails.gateway || selectedPayment.name),
         amountIdr: fiatAmountIdr,
         cryptoAmount: cryptoAmount,
         cryptoCurrency: selectedAsset.symbol,
@@ -243,7 +261,9 @@ export default function CryptoBuyPage() {
 
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
-        description: `Beli ${selectedAsset.symbol} via ${paymentDetails.gateway || selectedPayment.name}`,
+        description: activeTab === 'jual' 
+          ? `Jual ${selectedAsset.symbol} ke Saldo Dompet` 
+          : `Beli ${selectedAsset.symbol} via ${paymentDetails.gateway || selectedPayment.name}`,
         category: "Trading",
         amount: fiatAmountIdr,
         cryptoAmount: cryptoAmount,
@@ -487,10 +507,16 @@ export default function CryptoBuyPage() {
         <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mb-6">
           <CheckCircle2 className="w-10 h-10 text-green-600" />
         </div>
-        <h2 className="text-2xl font-black italic uppercase text-center mb-2">Pembelian Berhasil</h2>
+        <h2 className="text-2xl font-black italic uppercase text-center mb-2">
+          {activeTab === 'jual' ? "Penjualan Berhasil" : "Pembelian Berhasil"}
+        </h2>
         <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 space-y-4 mb-8 text-center shadow-2xl">
-          <p className="text-[10px] font-black text-muted-foreground uppercase">Jumlah Diterima</p>
-          <p className="text-3xl font-black text-primary italic">{estimatedCrypto} {selectedAsset.symbol}</p>
+          <p className="text-[10px] font-black text-muted-foreground uppercase">
+            {activeTab === 'jual' ? "Jumlah Dikreditkan" : "Jumlah Diterima"}
+          </p>
+          <p className="text-3xl font-black text-primary italic">
+            {activeTab === 'jual' ? `Rp ${totalAmountIdr.toLocaleString('id-ID')}` : `${estimatedCrypto} ${selectedAsset.symbol}`}
+          </p>
         </Card>
         <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl" onClick={() => router.push('/')}>Beranda</Button>
       </div>
@@ -587,19 +613,37 @@ export default function CryptoBuyPage() {
             <div className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" onClick={() => setIsAssetSheetOpen(true)}>
               <div className="flex items-center gap-4">
                 <div className={cn("w-10 h-10 rounded-full flex items-center justify-center p-2", selectedAsset.isNative ? "gold-gradient" : "bg-teal-600")}>{selectedAsset.isNative ? <LogoIcon className="text-white" /> : <div className="w-full h-full bg-white/20 rounded-full flex items-center justify-center font-black text-white text-[10px]">{selectedAsset.symbol[0]}</div>}</div>
-                <div><p className="text-xs font-black italic">Beli</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-600 text-[7px] font-black h-4 px-1.5 border-none uppercase">Live Node</Badge></div></div>
+                <div><p className="text-xs font-black italic">{activeTab === 'jual' ? 'Jual' : 'Beli'}</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-600 text-[7px] font-black h-4 px-1.5 border-none uppercase">Live Node</Badge></div></div>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
             </div>
             
-            <div className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" onClick={() => setIsPaymentSheetOpen(true)}>
+            <div 
+              className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" 
+              onClick={() => {
+                if (activeTab !== 'jual') {
+                  setIsPaymentSheetOpen(true);
+                }
+              }}
+            >
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 shadow-sm text-primary">
-                  <selectedPayment.icon className="w-5 h-5" />
+                  {activeTab === 'jual' ? (
+                    <Landmark className="w-5 h-5" />
+                  ) : (
+                    <selectedPayment.icon className="w-5 h-5" />
+                  )}
                 </div>
-                <div><p className="text-xs font-black italic">Metode pembayaran</p><p className="text-[10px] font-bold text-muted-foreground uppercase">{selectedPayment.name}</p></div>
+                <div>
+                  <p className="text-xs font-black italic">
+                    {activeTab === 'jual' ? "Penerima" : "Metode pembayaran"}
+                  </p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase">
+                    {activeTab === 'jual' ? "Saldo Dompet AliBank (Instan)" : selectedPayment.name}
+                  </p>
+                </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
+              {activeTab !== 'jual' && <ChevronRight className="w-4 h-4 text-muted-foreground/30" />}
             </div>
           </div>
         </div>
@@ -658,18 +702,38 @@ export default function CryptoBuyPage() {
           <div className="p-8 space-y-8">
             <DialogHeader className="text-center space-y-2">
               <div className="w-12 h-12 rounded-2xl gold-gradient mx-auto flex items-center justify-center shadow-xl p-2.5 mb-2"><LogoIcon className="text-white" /></div>
-              <DialogTitle className="text-xl font-black italic uppercase tracking-tight">ALIBANK SECURE GATEWAY</DialogTitle>
-              <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Konfirmasi Beli via {selectedPayment.name}</DialogDescription>
+              <DialogTitle className="text-xl font-black italic uppercase tracking-tight">
+                {activeTab === 'jual' ? "ALIBANK CRYPTO EXCHANGE" : "ALIBANK SECURE GATEWAY"}
+              </DialogTitle>
+              <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                {activeTab === 'jual' 
+                  ? `Konfirmasi Jual ${selectedAsset.symbol} ke Saldo Dompet` 
+                  : `Konfirmasi Beli via ${selectedPayment.name}`}
+              </DialogDescription>
             </DialogHeader>
 
             <div className="bg-muted/50 rounded-[2rem] p-6 text-center space-y-2 border border-border">
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Bayar</p>
+              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">
+                {activeTab === 'jual' ? "Total Diterima" : "Total Bayar"}
+              </p>
               <h3 className="text-3xl font-black italic text-foreground">Rp {totalAmountIdr.toLocaleString('id-ID')}</h3>
-              <p className="text-[10px] font-black text-primary uppercase">≈ $ {usdValue}</p>
+              <p className="text-[10px] font-black text-primary uppercase">
+                {activeTab === 'jual' 
+                  ? `Menjual ≈ ${estimatedCrypto} ${selectedAsset.symbol}` 
+                  : `≈ $ ${usdValue}`}
+              </p>
             </div>
 
             <div className="space-y-4">
-              {selectedPayment.id === 'card' ? (
+              {activeTab === 'jual' ? (
+                <Button 
+                  onClick={() => finalizeTransaction({ id: 'SELL-' + Date.now(), gateway: 'Saldo Dompet' })}
+                  disabled={isProcessing}
+                  className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl flex items-center justify-center gap-3"
+                >
+                  {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : "KONFIRMASI PENJUALAN"}
+                </Button>
+              ) : selectedPayment.id === 'card' ? (
                 <div className="min-h-[160px] flex flex-col items-center justify-center">
                   {gatewayError ? (
                     <div className="text-center p-4 space-y-3">

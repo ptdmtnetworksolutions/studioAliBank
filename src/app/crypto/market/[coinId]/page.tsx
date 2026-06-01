@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useTheme } from "next-themes";
 import { 
   ArrowLeft, 
   Bell, 
@@ -64,6 +65,61 @@ import { useToast } from "@/hooks/use-toast";
 const MARKUP = 1.02; // AliBank 2% Profit Margin
 const USDT_IDR_RATE = 15850;
 
+const FUNDAMENTALS: Record<string, { name: string; cap: string; supply: string; desc: string; contract: string }> = {
+  "BTC": { 
+    name: "Bitcoin", 
+    cap: "Rp 21,500,000,000,000,000", 
+    supply: "21,000,000 BTC", 
+    contract: "Native Mainnet", 
+    desc: "Bitcoin adalah aset kripto desentralisasi pertama di dunia, yang diluncurkan pada tahun 2009 oleh entitas anonim bernama Satoshi Nakamoto sebagai mata uang digital tanpa otoritas pusat." 
+  },
+  "ETH": { 
+    name: "Ethereum", 
+    cap: "Rp 4,800,000,000,000,000", 
+    supply: "120,400,000 ETH", 
+    contract: "Native Mainnet", 
+    desc: "Ethereum adalah platform komputasi berbasis blockchain global yang memungkinkan pengembang membangun aplikasi terdesentralisasi (dApps) dan meluncurkan smart contract." 
+  },
+  "BNB": { 
+    name: "BNB", 
+    cap: "Rp 1,400,000,000,000,000", 
+    supply: "147,500,000 BNB", 
+    contract: "BNB Smart Chain (BEP20)", 
+    desc: "BNB adalah koin utilitas ekosistem bursa kripto terbesar di dunia yang digunakan untuk memotong biaya gas transaksi, staking, dan partisipasi token sale." 
+  },
+  "SOL": { 
+    name: "Solana", 
+    cap: "Rp 1,100,000,000,000,000", 
+    supply: "462,000,000 SOL", 
+    contract: "Native Mainnet", 
+    desc: "Solana adalah blockchain layer-1 berkinerja tinggi yang dioptimalkan untuk skalabilitas tinggi, biaya gas yang sangat murah, dan pemrosesan transaksi berkecepatan tinggi." 
+  },
+};
+
+const COINS_LIST = [
+  { symbol: "ALX", name: "Alix Coin", isNative: true },
+  { symbol: "BTC", name: "Bitcoin" },
+  { symbol: "ETH", name: "Ethereum" },
+  { symbol: "BNB", name: "Binance Coin" },
+  { symbol: "SOL", name: "Solana" },
+  { symbol: "XRP", name: "Ripple" },
+  { symbol: "ADA", name: "Cardano" },
+  { symbol: "DOGE", name: "Dogecoin" },
+  { symbol: "TRX", name: "TRON" },
+  { symbol: "DOT", name: "Polkadot" },
+  { symbol: "LINK", name: "Chainlink" },
+  { symbol: "MATIC", name: "Polygon" },
+  { symbol: "LTC", name: "Litecoin" },
+  { symbol: "SHIB", name: "Shiba Inu" },
+  { symbol: "AVAX", name: "Avalanche" },
+  { symbol: "UNI", name: "Uniswap" },
+  { symbol: "ATOM", name: "Cosmos" },
+  { symbol: "XLM", name: "Stellar" },
+  { symbol: "XMR", name: "Monero" },
+  { symbol: "NEAR", name: "Near Protocol" },
+  { symbol: "ARB", name: "Arbitrum" },
+];
+
 export default function MarketDetailPage() {
   const params = useParams();
   const coinId = params?.coinId;
@@ -71,11 +127,24 @@ export default function MarketDetailPage() {
   const db = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
+  const { resolvedTheme } = useTheme();
   
   const [activeTab, setActiveTab] = useState("Harga");
   const [subTab, setSubTab] = useState("Book");
   const [timeframe, setTimeframe] = useState("15m");
   const [mounted, setMounted] = useState(false);
+  
+  const [showCoinSelector, setShowCoinSelector] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const filteredCoins = useMemo(() => {
+    if (!searchQuery) return COINS_LIST;
+    const q = searchQuery.toLowerCase();
+    return COINS_LIST.filter(c => 
+      c.symbol.toLowerCase().includes(q) || 
+      c.name.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
   
   // LIVE DATA STATES
   const [livePrice, setLivePrice] = useState<number | null>(null);
@@ -259,9 +328,30 @@ export default function MarketDetailPage() {
           <button onClick={() => router.back()} className="p-1 hover:bg-muted rounded-full transition-colors">
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <div className="flex items-center gap-2 cursor-pointer">
-            <div className={cn("w-6 h-6 rounded-full flex items-center justify-center p-1", isAlix ? "gold-gradient" : "bg-muted")}>
-              {isAlix ? <LogoIcon className="text-white" /> : <div className="w-full h-full bg-slate-400 rounded-full" />}
+          <div 
+            onClick={() => setShowCoinSelector(true)} 
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <div className={cn("w-6 h-6 rounded-full flex items-center justify-center overflow-hidden", isAlix ? "gold-gradient p-1" : "bg-muted relative")}>
+              {isAlix ? (
+                <LogoIcon className="text-white" />
+              ) : (
+                <>
+                  <img 
+                    src={`https://assets.coincap.io/assets/icons/${symbol.toLowerCase()}@2x.png`} 
+                    className="object-cover w-full h-full" 
+                    alt={symbol} 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                      const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                      if (fallback) fallback.classList.remove('hidden');
+                    }}
+                  />
+                  <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-full font-black text-[8px] text-slate-400">
+                    {symbol[0]}
+                  </div>
+                </>
+              )}
             </div>
             <h1 className="text-lg font-black tracking-tight uppercase italic">{displayPair}</h1>
             <ChevronDown className="w-4 h-4 text-muted-foreground" />
@@ -365,11 +455,28 @@ export default function MarketDetailPage() {
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={chartData} margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={true} horizontal={true} stroke="rgba(255,255,255,0.03)" />
+                    <CartesianGrid 
+                      strokeDasharray="3 3" 
+                      vertical={true} 
+                      horizontal={true} 
+                      stroke={resolvedTheme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)'} 
+                    />
                     <XAxis dataKey="time" hide />
-                    <YAxis domain={['auto', 'auto']} orientation="right" axisLine={false} tickLine={false} tick={{fontSize: 9, fill: 'rgba(255,255,255,0.3)'}} />
+                    <YAxis 
+                      domain={['auto', 'auto']} 
+                      orientation="right" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 9, fill: resolvedTheme === 'dark' ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.5)' }} 
+                    />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#171A1D', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', fontSize: '10px' }}
+                      contentStyle={{ 
+                        backgroundColor: resolvedTheme === 'dark' ? '#171A1D' : '#ffffff', 
+                        borderRadius: '12px', 
+                        border: resolvedTheme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)', 
+                        fontSize: '10px',
+                        color: resolvedTheme === 'dark' ? '#ffffff' : '#000000'
+                      }}
                       itemStyle={{ fontWeight: 'bold' }}
                     />
                     <Bar dataKey="body" isAnimationActive={false} barSize={6}>
@@ -476,12 +583,34 @@ export default function MarketDetailPage() {
         {activeTab === "Info" && (
           <div className="px-6 pt-8 space-y-10 animate-in slide-in-from-right-10 duration-500">
             <header className="flex flex-col items-center text-center space-y-4">
-              <div className="w-20 h-20 gold-gradient rounded-[2rem] flex items-center justify-center p-5 shadow-2xl">
-                <LogoIcon className="text-white" />
+              <div className={cn("w-20 h-20 rounded-[2rem] flex items-center justify-center shadow-2xl overflow-hidden", isAlix ? "gold-gradient p-5" : "bg-muted p-3 relative")}>
+                {isAlix ? (
+                  <LogoIcon className="text-white" />
+                ) : (
+                  <>
+                    <img 
+                      src={`https://assets.coincap.io/assets/icons/${symbol.toLowerCase()}@2x.png`} 
+                      className="object-cover w-full h-full" 
+                      alt={symbol} 
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                        if (fallback) fallback.classList.remove('hidden');
+                      }}
+                    />
+                    <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-[2rem] font-black text-2xl text-slate-400">
+                      {symbol}
+                    </div>
+                  </>
+                )}
               </div>
               <div className="space-y-1">
-                <h2 className="text-2xl font-black italic uppercase tracking-tighter">Alix Coin (ALX)</h2>
-                <p className="text-[10px] font-bold text-primary uppercase tracking-widest bg-primary/10 px-3 py-1 rounded-full w-fit mx-auto">Aset Berdaulat AliBank V3</p>
+                <h2 className="text-2xl font-black italic uppercase tracking-tighter">
+                  {isAlix ? "Alix Coin (ALX)" : `${FUNDAMENTALS[symbol]?.name || symbol} (${symbol})`}
+                </h2>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-widest bg-primary/10 px-3 py-1 rounded-full w-fit mx-auto">
+                  {isAlix ? "Aset Berdaulat AliBank V3" : "Aset Pasar Global Sync"}
+                </p>
               </div>
             </header>
 
@@ -490,20 +619,24 @@ export default function MarketDetailPage() {
                 <FileText className="w-4 h-4 text-primary" /> Detail Fundamental
               </h3>
               <div className="grid grid-cols-1 gap-3">
-                <InfoRow label="Nama Aset" value="Alix Token" />
-                <InfoRow label="Simbol" value="ALX" />
-                <InfoRow label="Harga Anchor" value={`$ ${globalLiquidity?.lastAlxPriceUsdt || '12.24'}`} />
-                <InfoRow label="Market Cap" value={`Rp ${(globalLiquidity?.totalInternalAumIdr * 1.5 || 25000000000).toLocaleString()}`} />
-                <InfoRow label="Total Suplai" value="1,000,000,000 ALX" />
-                <InfoRow label="Sirkulasi Riil" value={`${(globalLiquidity?.totalAlixSoldInternally || 1250000).toLocaleString()} ALX`} />
+                <InfoRow label="Nama Aset" value={isAlix ? "Alix Token" : (FUNDAMENTALS[symbol]?.name || `${symbol} Token`)} />
+                <InfoRow label="Simbol" value={symbol} />
+                <InfoRow label={isAlix ? "Harga Anchor" : "Harga Terkini"} value={`$ ${(isAlix ? (globalLiquidity?.lastAlxPriceUsdt || 12.24) : (currentPrice || 0)).toFixed(isAlix ? 2 : 4)}`} />
+                <InfoRow label="Market Cap" value={isAlix ? `Rp ${(globalLiquidity?.totalInternalAumIdr * 1.5 || 25000000000).toLocaleString()}` : (FUNDAMENTALS[symbol]?.cap || "TBD")} />
+                <InfoRow label="Total Suplai" value={isAlix ? "1,000,000,000 ALX" : (FUNDAMENTALS[symbol]?.supply || "TBD")} />
+                {isAlix && <InfoRow label="Sirkulasi Riil" value={`${(globalLiquidity?.totalAlixSoldInternally || 1250000).toLocaleString()} ALX`} />}
                 <div className="flex justify-between items-center py-3 border-b border-border/50">
-                  <span className="text-[10px] font-black uppercase text-muted-foreground">Kontrak Pintar</span>
+                  <span className="text-[10px] font-black uppercase text-muted-foreground">Kontrak Pintar / Jaringan</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono font-bold text-accent">0x8BAF...D1Dd</span>
-                    <Copy className="w-3 h-3 text-primary cursor-pointer" onClick={() => {
-                      navigator.clipboard.writeText("0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd");
-                      toast({title: "Alamat Disalin"});
-                    }} />
+                    <span className="text-[10px] font-mono font-bold text-accent">
+                      {isAlix ? "0x8BAF...D1Dd" : (FUNDAMENTALS[symbol]?.contract || "Native Mainnet")}
+                    </span>
+                    {isAlix && (
+                      <Copy className="w-3 h-3 text-primary cursor-pointer" onClick={() => {
+                        navigator.clipboard.writeText("0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd");
+                        toast({title: "Alamat Disalin"});
+                      }} />
+                    )}
                   </div>
                 </div>
               </div>
@@ -511,13 +644,15 @@ export default function MarketDetailPage() {
 
             <section className="space-y-4">
               <h3 className="text-sm font-black uppercase italic tracking-tight flex items-center gap-2">
-                <Rocket className="w-4 h-4 text-primary" /> Visi Proyek
+                <Rocket className="w-4 h-4 text-primary" /> Visi & Deskripsi Aset
               </h3>
               <p className="text-[11px] font-medium text-muted-foreground leading-relaxed italic uppercase">
-                ALX bukan sekadar token spekulatif. Ini adalah unit nilai inti dalam ekosistem AliBank yang didukung oleh cadangan likuiditas riil (fiat dan kripto utama). Setiap koin ALX memberikan hak akses eksklusif ke infrastruktur perbankan Web3 kami yang aman dan otonom.
+                {isAlix 
+                  ? "ALX bukan sekadar token spekulatif. Ini adalah unit nilai inti dalam ekosistem AliBank yang didukung oleh cadangan likuiditas riil (fiat dan kripto utama). Setiap koin ALX memberikan hak akses eksklusif ke infrastruktur perbankan Web3 kami yang aman dan otonom."
+                  : (FUNDAMENTALS[symbol]?.desc || `${symbol} adalah aset terenkripsi global yang diperdagangkan secara riil dan di-sync secara live di jaringan AliBank V3.`)}
               </p>
               <Button variant="outline" className="w-full h-12 rounded-xl border-primary/20 text-primary font-black uppercase italic text-xs">
-                Baca Whitepaper V3 <ExternalLink className="w-4 h-4 ml-2" />
+                Baca Info Lengkap <ExternalLink className="w-4 h-4 ml-2" />
               </Button>
             </section>
           </div>
@@ -652,6 +787,109 @@ export default function MarketDetailPage() {
           </Button>
         </div>
       </footer>
+
+      {/* COIN SELECTOR DRAWER BOTTOM SHEET */}
+      {showCoinSelector && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[90] animate-in fade-in duration-200"
+            onClick={() => {
+              setShowCoinSelector(false);
+              setSearchQuery("");
+            }}
+          />
+          {/* Bottom Sheet Container */}
+          <div className="fixed inset-x-0 bottom-0 max-w-md mx-auto h-[75vh] rounded-t-[2.5rem] border-t border-border bg-card/95 backdrop-blur-md shadow-2xl z-[100] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300">
+            {/* Drag handle decoration */}
+            <div className="w-12 h-1.5 bg-muted-foreground/30 rounded-full mx-auto my-4 shrink-0" />
+            
+            {/* Header */}
+            <div className="px-6 pb-4 flex items-center justify-between shrink-0">
+              <h3 className="text-base font-black uppercase italic tracking-wider text-foreground">Pilih Aset Kripto</h3>
+              <button 
+                onClick={() => {
+                  setShowCoinSelector(false);
+                  setSearchQuery("");
+                }}
+                className="text-xs font-black uppercase italic text-muted-foreground hover:text-foreground px-3 py-1 bg-muted/40 rounded-lg"
+              >
+                Tutup
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="px-6 pb-4 relative shrink-0">
+              <Search className="w-4 h-4 text-muted-foreground absolute left-10 top-3.5" />
+              <input 
+                type="text" 
+                placeholder="Cari koin..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-11 pl-11 pr-4 rounded-xl bg-muted/50 border border-border/50 text-sm focus:outline-none focus:border-primary/50 italic uppercase font-bold text-foreground"
+              />
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto px-6 pb-8 space-y-2.5">
+              {filteredCoins.map((coin) => {
+                const isCurrent = coin.symbol === symbol;
+                return (
+                  <div 
+                    key={coin.symbol} 
+                    onClick={() => {
+                      setShowCoinSelector(false);
+                      setSearchQuery("");
+                      router.push(`/crypto/market/${coin.symbol.toLowerCase()}`);
+                    }}
+                    className={cn(
+                      "flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all border",
+                      isCurrent 
+                        ? "bg-primary/10 border-primary" 
+                        : "bg-muted/30 border-transparent hover:bg-muted/60"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center overflow-hidden shrink-0", coin.isNative ? "gold-gradient p-1.5" : "bg-muted relative")}>
+                        {coin.isNative ? (
+                          <LogoIcon className="text-white" />
+                        ) : (
+                          <>
+                            <img 
+                              src={`https://assets.coincap.io/assets/icons/${coin.symbol.toLowerCase()}@2x.png`} 
+                              className="object-cover w-full h-full" 
+                              alt={coin.symbol} 
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                if (fallback) fallback.classList.remove('hidden');
+                              }}
+                            />
+                            <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-xl font-black text-[10px] text-slate-400">
+                              {coin.symbol[0]}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black italic uppercase text-foreground">{coin.symbol}</span>
+                          {coin.isNative && <Badge className="bg-primary/20 text-primary text-[6px] h-3 px-1 border-none">V3</Badge>}
+                        </div>
+                        <p className="text-[8px] font-bold text-muted-foreground uppercase">{coin.name}</p>
+                      </div>
+                    </div>
+                    
+                    {isCurrent && (
+                      <Badge className="bg-primary text-primary-foreground text-[8px] font-black uppercase h-5">Aktif</Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

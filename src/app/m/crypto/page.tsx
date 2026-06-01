@@ -48,6 +48,29 @@ const GLOBAL_SYMBOLS = [
   "ATOMUSDT", "XLMUSDT", "XMRUSDT", "NEARUSDT", "ARBUSDT"
 ];
 
+const FALLBACK_COINS = [
+  { symbol: "BTC", price: 66450.00, change: -0.45, isUp: false, icon: getIconUrl("BTC") },
+  { symbol: "ETH", price: 2420.00, change: 3.73, isUp: true, icon: getIconUrl("ETH") },
+  { symbol: "BNB", price: 575.20, change: -1.20, isUp: false, icon: getIconUrl("BNB") },
+  { symbol: "SOL", price: 145.50, change: 2.50, isUp: true, icon: getIconUrl("SOL") },
+  { symbol: "XRP", price: 0.52, change: 0.85, isUp: true, icon: getIconUrl("XRP") },
+  { symbol: "ADA", price: 0.45, change: -1.10, isUp: false, icon: getIconUrl("ADA") },
+  { symbol: "DOGE", price: 0.14, change: 4.20, isUp: true, icon: getIconUrl("DOGE") },
+  { symbol: "TRX", price: 0.12, change: 0.30, isUp: true, icon: getIconUrl("TRX") },
+  { symbol: "DOT", price: 6.50, change: -2.40, isUp: false, icon: getIconUrl("DOT") },
+  { symbol: "LINK", price: 15.20, change: 1.80, isUp: true, icon: getIconUrl("LINK") },
+  { symbol: "MATIC", price: 0.68, change: -0.95, isUp: false, icon: getIconUrl("MATIC") },
+  { symbol: "LTC", price: 82.40, change: 1.15, isUp: true, icon: getIconUrl("LTC") },
+  { symbol: "SHIB", price: 0.000022, change: 5.40, isUp: true, icon: getIconUrl("SHIB") },
+  { symbol: "AVAX", price: 34.80, change: -1.50, isUp: false, icon: getIconUrl("AVAX") },
+  { symbol: "UNI", price: 7.20, change: 0.90, isUp: true, icon: getIconUrl("UNI") },
+  { symbol: "ATOM", price: 8.40, change: -2.10, isUp: false, icon: getIconUrl("ATOM") },
+  { symbol: "XLM", price: 0.11, change: 0.25, isUp: true, icon: getIconUrl("XLM") },
+  { symbol: "XMR", price: 172.50, change: 0.60, isUp: true, icon: getIconUrl("XMR") },
+  { symbol: "NEAR", price: 5.80, change: 3.10, isUp: true, icon: getIconUrl("NEAR") },
+  { symbol: "ARB", price: 0.95, change: -1.80, isUp: false, icon: getIconUrl("ARB") }
+];
+
 export default function MobileMarketPage() {
   const router = useRouter();
   const db = useFirestore();
@@ -68,11 +91,16 @@ export default function MobileMarketPage() {
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
   const fetchMarketData = useCallback(async () => {
+    const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
+    const alxData = { symbol: "ALX", price: alxPrice, change: 1.14, isUp: true, isNative: true, icon: null };
+
     try {
       const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(GLOBAL_SYMBOLS))}`);
       const data = await res.json();
       
-      if (!Array.isArray(data)) return;
+      if (!Array.isArray(data)) {
+        throw new Error("Invalid response format from market node");
+      }
 
       const formatted = data.map(item => {
         let symbol = item.symbol.replace("USDT", "");
@@ -87,11 +115,10 @@ export default function MobileMarketPage() {
         };
       });
 
-      const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
-      const alxData = { symbol: "ALX", price: alxPrice, change: 1.14, isUp: true, isNative: true, icon: null };
-
       setMarketData([alxData, ...formatted]);
     } catch (e) {
+      console.warn("Market sync failed, using fallback database:", e);
+      setMarketData([alxData, ...FALLBACK_COINS]);
     } finally {
       setIsLoading(false);
     }
@@ -179,7 +206,7 @@ export default function MobileMarketPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-black italic text-slate-900">${coin.price.toFixed(coin.price < 1 ? 4 : 2)}</p>
+                  <p className="text-sm font-black italic text-foreground">${coin.price.toFixed(coin.price < 1 ? 4 : 2)}</p>
                   <p className={cn("text-[9px] font-black italic", coin.isUp ? "text-green-500" : "text-rose-500")}>
                     {coin.isUp ? '+' : ''}{coin.change.toFixed(2)}%
                   </p>
