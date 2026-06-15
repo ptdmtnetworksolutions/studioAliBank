@@ -220,20 +220,20 @@ export default function CryptoSendPage() {
       <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mb-6">
         <ShieldCheck className="w-12 h-12 text-green-600" />
       </div>
-      <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">PENGIRIMAN BERHASIL</h2>
+      <h2 className="text-3xl font-black italic uppercase text-foreground text-center tracking-tighter mb-2">PENGIRIMAN BERHASIL</h2>
       <p className="text-[10px] font-black text-muted-foreground uppercase mb-8 tracking-widest">Tervalidasi oleh Infrastruktur AliBank V3</p>
       
       <Card className="w-full max-w-sm liquid-glass rounded-[2.5rem] p-8 mb-8 text-center space-y-4 shadow-2xl">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Jumlah Yang Dikirim</p>
-          <p className="text-3xl font-black text-primary italic">{amount} {assetType}</p>
+          <p className="text-3xl font-black text-foreground dark:text-primary italic">{amount} {assetType}</p>
         </div>
         <div className="pt-4 border-t border-primary/5 space-y-2">
           <p className="text-[8px] font-bold text-muted-foreground uppercase break-all">Alamat Tujuan: {recipientAddress}</p>
           {txHash && (
             <div className="p-2 rounded bg-muted/50 border border-border/40">
               <p className="text-[8px] font-bold text-muted-foreground uppercase">TRANSACTION HASH:</p>
-              <p className="text-[8px] font-black text-primary break-all font-mono mt-1 select-all">{txHash}</p>
+              <p className="text-[8px] font-black text-slate-800 dark:text-primary break-all font-mono mt-1 select-all">{txHash}</p>
               <a 
                 href={assetType === 'ALX' || assetType === 'USDT' ? `https://polygonscan.com/tx/${txHash}` : `https://etherscan.io/tx/${txHash}`} 
                 target="_blank" 
@@ -258,7 +258,7 @@ export default function CryptoSendPage() {
       <Navbar />
       <main className="container mx-auto px-4 max-w-lg pt-4">
         <header className="mb-8">
-          <button onClick={() => router.back()} className="flex items-center gap-2 text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors mb-6">
+          <button onClick={() => router.back()} className="flex items-center gap-2 text-[10px] font-black uppercase text-muted-foreground hover:text-amber-500 dark:hover:text-primary transition-colors mb-6">
             <ArrowLeft className="w-4 h-4" /> Kembali
           </button>
           <div className="flex items-center gap-4">
@@ -266,7 +266,7 @@ export default function CryptoSendPage() {
               <Send className="text-white w-8 h-8" />
             </div>
             <div>
-              <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter">Transfer Kripto</h1>
+              <h1 className="text-3xl font-black text-foreground italic uppercase tracking-tighter">Transfer Kripto</h1>
               <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Hub Pengiriman Aset Mandiri.</p>
             </div>
           </div>
@@ -289,7 +289,7 @@ export default function CryptoSendPage() {
                     className={cn(
                       "p-3 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all",
                       assetType === asset.id 
-                        ? "border-primary bg-primary/10 text-primary" 
+                        ? "border-primary bg-primary/10 text-amber-600 dark:text-primary" 
                         : "border-slate-200 dark:border-white/5 bg-transparent hover:bg-muted/50"
                     )}
                   >
@@ -341,7 +341,7 @@ export default function CryptoSendPage() {
                   onChange={(e) => setRecipientAddress(e.target.value)}
                   className="h-14 rounded-2xl liquid-glass font-bold text-xs" 
                 />
-                <QrCode className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary/40 cursor-pointer" />
+                <QrCode className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40 dark:text-primary/40 cursor-pointer" />
               </div>
             </div>
 
@@ -357,7 +357,7 @@ export default function CryptoSendPage() {
                 />
                 <button 
                   onClick={handleMaxAmount}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary uppercase bg-primary/10 px-2 py-1 rounded-md"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-amber-600 dark:text-primary uppercase bg-primary/15 dark:bg-primary/10 px-2 py-1 rounded-md"
                 >
                   MAX
                 </button>
@@ -366,7 +366,7 @@ export default function CryptoSendPage() {
                 <p className="text-[8px] font-bold text-muted-foreground uppercase">
                   Tersedia: {sendMode === 'self-custodial' ? parseFloat(onChainBal).toFixed(8) : (userData?.cryptoBalances?.[assetType] || 0)} {assetType}
                 </p>
-                <div className="flex items-center gap-1 text-[7px] font-black text-primary uppercase">
+                <div className="flex items-center gap-1 text-[7px] font-black text-amber-600 dark:text-primary uppercase">
                   <Flame className={cn("w-2.5 h-2.5", gasInfo && "animate-pulse text-orange-500")} /> 
                   {sendMode === 'self-custodial' ? (gasInfo ? `Gas: ${gasInfo.standard.toFixed(1)} Gwei` : 'Auto Gas') : 'Biaya: Gratis'}
                 </div>
