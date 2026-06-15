@@ -174,6 +174,20 @@ export function VaultControlView({ auditLogs }: any) {
             </div>
 
             <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Alamat Dompet Penerima (Eksternal)</label>
+              <div className="relative">
+                <Wallet className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
+                <Input 
+                  type="text" 
+                  placeholder="Contoh: 0x... atau alamat MetaMask/TrustWallet Anda" 
+                  value={recipient} 
+                  onChange={(e) => setRecipient(e.target.value)}
+                  className="h-14 pl-12 bg-muted/50 border-none rounded-2xl font-bold text-xs focus:ring-2 focus:ring-primary/20" 
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Jumlah untuk Ditarik (ETH)</label>
               <div className="relative">
                 <Zap className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />

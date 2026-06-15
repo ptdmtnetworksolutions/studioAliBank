@@ -84,10 +84,26 @@ export async function executeVaultWithdrawalAction(
     console.log(`Withdrawal Initiated: ${tx.hash}`);
     await tx.wait();
 
+    // 8. Forward to external recipient wallet if specified
+    let finalMessage = `Berhasil! Saldo ${amount} ETH telah ditarik dari kontrak ke dompet Brankas (${wallet.address}).`;
+    let usedHash = tx.hash;
+
+    if (recipient && recipient.toLowerCase() !== wallet.address.toLowerCase()) {
+      console.log(`Forwarding ${amount} ETH to external wallet ${recipient}...`);
+      const forwardTx = await wallet.sendTransaction({
+        to: recipient,
+        value: ethers.parseEther(amount),
+        gasLimit: 21000
+      });
+      await forwardTx.wait();
+      usedHash = forwardTx.hash;
+      finalMessage = `Berhasil! Saldo ${amount} ETH ditarik dari Kontrak Brankas dan dikirim secara on-chain ke alamat tujuan Anda: ${recipient}.`;
+    }
+
     return { 
       success: true, 
-      hash: tx.hash,
-      message: `Berhasil! Saldo ETH telah dikirim kembali ke dompet MetaMask Anda (${wallet.address}).`
+      hash: usedHash,
+      message: finalMessage
     };
   } catch (err: any) {
     console.error('Vault Action Error:', err);
