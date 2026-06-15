@@ -40,7 +40,7 @@ export default function SavingsPage() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
-  const { data: userData, loading: userLoading } = useDoc(userDocRef);
+  const { data: userData, isLoading: userLoading } = useDoc(userDocRef);
 
   const handleAction = async () => {
     if (!user || !db || !userDocRef || !userData) return;

@@ -49,7 +49,7 @@ export default function AliBankPayPage() {
     orderBy("timestamp", "desc"),
     limit(10)
   ), [db, user]);
-  const { data: transactions, loading: txLoading } = useCollection(txQuery);
+  const { data: transactions, isLoading: txLoading } = useCollection(txQuery);
 
   const copyId = () => {
     if (userData?.accountNumber) {

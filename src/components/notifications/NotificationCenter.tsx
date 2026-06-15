@@ -27,7 +27,7 @@ export function NotificationCenter() {
     );
   }, [db, user]);
 
-  const { data: notifications, loading } = useCollection<any>(notificationsQuery);
+  const { data: notifications, isLoading: loading } = useCollection<any>(notificationsQuery);
 
   const unreadCount = useMemo(() => {
     return notifications?.filter((n) => !n.read).length || 0;

@@ -87,7 +87,7 @@ function MobileHomePageContent() {
   // Real-time market state
   const [marketCoins, setMarketCoins] = useState<any[]>(() => {
     const alxPrice = 12.24;
-    const rate = 15850;
+    const rate = 17690; // Updated fallback rate (was 17690)
     const alxData = { symbol: "ALX", price: alxPrice, baseIdr: alxPrice * rate, change: 1.14, isUp: true, isNative: true, icon: null };
     const formattedFallback = FALLBACK_COINS.map(c => ({
       ...c,
@@ -96,8 +96,8 @@ function MobileHomePageContent() {
     return [alxData, ...formattedFallback];
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [dynamicUsdtRate, setDynamicUsdtRate] = useState(15850);
-  const currentUsdtRate = useMemo(() => dynamicUsdtRate || 15850, [dynamicUsdtRate]);
+  const [dynamicUsdtRate, setDynamicUsdtRate] = useState(17690);
+  const currentUsdtRate = useMemo(() => dynamicUsdtRate || 17690, [dynamicUsdtRate]);
 
   // Auth guard and mobile viewport redirect
   useEffect(() => {
@@ -172,8 +172,11 @@ function MobileHomePageContent() {
       }
 
       const usdtIdrItem = data.find((d: any) => d.symbol === "USDTIDRT");
-      const latestUsdtRate = usdtIdrItem ? parseFloat(usdtIdrItem.lastPrice) : rate;
-      if (usdtIdrItem) {
+      const parsedRate = usdtIdrItem ? parseFloat(usdtIdrItem.lastPrice) : rate;
+      // Sanity check: IDR/USD rate must be > 10000 (currently ~17690)
+      // If the API returns ~1, it's using USDT stablecoin price, not the IDR rate
+      const latestUsdtRate = (parsedRate > 10000) ? parsedRate : rate;
+      if (usdtIdrItem && parsedRate > 10000) {
         setDynamicUsdtRate(latestUsdtRate);
       }
 
@@ -212,6 +215,26 @@ function MobileHomePageContent() {
       return () => clearInterval(interval);
     }
   }, [mounted, fetchMarketData]);
+
+  // Fetch real-time USD/IDR forex rate (refreshes every hour)
+  useEffect(() => {
+    const fetchForexRate = async () => {
+      try {
+        const res = await fetch('/api/forex/rate');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data?.rate && data.rate > 10000) {
+          setDynamicUsdtRate(data.rate);
+        }
+      } catch (e) {
+        console.warn('[Forex] Rate fetch failed, keeping current rate');
+      }
+    };
+    fetchForexRate();
+    // Refresh every hour
+    const hourlyInterval = setInterval(fetchForexRate, 3600000);
+    return () => clearInterval(hourlyInterval);
+  }, []); // Only depends on mount
 
   // Balance calculation (in IDR and USD)
   const totalValueCalculated = useMemo(() => {
@@ -285,7 +308,7 @@ function MobileHomePageContent() {
       const cryptoActual = userData.cryptoBalances?.[asset] || 0;
       const diff = Math.max(0, cryptoActual - cryptoLedger);
       if (diff > 0.000001) {
-        const priceMap: any = { ALX: 194004, BTC: 1100000000, ETH: 35000000, USDT: 15850 };
+        const priceMap: any = { ALX: 194004, BTC: 1100000000, ETH: 35000000, USDT: 17690 };
         totalCryptoDebtValIdr += diff * (priceMap[asset] || 0);
       }
     });
@@ -369,8 +392,8 @@ function MobileHomePageContent() {
           </p>
           <h1 className="text-4xl font-black italic tracking-tighter">
             {activeTab === 'bursa' 
-              ? `Rp${totalValueCalculated.toLocaleString('id-ID')}` 
-              : `US$${totalValueUsd.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              ? `Rp${totalValueCalculated.toLocaleString('id-ID', { maximumFractionDigits: 0 })}` 
+              : `US$${totalValueUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           </h1>
           <div className="flex items-center gap-1.5">
             <Badge className={cn("text-[8px] font-black italic border-none uppercase", pnlData.isUp ? "bg-green-500/10 text-green-600" : "bg-rose-500/10 text-rose-600")}>
@@ -383,8 +406,8 @@ function MobileHomePageContent() {
         <div className="grid grid-cols-4 gap-4">
           <ActionBtn icon={DollarSign} label="Beli" onClick={() => router.push('/crypto/buy')} />
           <ActionBtn icon={ArrowRightLeft} label="Swap" onClick={() => router.push('/crypto/convert')} />
-          <ActionBtn icon={Send} label="Kirim" onClick={() => router.push('/crypto/send')} />
-          <ActionBtn icon={Download} label="Terima" onClick={() => router.push('/crypto/receive')} />
+          <ActionBtn icon={Send} label="Kirim" onClick={() => router.push('/m/transfer')} />
+          <ActionBtn icon={Download} label="Terima" onClick={() => router.push('/m/receive')} />
         </div>
 
         {/* CONDITIONAL MAIN CONTAINER TAB */}
@@ -447,7 +470,7 @@ function MobileHomePageContent() {
                           <span className="text-sm font-black italic uppercase text-foreground">{coin.symbol}</span>
                           {coin.isNative && <Badge className="bg-primary/20 text-primary text-[6px] h-3 px-1 border-none leading-none">V3</Badge>}
                         </div>
-                        <p className="text-[8px] font-bold text-muted-foreground uppercase">Rupiah: Rp{coin.baseIdr.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</p>
+                        <p className="text-[8px] font-bold text-muted-foreground uppercase">Rp{coin.baseIdr.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</p>
                       </div>
                     </div>
                     <div className="text-right">
@@ -586,7 +609,7 @@ function WalletAssetRow({ name, symbol, amount, usdValue, change, isUp, icon: Ic
       </div>
       <div className="text-right">
         <p className="text-sm font-black italic text-foreground leading-none">
-          US${usdValue.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          US${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
         <p className={cn("text-[9px] font-bold text-muted-foreground uppercase mt-1 leading-none", amount <= 0 && "opacity-20")}>
           {amount.toFixed(6).replace(/\.?0+$/, "")} {symbol}

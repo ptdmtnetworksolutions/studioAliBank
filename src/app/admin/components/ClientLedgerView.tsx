@@ -123,7 +123,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
   }, [selectedUser, db]);
 
   const ledgerStats = useMemo(() => {
-    if (!selectedUser) return { totalIn: 0, totalOut: 0, illegalDebtIdr: 0, cryptoDebtBreakdown: [], pendingDebt: 0, totalTotalDebt: 0 };
+    if (!selectedUser) return { totalIn: 0, totalOut: 0, illegalDebtIdr: 0, totalCryptoDebtValIdr: 0, cryptoDebtBreakdown: [], pendingDebt: 0, totalTotalDebt: 0 };
     
     // KRITIS: Filter keluar transaksi pelunasan agar tidak merusak kalkulasi forensik
     const isNeutralCategory = (cat: string) => ['Legalization', 'Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat || '');
@@ -148,7 +148,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
 
       if (diff > 0.000001) {
         // Approximate valuation for total sum
-        const priceMap: Record<string, number> = { ALX: ALX_PRICE_IDR, BTC: 1100000000, ETH: 35000000, USDT: 15850 };
+        const priceMap: Record<string, number> = { ALX: ALX_PRICE_IDR, BTC: 1100000000, ETH: 35000000, USDT: 17690 };
         const valIdr = diff * (priceMap[asset] || 0);
         totalCryptoDebtValIdr += valIdr;
         cryptoDebtBreakdown.push({ asset, amount: diff, valueIdr: valIdr });

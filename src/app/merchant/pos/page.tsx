@@ -21,6 +21,7 @@ import {
   Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
@@ -107,7 +108,7 @@ export default function PosTerminalPage() {
         merchantId: user.uid,
         customerName: "POS Customer",
         amountIdr: numericAmount,
-        amountUsd: parseFloat((numericAmount / 15850).toFixed(2)), // Approx conversion
+        amountUsd: parseFloat((numericAmount / 17690).toFixed(2)), // Approx conversion
         status: "unpaid",
         category: selectedCategory,
         createdAt: new Date().toISOString(),

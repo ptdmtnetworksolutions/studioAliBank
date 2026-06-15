@@ -39,7 +39,7 @@ import { cn } from "@/lib/utils";
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 
-const USDT_IDR_RATE = 15850;
+const USDT_IDR_RATE = 17690;
 
 export function DashboardView({ 
   globalLiquidity, 

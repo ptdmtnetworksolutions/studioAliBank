@@ -122,7 +122,7 @@ export default function CryptoBuyPage() {
   const selectedAsset = useMemo(() => coinsList.find(c => c.symbol === selectedAssetSymbol) || coinsList[0], [coinsList, selectedAssetSymbol]);
 
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS[0]);
-  const [dynamicUsdtRate, setDynamicUsdtRate] = useState(15850);
+  const [dynamicUsdtRate, setDynamicUsdtRate] = useState(17690);
   const [isRateLoading, setIsRateLoading] = useState(true);
   const [lastSync, setLastSync] = useState<string>("");
   

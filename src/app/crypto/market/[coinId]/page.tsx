@@ -63,7 +63,7 @@ import { doc, collection, query, orderBy, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 const MARKUP = 1.02; // AliBank 2% Profit Margin
-const USDT_IDR_RATE = 15850;
+const USDT_IDR_RATE = 17690;
 
 const FUNDAMENTALS: Record<string, { name: string; cap: string; supply: string; desc: string; contract: string }> = {
   "BTC": { 

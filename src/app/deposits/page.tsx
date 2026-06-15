@@ -57,7 +57,7 @@ export default function DepositsPage() {
   const { data: userData } = useDoc(userDocRef);
 
   const depositsQuery = useMemoFirebase(() => (!db || !user) ? null : query(collection(db, "users", user.uid, "deposits")), [db, user]);
-  const { data: userDeposits, loading } = useCollection(depositsQuery);
+  const { data: userDeposits, isLoading: loading } = useCollection(depositsQuery);
 
   const totalInterest = useMemo(() => {
     if (!userDeposits) return 0;

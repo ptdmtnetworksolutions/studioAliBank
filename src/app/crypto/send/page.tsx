@@ -25,7 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { ethers, JsonRpcProvider } from "ethers";
 import { cn } from "@/lib/utils";
@@ -38,12 +38,14 @@ export default function CryptoSendPage() {
   const db = useFirestore();
   const { toast } = useToast();
 
-  const [assetType, setAssetType] = useState<"ETH" | "BTC" | "USDT">("ETH");
+  const [assetType, setAssetType] = useState<"ETH" | "BTC" | "USDT" | "ALX">("ETH");
+  const [sendMode, setSendMode] = useState<"custodial" | "self-custodial">("custodial");
   const [recipientAddress, setRecipientAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
   const [step, setStep] = useState<'form' | 'success'>('form');
+  const [txHash, setTxHash] = useState("");
   const [onChainBal, setOnChainBal] = useState("0");
   const [gasInfo, setGasInfo] = useState<{ fast: number, standard: number } | null>(null);
 
@@ -54,6 +56,13 @@ export default function CryptoSendPage() {
   const { data: userData } = useDoc(userDocRef);
 
   const hasPrivateKey = !!userData?.privateKey;
+
+  // Sync sendMode with selected asset
+  useEffect(() => {
+    if (assetType !== 'ETH') {
+      setSendMode("custodial");
+    }
+  }, [assetType]);
 
   // FETCH REAL-TIME GAS ESTIMATES via Infura Gas API
   const fetchGasPrice = useCallback(async () => {
@@ -76,7 +85,7 @@ export default function CryptoSendPage() {
 
   useEffect(() => {
     async function sync() {
-      if (userData?.walletAddress) {
+      if (userData?.walletAddress && sendMode === 'self-custodial') {
         try {
           const provider = new JsonRpcProvider(GLOBAL_RPC);
           const bal = await provider.getBalance(userData.walletAddress);
@@ -90,7 +99,7 @@ export default function CryptoSendPage() {
     fetchGasPrice();
     const interval = setInterval(fetchGasPrice, 30000);
     return () => clearInterval(interval);
-  }, [userData?.walletAddress, fetchGasPrice]);
+  }, [userData?.walletAddress, sendMode, fetchGasPrice]);
 
   const handleActivateSignature = async () => {
     if (!userDocRef || isActivating) return;
@@ -110,7 +119,7 @@ export default function CryptoSendPage() {
   };
 
   const handleMaxAmount = () => {
-    if (assetType === 'ETH') {
+    if (sendMode === 'self-custodial') {
       const currentBal = parseFloat(onChainBal);
       const safeMax = Math.max(0, currentBal - 0.0006); 
       setAmount(safeMax.toFixed(18).replace(/\.?0+$/, ""));
@@ -128,14 +137,14 @@ export default function CryptoSendPage() {
 
     setIsProcessing(true);
     try {
-      if (assetType === 'ETH') {
+      if (sendMode === 'self-custodial') {
+        if (assetType !== 'ETH') throw new Error("Hanya ETH yang mendukung tanda tangan mandiri.");
         if (!hasPrivateKey) throw new Error("Aktifkan Native Signature terlebih dahulu.");
         
         const provider = new JsonRpcProvider(GLOBAL_RPC);
         const internalWallet = new ethers.Wallet(userData.privateKey, provider);
         
         const feeData = await provider.getFeeData();
-        // Priority: Use Infura Gas API -> then Provider -> then fallback
         const gasPrice = gasInfo ? ethers.parseUnits(gasInfo.standard.toString(), 'gwei') : (feeData.gasPrice || ethers.parseUnits('20', 'gwei'));
         const gasLimit = BigInt(21000);
         const totalFee = gasPrice * gasLimit;
@@ -170,45 +179,35 @@ export default function CryptoSendPage() {
           txHash: tx.hash,
           timestamp: serverTimestamp()
         });
+
+        setTxHash(tx.hash);
+        setStep('success');
+        toast({ title: "Instruksi Berhasil", description: "Transaksi ETH telah berhasil disiarkan ke Mainnet." });
       } else {
-        // BTC / USDT: Eksekusi Ali-Bridge Kliring Resmi
+        // Custodial withdrawal using our new server endpoint `/api/crypto/withdraw`
         const currentBal = userData.cryptoBalances?.[assetType] || 0;
         if (numAmount > currentBal) {
-          throw new Error(`Saldo ${assetType} akun Anda tidak mencukupi.`);
+          throw new Error(`Saldo ${assetType} Anda tidak mencukupi.`);
         }
-        
-        // 1. Eksekusi Pemotongan Saldo Riil di Database
-        await updateDoc(userDocRef, {
-          [`cryptoBalances.${assetType}`]: increment(-numAmount)
+
+        const res = await fetch('/api/crypto/withdraw', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.uid,
+            asset: assetType,
+            amount: numAmount,
+            recipient: recipientAddress,
+          }),
         });
 
-        // 2. Masukkan ke Antrean Kliring Jaringan (Ali-Bridge)
-        await addDoc(collection(db, "system", "bridge", "queue"), {
-          userId: user.uid,
-          userName: userData.name,
-          asset: assetType,
-          amount: numAmount,
-          recipient: recipientAddress,
-          status: "pending_broadcast",
-          timestamp: serverTimestamp()
-        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
 
-        // 3. Catat Riwayat Transaksi Nasabah
-        await addDoc(collection(db, "users", user.uid, "transactions"), {
-          date: new Date().toISOString(),
-          description: `Kliring Ali-Bridge: ${assetType} ke Luar Platform`,
-          category: "Cross-Chain Settlement",
-          cryptoAmount: numAmount,
-          cryptoCurrency: assetType,
-          recipient: recipientAddress,
-          type: "expense",
-          status: "processing_clearing",
-          timestamp: serverTimestamp()
-        });
+        setTxHash(data.txHash);
+        setStep('success');
+        toast({ title: "Penarikan Berhasil", description: `${assetType} berhasil ditransfer secara on-chain.` });
       }
-
-      setStep('success');
-      toast({ title: "Instruksi Diterima", description: assetType === 'ETH' ? "Aset telah berhasil disiarkan ke Mainnet." : "Aset telah masuk ke Antrean Kliring Resmi Ali-Bridge." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal Eksekusi", description: err.message });
     } finally {
@@ -224,21 +223,28 @@ export default function CryptoSendPage() {
       <h2 className="text-3xl font-black italic uppercase text-accent text-center tracking-tighter mb-2">PENGIRIMAN BERHASIL</h2>
       <p className="text-[10px] font-black text-muted-foreground uppercase mb-8 tracking-widest">Tervalidasi oleh Infrastruktur AliBank V3</p>
       
-      <Card className="w-full max-w-sm liquid-glass border-none rounded-[2.5rem] p-8 mb-8 text-center space-y-4">
+      <Card className="w-full max-w-sm liquid-glass rounded-[2.5rem] p-8 mb-8 text-center space-y-4 shadow-2xl">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Jumlah Yang Dikirim</p>
           <p className="text-3xl font-black text-primary italic">{amount} {assetType}</p>
         </div>
-        <div className="pt-4 border-t border-primary/5">
+        <div className="pt-4 border-t border-primary/5 space-y-2">
           <p className="text-[8px] font-bold text-muted-foreground uppercase break-all">Alamat Tujuan: {recipientAddress}</p>
+          {txHash && (
+            <div className="p-2 rounded bg-muted/50 border border-border/40">
+              <p className="text-[8px] font-bold text-muted-foreground uppercase">TRANSACTION HASH:</p>
+              <p className="text-[8px] font-black text-primary break-all font-mono mt-1 select-all">{txHash}</p>
+              <a 
+                href={assetType === 'ALX' || assetType === 'USDT' ? `https://polygonscan.com/tx/${txHash}` : `https://etherscan.io/tx/${txHash}`} 
+                target="_blank" 
+                rel="noreferrer"
+                className="text-[8px] font-black text-blue-500 uppercase underline mt-2 block"
+              >
+                Lihat di Penjelajah Blok ↗
+              </a>
+            </div>
+          )}
         </div>
-        {assetType !== 'ETH' && (
-          <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
-            <p className="text-[8px] font-black text-blue-600 uppercase leading-relaxed italic">
-              STATUS: Sedang dalam antrean Kliring Ali-Bridge. Dana akan segera didepositkan ke dompet tujuan setelah konfirmasi node jaringan.
-            </p>
-          </div>
-        )}
       </Card>
       
       <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl" onClick={() => router.push('/crypto')}>
@@ -266,25 +272,28 @@ export default function CryptoSendPage() {
           </div>
         </header>
 
-        <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-8 shadow-2xl">
+        <Card className="liquid-glass rounded-[2.5rem] p-8 space-y-8 shadow-2xl">
           <div className="space-y-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Pilih Jaringan & Aset</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {[
                   { id: 'ETH', icon: Cpu, color: 'text-blue-500', network: 'Ethereum' },
                   { id: 'BTC', icon: Bitcoin, color: 'text-orange-500', network: 'Bitcoin' },
-                  { id: 'USDT', icon: ShieldCheck, color: 'text-green-500', network: 'Cross-Chain' }
+                  { id: 'USDT', icon: ShieldCheck, color: 'text-green-500', network: 'Polygon' },
+                  { id: 'ALX', icon: Zap, color: 'text-yellow-500', network: 'Polygon' }
                 ].map((asset) => (
                   <button 
                     key={asset.id}
                     onClick={() => setAssetType(asset.id as any)}
                     className={cn(
-                      "p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all",
-                      assetType === asset.id ? "border-primary bg-primary/5" : "border-primary/5"
+                      "p-3 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all",
+                      assetType === asset.id 
+                        ? "border-primary bg-primary/10 text-primary" 
+                        : "border-slate-200 dark:border-white/5 bg-transparent hover:bg-muted/50"
                     )}
                   >
-                    <asset.icon className={cn("w-6 h-6", assetType === asset.id ? asset.color : "text-muted-foreground")} />
+                    <asset.icon className={cn("w-5 h-5", assetType === asset.id ? asset.color : "text-muted-foreground")} />
                     <div className="text-center">
                       <p className="text-[10px] font-black uppercase leading-none">{asset.id}</p>
                       <p className="text-[6px] font-bold text-muted-foreground uppercase mt-1">{asset.network}</p>
@@ -294,6 +303,35 @@ export default function CryptoSendPage() {
               </div>
             </div>
 
+            {/* SEND MODE SWITCHER (ONLY FOR ETH) */}
+            {assetType === 'ETH' && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Metode Pengiriman</label>
+                <div className="flex bg-muted/60 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setSendMode("custodial")}
+                    className={cn(
+                      "flex-1 py-2 text-[9px] font-black uppercase italic rounded-lg transition-all",
+                      sendMode === "custodial" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    Ali-Bridge / Vault (Instan)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSendMode("self-custodial")}
+                    className={cn(
+                      "flex-1 py-2 text-[9px] font-black uppercase italic rounded-lg transition-all",
+                      sendMode === "self-custodial" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    Tanda Tangan Mandiri (Native)
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Alamat Penerima Eksternal</label>
               <div className="relative">
@@ -301,7 +339,7 @@ export default function CryptoSendPage() {
                   placeholder={assetType === 'BTC' ? "Contoh: 1FSj... atau alamat BTC" : "Contoh: 0x... atau alamat wallet"} 
                   value={recipientAddress}
                   onChange={(e) => setRecipientAddress(e.target.value)}
-                  className="h-14 rounded-2xl liquid-glass border-none font-bold text-xs" 
+                  className="h-14 rounded-2xl liquid-glass font-bold text-xs" 
                 />
                 <QrCode className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary/40 cursor-pointer" />
               </div>
@@ -315,7 +353,7 @@ export default function CryptoSendPage() {
                   placeholder="0.00" 
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="h-16 rounded-2xl liquid-glass border-none font-black italic text-xl" 
+                  className="h-16 rounded-2xl liquid-glass font-black italic text-xl" 
                 />
                 <button 
                   onClick={handleMaxAmount}
@@ -326,16 +364,16 @@ export default function CryptoSendPage() {
               </div>
               <div className="flex justify-between items-center px-1">
                 <p className="text-[8px] font-bold text-muted-foreground uppercase">
-                  Tersedia: {assetType === 'ETH' ? parseFloat(onChainBal).toFixed(8) : (userData?.cryptoBalances?.[assetType] || 0)} {assetType}
+                  Tersedia: {sendMode === 'self-custodial' ? parseFloat(onChainBal).toFixed(8) : (userData?.cryptoBalances?.[assetType] || 0)} {assetType}
                 </p>
                 <div className="flex items-center gap-1 text-[7px] font-black text-primary uppercase">
                   <Flame className={cn("w-2.5 h-2.5", gasInfo && "animate-pulse text-orange-500")} /> 
-                  {assetType === 'ETH' ? (gasInfo ? `Gas: ${gasInfo.standard.toFixed(1)} Gwei` : 'Auto Gas') : 'Fixed Fee'}
+                  {sendMode === 'self-custodial' ? (gasInfo ? `Gas: ${gasInfo.standard.toFixed(1)} Gwei` : 'Auto Gas') : 'Biaya: Gratis'}
                 </div>
               </div>
             </div>
 
-            {assetType === 'ETH' && !hasPrivateKey ? (
+            {sendMode === 'self-custodial' && !hasPrivateKey ? (
               <div className="p-6 rounded-2xl bg-destructive/5 border border-destructive/20 space-y-4 animate-in fade-in zoom-in">
                 <div className="flex gap-3">
                   <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
@@ -354,23 +392,23 @@ export default function CryptoSendPage() {
               </div>
             ) : (
               <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
-                {assetType === 'ETH' ? <Lock className="w-5 h-5 text-blue-600 shrink-0" /> : <ArrowRightLeft className="w-5 h-5 text-blue-600 shrink-0" />}
+                {sendMode === 'self-custodial' ? <Lock className="w-5 h-5 text-blue-600 shrink-0" /> : <ArrowRightLeft className="w-5 h-5 text-blue-600 shrink-0" />}
                 <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                  {assetType === 'ETH' 
+                  {sendMode === 'self-custodial' 
                     ? "Informasi: Transaksi ETH akan langsung dikirimkan ke jaringan Mainnet secara instan menggunakan estimasi Gas dari Infura API."
-                    : "Informasi: Transaksi BTC/USDT akan melalui antrean Kliring Ali-Bridge untuk verifikasi keamanan cold-storage sebelum disiarkan."}
+                    : `Informasi: Transaksi ${assetType} akan dikirimkan secara on-chain dari Brankas Likuiditas AliBank ke alamat tujuan secara instan.`}
                 </p>
               </div>
             )}
 
             <Button 
               onClick={handleSendNative}
-              disabled={isProcessing || !amount || !recipientAddress || (assetType === 'ETH' && !hasPrivateKey)}
+              disabled={isProcessing || !amount || !recipientAddress || (sendMode === 'self-custodial' && !hasPrivateKey)}
               className="w-full h-16 gold-gradient text-white text-lg font-black italic uppercase rounded-[2rem] shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95"
             >
               {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (
                 <>
-                  {assetType === 'ETH' ? 'KONFIRMASI & KIRIM' : 'EKSEKUSI KLIRING BRIDGE'}
+                  {sendMode === 'self-custodial' ? 'KONFIRMASI & KIRIM' : 'KIRIM VIA ALI-BRIDGE'}
                   <Zap className="w-5 h-5 ml-2" />
                 </>
               )}

@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       const auditRef = collection(db, "system", "audit", "global_transactions");
 
       // Update Likuiditas Global (IDR Estimasi)
-      const estimatedIdr = amountUsd * 15850; 
+      const estimatedIdr = amountUsd * 17690; 
       
       await updateDoc(sysRef, {
         totalUsdInjected: increment(amountUsd),

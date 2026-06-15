@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
@@ -45,7 +46,7 @@ import {
 } from "recharts";
 
 const MARKUP = 1.02; 
-const USDT_IDR_RATE = 15850;
+const USDT_IDR_RATE = 17690;
 const TRADING_FEE_PERCENT = 0.001; // 0.1% Platform Fee untuk Admin
 
 export default function FuturesPage() {
@@ -73,7 +74,7 @@ export default function FuturesPage() {
   const { data: userData } = useDoc(userDocRef);
 
   const positionsQuery = useMemoFirebase(() => (db && user ? query(collection(db, "users", user.uid, "futures_positions"), where("status", "==", "open")) : null), [db, user]);
-  const { data: activePositions, loading: loadingPositions } = useCollection(positionsQuery);
+  const { data: activePositions, isLoading: loadingPositions } = useCollection(positionsQuery);
 
   useEffect(() => {
     setMounted(true);

@@ -648,6 +648,7 @@ function MoreView({ products, liquidity }: any) {
   const [view, setView] = useState<'menu' | 'inventory' | 'tokenomics'>('menu');
   const [mintAmount, setMintAmount] = useState("");
   const [burnAmount, setBurnAmount] = useState("");
+  const auth = useAuth();
   const [processing, setProcessing] = useState(false);
   const db = useFirestore();
   const router = useRouter();

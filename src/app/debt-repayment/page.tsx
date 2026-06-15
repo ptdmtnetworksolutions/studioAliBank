@@ -62,7 +62,7 @@ export default function DebtRepaymentPage() {
       const cryptoIn = userTxs.filter(t => t.type === 'income' && t.cryptoCurrency === asset).reduce((acc, t) => acc + (t.cryptoAmount || t.toAmount || 0), 0);
       const cryptoOut = userTxs.filter(t => t.type === 'expense' && t.cryptoCurrency === asset).reduce((acc, t) => acc + (t.cryptoAmount || t.fromAmount || 0), 0);
       const diff = Math.max(0, (userData.cryptoBalances?.[asset] || 0) - (cryptoIn - cryptoOut));
-      const priceMap: any = { ALX: 194004, BTC: 1100000000, ETH: 35000000, USDT: 15850 };
+      const priceMap: any = { ALX: 194004, BTC: 1100000000, ETH: 35000000, USDT: 17690 };
       totalCryptoDebtValIdr += diff * (priceMap[asset] || 0);
     });
 

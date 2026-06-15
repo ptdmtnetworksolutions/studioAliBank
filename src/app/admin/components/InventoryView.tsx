@@ -40,7 +40,7 @@ export function InventoryView({ marketplaceProducts }: any) {
       await addDoc(collection(db, "marketplace"), {
         name,
         priceIdr: parseFloat(price),
-        priceUsd: parseFloat(price) / 15850,
+        priceUsd: parseFloat(price) / 17690,
         category,
         createdAt: serverTimestamp(),
         id: `MKT-${Date.now()}`

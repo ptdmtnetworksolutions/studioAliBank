@@ -77,7 +77,7 @@ function APIKeysContent() {
   });
 
   const apiKeysRef = useMemoFirebase(() => (db && user ? doc(db, "system", "api_keys") : null), [db, user]);
-  const { data: storedKeys, loading: keysLoading } = useDoc(apiKeysRef);
+  const { data: storedKeys, isLoading: keysLoading } = useDoc(apiKeysRef);
 
   useEffect(() => {
     if (storedKeys) {

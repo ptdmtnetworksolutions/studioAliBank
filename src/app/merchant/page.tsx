@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useState, useMemo, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, doc, setDoc, increment } from "firebase/firestore";
@@ -42,7 +43,7 @@ export default function MerchantDashboard() {
   useEffect(() => { setMounted(true); }, []);
 
   const merchantDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "merchants", user.uid), [db, user]);
-  const { data: merchantData, loading: merchantLoading } = useDoc(merchantDocRef);
+  const { data: merchantData, isLoading: merchantLoading } = useDoc(merchantDocRef);
 
   const invoicesQuery = useMemoFirebase(() => (!db || !user) ? null : query(
     collection(db, "merchants", user.uid, "invoices"),

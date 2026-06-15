@@ -14,7 +14,7 @@ import {
   FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { LogoIcon } from "@/components/ui/logo";
 
 export function BottomNav() {
@@ -22,6 +22,13 @@ export function BottomNav() {
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [mode, setMode] = useState<'bursa' | 'dompet'>('bursa');
+
+  type NavItem = {
+    name: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    isLogo?: boolean;
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -55,13 +62,15 @@ export function BottomNav() {
     "/crypto/cash-delivery",
     "/settings/payment-currency",
     "/checkout",
-    "/crypto/market" 
+    "/crypto/market",
+    "/m/transfer",
+    "/m/receive"
   ];
 
   const shouldHide = excludedPaths.some(path => pathname?.startsWith(path));
   if (shouldHide) return null;
 
-  const bursaItems = [
+  const bursaItems: NavItem[] = [
     { name: "Beranda", href: "/?tab=bursa", icon: Home, isLogo: true },
     { name: "Pasar", href: "/crypto", icon: TrendingUp },
     { name: "Perdagangan", href: "/crypto/trade/btc", icon: ArrowRightLeft },
@@ -69,7 +78,7 @@ export function BottomNav() {
     { name: "Aset", href: "/transactions", icon: Wallet },
   ];
 
-  const dompetItems = [
+  const dompetItems: NavItem[] = [
     { name: "Beranda", href: "/?tab=dompet", icon: Home },
     { name: "Pasar", href: "/crypto", icon: TrendingUp },
     { name: "Dagang", href: "/crypto/trade/alix", icon: Repeat },

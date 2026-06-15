@@ -58,7 +58,7 @@ export default function NotificationsPage() {
     );
   }, [db, user]);
 
-  const { data: realNotifications, loading } = useCollection<any>(notificationsQuery);
+  const { data: realNotifications, isLoading: loading } = useCollection<any>(notificationsQuery);
 
   const getCategoryData = (catId: string) => {
     if (!realNotifications) return { latest: null, unreadCount: 0 };

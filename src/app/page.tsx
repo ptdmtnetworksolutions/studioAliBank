@@ -80,8 +80,8 @@ function DashboardContent() {
   const [isError, setIsError] = useState(false);
   const [lastSync, setLastSync] = useState("");
   const [marketCoins, setMarketCoins] = useState<any[]>(INITIAL_COINS);
-  const [dynamicUsdtRate, setDynamicUsdtRate] = useState(15850);
-  const currentUsdtRate = useMemo(() => dynamicUsdtRate || 15850, [dynamicUsdtRate]);
+  const [dynamicUsdtRate, setDynamicUsdtRate] = useState(17690);
+  const currentUsdtRate = useMemo(() => dynamicUsdtRate || 17690, [dynamicUsdtRate]);
 
   // Firebase doc & collection subscriptions
   const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
@@ -128,7 +128,8 @@ function DashboardContent() {
         let symbol = item.symbol.replace("USDT", "").replace("IDR", "").replace("IDRT", "");
         if (symbol === "") symbol = "USDT";
         let price = parseFloat(item.lastPrice);
-        if (item.symbol === "USDTIDRT") setDynamicUsdtRate(price);
+        // Sanity check: IDR rate must be > 1000 to be valid
+        if (item.symbol === "USDTIDRT" && price > 1000) setDynamicUsdtRate(price);
         price = price * MARKUP;
         
         // Generate mock trend array for sparklines
@@ -141,12 +142,14 @@ function DashboardContent() {
           price: symbol === "USDT" ? 1 : price,
           change: parseFloat(item.priceChangePercent) || 0,
           isUp: (parseFloat(item.priceChangePercent) || 0) >= 0,
-          baseIdr: symbol === "USDT" ? price : price * (data.find((d:any) => d.symbol === "USDTIDRT")?.lastPrice || 15850),
+          baseIdr: symbol === "USDT" ? price : price * (rawUsdtPrice > 10000 ? rawUsdtPrice : 17690),
           trend: baseTrend
         };
       });
 
-      const currentUsdtPrice = parseFloat(data.find((d:any) => d.symbol === "USDTIDRT")?.lastPrice || 15850);
+      const rawUsdtPrice = parseFloat(data.find((d:any) => d.symbol === "USDTIDRT")?.lastPrice || 17690);
+      // Sanity check: IDR/USDT rate must be > 1000
+      const currentUsdtPrice = rawUsdtPrice > 10000 ? rawUsdtPrice : 17690;
       const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
       const alxData = {
         symbol: "ALX",
@@ -174,6 +177,26 @@ function DashboardContent() {
       return () => clearInterval(interval);
     }
   }, [mounted, user, fetchMarketData]);
+
+  // Fetch real-time USD/IDR forex rate on mount and hourly
+  useEffect(() => {
+    const fetchForexRate = async () => {
+      try {
+        const res = await fetch('/api/forex/rate');
+        if (!res.ok) return;
+        const data = await res.json();
+        // Sanity check: IDR/USD rate must be > 10000 (currently ~17690)
+        if (data?.rate && data.rate > 10000) {
+          setDynamicUsdtRate(data.rate);
+        }
+      } catch (e) {
+        console.warn('[Forex] Rate fetch failed, keeping current rate');
+      }
+    };
+    fetchForexRate();
+    const hourlyInterval = setInterval(fetchForexRate, 3600000);
+    return () => clearInterval(hourlyInterval);
+  }, []);
 
   // Balance calculation (IDR and USD value)
   const totalValueCalculated = useMemo(() => {
@@ -248,7 +271,7 @@ function DashboardContent() {
       const diff = Math.max(0, cryptoActual - cryptoLedger);
       if (diff > 0.000001) {
         const priceMap: any = { 
-          ALX: 194004, BTC: 1100000000, ETH: 35000000, USDT: 15850,
+          ALX: 194004, BTC: 1100000000, ETH: 35000000, USDT: 17690,
           SOL: 2300000, BNB: 9100000, XRP: 8200, ADA: 7100, DOGE: 2200,
           TRX: 1900, DOT: 103000, LINK: 240000, MATIC: 10700, LTC: 1300000,
           SHIB: 0.35, AVAX: 550000, UNI: 114000, ATOM: 133000, XLM: 1700,
@@ -400,10 +423,10 @@ function DashboardContent() {
                 
                 <div className="flex flex-col md:flex-row md:items-baseline gap-4 md:gap-8">
                   <h1 className="text-5xl font-black italic tracking-tighter text-foreground">
-                    Rp{totalValueCalculated.toLocaleString('id-ID')}
+                    Rp{totalValueCalculated.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
                   </h1>
                   <span className="text-xl font-bold text-muted-foreground italic">
-                    ≈ US${totalValueUsd.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ≈ US${totalValueUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
 

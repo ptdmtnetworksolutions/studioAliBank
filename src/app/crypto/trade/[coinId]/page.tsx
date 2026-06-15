@@ -35,7 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
 const MARKUP = 1.02; // ALIBANK 2% PROFIT MARGIN
-const USDT_IDR_RATE = 15850;
+const USDT_IDR_RATE = 17690;
 
 export default function TradePage() {
   const { coinId } = useParams();

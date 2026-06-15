@@ -36,7 +36,7 @@ export default function AssetsPage() {
   }, []);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
-  const { data: userData, loading: userLoading } = useDoc(userDocRef);
+  const { data: userData, isLoading: userLoading } = useDoc(userDocRef);
 
   if (!mounted || userLoading) {
     return (
@@ -176,7 +176,7 @@ export default function AssetsPage() {
               <div key={asset.symbol} className="space-y-4 px-1 group">
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-3">
-                    <asset.icon className={cn("w-10 h-10 shadow-sm shrink-0", asset.color)} />
+                    {asset.icon(cn("w-10 h-10 shadow-sm shrink-0", asset.color))}
                     <div>
                       <h3 className="text-sm font-black italic tracking-tight">{asset.symbol}</h3>
                       <p className="text-[10px] font-bold text-muted-foreground leading-none">{asset.name}</p>

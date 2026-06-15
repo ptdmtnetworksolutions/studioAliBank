@@ -47,7 +47,7 @@ export default function AIAssistantPage() {
     );
   }, [db, user]);
 
-  const { data: realTransactions, loading: txLoading } = useCollection(transactionsQuery);
+  const { data: realTransactions, isLoading: txLoading } = useCollection(transactionsQuery);
 
   useEffect(() => {
     async function analyzeWithAI() {

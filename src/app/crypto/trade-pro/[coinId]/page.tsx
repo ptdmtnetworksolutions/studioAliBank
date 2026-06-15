@@ -59,15 +59,15 @@ import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 
 const ALX_PRICE_USD = 12.24;
-const USDT_IDR_RATE = 15850;
+const USDT_IDR_RATE = 17690;
 const ALX_PRICE_IDR = ALX_PRICE_USD * USDT_IDR_RATE; // Rp 194,004
 
 const ASSET_PRICES: Record<string, number> = {
   IDR: 1,
   ALX: ALX_PRICE_IDR,
-  USDT: 15850,
-  ETH: 1987.12 * 15850,
-  BTC: 66262.29 * 15850
+  USDT: 17690,
+  ETH: 1987.12 * 17690,
+  BTC: 66262.29 * 17690
 };
 
 export default function TradeProPage() {

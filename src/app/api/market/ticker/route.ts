@@ -1,5 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
+import { IDR_RATE_FALLBACK } from '@/lib/currency';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,10 @@ const FALLBACKS: Record<string, { price: number; change: number }> = {
   "XMR": { price: 172.5, change: 0.6 },
   "NEAR": { price: 5.8, change: 3.1 },
   "ARB": { price: 0.95, change: -1.8 },
+  // USDT in USD context
   "USDT": { price: 1.0, change: 0.0 },
+  // USDT/IDR rate — 1 USDT = ~17690 IDR (updated June 2026)
+  "USDTIDRT": { price: IDR_RATE_FALLBACK, change: 0.01 },
 };
 
 function getCoinNameAndQuote(binanceSymbol: string) {
@@ -42,14 +46,35 @@ function getCoinNameAndQuote(binanceSymbol: string) {
 }
 
 function generateMockTicker(symbol: string) {
-  const { fsym, tsym } = getCoinNameAndQuote(symbol);
-  
+  const upper = symbol.toUpperCase();
+
+  // Special case: USDTIDRT is the IDR/USDT rate, NOT the USDT stablecoin price
+  // 1 USDT = ~17690 IDR
+  if (upper === 'USDTIDRT' || upper === 'USDTIDR') {
+    const baseRate = IDR_RATE_FALLBACK;
+    const timeSec = Math.floor(Date.now() / 5000);
+    const noise = Math.sin(timeSec * 0.01) * 10; // ±10 IDR fluctuation
+    const lastPrice = baseRate + noise;
+    return {
+      symbol: symbol,
+      priceChange: noise.toFixed(2),
+      priceChangePercent: "0.01",
+      lastPrice: lastPrice.toFixed(2),
+      highPrice: (lastPrice + 25).toFixed(2),
+      lowPrice: (lastPrice - 25).toFixed(2),
+      volume: "12500000",
+      quoteVolume: "12500000",
+      openPrice: baseRate.toString(),
+    };
+  }
+
+  const { fsym } = getCoinNameAndQuote(symbol);
   let fallbackVal = FALLBACKS[fsym];
   if (!fallbackVal) {
     fallbackVal = { price: 1.0, change: 0.0 };
   }
   
-  // Deteministic time-based seed
+  // Deterministic time-based seed
   const timeSec = Math.floor(Date.now() / 5000);
   let charSum = 0;
   for (let i = 0; i < symbol.length; i++) {
@@ -78,6 +103,30 @@ function generateMockTicker(symbol: string) {
 }
 
 function mapCCToBinance(ccData: any, symbol: string) {
+  const upper = symbol.toUpperCase();
+
+  // Special case: USDTIDRT — get USDT price in IDR from CryptoCompare
+  if (upper === 'USDTIDRT' || upper === 'USDTIDR') {
+    const idrData = ccData?.RAW?.['USDT']?.['IDR'];
+    if (idrData && idrData.PRICE && idrData.PRICE > 1000) {
+      // Sanity check: IDR rate must be > 1000 (currently ~17690)
+      const lastPrice = idrData.PRICE;
+      return {
+        symbol: symbol,
+        priceChange: (idrData.CHANGE24HOUR ?? 0).toString(),
+        priceChangePercent: (idrData.CHANGEPCT24HOUR ?? 0.01).toString(),
+        lastPrice: lastPrice.toString(),
+        highPrice: (idrData.HIGH24HOUR ?? lastPrice * 1.001).toString(),
+        lowPrice: (idrData.LOW24HOUR ?? lastPrice * 0.999).toString(),
+        volume: (idrData.VOLUME24HOUR ?? 0).toString(),
+        quoteVolume: (idrData.VOLUME24HOURTO ?? 0).toString(),
+        openPrice: (idrData.OPEN24HOUR ?? lastPrice).toString(),
+      };
+    }
+    // Fallback: return safe mock with correct IDR rate
+    return generateMockTicker(symbol);
+  }
+
   const { fsym, tsym } = getCoinNameAndQuote(symbol);
   const data = ccData?.RAW?.[fsym]?.[tsym];
   

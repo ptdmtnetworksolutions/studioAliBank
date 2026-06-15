@@ -42,7 +42,7 @@ export default function OrderHistoryPage() {
     );
   }, [db, user]);
 
-  const { data: orders, loading } = useCollection(ordersQuery);
+  const { data: orders, isLoading: loading } = useCollection(ordersQuery);
 
   const filteredOrders = orders?.filter(order => {
     if (activeFilter === "Semua") return true;

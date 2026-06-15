@@ -30,7 +30,7 @@ export default function WalletsPage() {
     return query(collection(db, "users", user.uid, "wallets"));
   }, [db, user]);
 
-  const { data: userWallets, loading } = useCollection(walletsQuery);
+  const { data: userWallets, isLoading: loading } = useCollection(walletsQuery);
 
   if (!mounted || loading) {
     return (

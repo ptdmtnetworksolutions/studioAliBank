@@ -86,7 +86,7 @@
 }
 
 .liquid-glass {
-  @apply bg-white/80 dark:bg-card/80 backdrop-blur-md border border-white/20 dark:border-white/5;
+  @apply bg-white/85 dark:bg-card/80 backdrop-blur-md border border-slate-200 dark:border-white/5;
 }
 
 .liquid-glass-dark {

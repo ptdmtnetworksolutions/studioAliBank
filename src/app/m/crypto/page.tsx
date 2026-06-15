@@ -31,7 +31,7 @@ import Image from "next/image";
 import { AlphaMarketView } from "@/components/crypto/AlphaMarketView";
 
 const MARKUP = 1.02;
-const USDT_IDR_RATE = 15850;
+const USDT_IDR_RATE = 17690;
 
 // Menggunakan coincap assets untuk dukungan koin modern (NEAR, SHIB, ARB)
 const getIconUrl = (symbol: string) => {

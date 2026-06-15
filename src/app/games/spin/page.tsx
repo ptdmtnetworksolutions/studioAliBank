@@ -113,7 +113,7 @@ export default function AliSpinPage() {
     setIsSpinning(true);
     setLastWin(null);
 
-    const amountInIdr = betAmount * (stakeCurrency === 'IDR' ? 1 : 15850);
+    const amountInIdr = betAmount * (stakeCurrency === 'IDR' ? 1 : 17690);
 
     if (freeSpins <= 0) {
       const balanceKey = stakeCurrency === 'IDR' ? "totalBalance" : `cryptoBalances.${stakeCurrency}`;
@@ -167,7 +167,7 @@ export default function AliSpinPage() {
     }
 
     const globalAuditRef = collection(db!, "system", "audit", "global_transactions");
-    const amountInIdr = betAmount * (stakeCurrency === 'IDR' ? 1 : 15850);
+    const amountInIdr = betAmount * (stakeCurrency === 'IDR' ? 1 : 17690);
 
     if (multiplier > 0) {
       playSound('win');

@@ -122,7 +122,7 @@ export function VaultControlView({ auditLogs }: any) {
               <h3 className="text-5xl font-black italic tracking-tighter text-blue-400">
                 {parseFloat(onChainEth).toFixed(6)} <span className="text-xl text-white/30">ETH</span>
               </h3>
-              <p className="text-[10px] font-bold text-white/20 mt-2">≈ Rp {(parseFloat(onChainEth) * 15850 * 2000).toLocaleString()} (Nilai Kontrak)</p>
+              <p className="text-[10px] font-bold text-white/20 mt-2">≈ Rp {(parseFloat(onChainEth) * 17690 * 2000).toLocaleString()} (Nilai Kontrak)</p>
             </div>
 
             <div className="space-y-4">

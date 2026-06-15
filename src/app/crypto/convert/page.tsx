@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const MARKUP = 1.02; // AliBank 2% Profit Margin
-const USDT_IDR_RATE = 15850;
+const USDT_IDR_RATE = 17690; // Fallback rate — updated June 2026 (real-time fetched on mount)
 
 type AssetKey = 'ALX' | 'BTC' | 'ETH' | 'USDT' | 'IDR';
 
@@ -70,6 +70,9 @@ export default function ConvertPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState<'input' | 'success'>('input');
   
+  // liveUsdtRate: real-time IDR/USDT rate, updated from /api/forex/rate
+  const [liveUsdtRate, setLiveUsdtRate] = useState(USDT_IDR_RATE);
+
   const [prices, setPrices] = useState<Record<AssetKey, number>>({
     ALX: 12.24,
     BTC: 66450,
@@ -97,7 +100,15 @@ export default function ConvertPage() {
 
         if (btcData) newPrices.BTC = parseFloat(btcData.lastPrice);
         if (ethData) newPrices.ETH = parseFloat(ethData.lastPrice);
-        if (usdtIdrData) newPrices.IDR = 1 / parseFloat(usdtIdrData.lastPrice);
+        if (usdtIdrData) {
+          const parsedIdrRate = parseFloat(usdtIdrData.lastPrice);
+          // Sanity check: IDR rate must be > 10000 (currently ~17690)
+          if (parsedIdrRate > 10000) {
+            newPrices.IDR = 1 / parsedIdrRate;
+            setLiveUsdtRate(parsedIdrRate);
+          }
+          // If < 10000, keep the default: IDR: 1/USDT_IDR_RATE
+        }
         if (globalLiquidity?.lastAlxPriceUsdt) newPrices.ALX = globalLiquidity.lastAlxPriceUsdt;
 
         setPrices(newPrices);
@@ -122,13 +133,43 @@ export default function ConvertPage() {
     };
   }, [fetchPrices]);
 
-  const convertedValue = useMemo(() => {
+  // Fetch real-time USD/IDR forex rate on mount (updates prices.IDR)
+  useEffect(() => {
+    const fetchForexRate = async () => {
+      try {
+        const res = await fetch('/api/forex/rate');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data?.rate && data.rate > 10000) {
+          setLiveUsdtRate(data.rate);
+          setPrices(prev => ({ ...prev, IDR: 1 / data.rate }));
+        }
+      } catch (e) {
+        console.warn('[Convert/Forex] Rate fetch failed');
+      }
+    };
+    fetchForexRate();
+  }, []);
+
+  // convertedRaw: numeric value used for Firebase writes and math
+  const convertedRaw = useMemo(() => {
     const num = parseFloat(amount);
-    if (isNaN(num) || num <= 0) return "0";
+    if (isNaN(num) || num <= 0) return 0;
+    // valueInUsdt: amount in USD/USDT equivalent
     const valueInUsdt = num * prices[fromAsset];
+    // When toAsset === 'IDR': prices[IDR] = 1/USDT_IDR_RATE
+    // rawOutput = valueInUsdt / (1/USDT_IDR_RATE) / MARKUP = valueInUsdt * USDT_IDR_RATE / MARKUP
     const rawOutput = valueInUsdt / (prices[toAsset] * MARKUP);
-    return toAsset === 'IDR' ? Math.floor(rawOutput * USDT_IDR_RATE).toString() : rawOutput.toFixed(6);
+    if (toAsset === 'IDR') return Math.floor(rawOutput);
+    return rawOutput;
   }, [amount, fromAsset, toAsset, prices]);
+
+  // convertedDisplay: formatted string for UI display only
+  const convertedDisplay = useMemo(() => {
+    if (convertedRaw === 0) return "0";
+    if (toAsset === 'IDR') return convertedRaw.toLocaleString('id-ID');
+    return convertedRaw.toFixed(6);
+  }, [convertedRaw, toAsset]);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
@@ -149,18 +190,19 @@ export default function ConvertPage() {
     if (!user || !db || !userData || isInsufficient) return;
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) return;
+    // Use convertedRaw (numeric) — never parse the formatted display string!
+    if (convertedRaw <= 0) return;
 
     setIsProcessing(true);
     try {
-      const resultNum = parseFloat(convertedValue);
       const userRef = doc(db, "users", user.uid);
 
       const userUpdates: any = {};
       if (fromAsset === 'IDR') userUpdates.totalBalance = increment(-numAmount);
       else userUpdates[`cryptoBalances.${fromAsset}`] = increment(-numAmount);
 
-      if (toAsset === 'IDR') userUpdates.totalBalance = increment(resultNum);
-      else userUpdates[`cryptoBalances.${toAsset}`] = increment(resultNum);
+      if (toAsset === 'IDR') userUpdates.totalBalance = increment(convertedRaw);
+      else userUpdates[`cryptoBalances.${toAsset}`] = increment(convertedRaw);
 
       await updateDoc(userRef, userUpdates);
 
@@ -170,7 +212,7 @@ export default function ConvertPage() {
         category: "Trading",
         fromAmount: numAmount,
         fromCurrency: fromAsset,
-        toAmount: resultNum,
+        toAmount: convertedRaw,
         toCurrency: toAsset,
         type: 'income',
         status: "success",
@@ -191,8 +233,12 @@ export default function ConvertPage() {
   const currentFromAsset = ASSETS.find(a => a.symbol === fromAsset)!;
   const currentToAsset = ASSETS.find(a => a.symbol === toAsset)!;
 
+  // fromUsd: value of 'from' amount in USD
   const fromUsd = (parseFloat(amount) || 0) * prices[fromAsset];
-  const toUsd = (parseFloat(convertedValue) || 0) * prices[toAsset];
+  // toUsd: value of 'to' amount in USD (for IDR: divide by rate, for crypto: multiply by price)
+  const toUsd = toAsset === 'IDR'
+    ? convertedRaw / USDT_IDR_RATE
+    : convertedRaw * prices[toAsset];
 
   if (step === 'success') {
     return (
@@ -203,7 +249,7 @@ export default function ConvertPage() {
         <h2 className="text-2xl font-black italic uppercase mb-2">Swap Berhasil</h2>
         <Card className="w-full max-w-sm bg-card border border-border/50 rounded-[2rem] p-8 mb-8 text-center shadow-lg">
           <p className="text-[10px] font-black text-muted-foreground uppercase">Total Diterima</p>
-          <p className="text-3xl font-black text-primary italic">{convertedValue} {toAsset}</p>
+          <p className="text-3xl font-black text-primary italic">{convertedDisplay} {toAsset}</p>
         </Card>
         <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl" onClick={() => router.push('/')}>Selesai</Button>
       </div>
@@ -289,7 +335,7 @@ export default function ConvertPage() {
               <div className="flex justify-between items-center h-20">
                 <div className="flex-1 flex flex-col">
                   <div className="text-6xl font-black italic tracking-tighter text-foreground">
-                    {convertedValue}
+                    {convertedDisplay}
                   </div>
                   <p className="text-sm font-medium text-muted-foreground italic mt-1">${toUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                 </div>
@@ -327,7 +373,7 @@ export default function ConvertPage() {
               <DetailRow label="Biaya jaringan" value="$0.0004" icon />
               <DetailRow label="Selip" value="2%" edit icon />
               <DetailRow label="Dampak harga" value="0%" icon />
-              <DetailRow label="Minimum yang diterima" value={`${(parseFloat(convertedValue) * 0.98).toFixed(4)} ${toAsset}`} icon />
+              <DetailRow label="Minimum yang diterima" value={`${(convertedRaw * 0.98).toFixed(toAsset === 'IDR' ? 0 : 4)} ${toAsset}`} icon />
               <DetailRow label="Penerima" value="Wallet 1 / AliBank" edit />
             </div>
           </main>
@@ -471,7 +517,7 @@ export default function ConvertPage() {
                         <div className="flex-1 flex flex-col mr-4">
                           <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1.5 pl-0.5">Ke</label>
                           <div className="text-5xl font-black tracking-tighter italic text-foreground h-[60px] flex items-center leading-none">
-                            {convertedValue}
+                            {convertedDisplay}
                           </div>
                           <span className="text-[10px] font-bold text-muted-foreground italic mt-1">${toUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                         </div>
@@ -554,7 +600,7 @@ export default function ConvertPage() {
                       </div>
                       <div className="flex justify-between items-center py-2.5 border-b border-border">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase">Minimum Diterima</span>
-                        <span className="font-black text-foreground">{`${(parseFloat(convertedValue) * 0.98).toFixed(4)} ${toAsset}`}</span>
+                        <span className="font-black text-foreground">{`${(convertedRaw * 0.98).toFixed(toAsset === 'IDR' ? 0 : 4)} ${toAsset}`}</span>
                       </div>
                       <div className="flex justify-between items-center py-2.5">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase">Penerima</span>
