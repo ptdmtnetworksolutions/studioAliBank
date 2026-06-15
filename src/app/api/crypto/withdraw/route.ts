@@ -161,8 +161,17 @@ export async function POST(request: NextRequest) {
         [`cryptoBalances.${asset}`]: FieldValue.increment(numAmount)
       });
 
+      let friendlyErrorMessage = onChainError.message || String(onChainError);
+      if (
+        friendlyErrorMessage.includes('transfer amount exceeds balance') || 
+        friendlyErrorMessage.includes('insufficient funds') || 
+        friendlyErrorMessage.includes('exceeds balance')
+      ) {
+        friendlyErrorMessage = `Saldo token ${asset} di Brankas Pusat (Vault) AliBank saat ini kosong/tidak mencukupi untuk memproses penarikan. Silakan hubungi Admin untuk melakukan isi ulang (funding) Brankas Pusat, atau gunakan koin ALX untuk melakukan pengujian transfer on-chain riil.`;
+      }
+
       return NextResponse.json({
-        error: `Gagal mengirim aset ke blockchain: ${onChainError.message || onChainError}`
+        error: `Gagal mengirim aset ke blockchain: ${friendlyErrorMessage}`
       }, { status: 500 });
     }
 
