@@ -22,8 +22,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useState, useMemo, useEffect } from "react";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, collection, query, where, orderBy, limit } from "firebase/firestore";
-import { useCollection } from "@/firebase";
+import { doc } from "firebase/firestore";
 import { LogoIcon } from "@/components/ui/logo";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
@@ -109,18 +108,6 @@ export default function AssetsPage() {
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData, isLoading: userLoading } = useDoc(userDocRef);
-
-  // Ambil 5 transaksi terakhir untuk ditampilkan
-  const txsRef = useMemoFirebase(() => (
-    !db || !user ? null :
-    query(
-      collection(db, "transactions"),
-      where("userId", "==", user.uid),
-      orderBy("createdAt", "desc"),
-      limit(5)
-    )
-  ), [db, user]);
-  const { data: recentTxs } = useCollection(txsRef);
 
   // Bangun daftar aset dari data Firestore user yang nyata
   const portfolioAssets = useMemo(() => {
@@ -408,38 +395,17 @@ export default function AssetsPage() {
                 </div>
               </div>
 
-              {/* Riwayat Transaksi Singkat */}
-              {recentTxs && recentTxs.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Transaksi Terakhir</p>
-                  {recentTxs.slice(0, 5).map((tx: any) => (
-                    <div key={tx.id} className="flex items-center justify-between px-1 py-2">
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "w-9 h-9 rounded-full flex items-center justify-center",
-                          tx.type === 'income' ? "bg-green-500/10" : "bg-rose-500/10"
-                        )}>
-                          {tx.type === 'income' 
-                            ? <ArrowDownLeft className="w-4 h-4 text-green-500" /> 
-                            : <ArrowUpRight className="w-4 h-4 text-rose-500" />}
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-black leading-tight">{tx.description || tx.category || 'Transaksi'}</p>
-                          <p className="text-[9px] font-bold text-muted-foreground uppercase">
-                            {tx.createdAt?.toDate?.()?.toLocaleDateString('id-ID') || '-'}
-                          </p>
-                        </div>
-                      </div>
-                      <p className={cn(
-                        "text-sm font-black italic",
-                        tx.type === 'income' ? "text-green-500" : "text-rose-500"
-                      )}>
-                        {tx.type === 'income' ? '+' : '-'}Rp{(tx.amount || 0).toLocaleString('id-ID')}
-                      </p>
-                    </div>
-                  ))}
+              {/* Lihat Riwayat Lengkap */}
+              <button
+                onClick={() => router.push('/transactions/history')}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors group"
+              >
+                <div className="flex items-center gap-3">
+                  <History className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-[11px] font-black uppercase italic text-muted-foreground group-hover:text-foreground">Lihat Riwayat Transaksi</span>
                 </div>
-              )}
+                <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+              </button>
             </div>
           )}
         </div>

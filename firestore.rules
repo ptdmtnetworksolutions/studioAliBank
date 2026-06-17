@@ -73,6 +73,15 @@ service cloud.firestore {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
+    // --- TRANSAKSI NASABAH ---
+    // User bisa baca transaksi miliknya sendiri
+    match /transactions/{txId} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn();
+    }
+
+
     match /market/{pairId} {
       allow read: if isSignedIn();
       match /{allSubcollections=**} {
