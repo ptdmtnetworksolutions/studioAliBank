@@ -70,8 +70,8 @@ const NETWORKS = [
     icon: Zap,
     color: "text-primary",
     bgColor: "bg-primary",
-    network: "Mainnet V3",
-    confirmTime: "Instan",
+    network: "Polygon Network",
+    confirmTime: "~2m",
   },
 ];
 

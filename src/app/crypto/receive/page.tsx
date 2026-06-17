@@ -41,7 +41,7 @@ import { VaultDepositModal } from "@/components/crypto/VaultDepositModal";
 const NETWORKS = [
   { id: 'BTC', name: 'Bitcoin', icon: Bitcoin, color: 'text-orange-500', network: 'Native Network', confirmTime: '10-60m' },
   { id: 'ETH', name: 'Ethereum', icon: Cpu, color: 'text-blue-500', network: 'ERC-20 / EVM', confirmTime: '1-3m' },
-  { id: 'ALX', name: 'Ali-Chain', icon: Zap, color: 'text-primary', network: 'Mainnet V3', confirmTime: 'Instan' }
+  { id: 'ALX', name: 'Ali-Chain', icon: Zap, color: 'text-primary', network: 'Polygon Network', confirmTime: '~2m' }
 ];
 
 export default function CryptoReceivePage() {
