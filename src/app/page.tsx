@@ -305,8 +305,11 @@ function DashboardContent() {
       const cryptoActual = userData.cryptoBalances?.[asset] || 0;
       const diff = Math.max(0, cryptoActual - cryptoLedger);
       if (diff > 0.000001) {
+        const dynamicAlxPriceUsdt = globalLiquidity?.lastAlxPriceUsdt || 12.24;
+        const dynamicAlxPriceIdr = Math.round(dynamicAlxPriceUsdt * currentUsdtRate);
+
         const priceMap: any = { 
-          ALX: 194004, BTC: 1100000000, ETH: 35000000, USDT: 17690,
+          ALX: dynamicAlxPriceIdr, BTC: 1100000000, ETH: 35000000, USDT: 17690,
           SOL: 2300000, BNB: 9100000, XRP: 8200, ADA: 7100, DOGE: 2200,
           TRX: 1900, DOT: 103000, LINK: 240000, MATIC: 10700, LTC: 1300000,
           SHIB: 0.35, AVAX: 550000, UNI: 114000, ATOM: 133000, XLM: 1700,
@@ -325,7 +328,7 @@ function DashboardContent() {
       illegalDebtIdr,
       cryptoDebts
     };
-  }, [userData, userTxs]);
+  }, [userData, userTxs, globalLiquidity, currentUsdtRate]);
 
   const copyAddress = () => {
     if (userData?.walletAddress) {

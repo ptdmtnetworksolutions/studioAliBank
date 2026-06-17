@@ -329,7 +329,9 @@ function MobileHomePageContent() {
       const cryptoActual = userData.cryptoBalances?.[asset] || 0;
       const diff = Math.max(0, cryptoActual - cryptoLedger);
       if (diff > 0.000001) {
-        const priceMap: any = { ALX: 194004, BTC: 1100000000, ETH: 35000000, USDT: 17690 };
+        const dynamicAlxPriceUsdt = globalLiquidity?.lastAlxPriceUsdt || 12.24;
+        const dynamicAlxPriceIdr = Math.round(dynamicAlxPriceUsdt * currentUsdtRate);
+        const priceMap: any = { ALX: dynamicAlxPriceIdr, BTC: 1100000000, ETH: 35000000, USDT: 17690 };
         totalCryptoDebtValIdr += diff * (priceMap[asset] || 0);
       }
     });
@@ -339,7 +341,7 @@ function MobileHomePageContent() {
       hasDebt: totalDebt > 1000,
       totalDebtValIdr: totalDebt
     };
-  }, [userData, userTxs]);
+  }, [userData, userTxs, globalLiquidity, currentUsdtRate]);
 
   const copyAddress = () => {
     if (userData?.walletAddress) {

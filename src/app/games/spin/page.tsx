@@ -65,6 +65,11 @@ export default function AliSpinPage() {
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
+  const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
+  const { data: globalLiquidity } = useDoc(liquidityRef);
+  const dynamicAlxPriceUsdt = globalLiquidity?.lastAlxPriceUsdt || 12.24;
+  const alxPriceIdr = useMemo(() => Math.round(dynamicAlxPriceUsdt * 15850), [dynamicAlxPriceUsdt]);
+
   useEffect(() => { 
     setMounted(true);
     return () => {
@@ -172,7 +177,7 @@ export default function AliSpinPage() {
     if (multiplier > 0) {
       playSound('win');
       const winAmountInIdr = amountInIdr * multiplier;
-      const winAmountInAlx = winAmountInIdr / ALX_PRICE_IDR;
+      const winAmountInAlx = winAmountInIdr / alxPriceIdr;
 
       await updateDoc(userDocRef!, { "cryptoBalances.ALX": increment(winAmountInAlx) });
       const systemRef = doc(db!, "system", "liquidity");
@@ -263,7 +268,7 @@ export default function AliSpinPage() {
                 {(userData?.cryptoBalances?.ALX ?? 0).toFixed(6)} ALX
               </span>
               <span className="text-[7px] font-bold text-primary/40 uppercase tracking-widest leading-none mt-0.5">
-                ≈ Rp {((userData?.cryptoBalances?.ALX ?? 0) * ALX_PRICE_IDR).toLocaleString('id-ID')}
+                ≈ Rp {((userData?.cryptoBalances?.ALX ?? 0) * alxPriceIdr).toLocaleString('id-ID')}
               </span>
             </div>
           </div>
@@ -302,7 +307,7 @@ export default function AliSpinPage() {
               <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] italic">YOU WON</p>
               <p className="text-4xl font-black italic tracking-tighter text-white">+{lastWin.toFixed(6)} ALX</p>
               <p className="text-xs font-black text-green-500 uppercase tracking-widest italic bg-green-500/10 px-3 py-1 rounded-full">
-                ≈ Rp {(lastWin * ALX_PRICE_IDR).toLocaleString('id-ID')}
+                ≈ Rp {(lastWin * alxPriceIdr).toLocaleString('id-ID')}
               </p>
             </div>
           ) : (

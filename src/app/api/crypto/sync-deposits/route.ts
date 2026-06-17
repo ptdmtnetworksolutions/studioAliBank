@@ -195,12 +195,32 @@ export async function GET(request: NextRequest) {
       lastSyncedBlockPolygon: endBlock
     });
 
+    // 6. Sinkronkan harga ALX dari On-Chain Contract ke Firestore (system/liquidity) secara realtime
+    let onChainPriceUsd = 12.24;
+    try {
+      const tokenAddress = ALX_CONTRACT_ADDRESS;
+      const contract = new ethers.Contract(tokenAddress, [
+        'function ANCHOR_PRICE_USD_CENTS() view returns (uint256)'
+      ], provider);
+      const anchorPriceCents = await contract.ANCHOR_PRICE_USD_CENTS();
+      onChainPriceUsd = parseFloat(anchorPriceCents.toString()) / 100;
+      
+      const liquidityRef = db.collection('system').doc('liquidity');
+      await liquidityRef.update({
+        lastAlxPriceUsdt: onChainPriceUsd
+      });
+      console.log(`[Deposit Auto-Sync]: Berhasil mensinkronkan harga ALX dari blockchain: $${onChainPriceUsd}`);
+    } catch (err: any) {
+      console.warn('[Deposit Auto-Sync Warning]: Gagal mensinkronkan harga ALX on-chain:', err.message);
+    }
+
     return NextResponse.json({
       success: true,
       newDepositsCount,
       processedTransactions: processedTxHashes,
       syncedBlock: endBlock,
-      rangeScanned: `${startBlock} -> ${endBlock}`
+      rangeScanned: `${startBlock} -> ${endBlock}`,
+      lastAlxPriceUsdt: onChainPriceUsd
     });
 
   } catch (err: any) {
