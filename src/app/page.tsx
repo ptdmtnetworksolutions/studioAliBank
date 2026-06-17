@@ -94,6 +94,21 @@ function DashboardContent() {
   // Ambil saldo tabungan vault on-chain milik user
   const { onChainBalance: vaultBalanceEth } = useVaultBalance(userData?.walletAddress || null);
 
+  // Otomatis sinkronkan deposit on-chain dari external wallet
+  useEffect(() => {
+    if (!user?.uid || !userData?.walletAddress || userData?.walletAddress === '0xNoWalletInitialized') return;
+    
+    const syncDeposits = async () => {
+      try {
+        await fetch(`/api/crypto/sync-deposits?userId=${user.uid}`);
+      } catch (e) {
+        console.warn('Gagal sinkronisasi setoran otomatis:', e);
+      }
+    };
+
+    syncDeposits();
+  }, [user?.uid, userData?.walletAddress]);
+
   const txQuery = useMemoFirebase(() => (db && user ? query(collection(db, "users", user.uid, "transactions"), orderBy("timestamp", "desc"), limit(10)) : null), [db, user]);
   const { data: userTxs } = useCollection(txQuery);
 

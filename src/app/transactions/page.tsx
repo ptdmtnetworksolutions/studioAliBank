@@ -113,6 +113,21 @@ export default function AssetsPage() {
   // Load saldo on-chain dari smart contract AliBankVault
   const { onChainBalance: vaultBalanceEth } = useVaultBalance(userData?.walletAddress || null);
 
+  // Otomatis sinkronkan deposit on-chain dari external wallet
+  useEffect(() => {
+    if (!user?.uid || !userData?.walletAddress || userData?.walletAddress === '0xNoWalletInitialized') return;
+    
+    const syncDeposits = async () => {
+      try {
+        await fetch(`/api/crypto/sync-deposits?userId=${user.uid}`);
+      } catch (e) {
+        console.warn('Gagal sinkronisasi setoran otomatis:', e);
+      }
+    };
+
+    syncDeposits();
+  }, [user?.uid, userData?.walletAddress]);
+
   // Bangun daftar aset dari data Firestore user yang nyata
   const portfolioAssets = useMemo(() => {
     if (!userData) return [];
