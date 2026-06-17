@@ -51,10 +51,18 @@ export async function GET(request: NextRequest) {
     // 2. Dapatkan konfigurasi RPC dan Kunci API
     const apiKeysSnap = await db.collection('system').doc('api_keys').get();
     const config = apiKeysSnap.exists ? apiKeysSnap.data()! : {};
-    const polygonRpc = config.polygonRpcUrl || POLYGON_RPC_DEFAULT;
-
-    const provider = new ethers.JsonRpcProvider(polygonRpc);
-
+    
+    // Gunakan Infura dengan autentikasi Basic jika ada, fallback ke polygonRpcUrl
+    let polygonRpc = config.polygonRpcUrl || POLYGON_RPC_DEFAULT;
+    if (config.infuraProjectId && config.infuraProjectSecret) {
+      polygonRpc = `https://:${config.infuraProjectSecret}@polygon-mainnet.infura.io/v3/${config.infuraProjectId}`;
+      console.log('[Deposit Auto-Sync]: Menggunakan Infura RPC terautentikasi untuk Polygon');
+    } else {
+      console.log('[Deposit Auto-Sync]: Menggunakan RPC Polygon standar/default');
+    }
+ 
+    const provider = new ethers.JsonRpcProvider(polygonRpc, undefined, { staticNetwork: true });
+ 
     // 3. Cari Block Terbaru & Tentukan Rentang Scan
     const latestBlock = await provider.getBlockNumber();
     const lastSyncedBlock = userData.lastSyncedBlockPolygon || (latestBlock - 10000); // Scan 10.000 blok ke belakang jika pertama kali
@@ -62,7 +70,7 @@ export async function GET(request: NextRequest) {
     // Batasi maksimum range scan per request agar tidak kelebihan beban (Max 10,000 blok)
     const startBlock = Math.max(lastSyncedBlock + 1, latestBlock - 10000);
     const endBlock = latestBlock;
-
+ 
     if (startBlock > endBlock) {
       return NextResponse.json({ 
         success: true, 
@@ -70,16 +78,16 @@ export async function GET(request: NextRequest) {
         syncedBlock: endBlock 
       });
     }
-
+ 
     // 4. Kueri Event Transfer untuk ALX dan USDT di Polygon
     const tokens = [
       { symbol: 'ALX', address: ALX_CONTRACT_ADDRESS, decimals: 18 },
       { symbol: 'USDT', address: USDT_CONTRACT_ADDRESS, decimals: 6 }
     ];
-
+ 
     let newDepositsCount = 0;
     const processedTxHashes: string[] = [];
-
+ 
     // Ambil riwayat TxHash yang pernah diproses untuk menghindari duplikasi saldo
     const existingTxsSnap = await userRef.collection('transactions')
       .where('category', '==', 'Crypto Deposit')
@@ -88,14 +96,21 @@ export async function GET(request: NextRequest) {
     const existingHashes = new Set(
       existingTxsSnap.docs.map(doc => doc.data().txHash)
     );
-
+ 
     for (const token of tokens) {
       const contract = new ethers.Contract(token.address, ERC20_TRANSFER_ABI, provider);
       
       // Filter Event Transfer di mana parameter 'to' adalah alamat dompet user
       const filter = contract.filters.Transfer(null, walletAddress);
-      const logs = await contract.queryFilter(filter, startBlock, endBlock).catch(() => []);
-
+      
+      let logs;
+      try {
+        logs = await contract.queryFilter(filter, startBlock, endBlock);
+      } catch (err: any) {
+        console.error(`[Sync Route Error] Gagal mengambil log untuk ${token.symbol}:`, err.message || err);
+        throw new Error(`Gagal mengambil data blockchain untuk ${token.symbol}: ${err.message}`);
+      }
+ 
       for (const log of logs) {
         if ('args' in log && log.args) {
           const from = log.args[0];
