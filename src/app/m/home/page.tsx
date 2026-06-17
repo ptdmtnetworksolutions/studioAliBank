@@ -37,6 +37,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 import { useToast } from "@/hooks/use-toast";
+import { useVaultBalance } from "@/hooks/useVaultBalance";
 
 const getIconUrl = (symbol: string) => {
   const s = symbol.toLowerCase();
@@ -141,6 +142,9 @@ function MobileHomePageContent() {
   const userDocRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
+  // Ambil saldo tabungan vault on-chain milik user
+  const { onChainBalance: vaultBalanceEth } = useVaultBalance(userData?.walletAddress || null);
+
   const txQuery = useMemoFirebase(() => (db && user ? query(collection(db, "users", user.uid, "transactions"), orderBy("timestamp", "desc"), limit(50)) : null), [db, user]);
   const { data: userTxs } = useCollection(txQuery);
 
@@ -243,6 +247,7 @@ function MobileHomePageContent() {
     const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
     const btcHoldings = userData?.cryptoBalances?.BTC ?? 0;
     const ethHoldings = userData?.cryptoBalances?.ETH ?? 0;
+    const vaultHoldings = vaultBalanceEth ?? 0;
     
     const alxMarket = marketCoins.find(c => c.symbol === "ALX");
     const btcMarket = marketCoins.find(c => c.symbol === "BTC");
@@ -252,8 +257,8 @@ function MobileHomePageContent() {
     const btcPriceIdr = (btcMarket?.price ?? 66000) * currentUsdtRate;
     const ethPriceIdr = (ethMarket?.price ?? 2000) * currentUsdtRate;
     
-    return idrBalance + (alxHoldings * alxPriceIdr) + (usdtHoldings * currentUsdtRate) + (btcHoldings * btcPriceIdr) + (ethHoldings * ethPriceIdr);
-  }, [userData, marketCoins, currentUsdtRate]);
+    return idrBalance + (alxHoldings * alxPriceIdr) + (usdtHoldings * currentUsdtRate) + (btcHoldings * btcPriceIdr) + ((ethHoldings + vaultHoldings) * ethPriceIdr);
+  }, [userData, marketCoins, currentUsdtRate, vaultBalanceEth]);
 
   const totalValueUsd = useMemo(() => {
     return totalValueCalculated / currentUsdtRate;
@@ -264,6 +269,7 @@ function MobileHomePageContent() {
     const usdtHoldings = userData?.cryptoBalances?.USDT ?? 0;
     const btcHoldings = userData?.cryptoBalances?.BTC ?? 0;
     const ethHoldings = userData?.cryptoBalances?.ETH ?? 0;
+    const vaultHoldings = vaultBalanceEth ?? 0;
     
     const alxMarket = marketCoins.find(c => c.symbol === "ALX");
     const btcMarket = marketCoins.find(c => c.symbol === "BTC");
@@ -277,7 +283,7 @@ function MobileHomePageContent() {
     const alxPnl = (alxHoldings * alxPriceIdr * (alxMarket?.change ?? 0)) / 100;
     const usdtPnl = (usdtHoldings * currentUsdtRate * (usdtMarket.change ?? 0)) / 100;
     const btcPnl = (btcHoldings * btcPriceIdr * (btcMarket?.change ?? 0)) / 100;
-    const ethPnl = (ethHoldings * ethPriceIdr * (ethMarket?.change ?? 0)) / 100;
+    const ethPnl = ((ethHoldings + vaultHoldings) * ethPriceIdr * (ethMarket?.change ?? 0)) / 100;
     
     const totalPnl = alxPnl + usdtPnl + btcPnl + ethPnl;
     const pnlPercent = totalValueCalculated > 0 ? (totalPnl / totalValueCalculated) * 100 : 0;
@@ -287,7 +293,7 @@ function MobileHomePageContent() {
       percent: pnlPercent,
       isUp: totalPnl >= 0
     };
-  }, [userData, marketCoins, totalValueCalculated, currentUsdtRate]);
+  }, [userData, marketCoins, totalValueCalculated, currentUsdtRate, vaultBalanceEth]);
 
   // Debt Info check
   const debtInfo = useMemo(() => {
@@ -514,6 +520,29 @@ function MobileHomePageContent() {
                   color="gold-gradient text-white"
                   networkBadge="ALX"
                 />
+
+                 {/* DeFi Vault on-chain (ETH) */}
+                 {vaultBalanceEth > 0 && (
+                   <WalletAssetRow 
+                     name="DeFi Vault Tabungan" 
+                     symbol="ETH" 
+                     amount={vaultBalanceEth} 
+                     usdValue={vaultBalanceEth * (marketCoins.find(c => c.symbol === "ETH")?.price ?? 2400)} 
+                     change="+3.73%"
+                     isUp={true}
+                     icon={() => (
+                       <div className="w-full h-full flex items-center justify-center p-1 font-black text-xs">
+                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4 text-white">
+                           <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                           <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                           <path d="M2 17l10 5 10-5"></path>
+                         </svg>
+                       </div>
+                     )} 
+                     color="bg-primary text-white font-bold"
+                     networkBadge="DEFI"
+                   />
+                 )}
 
                 {/* ETH */}
                 <WalletAssetRow 

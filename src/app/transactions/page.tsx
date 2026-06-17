@@ -26,6 +26,7 @@ import { doc } from "firebase/firestore";
 import { LogoIcon } from "@/components/ui/logo";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import { useVaultBalance } from "@/hooks/useVaultBalance";
 
 // Definisi aset yang didukung — sesuaikan dengan field cryptoBalances di Firestore
 const ASSET_CONFIG: Record<string, {
@@ -109,6 +110,9 @@ export default function AssetsPage() {
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData, isLoading: userLoading } = useDoc(userDocRef);
 
+  // Load saldo on-chain dari smart contract AliBankVault
+  const { onChainBalance: vaultBalanceEth } = useVaultBalance(userData?.walletAddress || null);
+
   // Bangun daftar aset dari data Firestore user yang nyata
   const portfolioAssets = useMemo(() => {
     if (!userData) return [];
@@ -125,16 +129,21 @@ export default function AssetsPage() {
       .sort((a, b) => b.valueIdr - a.valueIdr); // Urut berdasarkan nilai terbesar
   }, [userData]);
 
-  // Total nilai portofolio kripto dalam IDR
+  // Total nilai portofolio kripto custodial dalam IDR
   const totalCryptoValueIdr = useMemo(() => 
     portfolioAssets.reduce((sum, a) => sum + a.valueIdr, 0),
   [portfolioAssets]);
 
+  // Nilai tabungan vault on-chain dalam IDR
+  const vaultValueIdr = useMemo(() => 
+    (vaultBalanceEth ?? 0) * (PRICE_IDR.ETH ?? 0),
+  [vaultBalanceEth]);
+
   // Total saldo IDR fiat
   const totalIdrBalance = userData?.totalBalance ?? 0;
 
-  // Grand total (IDR + Kripto)
-  const grandTotal = totalIdrBalance + totalCryptoValueIdr;
+  // Grand total (IDR + Kripto Custodial + DeFi Vault On-Chain)
+  const grandTotal = totalIdrBalance + totalCryptoValueIdr + vaultValueIdr;
 
   if (!mounted || userLoading) {
     return (
@@ -202,7 +211,7 @@ export default function AssetsPage() {
                 <div className="w-1 h-1 rounded-full bg-border" />
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] font-bold text-muted-foreground">
-                    Kripto: {showBalance ? `Rp${totalCryptoValueIdr.toLocaleString('id-ID', { maximumFractionDigits: 0 })}` : '••••••'}
+                    Kripto: {showBalance ? `Rp${(totalCryptoValueIdr + vaultValueIdr).toLocaleString('id-ID', { maximumFractionDigits: 0 })}` : '••••••'}
                   </span>
                 </div>
               </div>
@@ -267,7 +276,62 @@ export default function AssetsPage() {
           {/* === TAB: KRIPTO === */}
           {activeSubTab === 'Kripto' && (
             <div className="space-y-8 pb-10 animate-in fade-in duration-300">
-              {portfolioAssets.length === 0 ? (
+              {/* DeFi Vault Card */}
+              {userData?.walletAddress && (
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border border-primary/20 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5 text-white">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                          <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                          <path d="M2 17l10 5 10-5"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-sm font-black italic tracking-tight">DeFi Vault Tabungan</h3>
+                          <Badge className="bg-primary/20 text-primary text-[7px] font-black uppercase h-3.5 px-1 border-none leading-none">On-Chain</Badge>
+                        </div>
+                        <p className="text-[9px] font-mono text-muted-foreground tracking-tighter mt-0.5">
+                          Alamat: {userData.walletAddress.substring(0, 6)}...{userData.walletAddress.substring(userData.walletAddress.length - 4)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black italic tracking-tight text-primary">
+                        {showBalance 
+                          ? `${vaultBalanceEth.toFixed(6).replace(/\.?0+$/, "")} ETH` 
+                          : '••••••'}
+                      </p>
+                      <p className="text-[10px] font-bold text-muted-foreground mt-0.5 opacity-70">
+                        {showBalance 
+                          ? `≈ Rp${vaultValueIdr.toLocaleString('id-ID', { maximumFractionDigits: 0 })}` 
+                          : '••••••'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/50">
+                    <Button 
+                      variant="outline" 
+                      className="h-8 bg-primary/10 hover:bg-primary/20 text-primary border-none rounded-xl font-black uppercase text-[9px] italic shadow-none"
+                      onClick={() => router.push('/crypto/receive?asset=ETH')}
+                    >
+                      Tabung (Deposit)
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="h-8 bg-muted hover:bg-muted/80 text-foreground border-none rounded-xl font-black uppercase text-[9px] italic shadow-none"
+                      onClick={() => router.push('/crypto/receive?asset=ETH')}
+                    >
+                      Kelola Vault
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {portfolioAssets.length === 0 && !userData?.walletAddress ? (
                 <div className="py-16 flex flex-col items-center text-center opacity-50">
                   <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
                     <Wallet className="w-8 h-8 text-muted-foreground" />
@@ -282,6 +346,7 @@ export default function AssetsPage() {
                   </Button>
                 </div>
               ) : (
+                portfolioAssets.length === 0 && userData?.walletAddress ? null :
                 portfolioAssets.map((asset) => (
                   <div 
                     key={asset.symbol} 

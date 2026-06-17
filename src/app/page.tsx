@@ -38,6 +38,7 @@ import { Card } from "@/components/ui/card";
 import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { doc, collection, query, where, orderBy, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { useVaultBalance } from "@/hooks/useVaultBalance";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 import { currencies } from "@/lib/currencies";
@@ -89,6 +90,9 @@ function DashboardContent() {
 
   const userDocRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: userData } = useDoc(userDocRef);
+
+  // Ambil saldo tabungan vault on-chain milik user
+  const { onChainBalance: vaultBalanceEth } = useVaultBalance(userData?.walletAddress || null);
 
   const txQuery = useMemoFirebase(() => (db && user ? query(collection(db, "users", user.uid, "transactions"), orderBy("timestamp", "desc"), limit(10)) : null), [db, user]);
   const { data: userTxs } = useCollection(txQuery);
@@ -216,9 +220,15 @@ function DashboardContent() {
         }
       });
     }
+
+    if (vaultBalanceEth > 0) {
+      const ethMarket = marketCoins.find(c => c.symbol === 'ETH') || INITIAL_COINS.find(c => c.symbol === 'ETH');
+      const priceUsd = ethMarket?.price ?? 0;
+      totalIdr += vaultBalanceEth * priceUsd * currentUsdtRate;
+    }
     
     return totalIdr;
-  }, [userData, marketCoins, currentUsdtRate]);
+  }, [userData, marketCoins, currentUsdtRate, vaultBalanceEth]);
 
   const totalValueUsd = useMemo(() => {
     return totalValueCalculated / currentUsdtRate;
@@ -241,6 +251,16 @@ function DashboardContent() {
         }
       });
     }
+
+    if (vaultBalanceEth > 0) {
+      const coinMarket = marketCoins.find(c => c.symbol === 'ETH') || INITIAL_COINS.find(c => c.symbol === 'ETH');
+      if (coinMarket) {
+        const change = coinMarket.change ?? 0;
+        const priceUsd = coinMarket.price ?? 0;
+        const valIdr = vaultBalanceEth * priceUsd * currentUsdtRate;
+        totalPnl += (valIdr * change) / 100;
+      }
+    }
     
     const pnlPercent = totalValueCalculated > 0 ? (totalPnl / totalValueCalculated) * 100 : 0;
     return {
@@ -248,7 +268,7 @@ function DashboardContent() {
       percent: pnlPercent,
       isUp: totalPnl >= 0
     };
-  }, [userData, marketCoins, totalValueCalculated, currentUsdtRate]);
+  }, [userData, marketCoins, totalValueCalculated, currentUsdtRate, vaultBalanceEth]);
 
   // Debt restriction checker
   const debtInfo = useMemo(() => {
@@ -539,6 +559,7 @@ function DashboardContent() {
                         "ARB": "Arbitrum",
                         "USDT": "Tether USD",
                         "IDR": "Rupiah",
+                        "ETH_VAULT": "DeFi Vault Tabungan",
                       };
 
                       const ASSET_SYMBOLS_ORDER = [
@@ -546,6 +567,13 @@ function DashboardContent() {
                         "LINK", "MATIC", "LTC", "SHIB", "AVAX", "UNI", "ATOM", "XLM", "XMR", "NEAR", "ARB",
                         "USDT", "IDR"
                       ];
+                      
+                      if (vaultBalanceEth > 0) {
+                        const ethIdx = ASSET_SYMBOLS_ORDER.indexOf("ETH");
+                        if (ethIdx !== -1) {
+                          ASSET_SYMBOLS_ORDER.splice(ethIdx + 1, 0, "ETH_VAULT");
+                        }
+                      }
 
                       return ASSET_SYMBOLS_ORDER.map((sym) => {
                         const isAlx = sym === "ALX";
@@ -574,6 +602,14 @@ function DashboardContent() {
                           changePercent = 0.01;
                           isUp = true;
                           trend = Array.from({ length: 12 }, () => ({ value: 1 }));
+                        } else if (sym === "ETH_VAULT") {
+                          amount = vaultBalanceEth ?? 0;
+                          const coin = marketCoins.find(c => c.symbol === "ETH") || INITIAL_COINS.find(c => c.symbol === "ETH");
+                          priceUsd = coin?.price ?? 0;
+                          priceIdr = coin?.baseIdr ?? (priceUsd * currentUsdtRate);
+                          changePercent = coin?.change ?? 0;
+                          isUp = coin?.isUp ?? true;
+                          trend = coin?.trend ?? [];
                         } else {
                           amount = userData?.cryptoBalances?.[sym] ?? 0;
                           const coin = marketCoins.find(c => c.symbol === sym) || INITIAL_COINS.find(c => c.symbol === sym);
@@ -692,6 +728,8 @@ function DesktopAssetRow({ name, symbol, amount, priceUsd, priceIdr, changePerce
   const handleRowClick = () => {
     if (symbol === 'IDR') {
       router.push('/deposits');
+    } else if (symbol === 'ETH_VAULT') {
+      router.push('/crypto/receive?asset=ETH');
     } else {
       router.push(`/crypto/market/${symbol.toLowerCase()}`);
     }
@@ -704,11 +742,17 @@ function DesktopAssetRow({ name, symbol, amount, priceUsd, priceIdr, changePerce
     >
       <td className="py-4">
         <div className="flex items-center gap-3">
-          <div className={cn("w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shrink-0", isNative ? "gold-gradient text-white" : (symbol === 'IDR' ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-muted relative"))}>
+          <div className={cn("w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shrink-0", isNative ? "gold-gradient text-white" : (symbol === 'IDR' ? "bg-green-500/10 text-green-600 border border-green-500/20" : (symbol === 'ETH_VAULT' ? "bg-primary text-white p-1" : "bg-muted relative")))}>
             {isNative ? (
               <LogoIcon className="p-1.5 w-full h-full text-white" />
             ) : symbol === 'IDR' ? (
               <span className="font-black text-[10px] italic">Rp</span>
+            ) : symbol === 'ETH_VAULT' ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                <path d="M2 17l10 5 10-5"></path>
+              </svg>
             ) : (
               <>
                 <img 
@@ -731,8 +775,9 @@ function DesktopAssetRow({ name, symbol, amount, priceUsd, priceIdr, changePerce
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-black uppercase italic">{name}</span>
               {isNative && <Badge className="bg-primary/20 text-primary text-[6px] h-3 px-1 leading-none border-none">V3</Badge>}
+              {symbol === 'ETH_VAULT' && <Badge className="bg-primary/20 text-primary text-[6px] h-3 px-1 leading-none border-none animate-pulse">DeFi</Badge>}
             </div>
-            <span className="text-[8px] font-bold text-muted-foreground uppercase mt-0.5 block">{symbol}</span>
+            <span className="text-[8px] font-bold text-muted-foreground uppercase mt-0.5 block">{symbol === 'ETH_VAULT' ? 'ETH' : symbol}</span>
           </div>
         </div>
       </td>
