@@ -1,10 +1,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
-import { firebaseConfig } from '@/firebase/config';
+import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
+
+function getAdminApp(): App {
+  if (getApps().length > 0) return getApps()[0];
+  return initializeApp({ projectId: 'darmedia-pos' });
+}
 
 /**
  * @fileOverview Server-side proxy untuk Infura Gas API.
@@ -16,22 +20,22 @@ export async function GET(request: NextRequest) {
   const networkId = searchParams.get('networkId') || '1';
 
   try {
-    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-    const db = getFirestore(app);
+    const adminApp = getAdminApp();
+    const db = getFirestore(adminApp);
     
     let projectId = "30ba607f7b6845bca3a645b110a0db22"; // Jalur Prioritas Default
     let projectSecret = "";
 
-    // Cobalah mengambil kunci dari Vault, jika gagal (karena no-auth di server) gunakan default
+    // Cobalah mengambil kunci dari Vault
     try {
-      const keySnap = await getDoc(doc(db, "system", "public_keys"));
-      if (keySnap.exists()) {
-        const config = keySnap.data();
+      const apiKeysSnap = await db.collection('system').doc('api_keys').get();
+      if (apiKeysSnap.exists) {
+        const config = apiKeysSnap.data()!;
         if (config.infuraProjectId) projectId = config.infuraProjectId;
+        if (config.infuraProjectSecret) projectSecret = config.infuraProjectSecret;
       }
-    } catch (fsError) {
-      // Ini normal terjadi di server-side client SDK tanpa auth context
-      console.warn('[Gas Proxy]: Firestore access restricted, using public node.');
+    } catch (fsError: any) {
+      console.warn('[Gas Proxy]: Firestore admin read failed:', fsError.message);
     }
 
     const url = `https://gas.api.infura.io/v3/${projectId}/networks/${networkId}/suggestedGasFees`;

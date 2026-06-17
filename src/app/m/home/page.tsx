@@ -142,12 +142,20 @@ function MobileHomePageContent() {
   const userDocRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
+  // Ambil dompet terhubung (prioritaskan external MetaMask daripada internal wallet)
+  const activeWalletAddress = useMemo(() => {
+    if (userData?.externalWalletAddress && userData?.externalWalletAddress !== '0xNoWalletInitialized') {
+      return userData.externalWalletAddress;
+    }
+    return userData?.walletAddress || null;
+  }, [userData]);
+
   // Ambil saldo tabungan vault on-chain milik user
-  const { onChainBalance: vaultBalanceEth } = useVaultBalance(userData?.walletAddress || null);
+  const { onChainBalance: vaultBalanceEth } = useVaultBalance(activeWalletAddress);
 
   // Otomatis sinkronkan deposit on-chain dari external wallet
   useEffect(() => {
-    if (!user?.uid || !userData?.walletAddress || userData?.walletAddress === '0xNoWalletInitialized') return;
+    if (!user?.uid || !activeWalletAddress || activeWalletAddress === '0xNoWalletInitialized') return;
     
     const syncDeposits = async () => {
       try {
@@ -158,7 +166,7 @@ function MobileHomePageContent() {
     };
 
     syncDeposits();
-  }, [user?.uid, userData?.walletAddress]);
+  }, [user?.uid, activeWalletAddress]);
 
   const txQuery = useMemoFirebase(() => (db && user ? query(collection(db, "users", user.uid, "transactions"), orderBy("timestamp", "desc"), limit(50)) : null), [db, user]);
   const { data: userTxs } = useCollection(txQuery);

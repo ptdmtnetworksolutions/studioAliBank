@@ -110,12 +110,20 @@ export default function AssetsPage() {
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData, isLoading: userLoading } = useDoc(userDocRef);
 
+  // Ambil dompet terhubung (prioritaskan external MetaMask daripada internal wallet)
+  const activeWalletAddress = useMemo(() => {
+    if (userData?.externalWalletAddress && userData?.externalWalletAddress !== '0xNoWalletInitialized') {
+      return userData.externalWalletAddress;
+    }
+    return userData?.walletAddress || null;
+  }, [userData]);
+
   // Load saldo on-chain dari smart contract AliBankVault
-  const { onChainBalance: vaultBalanceEth } = useVaultBalance(userData?.walletAddress || null);
+  const { onChainBalance: vaultBalanceEth } = useVaultBalance(activeWalletAddress);
 
   // Otomatis sinkronkan deposit on-chain dari external wallet
   useEffect(() => {
-    if (!user?.uid || !userData?.walletAddress || userData?.walletAddress === '0xNoWalletInitialized') return;
+    if (!user?.uid || !activeWalletAddress || activeWalletAddress === '0xNoWalletInitialized') return;
     
     const syncDeposits = async () => {
       try {
@@ -126,7 +134,7 @@ export default function AssetsPage() {
     };
 
     syncDeposits();
-  }, [user?.uid, userData?.walletAddress]);
+  }, [user?.uid, activeWalletAddress]);
 
   // Bangun daftar aset dari data Firestore user yang nyata
   const portfolioAssets = useMemo(() => {

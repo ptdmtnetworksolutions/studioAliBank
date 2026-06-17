@@ -91,12 +91,20 @@ function DashboardContent() {
   const userDocRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
+  // Ambil dompet terhubung (prioritaskan external MetaMask daripada internal wallet)
+  const activeWalletAddress = useMemo(() => {
+    if (userData?.externalWalletAddress && userData?.externalWalletAddress !== '0xNoWalletInitialized') {
+      return userData.externalWalletAddress;
+    }
+    return userData?.walletAddress || null;
+  }, [userData]);
+
   // Ambil saldo tabungan vault on-chain milik user
-  const { onChainBalance: vaultBalanceEth } = useVaultBalance(userData?.walletAddress || null);
+  const { onChainBalance: vaultBalanceEth } = useVaultBalance(activeWalletAddress);
 
   // Otomatis sinkronkan deposit on-chain dari external wallet
   useEffect(() => {
-    if (!user?.uid || !userData?.walletAddress || userData?.walletAddress === '0xNoWalletInitialized') return;
+    if (!user?.uid || !activeWalletAddress || activeWalletAddress === '0xNoWalletInitialized') return;
     
     const syncDeposits = async () => {
       try {
@@ -107,7 +115,7 @@ function DashboardContent() {
     };
 
     syncDeposits();
-  }, [user?.uid, userData?.walletAddress]);
+  }, [user?.uid, activeWalletAddress]);
 
   const txQuery = useMemoFirebase(() => (db && user ? query(collection(db, "users", user.uid, "transactions"), orderBy("timestamp", "desc"), limit(10)) : null), [db, user]);
   const { data: userTxs } = useCollection(txQuery);
@@ -143,6 +151,10 @@ function DashboardContent() {
       if (!res.ok) throw new Error('Market sync failed');
       const data = await res.json();
 
+      const rawUsdtPrice = parseFloat(data.find((d:any) => d.symbol === "USDTIDRT")?.lastPrice || 17690);
+      // Sanity check: IDR/USDT rate must be > 1000
+      const currentUsdtPrice = rawUsdtPrice > 10000 ? rawUsdtPrice : 17690;
+
       const formatted = data.map((item: any) => {
         let symbol = item.symbol.replace("USDT", "").replace("IDR", "").replace("IDRT", "");
         if (symbol === "") symbol = "USDT";
@@ -161,14 +173,10 @@ function DashboardContent() {
           price: symbol === "USDT" ? 1 : price,
           change: parseFloat(item.priceChangePercent) || 0,
           isUp: (parseFloat(item.priceChangePercent) || 0) >= 0,
-          baseIdr: symbol === "USDT" ? price : price * (rawUsdtPrice > 10000 ? rawUsdtPrice : 17690),
+          baseIdr: symbol === "USDT" ? price : price * currentUsdtPrice,
           trend: baseTrend
         };
       });
-
-      const rawUsdtPrice = parseFloat(data.find((d:any) => d.symbol === "USDTIDRT")?.lastPrice || 17690);
-      // Sanity check: IDR/USDT rate must be > 1000
-      const currentUsdtPrice = rawUsdtPrice > 10000 ? rawUsdtPrice : 17690;
       const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
       const alxData = {
         symbol: "ALX",
@@ -593,7 +601,8 @@ function DashboardContent() {
                         }
                       }
 
-                      return ASSET_SYMBOLS_ORDER.map((sym) => {
+                      // Bangun list aset dinamis dengan saldo dan estimasi nilai
+                      const assetsList = ASSET_SYMBOLS_ORDER.map((sym) => {
                         const isAlx = sym === "ALX";
                         const isUsdt = sym === "USDT";
                         const isIdr = sym === "IDR";
@@ -638,18 +647,41 @@ function DashboardContent() {
                           trend = coin?.trend ?? [];
                         }
                         
+                        const valueUsd = amount * priceUsd;
+                        
+                        return {
+                          sym,
+                          name,
+                          amount,
+                          priceUsd,
+                          priceIdr,
+                          changePercent,
+                          isUp,
+                          trend,
+                          isAlx,
+                          valueUsd
+                        };
+                      });
+
+                      // Filter: Hanya tampilkan aset yang memiliki saldo > 0, kecuali ALX (platform token) dan IDR (fiat dasar) yang selalu ditampilkan
+                      const filteredAssets = assetsList.filter(a => a.amount > 0 || a.sym === "ALX" || a.sym === "IDR");
+
+                      // Urutkan berdasarkan nilai estimasi USD terbesar agar aset yang didanai muncul di atas
+                      filteredAssets.sort((a, b) => b.valueUsd - a.valueUsd);
+
+                      return filteredAssets.map((asset) => {
                         return (
                           <DesktopAssetRow 
-                            key={sym}
-                            name={name}
-                            symbol={sym}
-                            amount={amount}
-                            priceUsd={priceUsd}
-                            priceIdr={priceIdr}
-                            changePercent={changePercent}
-                            isUp={isUp}
-                            isNative={isAlx}
-                            trend={trend}
+                            key={asset.sym}
+                            name={asset.name}
+                            symbol={asset.sym}
+                            amount={asset.amount}
+                            priceUsd={asset.priceUsd}
+                            priceIdr={asset.priceIdr}
+                            changePercent={asset.changePercent}
+                            isUp={asset.isUp}
+                            isNative={asset.isAlx}
+                            trend={asset.trend}
                           />
                         );
                       });

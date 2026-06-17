@@ -1,22 +1,22 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { 
-  X, 
-  Maximize, 
-  Headset, 
-  Settings, 
-  Share2, 
-  Copy, 
-  ChevronRight, 
-  User, 
-  Zap, 
-  ShieldAlert, 
-  LogOut, 
-  Crown, 
-  Star, 
-  Loader2, 
-  Link2, 
+import {
+  X,
+  Maximize,
+  Headset,
+  Settings,
+  Share2,
+  Copy,
+  ChevronRight,
+  User,
+  Zap,
+  ShieldAlert,
+  LogOut,
+  Crown,
+  Star,
+  Loader2,
+  Link2,
   Unlink,
   ExternalLink,
   ShieldCheck,
@@ -31,7 +31,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useUser, useDoc, useFirestore, useAuth, useMemoFirebase } from "@/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, getFirestore, getDoc } from "firebase/firestore";
+import { getApps, getApp, initializeApp } from "firebase/app";
+import { firebaseConfig } from "@/firebase/config";
 import { signOut } from "firebase/auth";
 import { useMemo, useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +41,8 @@ import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useMetaMask } from "@/hooks/useMetaMask";
+import { useVaultBalance } from "@/hooks/useVaultBalance";
+import { ethers } from "ethers";
 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
@@ -77,7 +81,7 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
-  
+
   // MetaMask SDK Integration
   const { account, connect, disconnect, isConnecting } = useMetaMask();
 
@@ -94,6 +98,97 @@ export default function ProfilePage() {
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
+
+  // Alamat dompet terhubung yang aktif (dari MetaMask session atau Firestore link)
+  const activeAddress = useMemo(() => {
+    if (account) return account;
+    if (userData?.externalWalletAddress && userData?.externalWalletAddress !== '0xNoWalletInitialized') {
+      return userData.externalWalletAddress;
+    }
+    return null;
+  }, [account, userData]);
+
+  // Web3 On-Chain Balances
+  const { onChainBalance: vaultBalanceEth, isLoading: isVaultLoading } = useVaultBalance(activeAddress);
+  const [externalAlxBalance, setExternalAlxBalance] = useState<number>(0);
+  const [isAlxLoading, setIsAlxLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!activeAddress) {
+      setExternalAlxBalance(0);
+      return;
+    }
+
+    let active = true;
+    const fetchAlxBalance = async () => {
+      setIsAlxLoading(true);
+      
+      let dynamicRpc = "";
+      let infuraId = "";
+      let dynamicAddress = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
+
+      try {
+        const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+        const db = getFirestore(app);
+        const keySnap = await getDoc(doc(db, "system", "public_keys"));
+        if (keySnap.exists()) {
+          const data = keySnap.data();
+          if (data.polygonRpcUrl) dynamicRpc = data.polygonRpcUrl;
+          if (data.infuraProjectId) infuraId = data.infuraProjectId;
+          if (data.alxContractAddress) dynamicAddress = data.alxContractAddress;
+        }
+      } catch (e) {
+        console.warn("Firestore RPC fetch failed, using fallbacks.");
+      }
+
+      const FALLBACK_POLY_RPCS = [
+        "https://rpc.ankr.com/polygon",
+        "https://polygon-bor-rpc.publicnode.com",
+        "https://1rpc.io/matic",
+        "https://polygon-rpc.com"
+      ];
+
+      const rpcsToTry = [];
+      if (infuraId) {
+        rpcsToTry.push(`https://polygon-mainnet.infura.io/v3/${infuraId}`);
+      }
+      if (dynamicRpc) rpcsToTry.push(dynamicRpc);
+      rpcsToTry.push(...FALLBACK_POLY_RPCS);
+
+      let success = false;
+      for (const rpcUrl of rpcsToTry) {
+        if (!active) break;
+        try {
+          const provider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
+            staticNetwork: ethers.Network.from(137)
+          });
+          const contract = new ethers.Contract(dynamicAddress, [
+            "function balanceOf(address owner) view returns (uint256)"
+          ], provider);
+          const balanceWei = await contract.balanceOf(activeAddress);
+          const balanceEth = parseFloat(ethers.formatEther(balanceWei));
+          if (active) {
+            setExternalAlxBalance(balanceEth);
+            success = true;
+            break;
+          }
+        } catch (e: any) {
+          console.warn(`Gagal membaca saldo ALX dari RPC ${rpcUrl}:`, e.message || e);
+        }
+      }
+
+      if (active) {
+        setIsAlxLoading(false);
+      }
+    };
+
+    fetchAlxBalance();
+    const interval = setInterval(fetchAlxBalance, 30000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [activeAddress]);
 
   const isAdmin = useMemo(() => {
     return user && (user.email === OWNER_EMAIL || user.uid === OWNER_UID);
@@ -128,6 +223,21 @@ export default function ProfilePage() {
     }
   };
 
+  const handleDisconnectWallet = async () => {
+    try {
+      await disconnect();
+      if (userDocRef) {
+        await updateDoc(userDocRef, {
+          externalWalletAddress: "0xNoWalletInitialized",
+          lastWalletSync: null
+        });
+        toast({ title: "Tautan Dompet Dihapus", description: "MetaMask berhasil diputuskan." });
+      }
+    } catch (e) {
+      toast({ variant: "destructive", title: "Gagal Memutuskan Dompet" });
+    }
+  };
+
   const handleLogout = async () => {
     if (!auth) return;
     try {
@@ -153,8 +263,8 @@ export default function ProfilePage() {
           <div className="flex items-center gap-4">
             <Maximize className="w-5 h-5 text-foreground cursor-pointer" />
             <Headset className="w-5 h-5 text-foreground cursor-pointer" />
-            <Settings 
-              className="w-5 h-5 text-foreground cursor-pointer hover:text-primary transition-colors" 
+            <Settings
+              className="w-5 h-5 text-foreground cursor-pointer hover:text-primary transition-colors"
               onClick={() => router.push('/settings')}
             />
           </div>
@@ -189,7 +299,7 @@ export default function ProfilePage() {
                   )}>
                     {userData?.kycStatus === 'verified' ? 'Terverifikasi' : 'Belum Verifikasi'}
                   </Badge>
-                  <div 
+                  <div
                     className={cn("flex items-center gap-1 px-2 py-0.5 rounded-md cursor-pointer hover:opacity-80 transition-opacity", tierInfo.bg)}
                     onClick={() => router.push('/crypto/market/alx')}
                   >
@@ -205,58 +315,76 @@ export default function ProfilePage() {
 
           {/* METAMASK SDK SECTION */}
           <section className="animate-in slide-in-from-top-4 duration-500">
-             <Card className="liquid-glass border-primary/20 p-6 rounded-[2.5rem] shadow-xl overflow-hidden relative">
-                <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                   <LogoIcon className="w-24 h-24" />
+            <Card className="liquid-glass border-primary/20 p-6 rounded-[2.5rem] shadow-xl overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                <LogoIcon className="w-24 h-24" />
+              </div>
+              <div className="flex flex-col gap-5">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-sm font-black italic uppercase text-foreground">MetaMask Native Bridge</h3>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Otentikasi Dompet Web3 Riil</p>
+                  </div>
+                  {activeAddress ? (
+                    <Badge className="bg-green-600 text-white font-black text-[8px] uppercase px-3 h-6 border-none animate-pulse">Connected</Badge>
+                  ) : (
+                    <Badge variant="outline" className="border-primary/20 text-primary font-black text-[8px] uppercase px-3 h-6">Not Linked</Badge>
+                  )}
                 </div>
-                <div className="flex flex-col gap-5">
-                   <div className="flex justify-between items-start">
-                      <div>
-                         <h3 className="text-sm font-black italic uppercase text-foreground">MetaMask Native Bridge</h3>
-                         <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Otentikasi Dompet Web3 Riil</p>
-                      </div>
-                      {account ? (
-                         <Badge className="bg-green-600 text-white font-black text-[8px] uppercase px-3 h-6 border-none animate-pulse">Connected</Badge>
-                      ) : (
-                         <Badge variant="outline" className="border-primary/20 text-primary font-black text-[8px] uppercase px-3 h-6">Not Linked</Badge>
-                      )}
-                   </div>
 
-                   {account ? (
-                      <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-between gap-4">
-                         <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center p-1.5 shrink-0 shadow-inner">
-                               <img src="https://raw.githubusercontent.com/MetaMask/metamask-extension/develop/app/images/logo/metamask-fox.svg" className="w-full h-full" alt="fox" />
-                            </div>
-                            <span className="text-[10px] font-mono font-bold text-accent truncate">{account}</span>
-                         </div>
-                         <button onClick={disconnect} className="p-2 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors">
-                            <Unlink className="w-4 h-4" />
-                         </button>
+                {activeAddress ? (
+                  <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center p-1.5 shrink-0 shadow-inner">
+                        <img src="https://raw.githubusercontent.com/MetaMask/metamask-extension/develop/app/images/logo/metamask-fox.svg" className="w-full h-full" alt="fox" />
                       </div>
-                   ) : (
-                      <Button 
-                         onClick={handleLinkMetaMask}
-                         disabled={isConnecting}
-                         className="w-full h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-lg group"
-                      >
-                         {isConnecting ? <Loader2 className="animate-spin w-5 h-5" /> : (
-                            <span className="flex items-center gap-3">
-                               <Link2 className="w-5 h-5 group-hover:rotate-45 transition-transform" /> TAUTKAN METAMASK SDK
-                            </span>
-                         )}
-                      </Button>
-                   )}
-                   <p className="text-[8px] font-medium text-muted-foreground leading-relaxed italic text-center px-4 uppercase">
-                      Hubungkan dompet eksternal Anda untuk penarikan dana otomatis dan tanda tangan transaksi on-chain yang lebih aman melalui node Infura AliBank.
-                   </p>
-                </div>
-             </Card>
+                      <span className="text-[10px] font-mono font-bold text-accent truncate">{activeAddress}</span>
+                    </div>
+                    <button onClick={handleDisconnectWallet} className="p-2 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors">
+                      <Unlink className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={handleLinkMetaMask}
+                    disabled={isConnecting}
+                    className="w-full h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-lg group"
+                  >
+                    {isConnecting ? <Loader2 className="animate-spin w-5 h-5" /> : (
+                      <span className="flex items-center gap-3">
+                        <Link2 className="w-5 h-5 group-hover:rotate-45 transition-transform" /> TAUTKAN METAMASK SDK
+                      </span>
+                    )}
+                  </Button>
+                )}
+                {(activeAddress || (userData?.externalWalletAddress && userData?.externalWalletAddress !== '0xNoWalletInitialized')) && (
+                  <div className="space-y-3 p-4 rounded-2xl bg-muted/40 border border-border">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground italic mb-1">Live Web3 Portfolio</div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-foreground">AliBank Vault (Ethereum)</span>
+                      <span className="text-[11px] font-black text-amber-500 italic">
+                        {isVaultLoading ? "..." : `${vaultBalanceEth.toFixed(4)} ETH`}
+                      </span>
+                    </div>
+                    <div className="h-px bg-border/50" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-foreground">Dompet ALX (Polygon)</span>
+                      <span className="text-[11px] font-black text-primary italic">
+                        {isAlxLoading ? "..." : `${externalAlxBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })} ALX`}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <p className="text-[8px] font-medium text-muted-foreground leading-relaxed italic text-center px-4 uppercase">
+                  Hubungkan dompet eksternal Anda untuk penarikan dana otomatis dan tanda tangan transaksi on-chain yang lebih aman melalui node Infura AliBank.
+                </p>
+              </div>
+            </Card>
           </section>
 
           {isAdmin && (
             <section className="animate-in fade-in zoom-in duration-500">
-              <Button 
+              <Button
                 onClick={() => router.push('/admin')}
                 className="w-full h-16 gold-gradient text-white rounded-2xl flex items-center justify-between px-6 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all"
               >
@@ -328,9 +456,9 @@ export default function ProfilePage() {
               </div>
             </button>
 
-            <Button 
+            <Button
               onClick={handleLogout}
-              variant="destructive" 
+              variant="destructive"
               className="w-full h-14 rounded-2xl font-black uppercase italic tracking-widest gap-3 shadow-lg"
             >
               <LogOut className="w-5 h-5" /> KELUAR DARI APLIKASI
@@ -344,7 +472,7 @@ export default function ProfilePage() {
   // DESKTOP VIEW LAYOUT (PREMIUM SIDEBAR + PANEL GRID)
   return (
     <div className="min-h-screen bg-background text-foreground flex font-body selection:bg-primary/30">
-      
+
       {/* SIDEBAR NAVIGATION */}
       <aside className="w-64 bg-card border-r border-border flex flex-col fixed h-screen z-50">
         <div className="p-6 flex items-center gap-3">
@@ -373,15 +501,15 @@ export default function ProfilePage() {
 
       {/* MAIN CONTAINER */}
       <main className="ml-64 flex-1 flex flex-col min-w-0">
-        
+
         {/* HEADER */}
         <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 sticky top-0 z-40">
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-black text-foreground uppercase italic tracking-tight">Akun Nasabah</h2>
           </div>
           <div className="flex items-center gap-6">
-            <Settings 
-              className="w-5 h-5 text-muted-foreground hover:text-foreground cursor-pointer transition-colors" 
+            <Settings
+              className="w-5 h-5 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
               onClick={() => router.push('/settings')}
             />
             <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border">
@@ -398,14 +526,14 @@ export default function ProfilePage() {
 
         {/* CONTAINER CONTENT */}
         <div className="p-8 space-y-8 max-w-[1200px] w-full mx-auto">
-          
+
           {/* USER BIO & DETAILS GRID */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            
+
             {/* PROFILE BIO CARD */}
             <Card className="md:col-span-2 rounded-[2.5rem] bg-card border border-border p-8 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[250px]">
               <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none" />
-              
+
               <div className="flex flex-col sm:flex-row items-center gap-6">
                 <div className="w-24 h-24 rounded-3xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-2 border-border relative shadow-xl shrink-0">
                   {userData?.avatarUrl ? (
@@ -417,7 +545,7 @@ export default function ProfilePage() {
                     </>
                   )}
                 </div>
-                
+
                 <div className="space-y-2 text-center sm:text-left">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <h1 className="text-2xl font-black tracking-tight">{userData?.name || "Nasabah AliBank"}</h1>
@@ -428,9 +556,9 @@ export default function ProfilePage() {
                       {userData?.kycStatus === 'verified' ? 'Terverifikasi' : 'Belum Verifikasi'}
                     </Badge>
                   </div>
-                  
+
                   <p className="text-xs text-muted-foreground font-medium font-mono">{user?.email}</p>
-                  
+
                   <div className="flex items-center justify-center sm:justify-start gap-1.5 text-muted-foreground cursor-pointer" onClick={copyUid}>
                     <span className="text-xs font-bold font-mono">Nasabah ID (UID): {userData?.accountNumber || "--- --- ---"}</span>
                     <Copy className="w-3.5 h-3.5 hover:text-primary transition-colors" />
@@ -448,7 +576,7 @@ export default function ProfilePage() {
                     <span className={cn("text-xs font-black uppercase italic leading-none block mt-1", tierInfo.color)}>{tierInfo.name}</span>
                   </div>
                 </div>
-                
+
                 <div className="flex gap-3 w-full sm:w-auto">
                   <Button variant="outline" className="flex-1 sm:flex-initial h-10 rounded-xl border-border hover:bg-muted font-bold text-xs" onClick={() => router.push('/settings')}>
                     Edit Profil
@@ -494,26 +622,48 @@ export default function ProfilePage() {
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Hubungkan dompet eksternal MetaMask Anda ke akun AliBank. Nikmati deposit & penarikan instan dan penandatanganan transaksi on-chain yang lebih aman melalui node Infura AliBank.
                 </p>
+                {(account || (userData?.externalWalletAddress && userData?.externalWalletAddress !== '0xNoWalletInitialized')) && (
+                  <div className="grid grid-cols-2 gap-4 pt-3">
+                    <div className="p-4 rounded-2xl bg-muted/30 border border-border/60 flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <span className="text-[8px] font-black uppercase text-muted-foreground block tracking-wider leading-none">Vault Balance (Ethereum)</span>
+                        <span className="text-[10px] font-bold text-foreground block mt-1 uppercase italic">AliBankVault SC</span>
+                      </div>
+                      <span className="text-sm font-black text-amber-500 italic">
+                        {isVaultLoading ? "..." : `${vaultBalanceEth.toFixed(4)} ETH`}
+                      </span>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-muted/30 border border-border/60 flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <span className="text-[8px] font-black uppercase text-muted-foreground block tracking-wider leading-none">On-Chain Token (Polygon)</span>
+                        <span className="text-[10px] font-bold text-foreground block mt-1 uppercase italic">AlixCoin ALX</span>
+                      </div>
+                      <span className="text-sm font-black text-primary italic">
+                        {isAlxLoading ? "..." : `${externalAlxBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })} ALX`}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
-              
+
               <div className="flex flex-col items-center justify-center">
-                {account ? (
+                {activeAddress ? (
                   <div className="w-full space-y-4">
                     <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-between gap-4 w-full">
                       <div className="flex items-center gap-3 overflow-hidden">
                         <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center p-1.5 shrink-0 shadow-inner">
                           <img src="https://raw.githubusercontent.com/MetaMask/metamask-extension/develop/app/images/logo/metamask-fox.svg" className="w-full h-full" alt="fox" />
                         </div>
-                        <span className="text-xs font-mono font-bold text-accent truncate">{account}</span>
+                        <span className="text-xs font-mono font-bold text-accent truncate">{activeAddress}</span>
                       </div>
-                      <button onClick={disconnect} className="p-2 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors">
+                      <button onClick={handleDisconnectWallet} className="p-2 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors">
                         <Unlink className="w-4 h-4" />
                       </button>
                     </div>
                     <Badge className="bg-green-600 text-white font-black text-[9px] uppercase px-4 h-6 border-none mx-auto block w-fit animate-pulse">Connected Web3</Badge>
                   </div>
                 ) : (
-                  <Button 
+                  <Button
                     onClick={handleLinkMetaMask}
                     disabled={isConnecting}
                     className="w-full h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-lg group"
@@ -539,8 +689,8 @@ export default function ProfilePage() {
                 { name: "Konversi Kripto", desc: "Swap instan bebas slip", icon: Maximize, color: "text-amber-500", href: "/crypto/convert" },
                 { name: "Margin Trading", desc: "Futures dengan leverage 20x", icon: ArrowRightLeft, color: "text-foreground", href: "/crypto/trade/futures" },
               ].map((item, idx) => (
-                <Card 
-                  key={idx} 
+                <Card
+                  key={idx}
                   onClick={() => item.href !== "#" && router.push(item.href)}
                   className="p-6 rounded-[2rem] bg-card border border-border shadow-sm flex flex-col justify-between cursor-pointer hover:border-primary/40 hover:shadow-md transition-all group min-h-[160px]"
                 >
@@ -562,7 +712,7 @@ export default function ProfilePage() {
           {/* ADMIN ACTION WIDGET */}
           {isAdmin && (
             <section className="animate-in fade-in zoom-in duration-500">
-              <Button 
+              <Button
                 onClick={() => router.push('/admin')}
                 className="w-full h-16 gold-gradient text-white rounded-2xl flex items-center justify-between px-6 shadow-xl shadow-primary/20 hover:scale-[1.01] transition-all"
               >
@@ -589,10 +739,10 @@ export default function ProfilePage() {
                 <span className="text-[9px] font-bold text-muted-foreground uppercase mt-1 block">v3.2.1-Autonomous</span>
               </div>
             </div>
-            
-            <Button 
+
+            <Button
               onClick={handleLogout}
-              variant="destructive" 
+              variant="destructive"
               className="h-12 px-8 rounded-xl font-black uppercase italic tracking-widest gap-3 shadow-lg w-full sm:w-auto shrink-0"
             >
               <LogOut className="w-5 h-5" /> KELUAR AKUN

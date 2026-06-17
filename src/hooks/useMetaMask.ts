@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -36,6 +35,54 @@ export function useMetaMask() {
     }
   }, []);
 
+  // Memeriksa status koneksi sebelumnya dan menyambungkan kembali jika ada
+  useEffect(() => {
+    if (!sdk) return;
+
+    const checkConnection = async () => {
+      try {
+        const provider = sdk.getProvider();
+        if (provider) {
+          // Periksa apakah akun sudah diotorisasi oleh MetaMask
+          const accounts: any = await provider.request({ method: 'eth_accounts' });
+          if (accounts && accounts.length > 0) {
+            setAccount(accounts[0]);
+          } else if (localStorage.getItem('alibank_metamask_connected') === 'true') {
+            // Auto-reconnect jika user sebelumnya telah menyetujui koneksi
+            const connectedAccounts = await sdk.connect();
+            if (connectedAccounts && connectedAccounts.length > 0) {
+              setAccount(connectedAccounts[0]);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Auto-connect checking failed:", err);
+      }
+    };
+
+    checkConnection();
+
+    // Dengarkan perubahan akun dari MetaMask secara realtime
+    const provider = sdk.getProvider();
+    if (provider) {
+      const handleAccountsChanged = (accounts: string[]) => {
+        if (accounts.length > 0) {
+          setAccount(accounts[0]);
+        } else {
+          setAccount(null);
+          localStorage.removeItem('alibank_metamask_connected');
+        }
+      };
+
+      provider.on('accountsChanged', handleAccountsChanged);
+      return () => {
+        if (provider.removeListener) {
+          provider.removeListener('accountsChanged', handleAccountsChanged);
+        }
+      };
+    }
+  }, [sdk]);
+
   const connect = useCallback(async () => {
     if (!sdk) return;
     
@@ -45,6 +92,7 @@ export function useMetaMask() {
       const accounts: any = await sdk.connect();
       if (accounts && accounts.length > 0) {
         setAccount(accounts[0]);
+        localStorage.setItem('alibank_metamask_connected', 'true');
         return accounts[0];
       }
     } catch (err) {
@@ -60,6 +108,7 @@ export function useMetaMask() {
     try {
       await sdk.terminate();
       setAccount(null);
+      localStorage.removeItem('alibank_metamask_connected');
     } catch (e) {
       console.error("Disconnect MetaMask failed:", e);
     }
