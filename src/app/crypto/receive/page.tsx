@@ -16,7 +16,9 @@ import {
   Cpu,
   Zap,
   CheckCircle2,
-  FileSearch
+  FileSearch,
+  ArrowDownToLine,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -34,6 +36,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { VaultDepositModal } from "@/components/crypto/VaultDepositModal";
 
 const NETWORKS = [
   { id: 'BTC', name: 'Bitcoin', icon: Bitcoin, color: 'text-orange-500', network: 'Native Network', confirmTime: '10-60m' },
@@ -49,6 +52,7 @@ export default function CryptoReceivePage() {
   
   const [selectedNetwork, setSelectedNetwork] = useState(NETWORKS[0]);
   const [mounted, setMounted] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -135,9 +139,32 @@ export default function CryptoReceivePage() {
           <div className="absolute top-0 left-0 w-full h-1 gold-gradient opacity-20" />
           
           <div className="relative">
-            <div className="w-64 h-64 bg-white rounded-3xl p-6 shadow-inner border-4 border-primary/10 flex items-center justify-center overflow-hidden">
-              <div className="w-full h-full bg-slate-50 rounded-xl flex flex-col items-center justify-center text-primary/40 p-4 text-center">
-                <QrIcon className="w-24 h-24 mb-4 animate-in zoom-in duration-500" />
+            <div className="w-64 h-64 bg-white rounded-3xl p-4 shadow-inner border-4 border-primary/10 flex items-center justify-center overflow-hidden">
+              {displayAddress && !displayAddress.includes("Sedang") && !displayAddress.includes("belum") ? (
+                <img
+                  key={displayAddress}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(displayAddress)}&size=220x220&margin=4&color=000000&bgcolor=ffffff&qzone=1`}
+                  alt={`QR Code ${selectedNetwork.name} — ${displayAddress}`}
+                  className="w-full h-full object-contain rounded-xl animate-in zoom-in duration-500"
+                  onError={(e) => {
+                    // Fallback jika API QR tidak bisa diakses
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    (e.target as any).nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+              ) : null}
+              {/* Skeleton loading saat alamat belum ada */}
+              {(!displayAddress || displayAddress.includes("Sedang") || displayAddress.includes("belum")) && (
+                <div className="w-full h-full bg-slate-100 rounded-xl flex flex-col items-center justify-center text-primary/40 p-4 text-center animate-pulse">
+                  <QrIcon className="w-24 h-24 mb-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest leading-tight">
+                    Memuat Alamat...
+                  </span>
+                </div>
+              )}
+              {/* Fallback jika QR API error */}
+              <div className="hidden w-full h-full bg-slate-50 rounded-xl flex flex-col items-center justify-center text-primary/40 p-4 text-center">
+                <QrIcon className="w-24 h-24 mb-4" />
                 <span className="text-[10px] font-black uppercase tracking-widest leading-tight">
                   Scan Alamat {selectedNetwork.name}
                 </span>
@@ -147,6 +174,7 @@ export default function CryptoReceivePage() {
               {selectedNetwork.id === 'ALX' ? <LogoIcon className="text-white w-6 h-6" /> : <selectedNetwork.icon className="text-white w-6 h-6" />}
             </div>
           </div>
+
 
           <div className="w-full space-y-4">
             <div className="space-y-2">
@@ -188,6 +216,48 @@ export default function CryptoReceivePage() {
           </div>
         </Card>
 
+        {/* Deposit On-Chain Section — Khusus ETH */}
+        {selectedNetwork.id === 'ETH' && (
+          <section className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="relative p-6 rounded-[2rem] bg-gradient-to-br from-blue-950/80 to-indigo-950/80 border border-blue-500/20 space-y-4 overflow-hidden">
+              {/* Glow effect */}
+              <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
+              <div className="relative z-10">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-2xl gold-gradient flex items-center justify-center shadow-xl">
+                    <ArrowDownToLine className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-black italic uppercase text-white">Deposit ETH ke Vault</h4>
+                      <Badge className="bg-primary/20 text-primary border-primary/30 text-[7px] font-black h-4 px-2 uppercase">On-Chain</Badge>
+                    </div>
+                    <p className="text-[9px] font-bold text-white/40 uppercase mt-0.5">Langsung masuk ke Smart Contract AliBank di Mainnet ETH</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {[
+                    { icon: ShieldCheck, text: 'Non-Custodial' },
+                    { icon: Globe, text: 'Ethereum Mainnet' },
+                  ].map(({ icon: Icon, text }, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5">
+                      <Icon className="w-3 h-3 text-blue-400" />
+                      <span className="text-[9px] font-black text-white/50 uppercase">{text}</span>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  onClick={() => setShowDepositModal(true)}
+                  className="w-full h-12 gold-gradient text-white border-none rounded-xl font-black uppercase italic text-[10px] tracking-widest shadow-lg hover:scale-[1.02] transition-all"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  DEPOSIT ETH KE VAULT ON-CHAIN
+                </Button>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Action Bottom */}
         <section className="space-y-4">
           <div className="p-6 rounded-[2rem] bg-muted/50 border border-border space-y-4">
@@ -208,6 +278,9 @@ export default function CryptoReceivePage() {
             </Button>
           </div>
         </section>
+
+        {/* Vault Deposit Modal */}
+        <VaultDepositModal open={showDepositModal} onClose={() => setShowDepositModal(false)} />
 
         <footer className="mt-12 text-center space-y-4">
           <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.3em] italic">Official AliBank Native Wallet System 2026</p>
