@@ -55,6 +55,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
+import { Sidebar } from "@/components/layout/Sidebar";
 import Image from "next/image";
 
 const EWALLETS = [
@@ -358,30 +359,7 @@ export default function SettingsHubPage() {
       ) : (
         <div className="min-h-screen bg-background text-foreground flex font-body selection:bg-primary/30 w-full">
           {/* SIDEBAR NAVIGATION */}
-          <aside className="w-64 bg-card border-r border-border flex flex-col fixed h-screen z-50">
-            <div className="p-6 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg text-white">
-                <LogoIcon />
-              </div>
-              <span className="font-bold text-xl tracking-tighter italic uppercase">AliBank</span>
-            </div>
-            <nav className="flex-1 px-4 space-y-1 pt-4">
-              <SidebarItem icon={User} label="Profil Saya" href="/profile" />
-              <SidebarItem icon={LayoutGrid} label="Dashboard" href="/" />
-              <SidebarItem icon={ArrowRightLeft} label="Move crypto" href="/crypto/buy" />
-              <SidebarItem icon={Zap} label="Discover" href="/crypto" />
-              <SidebarItem icon={Ticket} label="Card / Marketplace" href="/marketplace" />
-              <SidebarItem icon={Settings} label="Settings" active href="#" />
-            </nav>
-            <div className="p-6 border-t border-border space-y-4">
-              <div className="flex items-center justify-between text-[8px] font-black text-muted-foreground uppercase tracking-widest">
-                <span>Sovereign Hub</span>
-                <span className="flex items-center gap-1 text-green-500">
-                  <ShieldCheck className="w-2.5 h-2.5" /> SECURE
-                </span>
-              </div>
-            </div>
-          </aside>
+          <Sidebar />
 
           {/* MAIN CONTAINER */}
           <main className="ml-64 flex-1 flex flex-col min-w-0">
@@ -918,18 +896,6 @@ function SettingsItem({ icon: Icon, label, value, onClick }: any) {
   );
 }
 
-function SidebarItem({ icon: Icon, label, active = false, href }: any) {
-  const router = useRouter();
-  return (
-    <div onClick={() => href !== "#" && router.push(href)} className={cn("flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all group relative", active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
-      <div className="flex items-center gap-3">
-        <Icon className={cn("w-5 h-5", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
-        <span className="text-sm font-bold">{label}</span>
-      </div>
-      {active && <div className="w-1 h-5 bg-primary rounded-full absolute left-0 top-1/2 -translate-y-1/2" />}
-    </div>
-  );
-}
 
 function TabMenuItem({ icon: Icon, label, active = false, onClick }: any) {
   return (

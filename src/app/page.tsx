@@ -39,10 +39,12 @@ import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { doc, collection, query, where, orderBy, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useVaultBalance } from "@/hooks/useVaultBalance";
+import { useVaultStaking } from "@/hooks/useVaultStaking";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 import { currencies } from "@/lib/currencies";
 import { GasStation } from "@/components/crypto/GasStation";
+import { Sidebar } from "@/components/layout/Sidebar";
 import { ResponsiveContainer, AreaChart, Area, YAxis } from "recharts";
 
 const MARKUP = 1.02;
@@ -99,8 +101,15 @@ function DashboardContent() {
     return userData?.walletAddress || null;
   }, [userData]);
 
-  // Ambil saldo tabungan vault on-chain milik user
-  const { onChainBalance: vaultBalanceEth } = useVaultBalance(activeWalletAddress);
+  // Ambil saldo tabungan vault on-chain dan yield milik user
+  const {
+    stakedEth: vaultBalanceEth,
+    accruedRewards: vaultStakingYieldAlx,
+    isClaiming: isStakingClaiming,
+    claimSuccess: stakingClaimSuccess,
+    claimError: stakingClaimError,
+    claimYield: claimStakingYield
+  } = useVaultStaking(activeWalletAddress, user?.uid || null);
 
   // Otomatis sinkronkan deposit on-chain dari external wallet
   useEffect(() => {
@@ -357,30 +366,7 @@ function DashboardContent() {
     <div className="min-h-screen bg-background text-foreground flex font-body selection:bg-primary/30">
       
       {/* SIDEBAR NAVIGATION */}
-      <aside className="w-64 bg-card border-r border-border flex flex-col fixed h-screen z-50">
-        <div className="p-6 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg text-white">
-            <LogoIcon />
-          </div>
-          <span className="font-bold text-xl tracking-tighter italic uppercase">AliBank</span>
-        </div>
-        <nav className="flex-1 px-4 space-y-1 pt-4">
-          <SidebarItem icon={LayoutDashboard} label="Dashboard" active href="/" />
-          <SidebarItem icon={ArrowRightLeft} label="Move crypto" href="/crypto/buy" />
-          <SidebarItem icon={Zap} label="Discover" href="/crypto" />
-          <SidebarItem icon={ArrowUpDown} label="Card" href="/marketplace" />
-          <SidebarItem icon={HelpCircle} label="Tax Hub" href="#" />
-          <SidebarItem icon={HelpCircle} label="Travel" href="#" />
-        </nav>
-        <div className="p-6 border-t border-border space-y-4">
-          <div className="flex items-center justify-between text-[8px] font-black text-muted-foreground uppercase tracking-widest">
-            <span>Network Health</span>
-            <span className={cn("flex items-center gap-1", isError ? "text-rose-500" : "text-green-500")}>
-              <Wifi className="w-2.5 h-2.5" /> {isError ? "Limited" : "Live"}
-            </span>
-          </div>
-        </div>
-      </aside>
+      <Sidebar />
 
       {/* MAIN CONTAINER */}
       <main className="ml-64 flex-1 flex flex-col min-w-0">
@@ -663,8 +649,8 @@ function DashboardContent() {
                         };
                       });
 
-                      // Filter: Hanya tampilkan aset yang memiliki saldo > 0, kecuali ALX (platform token) dan IDR (fiat dasar) yang selalu ditampilkan
-                      const filteredAssets = assetsList.filter(a => a.amount > 0 || a.sym === "ALX" || a.sym === "IDR");
+                      // Filter: Tampilkan aset yang memiliki saldo > 0, atau aset utama platform yang selalu ditampilkan agar sama dengan mobile
+                      const filteredAssets = assetsList.filter(a => a.amount > 0 || ["ALX", "BTC", "ETH", "USDT", "IDR"].includes(a.sym));
 
                       // Urutkan berdasarkan nilai estimasi USD terbesar agar aset yang didanai muncul di atas
                       filteredAssets.sort((a, b) => b.valueUsd - a.valueUsd);
@@ -691,49 +677,138 @@ function DashboardContent() {
               </div>
             </Card>
 
-            {/* RECENT TRANSACTIONS PANEL */}
-            <Card className="rounded-[2.5rem] bg-card border border-border shadow-sm p-8 space-y-6 flex flex-col justify-between">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black uppercase italic text-muted-foreground tracking-widest">Riwayat Aktivitas</h3>
-                  <History className="w-4 h-4 text-muted-foreground" />
-                </div>
-
-                <div className="space-y-4 overflow-y-auto max-h-[350px] pr-2 no-scrollbar">
-                  {userTxs && userTxs.length > 0 ? (
-                    userTxs.slice(0, 6).map((tx) => (
-                      <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", tx.type === 'income' ? "bg-green-500/10 text-green-600" : "bg-rose-500/10 text-rose-500")}>
-                            {tx.type === 'income' ? <Download className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-                          </div>
-                          <div>
-                            <p className="text-xs font-black uppercase italic leading-none truncate max-w-[130px]">{tx.description || tx.category}</p>
-                            <span className="text-[8px] font-bold text-muted-foreground block mt-1 uppercase">{new Date(tx.date || tx.timestamp?.seconds * 1000).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs font-black italic">
-                            {tx.amount ? `Rp${tx.amount.toLocaleString()}` : `${tx.cryptoAmount?.toFixed(4) || tx.toAmount?.toFixed(4)} ${tx.cryptoCurrency || tx.toCurrency || ''}`}
-                          </p>
-                          <Badge variant="outline" className={cn("text-[6px] font-black h-3.5 uppercase border-none px-1.5 mt-0.5", tx.status === 'success' ? "bg-green-600/10 text-green-600" : "bg-orange-500/10 text-orange-500")}>
-                            {tx.status || 'Success'}
-                          </Badge>
-                        </div>
+            <div className="space-y-8 flex flex-col">
+              {/* DEFI VAULT STAKING CARD */}
+              {userData?.walletAddress && (
+                <Card className="rounded-[2.5rem] bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border border-primary/20 p-8 space-y-6">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5 text-white">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                          <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                          <path d="M2 17l10 5 10-5"></path>
+                        </svg>
                       </div>
-                    ))
-                  ) : (
-                    <div className="py-20 text-center opacity-30 italic">
-                      <p className="text-xs font-black uppercase tracking-widest">Belum ada transaksi</p>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-sm font-black italic tracking-tight uppercase">DeFi Vault Tabungan</h3>
+                          <Badge className="bg-primary/20 text-primary text-[7px] font-black uppercase h-3.5 px-1 border-none leading-none animate-pulse">On-Chain</Badge>
+                        </div>
+                        <p className="text-[9px] font-mono text-muted-foreground tracking-tighter mt-0.5">
+                          Address: {userData.walletAddress.substring(0, 8)}...{userData.walletAddress.substring(userData.walletAddress.length - 6)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-2 border-t border-border/50">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase">Saldo Staking (ETH)</span>
+                      <span className="text-sm font-black italic">{vaultBalanceEth.toFixed(6).replace(/\.?0+$/, "")} ETH</span>
+                    </div>
+
+                    <div className="flex justify-between items-center py-2 bg-primary/5 rounded-2xl px-4 border border-primary/10">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-bold text-primary uppercase">Yield Terkumpul (ALX)</span>
+                        <span className="text-[7px] text-muted-foreground font-medium uppercase tracking-wider">Berdetak Real-Time</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-black italic text-primary animate-pulse font-mono">
+                          {vaultStakingYieldAlx > 0 ? vaultStakingYieldAlx.toFixed(8) : "0.00000000"} ALX
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[9px] font-bold uppercase pt-1 text-muted-foreground">
+                      <span>Base APY</span>
+                      <span className="text-green-500 font-black italic">12.00% p.a</span>
+                    </div>
+                  </div>
+
+                  {stakingClaimError && (
+                    <div className="p-3 rounded-xl bg-rose-500/10 text-rose-500 text-[9px] font-bold uppercase border border-rose-500/20">
+                      Error: {stakingClaimError}
                     </div>
                   )}
-                </div>
-              </div>
 
-              <Button className="w-full h-11 bg-muted hover:bg-muted/80 text-foreground font-black uppercase italic text-[10px] rounded-xl mt-4" onClick={() => router.push('/transactions')}>
-                Lihat Semua Riwayat
-              </Button>
-            </Card>
+                  {stakingClaimSuccess && (
+                    <div className="p-3 rounded-xl bg-green-500/10 text-green-500 text-[9px] font-bold uppercase border border-green-500/20">
+                      Klaim Berhasil! Token ALX telah dikreditkan ke saldo Anda.
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <Button 
+                      variant="outline" 
+                      className="h-10 bg-primary/10 hover:bg-primary/20 text-primary border-none rounded-xl font-black uppercase text-[9px] italic"
+                      onClick={() => router.push('/crypto/receive?asset=ETH')}
+                    >
+                      Tabung ETH
+                    </Button>
+                    <Button 
+                      disabled={isStakingClaiming || vaultStakingYieldAlx < 0.0001}
+                      onClick={claimStakingYield}
+                      className="h-10 gold-gradient text-white border-none rounded-xl font-black uppercase text-[9px] italic shadow-md active:scale-95 transition-all"
+                    >
+                      {isStakingClaiming ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        "Klaim Yield (ALX)"
+                      )}
+                    </Button>
+                  </div>
+
+                  <p className="text-[8px] text-rose-500 font-bold uppercase leading-relaxed italic text-center opacity-85">
+                    * Setoran baru atau penarikan ETH akan mereset durasi yield. Klaim ALX terlebih dahulu!
+                  </p>
+                </Card>
+              )}
+
+              {/* RECENT TRANSACTIONS PANEL */}
+              <Card className="rounded-[2.5rem] bg-card border border-border shadow-sm p-8 space-y-6 flex flex-col justify-between flex-1">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black uppercase italic text-muted-foreground tracking-widest">Riwayat Aktivitas</h3>
+                    <History className="w-4 h-4 text-muted-foreground" />
+                  </div>
+
+                  <div className="space-y-4 overflow-y-auto max-h-[350px] pr-2 no-scrollbar">
+                    {userTxs && userTxs.length > 0 ? (
+                      userTxs.slice(0, 6).map((tx) => (
+                        <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", tx.type === 'income' ? "bg-green-500/10 text-green-600" : "bg-rose-500/10 text-rose-500")}>
+                              {tx.type === 'income' ? <Download className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+                            </div>
+                            <div>
+                              <p className="text-xs font-black uppercase italic leading-none truncate max-w-[130px]">{tx.description || tx.category}</p>
+                              <span className="text-[8px] font-bold text-muted-foreground block mt-1 uppercase">{new Date(tx.date || tx.timestamp?.seconds * 1000).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-black italic">
+                              {tx.amount ? `Rp${tx.amount.toLocaleString()}` : `${tx.cryptoAmount?.toFixed(4) || tx.toAmount?.toFixed(4)} ${tx.cryptoCurrency || tx.toCurrency || ''}`}
+                            </p>
+                            <Badge variant="outline" className={cn("text-[6px] font-black h-3.5 uppercase border-none px-1.5 mt-0.5", tx.status === 'success' ? "bg-green-600/10 text-green-600" : "bg-orange-500/10 text-orange-500")}>
+                              {tx.status || 'Success'}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-20 text-center opacity-30 italic">
+                        <p className="text-xs font-black uppercase tracking-widest">Belum ada transaksi</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <Button className="w-full h-11 bg-muted hover:bg-muted/80 text-foreground font-black uppercase italic text-[10px] rounded-xl mt-4" onClick={() => router.push('/transactions')}>
+                  Lihat Semua Riwayat
+                </Button>
+              </Card>
+            </div>
           </div>
           
         </div>
@@ -742,19 +817,6 @@ function DashboardContent() {
   );
 }
 
-// Sidebar Navigation Item component
-function SidebarItem({ icon: Icon, label, active = false, href }: any) {
-  const router = useRouter();
-  return (
-    <div onClick={() => href !== "#" && router.push(href)} className={cn("flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all group relative", active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
-      <div className="flex items-center gap-3">
-        <Icon className={cn("w-5 h-5", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
-        <span className="text-sm font-bold">{label}</span>
-      </div>
-      {active && <div className="w-1 h-5 bg-primary rounded-full absolute left-0" />}
-    </div>
-  );
-}
 
 // Action Button component
 function DesktopActionBtn({ icon: Icon, label, desc, onClick }: any) {

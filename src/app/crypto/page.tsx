@@ -42,6 +42,7 @@ import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { GasStation } from "@/components/crypto/GasStation";
+import { Sidebar } from "@/components/layout/Sidebar";
 
 const MARKUP = 1.02; 
 const GLOBAL_SYMBOLS = [
@@ -182,30 +183,7 @@ export default function DesktopDiscoverPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex font-body selection:bg-primary/30">
-      <aside className="w-64 bg-card border-r border-border flex flex-col fixed h-screen z-50">
-        <div className="p-6 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg text-white">
-            <LogoIcon />
-          </div>
-          <span className="font-bold text-xl tracking-tighter italic uppercase">AliBank</span>
-        </div>
-        <nav className="flex-1 px-4 space-y-1 pt-4">
-          <SidebarItem icon={LayoutDashboard} label="Dashboard" href="/" />
-          <SidebarItem icon={ArrowRightLeft} label="Move crypto" href="/crypto/buy" />
-          <SidebarItem icon={Compass} label="Discover" active href="/crypto" />
-          <SidebarItem icon={CreditCard} label="Card" href="/marketplace" />
-          <SidebarItem icon={Calculator} label="Tax Hub" href="#" />
-          <SidebarItem icon={Plane} label="Travel" href="#" />
-        </nav>
-        <div className="p-6 border-t border-border space-y-4">
-          <div className="flex items-center justify-between text-[8px] font-black text-muted-foreground uppercase tracking-widest">
-            <span>Network Health</span>
-            <span className={cn("flex items-center gap-1", isError ? "text-rose-500" : "text-green-500")}>
-              <Wifi className="w-2.5 h-2.5" /> {isError ? "Limited" : "Live"}
-            </span>
-          </div>
-        </div>
-      </aside>
+      <Sidebar />
 
       <main className="ml-64 flex-1 flex flex-col min-w-0">
         <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 sticky top-0 z-40">
@@ -359,18 +337,6 @@ export default function DesktopDiscoverPage() {
   );
 }
 
-function SidebarItem({ icon: Icon, label, active = false, href }: any) {
-  const router = useRouter();
-  return (
-    <div onClick={() => href !== "#" && router.push(href)} className={cn("flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all group relative", active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
-      <div className="flex items-center gap-3">
-        <Icon className={cn("w-5 h-5", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
-        <span className="text-sm font-bold">{label}</span>
-      </div>
-      {active && <div className="w-1 h-5 bg-primary rounded-full absolute left-0" />}
-    </div>
-  );
-}
 
 function FilterBtn({ icon: Icon, label, active, onClick }: any) {
   return (

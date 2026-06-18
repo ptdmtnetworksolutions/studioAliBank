@@ -1,6 +1,7 @@
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
+import { Sidebar } from "@/components/layout/Sidebar";
 import { 
   Search, 
   Settings, 
@@ -8,6 +9,7 @@ import {
   EyeOff,
   ChevronDown, 
   ChevronRight, 
+  ChevronLeft,
   History, 
   BarChart3,
   Loader2,
@@ -19,6 +21,7 @@ import {
   Wallet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useState, useMemo, useEffect } from "react";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
@@ -27,6 +30,8 @@ import { LogoIcon } from "@/components/ui/logo";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { useVaultBalance } from "@/hooks/useVaultBalance";
+import { useVaultStaking } from "@/hooks/useVaultStaking";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Definisi aset yang didukung — sesuaikan dengan field cryptoBalances di Firestore
 const ASSET_CONFIG: Record<string, {
@@ -101,10 +106,18 @@ export default function AssetsPage() {
   const [activeTopTab, setActiveTopTab] = useState('Ringkasan');
   const [activeSubTab, setActiveSubTab] = useState('Kripto');
   const [showBalance, setShowBalance] = useState(true);
+  
   const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(true);
 
   useEffect(() => {
     setMounted(true);
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
@@ -118,8 +131,15 @@ export default function AssetsPage() {
     return userData?.walletAddress || null;
   }, [userData]);
 
-  // Load saldo on-chain dari smart contract AliBankVault
-  const { onChainBalance: vaultBalanceEth } = useVaultBalance(activeWalletAddress);
+  // Load saldo on-chain dan yield dari smart contract AliBankVault
+  const {
+    stakedEth: vaultBalanceEth,
+    accruedRewards: vaultStakingYieldAlx,
+    isClaiming: isStakingClaiming,
+    claimSuccess: stakingClaimSuccess,
+    claimError: stakingClaimError,
+    claimYield: claimStakingYield
+  } = useVaultStaking(activeWalletAddress, user?.uid || null);
 
   // Otomatis sinkronkan deposit on-chain dari external wallet
   useEffect(() => {
@@ -177,327 +197,749 @@ export default function AssetsPage() {
     );
   }
 
-  return (
-    <div className="min-h-screen pb-32 bg-background transition-colors duration-300">
-      {/* Top Header Tabs */}
-      <header className="px-4 h-12 flex items-center border-b border-border sticky top-0 bg-background z-50">
-        <div className="flex items-center gap-5 overflow-x-auto no-scrollbar w-full">
-          {['Ringkasan', 'Pendanaan', 'Earn', 'Spot'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTopTab(tab)}
-              className={cn(
-                "text-sm font-black transition-all relative shrink-0",
-                activeTopTab === tab 
-                  ? "text-foreground after:absolute after:-bottom-[13px] after:left-0 after:right-0 after:h-[2.5px] after:bg-primary" 
-                  : "text-muted-foreground"
-              )}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-      </header>
+  // ─── MOBILE RENDERING ──────────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <div className="min-h-screen pb-32 bg-background transition-colors duration-300">
+        <Navbar />
+        {/* Top Header Tabs */}
+        <header className="px-4 h-12 flex items-center border-b border-border sticky top-0 bg-background z-50">
+          <div className="flex items-center gap-5 overflow-x-auto no-scrollbar w-full">
+            {['Ringkasan', 'Pendanaan', 'Earn', 'Spot'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTopTab(tab)}
+                className={cn(
+                  "text-sm font-black transition-all relative shrink-0",
+                  activeTopTab === tab 
+                    ? "text-foreground after:absolute after:-bottom-[13px] after:left-0 after:right-0 after:h-[2.5px] after:bg-primary" 
+                    : "text-muted-foreground"
+                )}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </header>
 
-      <main className="px-4 pt-6 space-y-8 animate-in fade-in duration-500">
-        {/* Total Nilai Section */}
-        <div className="space-y-4 px-1">
-          <div className="flex justify-between items-start">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <span className="text-[11px] font-bold">Estimasi Total Nilai</span>
-                <button onClick={() => setShowBalance(!showBalance)}>
-                  {showBalance 
-                    ? <Eye className="w-3.5 h-3.5 transition-colors" />
-                    : <EyeOff className="w-3.5 h-3.5 text-primary" />
-                  }
-                </button>
-              </div>
-              <div className="flex items-end gap-2">
-                <h1 className="text-4xl font-black tracking-tight italic">
-                  {showBalance 
-                    ? `Rp${grandTotal.toLocaleString('id-ID', { maximumFractionDigits: 0 })}` 
-                    : '••••••••'}
-                </h1>
-                <div className="flex items-center gap-1 cursor-pointer pb-1">
-                  <span className="text-[13px] font-black italic text-muted-foreground uppercase">IDR</span>
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+        <main className="px-4 pt-6 space-y-8 animate-in fade-in duration-500">
+          {/* Total Nilai Section */}
+          <div className="space-y-4 px-1">
+            <div className="flex justify-between items-start">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <span className="text-[11px] font-bold">Estimasi Total Nilai</span>
+                  <button onClick={() => setShowBalance(!showBalance)}>
+                    {showBalance 
+                      ? <Eye className="w-3.5 h-3.5 transition-colors" />
+                      : <EyeOff className="w-3.5 h-3.5 text-primary" />
+                    }
+                  </button>
+                </div>
+                <div className="flex items-end gap-2">
+                  <h1 className="text-4xl font-black tracking-tight italic">
+                    {showBalance 
+                      ? `Rp${grandTotal.toLocaleString('id-ID', { maximumFractionDigits: 0 })}` 
+                      : '••••••••'}
+                  </h1>
+                  <div className="flex items-center gap-1 cursor-pointer pb-1">
+                    <span className="text-[13px] font-black italic text-muted-foreground uppercase">IDR</span>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    <Wallet className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-[10px] font-bold text-muted-foreground">
+                      IDR: {showBalance ? `Rp${totalIdrBalance.toLocaleString('id-ID')}` : '••••••'}
+                    </span>
+                  </div>
+                  <div className="w-1 h-1 rounded-full bg-border" />
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-muted-foreground">
+                      Kripto: {showBalance ? `Rp${(totalCryptoValueIdr + vaultValueIdr).toLocaleString('id-ID', { maximumFractionDigits: 0 })}` : '••••••'}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
-                  <Wallet className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-[10px] font-bold text-muted-foreground">
-                    IDR: {showBalance ? `Rp${totalIdrBalance.toLocaleString('id-ID')}` : '••••••'}
-                  </span>
-                </div>
-                <div className="w-1 h-1 rounded-full bg-border" />
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-bold text-muted-foreground">
-                    Kripto: {showBalance ? `Rp${(totalCryptoValueIdr + vaultValueIdr).toLocaleString('id-ID', { maximumFractionDigits: 0 })}` : '••••••'}
-                  </span>
-                </div>
+              <div className="flex items-center gap-4 text-foreground pt-1">
+                <BarChart3 className="w-5 h-5 cursor-pointer hover:text-primary transition-colors opacity-80" />
+                <History 
+                  className="w-5 h-5 cursor-pointer hover:text-primary transition-colors opacity-80"
+                  onClick={() => router.push('/transactions/history')}
+                />
               </div>
             </div>
-            <div className="flex items-center gap-4 text-foreground pt-1">
-              <BarChart3 className="w-5 h-5 cursor-pointer hover:text-primary transition-colors opacity-80" />
-              <History 
-                className="w-5 h-5 cursor-pointer hover:text-primary transition-colors opacity-80"
-                onClick={() => router.push('/transactions/history')}
-              />
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-3 gap-3 pt-2">
+              <Button 
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-black italic text-[11px] h-10 rounded-xl uppercase tracking-tighter shadow-none"
+                onClick={() => router.push('/?open=add_funds')}
+              >
+                Top-Up
+              </Button>
+              <Button 
+                className="bg-muted/80 hover:bg-muted text-foreground font-black italic text-[11px] h-10 rounded-xl uppercase tracking-tighter shadow-none"
+                onClick={() => router.push('/crypto/send')}
+              >
+                KIRIM
+              </Button>
+              <Button 
+                className="bg-muted/80 hover:bg-muted text-foreground font-black italic text-[11px] h-10 rounded-xl uppercase tracking-tighter shadow-none"
+                onClick={() => router.push('/transfer')}
+              >
+                TRANSFER
+              </Button>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-3 gap-3 pt-2">
-            <Button 
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-black italic text-[11px] h-10 rounded-xl uppercase tracking-tighter shadow-none"
-              onClick={() => router.push('/?open=add_funds')}
-            >
-              Top-Up
-            </Button>
-            <Button 
-              className="bg-muted/80 hover:bg-muted text-foreground font-black italic text-[11px] h-10 rounded-xl uppercase tracking-tighter shadow-none"
-              onClick={() => router.push('/crypto/send')}
-            >
-              KIRIM
-            </Button>
-            <Button 
-              className="bg-muted/80 hover:bg-muted text-foreground font-black italic text-[11px] h-10 rounded-xl uppercase tracking-tighter shadow-none"
-              onClick={() => router.push('/transfer')}
-            >
-              TRANSFER
-            </Button>
-          </div>
-        </div>
-
-        {/* Content Tabs */}
-        <div className="space-y-6 pt-2">
-          <div className="flex items-center justify-between border-b border-border/50 px-1">
-            <div className="flex gap-8">
-              {['Kripto', 'IDR Fiat'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveSubTab(tab)}
-                  className={cn(
-                    "pb-3 text-sm font-black transition-all relative italic",
-                    activeSubTab === tab 
-                      ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2.5px] after:bg-primary" 
-                      : "text-muted-foreground"
-                  )}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-5 text-muted-foreground pb-2 opacity-60">
-              <Search className="w-5 h-5 cursor-pointer" />
-              <Settings className="w-5 h-5 cursor-pointer" />
-            </div>
-          </div>
-
-          {/* === TAB: KRIPTO === */}
-          {activeSubTab === 'Kripto' && (
-            <div className="space-y-8 pb-10 animate-in fade-in duration-300">
-              {/* DeFi Vault Card */}
-              {userData?.walletAddress && (
-                <div className="p-5 rounded-2xl bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border border-primary/20 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5 text-white">
-                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                          <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                          <path d="M2 17l10 5 10-5"></path>
-                        </svg>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="text-sm font-black italic tracking-tight">DeFi Vault Tabungan</h3>
-                          <Badge className="bg-primary/20 text-primary text-[7px] font-black uppercase h-3.5 px-1 border-none leading-none">On-Chain</Badge>
-                        </div>
-                        <p className="text-[9px] font-mono text-muted-foreground tracking-tighter mt-0.5">
-                          Alamat: {userData.walletAddress.substring(0, 6)}...{userData.walletAddress.substring(userData.walletAddress.length - 4)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-black italic tracking-tight text-primary">
-                        {showBalance 
-                          ? `${vaultBalanceEth.toFixed(6).replace(/\.?0+$/, "")} ETH` 
-                          : '••••••'}
-                      </p>
-                      <p className="text-[10px] font-bold text-muted-foreground mt-0.5 opacity-70">
-                        {showBalance 
-                          ? `≈ Rp${vaultValueIdr.toLocaleString('id-ID', { maximumFractionDigits: 0 })}` 
-                          : '••••••'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/50">
-                    <Button 
-                      variant="outline" 
-                      className="h-8 bg-primary/10 hover:bg-primary/20 text-primary border-none rounded-xl font-black uppercase text-[9px] italic shadow-none"
-                      onClick={() => router.push('/crypto/receive?asset=ETH')}
-                    >
-                      Tabung (Deposit)
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="h-8 bg-muted hover:bg-muted/80 text-foreground border-none rounded-xl font-black uppercase text-[9px] italic shadow-none"
-                      onClick={() => router.push('/crypto/receive?asset=ETH')}
-                    >
-                      Kelola Vault
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {portfolioAssets.length === 0 && !userData?.walletAddress ? (
-                <div className="py-16 flex flex-col items-center text-center opacity-50">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <Wallet className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <p className="text-sm font-black italic uppercase tracking-wide">Belum Ada Aset Kripto</p>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Beli atau terima kripto untuk memulai</p>
-                  <Button 
-                    className="mt-4 h-9 px-6 gold-gradient text-white border-none rounded-xl font-black uppercase text-[10px] italic tracking-widest"
-                    onClick={() => router.push('/crypto/buy')}
+          {/* Content Tabs */}
+          <div className="space-y-6 pt-2">
+            <div className="flex items-center justify-between border-b border-border/50 px-1">
+              <div className="flex gap-8">
+                {['Kripto', 'IDR Fiat'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveSubTab(tab)}
+                    className={cn(
+                      "pb-3 text-sm font-black transition-all relative italic",
+                      activeSubTab === tab 
+                        ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2.5px] after:bg-primary" 
+                        : "text-muted-foreground"
+                    )}
                   >
-                    Beli Sekarang
-                  </Button>
-                </div>
-              ) : (
-                portfolioAssets.length === 0 && userData?.walletAddress ? null :
-                portfolioAssets.map((asset) => (
-                  <div 
-                    key={asset.symbol} 
-                    className="space-y-3 px-1 group cursor-pointer"
-                    onClick={() => router.push(`/crypto/market/${asset.symbol.toLowerCase()}`)}
-                  >
-                    <div className="flex justify-between items-center">
+                    {tab}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-5 text-muted-foreground pb-2 opacity-60">
+                <Search className="w-5 h-5 cursor-pointer" />
+                <Settings className="w-5 h-5 cursor-pointer" />
+              </div>
+            </div>
+
+            {/* === TAB: KRIPTO === */}
+            {activeSubTab === 'Kripto' && (
+              <div className="space-y-8 pb-10 animate-in fade-in duration-300">
+                {/* DeFi Vault Card */}
+                {userData?.walletAddress && (
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border border-primary/20 space-y-4">
+                    <div className="flex justify-between items-start">
                       <div className="flex items-center gap-3">
-                        <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shadow-sm shrink-0", asset.bgColor)}>
-                          {asset.icon}
+                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5 text-white">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                            <path d="M2 17l10 5 10-5"></path>
+                          </svg>
                         </div>
                         <div>
-                          <h3 className="text-sm font-black italic tracking-tight">{asset.symbol}</h3>
-                          <p className="text-[10px] font-bold text-muted-foreground leading-none">{asset.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="text-sm font-black italic tracking-tight">DeFi Vault Tabungan</h3>
+                            <Badge className="bg-primary/20 text-primary text-[7px] font-black uppercase h-3.5 px-1 border-none leading-none animate-pulse">On-Chain</Badge>
+                          </div>
+                          <p className="text-[9px] font-mono text-muted-foreground tracking-tighter mt-0.5">
+                            Alamat: {userData.walletAddress.substring(0, 6)}...{userData.walletAddress.substring(userData.walletAddress.length - 4)}
+                          </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-black italic tracking-tight">
+                        <p className="text-sm font-black italic tracking-tight text-primary">
                           {showBalance 
-                            ? asset.amount.toFixed(asset.decimals) 
+                            ? `${vaultBalanceEth.toFixed(6).replace(/\.?0+$/, "")} ETH` 
                             : '••••••'}
                         </p>
                         <p className="text-[10px] font-bold text-muted-foreground mt-0.5 opacity-70">
                           {showBalance 
-                            ? `≈ Rp${asset.valueIdr.toLocaleString('id-ID', { maximumFractionDigits: 0 })}` 
+                            ? `≈ Rp${vaultValueIdr.toLocaleString('id-ID', { maximumFractionDigits: 0 })}` 
                             : '••••••'}
                         </p>
                       </div>
                     </div>
 
-                    {/* Action Row */}
-                    <div className="flex gap-2 pl-12 pt-0.5">
-                      <Button 
-                        variant="outline" 
-                        className="h-7 px-4 bg-muted/40 border-none text-[9px] font-black italic rounded-md shadow-none uppercase"
-                        onClick={(e) => { e.stopPropagation(); router.push('/crypto/receive'); }}
-                      >
-                        Terima
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        className="h-7 px-4 bg-muted/40 border-none text-[9px] font-black italic rounded-md shadow-none uppercase"
-                        onClick={(e) => { e.stopPropagation(); router.push('/crypto/send'); }}
-                      >
-                        Kirim
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        className="h-7 px-4 bg-muted/40 border-none text-[9px] font-black italic rounded-md shadow-none uppercase"
-                        onClick={(e) => { e.stopPropagation(); router.push(`/crypto/trade/${asset.symbol.toLowerCase()}`); }}
-                      >
-                        Dagang
-                      </Button>
+                    {/* Accrued Staking Yield Ticking Counter */}
+                    <div className="p-3 bg-primary/5 rounded-xl border border-primary/10 flex justify-between items-center">
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-primary uppercase">Yield Terkumpul (ALX)</span>
+                        <span className="text-[6px] text-muted-foreground uppercase tracking-widest mt-0.5">Ticking Real-Time</span>
+                      </div>
+                      <p className="text-sm font-black italic text-primary animate-pulse font-mono leading-none">
+                        {showBalance 
+                          ? (vaultStakingYieldAlx > 0 ? vaultStakingYieldAlx.toFixed(8) : "0.00000000")
+                          : "••••••••"} ALX
+                      </p>
                     </div>
-                  </div>
-                ))
-              )}
 
-              {/* Tambah Aset */}
-              <button 
-                onClick={() => router.push('/crypto/buy')}
-                className="w-full flex items-center gap-3 px-1 py-3 rounded-xl hover:bg-muted/50 transition-colors group"
-              >
-                <div className="w-10 h-10 rounded-full border-2 border-dashed border-border flex items-center justify-center group-hover:border-primary transition-colors">
-                  <span className="text-xl font-black text-muted-foreground group-hover:text-primary">+</span>
-                </div>
-                <span className="text-[11px] font-black text-muted-foreground uppercase italic group-hover:text-foreground transition-colors">
-                  Beli / Terima Aset Kripto
-                </span>
-              </button>
-            </div>
-          )}
+                    {stakingClaimError && (
+                      <div className="p-2.5 rounded-lg bg-rose-500/10 text-rose-500 text-[8px] font-bold uppercase border border-rose-500/20 leading-tight">
+                        Error: {stakingClaimError}
+                      </div>
+                    )}
 
-          {/* === TAB: IDR FIAT === */}
-          {activeSubTab === 'IDR Fiat' && (
-            <div className="space-y-6 pb-10 animate-in fade-in duration-300">
-              {/* Saldo IDR */}
-              <div className="p-5 rounded-2xl bg-muted/30 border border-border space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full gold-gradient flex items-center justify-center shadow-sm">
-                      <LogoIcon className="text-white w-5 h-5" />
+                    {stakingClaimSuccess && (
+                      <div className="p-2.5 rounded-lg bg-green-500/10 text-green-600 text-[8px] font-bold uppercase border border-green-500/20 leading-tight">
+                        Klaim Berhasil! Token ALX telah ditambahkan ke saldo Anda.
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/50">
+                      <Button 
+                        variant="outline" 
+                        className="h-8 bg-primary/10 hover:bg-primary/20 text-primary border-none rounded-xl font-black uppercase text-[9px] italic shadow-none"
+                        onClick={() => router.push('/crypto/receive?asset=ETH')}
+                      >
+                        Tabung (Deposit)
+                      </Button>
+                      <Button 
+                        disabled={isStakingClaiming || vaultStakingYieldAlx < 0.0001}
+                        onClick={claimStakingYield}
+                        className="h-8 gold-gradient text-white border-none rounded-xl font-black uppercase text-[9px] italic shadow-none active:scale-95 transition-all"
+                      >
+                        {isStakingClaiming ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          "Klaim Yield (ALX)"
+                        )}
+                      </Button>
                     </div>
-                    <div>
-                      <h3 className="text-sm font-black italic">IDR</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground">Rupiah Indonesia</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-black italic">
-                      {showBalance ? `Rp${totalIdrBalance.toLocaleString('id-ID')}` : '••••••••'}
+
+                    <p className="text-[7px] text-rose-500 font-bold uppercase leading-normal italic text-center opacity-85 mt-1">
+                      * Setoran baru / penarikan ETH akan mereset durasi yield. Klaim ALX terlebih dahulu!
                     </p>
-                    <Badge className="mt-1 bg-green-500/10 text-green-600 border-none text-[8px] font-black uppercase h-4 px-2">
-                      Terverifikasi
-                    </Badge>
+                  </div>
+                )}
+
+                {portfolioAssets.length === 0 && !userData?.walletAddress ? (
+                  <div className="py-16 flex flex-col items-center text-center opacity-50">
+                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                      <Wallet className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-black italic uppercase tracking-wide">Belum Ada Aset Kripto</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Beli atau terima kripto untuk memulai</p>
+                    <Button 
+                      className="mt-4 h-9 px-6 gold-gradient text-white border-none rounded-xl font-black uppercase text-[10px] italic tracking-widest"
+                      onClick={() => router.push('/crypto/buy')}
+                    >
+                      Beli Sekarang
+                    </Button>
+                  </div>
+                ) : (
+                  portfolioAssets.length === 0 && userData?.walletAddress ? null :
+                  portfolioAssets.map((asset) => (
+                    <div 
+                      key={asset.symbol} 
+                      className="space-y-3 px-1 group cursor-pointer"
+                      onClick={() => router.push(`/crypto/market/${asset.symbol.toLowerCase()}`)}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shadow-sm shrink-0", asset.bgColor)}>
+                            {asset.icon}
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-black italic tracking-tight">{asset.symbol}</h3>
+                            <p className="text-[10px] font-bold text-muted-foreground leading-none">{asset.name}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-black italic tracking-tight">
+                            {showBalance 
+                              ? asset.amount.toFixed(asset.decimals) 
+                              : '••••••'}
+                          </p>
+                          <p className="text-[10px] font-bold text-muted-foreground mt-0.5 opacity-70">
+                            {showBalance 
+                              ? `≈ Rp${asset.valueIdr.toLocaleString('id-ID', { maximumFractionDigits: 0 })}` 
+                              : '••••••'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Action Row */}
+                      <div className="flex gap-2 pl-12 pt-0.5">
+                        <Button 
+                          variant="outline" 
+                          className="h-7 px-4 bg-muted/40 border-none text-[9px] font-black italic rounded-md shadow-none uppercase"
+                          onClick={(e) => { e.stopPropagation(); router.push('/crypto/receive'); }}
+                        >
+                          Terima
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="h-7 px-4 bg-muted/40 border-none text-[9px] font-black italic rounded-md shadow-none uppercase"
+                          onClick={(e) => { e.stopPropagation(); router.push('/crypto/send'); }}
+                        >
+                          Kirim
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="h-7 px-4 bg-muted/40 border-none text-[9px] font-black italic rounded-md shadow-none uppercase"
+                          onClick={(e) => { e.stopPropagation(); router.push(`/crypto/trade/${asset.symbol.toLowerCase()}`); }}
+                        >
+                          Dagang
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {/* Tambah Aset */}
+                <button 
+                  onClick={() => router.push('/crypto/buy')}
+                  className="w-full flex items-center gap-3 px-1 py-3 rounded-xl hover:bg-muted/50 transition-colors group"
+                >
+                  <div className="w-10 h-10 rounded-full border-2 border-dashed border-border flex items-center justify-center group-hover:border-primary transition-colors">
+                    <span className="text-xl font-black text-muted-foreground group-hover:text-primary">+</span>
+                  </div>
+                  <span className="text-[11px] font-black text-muted-foreground uppercase italic group-hover:text-foreground transition-colors">
+                    Beli / Terima Aset Kripto
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* === TAB: IDR FIAT === */}
+            {activeSubTab === 'IDR Fiat' && (
+              <div className="space-y-6 pb-10 animate-in fade-in duration-300">
+                {/* Saldo IDR */}
+                <div className="p-5 rounded-2xl bg-muted/30 border border-border space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full gold-gradient flex items-center justify-center shadow-sm">
+                        <LogoIcon className="text-white w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black italic">IDR</h3>
+                        <p className="text-[10px] font-bold text-muted-foreground">Rupiah Indonesia</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-black italic">
+                        {showBalance ? `Rp${totalIdrBalance.toLocaleString('id-ID')}` : '••••••••'}
+                      </p>
+                      <Badge className="mt-1 bg-green-500/10 text-green-600 border-none text-[8px] font-black uppercase h-4 px-2">
+                        Terverifikasi
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <Button 
+                      className="h-9 bg-primary text-white border-none rounded-xl font-black uppercase text-[10px] italic shadow-none"
+                      onClick={() => router.push('/?open=add_funds')}
+                    >
+                      <ArrowDownLeft className="w-3.5 h-3.5 mr-1.5" /> Top-Up
+                    </Button>
+                    <Button 
+                      className="h-9 bg-muted/80 text-foreground border-none rounded-xl font-black uppercase text-[10px] italic shadow-none"
+                      onClick={() => router.push('/withdraw')}
+                    >
+                      <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" /> Tarik
+                    </Button>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <Button 
-                    className="h-9 bg-primary text-white border-none rounded-xl font-black uppercase text-[10px] italic shadow-none"
-                    onClick={() => router.push('/?open=add_funds')}
-                  >
-                    <ArrowDownLeft className="w-3.5 h-3.5 mr-1.5" /> Top-Up
-                  </Button>
-                  <Button 
-                    className="h-9 bg-muted/80 text-foreground border-none rounded-xl font-black uppercase text-[10px] italic shadow-none"
-                    onClick={() => router.push('/withdraw')}
-                  >
-                    <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" /> Tarik
-                  </Button>
+
+                {/* Lihat Riwayat Lengkap */}
+                <button
+                  onClick={() => router.push('/transactions/history')}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <History className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-[11px] font-black uppercase italic text-muted-foreground group-hover:text-foreground">Lihat Riwayat Transaksi</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+                </button>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // ─── DESKTOP RENDERING ─────────────────────────────────────────────────────
+  return (
+    <TooltipProvider>
+      <div className="min-h-screen bg-background text-foreground flex font-body selection:bg-primary/30 w-full">
+        {/* SIDEBAR NAVIGATION */}
+        <Sidebar />
+
+        {/* MAIN CONTAINER */}
+        <main className="ml-64 flex-1 flex flex-col min-w-0 bg-background text-foreground">
+          {/* HEADER */}
+          <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 sticky top-0 z-40">
+            <div className="flex items-center gap-4">
+              <h2 className="text-xl font-black text-foreground uppercase italic tracking-tight">Portofolio Aset & Aktivitas</h2>
+              <Badge className="bg-primary/10 text-primary border-primary/20 px-3 h-5 rounded-full font-bold uppercase tracking-widest text-[8px]">
+                Ikhtisar & Akun
+              </Badge>
+            </div>
+            <div className="flex items-center gap-6">
+              <button className="p-2 hover:bg-muted rounded-full relative" onClick={() => router.back()}>
+                <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+              </button>
+              <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border">
+                <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-black italic text-[10px] uppercase">
+                  {userData?.name?.[0] || user?.email?.[0] || "U"}
                 </div>
               </div>
-
-              {/* Lihat Riwayat Lengkap */}
-              <button
-                onClick={() => router.push('/transactions/history')}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors group"
-              >
-                <div className="flex items-center gap-3">
-                  <History className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-[11px] font-black uppercase italic text-muted-foreground group-hover:text-foreground">Lihat Riwayat Transaksi</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
-              </button>
             </div>
-          )}
-        </div>
-      </main>
-    </div>
+          </header>
+
+          {/* CONTAINER CONTENT */}
+          <div className="p-8 space-y-8 max-w-[1200px] w-full mx-auto overflow-y-auto">
+            {/* Top Header Tabs */}
+            <div className="flex items-center justify-between border-b border-border/50 pb-2">
+              <div className="flex items-center gap-6">
+                {['Ringkasan', 'Pendanaan', 'Earn', 'Spot'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTopTab(tab)}
+                    className={cn(
+                      "text-sm font-black transition-all relative pb-2 uppercase tracking-wider",
+                      activeTopTab === tab 
+                        ? "text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2.5px] after:bg-primary" 
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-4 text-foreground opacity-80">
+                <BarChart3 className="w-5 h-5 cursor-pointer hover:text-primary transition-colors" />
+                <History 
+                  className="w-5 h-5 cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => router.push('/transactions/history')}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              {/* LEFT COLUMN: ESTIMATED BALANCE */}
+              <div className="lg:col-span-4 space-y-6">
+                <Card className="bg-card border border-border rounded-[2rem] p-6 space-y-6 shadow-sm">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <span className="text-[11px] font-black uppercase tracking-widest">Estimasi Total Nilai</span>
+                      <button onClick={() => setShowBalance(!showBalance)}>
+                        {showBalance 
+                          ? <Eye className="w-3.5 h-3.5 transition-colors hover:text-primary" />
+                          : <EyeOff className="w-3.5 h-3.5 text-primary" />
+                        }
+                      </button>
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <h1 className="text-3xl font-black tracking-tight italic text-foreground">
+                        {showBalance 
+                          ? `Rp${grandTotal.toLocaleString('id-ID', { maximumFractionDigits: 0 })}` 
+                          : '••••••••'}
+                      </h1>
+                      <span className="text-[12px] font-black italic text-muted-foreground uppercase pb-1">IDR</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-4 border-t border-border/50 text-[10px] font-bold text-muted-foreground uppercase">
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center gap-2"><Wallet className="w-3.5 h-3.5" /> Saldo Fiat IDR</span>
+                      <span className="font-black text-foreground">
+                        {showBalance ? `Rp${totalIdrBalance.toLocaleString('id-ID')}` : '••••••'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center gap-2"><LogoIcon className="w-3.5 h-3.5" /> Saldo Kripto & DeFi</span>
+                      <span className="font-black text-foreground">
+                        {showBalance ? `Rp${(totalCryptoValueIdr + vaultValueIdr).toLocaleString('id-ID', { maximumFractionDigits: 0 })}` : '••••••'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 pt-2">
+                    <Button 
+                      className="h-10 rounded-xl bg-primary text-primary-foreground font-black italic text-[10px] uppercase border-none"
+                      onClick={() => router.push('/?open=add_funds')}
+                    >
+                      Top-Up
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      className="h-10 rounded-xl bg-muted border-none font-black italic text-[10px] uppercase text-foreground hover:bg-muted/80"
+                      onClick={() => router.push('/crypto/send')}
+                    >
+                      Kirim
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      className="h-10 rounded-xl bg-muted border-none font-black italic text-[10px] uppercase text-foreground hover:bg-muted/80"
+                      onClick={() => router.push('/transfer')}
+                    >
+                      Transfer
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+
+              {/* RIGHT COLUMN: LIST OF ASSETS / DETAIL */}
+              <div className="lg:col-span-8 space-y-6">
+                <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                  <div className="flex gap-6">
+                    {['Kripto', 'IDR Fiat'].map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveSubTab(tab)}
+                        className={cn(
+                          "pb-2 text-sm font-black transition-all relative italic uppercase tracking-wider",
+                          activeSubTab === tab 
+                            ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2.5px] after:bg-primary" 
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-4 text-muted-foreground opacity-60">
+                    <Search className="w-5 h-5 cursor-pointer hover:text-primary transition-colors" />
+                    <Settings className="w-5 h-5 cursor-pointer hover:text-primary transition-colors" />
+                  </div>
+                </div>
+
+                {activeSubTab === 'Kripto' && (
+                  <div className="space-y-6 animate-in fade-in duration-300">
+                    {/* DeFi Vault Card */}
+                    {userData?.walletAddress && (
+                      <div className="p-6 rounded-2xl bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border border-primary/20 space-y-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5 text-white">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                                <path d="M2 17l10 5 10-5"></path>
+                              </svg>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <h3 className="text-sm font-black italic tracking-tight text-foreground">DeFi Vault Tabungan</h3>
+                                <Badge className="bg-primary/20 text-primary text-[7px] font-black uppercase h-3.5 px-1 border-none leading-none animate-pulse">On-Chain</Badge>
+                              </div>
+                              <p className="text-[9px] font-mono text-muted-foreground tracking-tighter mt-0.5">
+                                Alamat: {userData.walletAddress}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-black italic tracking-tight text-primary">
+                              {showBalance 
+                                ? `${vaultBalanceEth.toFixed(6).replace(/\.?0+$/, "")} ETH` 
+                                : '••••••'}
+                            </p>
+                            <p className="text-[10px] font-bold text-muted-foreground mt-0.5 opacity-70">
+                              {showBalance 
+                                ? `≈ Rp${vaultValueIdr.toLocaleString('id-ID', { maximumFractionDigits: 0 })}` 
+                                : '••••••'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Accrued Staking Yield Ticking Counter */}
+                        <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 flex justify-between items-center">
+                          <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-primary uppercase">Yield Terkumpul (ALX)</span>
+                            <span className="text-[6px] text-muted-foreground uppercase tracking-widest mt-0.5">Ticking Real-Time</span>
+                          </div>
+                          <p className="text-sm font-black italic text-primary animate-pulse font-mono leading-none">
+                            {showBalance 
+                              ? (vaultStakingYieldAlx > 0 ? vaultStakingYieldAlx.toFixed(8) : "0.00000000")
+                              : "••••••••"} ALX
+                          </p>
+                        </div>
+
+                        {stakingClaimError && (
+                          <div className="p-2.5 rounded-lg bg-rose-500/10 text-rose-500 text-[8px] font-bold uppercase border border-rose-500/20 leading-tight">
+                            Error: {stakingClaimError}
+                          </div>
+                        )}
+
+                        {stakingClaimSuccess && (
+                          <div className="p-2.5 rounded-lg bg-green-500/10 text-green-600 text-[8px] font-bold uppercase border border-green-500/20 leading-tight">
+                            Klaim Berhasil! Token ALX telah ditambahkan ke saldo Anda.
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/40">
+                          <Button 
+                            variant="outline" 
+                            className="h-9 bg-primary/10 hover:bg-primary/20 text-primary border-none rounded-xl font-black uppercase text-[10px] italic shadow-none"
+                            onClick={() => router.push('/crypto/receive?asset=ETH')}
+                          >
+                            Tabung (Deposit)
+                          </Button>
+                          <Button 
+                            disabled={isStakingClaiming || vaultStakingYieldAlx < 0.0001}
+                            onClick={claimStakingYield}
+                            className="h-9 gold-gradient text-white border-none rounded-xl font-black uppercase text-[10px] italic shadow-none active:scale-95 transition-all"
+                          >
+                            {isStakingClaiming ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              "Klaim Yield (ALX)"
+                            )}
+                          </Button>
+                        </div>
+
+                        <p className="text-[8px] text-rose-500 font-bold uppercase leading-normal italic text-center opacity-85 mt-1">
+                          * Setoran baru / penarikan ETH akan mereset durasi yield. Klaim ALX terlebih dahulu!
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="space-y-4">
+                      {portfolioAssets.length === 0 && !userData?.walletAddress ? (
+                        <div className="py-16 flex flex-col items-center text-center opacity-50 bg-card rounded-2xl border border-border">
+                          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                            <Wallet className="w-8 h-8 text-muted-foreground" />
+                          </div>
+                          <p className="text-sm font-black italic uppercase tracking-wide">Belum Ada Aset Kripto</p>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Beli atau terima kripto untuk memulai</p>
+                          <Button 
+                            className="mt-4 h-9 px-6 gold-gradient text-white border-none rounded-xl font-black uppercase text-[10px] italic tracking-widest"
+                            onClick={() => router.push('/crypto/buy')}
+                          >
+                            Beli Sekarang
+                          </Button>
+                        </div>
+                      ) : (
+                        portfolioAssets.map((asset) => (
+                          <div 
+                            key={asset.symbol} 
+                            className="p-5 rounded-2xl bg-card border border-border flex justify-between items-center group cursor-pointer hover:border-primary/50 transition-all"
+                            onClick={() => router.push(`/crypto/market/${asset.symbol.toLowerCase()}`)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shadow-sm shrink-0", asset.bgColor)}>
+                                {asset.icon}
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-black italic tracking-tight text-foreground">{asset.symbol}</h3>
+                                <p className="text-[10px] font-bold text-muted-foreground leading-none">{asset.name}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-6">
+                              <div className="text-right">
+                                <p className="text-sm font-black italic tracking-tight text-foreground">
+                                  {showBalance 
+                                    ? asset.amount.toFixed(asset.decimals) 
+                                    : '••••••'}
+                                </p>
+                                <p className="text-[10px] font-bold text-muted-foreground mt-0.5 opacity-70">
+                                  {showBalance 
+                                    ? `≈ Rp${asset.valueIdr.toLocaleString('id-ID', { maximumFractionDigits: 0 })}` 
+                                    : '••••••'}
+                                </p>
+                              </div>
+
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  className="h-8 px-3 bg-muted border-none text-[9px] font-black italic rounded-md shadow-none uppercase text-foreground hover:bg-muted/80"
+                                  onClick={(e) => { e.stopPropagation(); router.push('/crypto/receive'); }}
+                                >
+                                  Terima
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  className="h-8 px-3 bg-muted border-none text-[9px] font-black italic rounded-md shadow-none uppercase text-foreground hover:bg-muted/80"
+                                  onClick={(e) => { e.stopPropagation(); router.push('/crypto/send'); }}
+                                >
+                                  Kirim
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  className="h-8 px-3 bg-muted border-none text-[9px] font-black italic rounded-md shadow-none uppercase text-foreground hover:bg-muted/80"
+                                  onClick={(e) => { e.stopPropagation(); router.push(`/crypto/trade/${asset.symbol.toLowerCase()}`); }}
+                                >
+                                  Dagang
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <button 
+                      onClick={() => router.push('/crypto/buy')}
+                      className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-card border-2 border-dashed border-border hover:border-primary transition-all group"
+                    >
+                      <div className="w-10 h-10 rounded-full border-2 border-dashed border-border flex items-center justify-center group-hover:border-primary transition-colors">
+                        <span className="text-xl font-black text-muted-foreground group-hover:text-primary">+</span>
+                      </div>
+                      <span className="text-[11px] font-black text-muted-foreground uppercase italic group-hover:text-foreground transition-colors">
+                        Beli / Terima Aset Kripto Baru
+                      </span>
+                    </button>
+                  </div>
+                )}
+
+                {activeSubTab === 'IDR Fiat' && (
+                  <div className="space-y-6 animate-in fade-in duration-300">
+                    <div className="p-6 rounded-2xl bg-card border border-border flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full gold-gradient flex items-center justify-center shadow-sm">
+                          <LogoIcon className="text-white w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black italic text-foreground">IDR</h3>
+                          <p className="text-[10px] font-bold text-muted-foreground">Rupiah Indonesia</p>
+                        </div>
+                      </div>
+                      <div className="text-right flex items-center gap-6">
+                        <div>
+                          <p className="text-lg font-black italic text-foreground">
+                            {showBalance ? `Rp${totalIdrBalance.toLocaleString('id-ID')}` : '••••••••'}
+                          </p>
+                          <Badge className="mt-1 bg-green-500/10 text-green-600 border-none text-[8px] font-black uppercase h-4 px-2">
+                            Terverifikasi
+                          </Badge>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button 
+                            className="h-9 bg-primary text-white border-none rounded-xl font-black uppercase text-[10px] italic shadow-none"
+                            onClick={() => router.push('/?open=add_funds')}
+                          >
+                            <ArrowDownLeft className="w-3.5 h-3.5 mr-1.5" /> Top-Up
+                          </Button>
+                          <Button 
+                            className="h-9 bg-muted text-foreground border-none rounded-xl font-black uppercase text-[10px] italic shadow-none hover:bg-muted/80"
+                            onClick={() => router.push('/withdraw')}
+                          >
+                            <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" /> Tarik
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => router.push('/transactions/history')}
+                      className="w-full flex items-center justify-between px-6 py-4 rounded-2xl bg-card border border-border hover:border-primary transition-all group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <History className="w-5 h-5 text-muted-foreground" />
+                        <span className="text-[11px] font-black uppercase italic text-muted-foreground group-hover:text-foreground">Lihat Riwayat Lengkap Aktivitas</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </TooltipProvider>
   );
 }

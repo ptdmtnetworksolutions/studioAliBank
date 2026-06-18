@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 import { useToast } from "@/hooks/use-toast";
 import { useVaultBalance } from "@/hooks/useVaultBalance";
+import { useVaultStaking } from "@/hooks/useVaultStaking";
 
 const getIconUrl = (symbol: string) => {
   const s = symbol.toLowerCase();
@@ -150,8 +151,11 @@ function MobileHomePageContent() {
     return userData?.walletAddress || null;
   }, [userData]);
 
-  // Ambil saldo tabungan vault on-chain milik user
-  const { onChainBalance: vaultBalanceEth } = useVaultBalance(activeWalletAddress);
+  // Ambil saldo tabungan vault on-chain dan data yield milik user
+  const {
+    stakedEth: vaultBalanceEth,
+    accruedRewards: vaultStakingYieldAlx
+  } = useVaultStaking(activeWalletAddress, user?.uid || null);
 
   // Otomatis sinkronkan deposit on-chain dari external wallet
   useEffect(() => {
@@ -553,7 +557,7 @@ function MobileHomePageContent() {
                      symbol="ETH" 
                      amount={vaultBalanceEth} 
                      usdValue={vaultBalanceEth * (marketCoins.find(c => c.symbol === "ETH")?.price ?? 2400)} 
-                     change="+3.73%"
+                     change={vaultStakingYieldAlx > 0 ? `+${vaultStakingYieldAlx.toFixed(6)} ALX (Yield)` : "+0.000000 ALX (Yield)"}
                      isUp={true}
                      icon={() => (
                        <div className="w-full h-full flex items-center justify-center p-1 font-black text-xs">
@@ -564,7 +568,7 @@ function MobileHomePageContent() {
                          </svg>
                        </div>
                      )} 
-                     color="bg-primary text-white font-bold"
+                     color="bg-primary text-white font-bold animate-pulse"
                      networkBadge="DEFI"
                    />
                  )}
