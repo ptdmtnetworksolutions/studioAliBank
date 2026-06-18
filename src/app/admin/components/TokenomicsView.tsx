@@ -44,12 +44,12 @@ import {
   Cell, 
   Tooltip as RechartsTooltip 
 } from "recharts";
-import { BrowserProvider } from "ethers";
+import { BrowserProvider, ethers } from "ethers";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, updateDoc, setDoc } from "firebase/firestore";
+import { doc, updateDoc, setDoc, getDoc } from "firebase/firestore";
 
 export function TokenomicsView({ 
   totalSupply, 
@@ -59,6 +59,7 @@ export function TokenomicsView({
   isPaused, 
   isLoadingAlix, 
   isNodeError,
+  contractOwner,
   mintALX, 
   burnALX, 
   togglePause,
@@ -68,7 +69,74 @@ export function TokenomicsView({
   const db = useFirestore();
   const [mintAmount, setMintAmount] = useState("");
   const [burnAmountInput, setBurnAmountInput] = useState("");
+  const [newOwnerInput, setNewOwnerInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);
+
+  const handleTransferOwnership = async () => {
+    if (typeof window === 'undefined' || !window.ethereum) {
+      toast({ variant: "destructive", title: "MetaMask Tidak Terdeteksi", description: "Gunakan browser dengan ekstensi Web3." });
+      return;
+    }
+
+    if (!ethers.isAddress(newOwnerInput)) {
+      toast({ variant: "destructive", title: "Alamat Tidak Valid", description: "Alamat dompet baru tidak valid secara sintaksis." });
+      return;
+    }
+
+    setIsTransferring(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum as any);
+      const network = await provider.getNetwork();
+      
+      // Chain ID untuk Polygon Mainnet adalah 137
+      if (network.chainId !== BigInt(137)) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x89' }], // 137 in hex
+          });
+        } catch (switchError: any) {
+          throw new Error("Silakan ganti jaringan MetaMask Anda ke Polygon Mainnet.");
+        }
+      }
+
+      const signer = await provider.getSigner();
+      const signerAddress = await signer.getAddress();
+
+      if (contractOwner && signerAddress.toLowerCase() !== contractOwner.toLowerCase()) {
+        throw new Error(`Koneksi dompet Anda (${signerAddress.substring(0, 6)}...) tidak cocok dengan Owner saat ini (${contractOwner.substring(0, 6)}...).`);
+      }
+
+      let dynamicAddress = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
+      try {
+        const keySnap = await getDoc(doc(db, "system", "public_keys"));
+        if (keySnap.exists()) {
+          dynamicAddress = keySnap.data().alxContractAddress || dynamicAddress;
+        }
+      } catch (e) {}
+
+      const contract = new ethers.Contract(dynamicAddress, [
+        "function transferOwnership(address newOwner) public"
+      ], signer);
+
+      const tx = await contract.transferOwnership(newOwnerInput);
+      toast({ title: "Transaksi Dikirim", description: "Menunggu konfirmasi blockchain..." });
+      await tx.wait();
+
+      toast({ title: "Kepemilikan Dialihkan", description: `Kontrak ALX berhasil dialihkan ke ${newOwnerInput.substring(0, 8)}...` });
+      setNewOwnerInput("");
+      
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
+    } catch (err: any) {
+      console.error("Transfer ownership error:", err);
+      toast({ variant: "destructive", title: "Gagal Mengalihkan", description: err.message || "Pastikan saldo GAS Anda mencukupi dan Anda memiliki otoritas." });
+    } finally {
+      setIsTransferring(false);
+    }
+  };
   
   // PAGINATION STATE
   const [currentPage, setCurrentPage] = useState(1);
@@ -300,6 +368,54 @@ export function TokenomicsView({
           </div>
         </Card>
       </div>
+
+      {/* PENGALIHAN KEPEMILIKAN SMART CONTRACT */}
+      <Card className="border-none bg-card rounded-[3rem] p-10 space-y-6 shadow-sm border border-border/50">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 shadow-lg">
+            <Lock className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className="text-xl font-black italic uppercase tracking-tight">Pengalihan Kepemilikan Kontrak ALX</h4>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase mt-0.5">Pengalihan hak akses Owner tertinggi di Polygon Mainnet</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="lg:col-span-4 space-y-4">
+            <div className="p-5 rounded-2xl bg-muted/40 border border-border space-y-2">
+              <span className="text-[8px] font-black uppercase text-muted-foreground tracking-wider block">Alamat Owner Saat Ini</span>
+              <p className="text-[10px] font-mono font-bold break-all opacity-80">{contractOwner || "Memuat..."}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
+              <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+                Hati-hati! Pemindahan kepemilikan bersifat permanen. Hanya dompet pemilik saat ini yang dapat memanggil fungsi ini.
+              </p>
+            </div>
+          </div>
+
+          <div className="lg:col-span-8 space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Alamat Dompet Pemilik Baru (newOwner)</label>
+              <Input 
+                type="text" 
+                placeholder="Contoh: 0x... (Alamat MetaMask / Cold Wallet baru)" 
+                value={newOwnerInput} 
+                onChange={(e) => setNewOwnerInput(e.target.value)}
+                className="h-14 bg-muted/50 border-none rounded-2xl font-bold text-xs focus:ring-2 focus:ring-primary/20" 
+              />
+            </div>
+            <Button 
+              onClick={handleTransferOwnership} 
+              disabled={isTransferring || !newOwnerInput || isNodeError}
+              className="w-full h-14 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-black uppercase italic tracking-widest shadow-lg border-none active:scale-[0.98] transition-transform"
+            >
+              {isTransferring ? <Loader2 className="animate-spin" /> : "ALIHKAN KEPEMILIKAN"}
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       <section className="space-y-6">
         <div className="flex items-center justify-between px-1">

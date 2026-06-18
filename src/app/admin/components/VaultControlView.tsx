@@ -40,8 +40,11 @@ export function VaultControlView({ auditLogs }: any) {
   const [onChainEth, setOnChainEth] = useState<string>("0");
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
+  const [contractOwner, setContractOwner] = useState<string>("");
+  const [newOwnerInput, setNewOwnerInput] = useState("");
   const [isExecuting, setIsExecuting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);
   const [nodeError, setNodeError] = useState<string | null>(null);
 
   const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
@@ -58,11 +61,14 @@ export function VaultControlView({ auditLogs }: any) {
     try {
       const provider = new JsonRpcProvider(ETH_RPC);
       const contract = new ethers.Contract(VAULT_CONTRACT, AliBankVaultABI, provider);
-      const balance = await contract.getTotalVaultBalance().catch(async () => {
-        // Fallback to raw balance if function fails
-        return await provider.getBalance(VAULT_CONTRACT);
-      });
+      const [balance, owner] = await Promise.all([
+        contract.getTotalVaultBalance().catch(async () => {
+          return await provider.getBalance(VAULT_CONTRACT);
+        }),
+        contract.owner().catch(() => "")
+      ]);
       setOnChainEth(formatEther(balance));
+      setContractOwner(owner);
     } catch (err: any) {
       console.error("Sync failed:", err);
       setNodeError("Gagal terhubung ke RPC Node. Pastikan Alchemy URL benar.");
@@ -74,6 +80,63 @@ export function VaultControlView({ auditLogs }: any) {
   useEffect(() => {
     syncVaultBalance();
   }, [syncVaultBalance]);
+
+  const handleTransferOwnership = async () => {
+    if (typeof window === 'undefined' || !window.ethereum) {
+      toast({ variant: "destructive", title: "MetaMask Tidak Terdeteksi", description: "Gunakan browser dengan ekstensi Web3." });
+      return;
+    }
+
+    if (!ethers.isAddress(newOwnerInput)) {
+      toast({ variant: "destructive", title: "Alamat Tidak Valid", description: "Alamat dompet baru tidak valid secara sintaksis." });
+      return;
+    }
+
+    setIsTransferring(true);
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum as any);
+      const network = await provider.getNetwork();
+      
+      // Chain ID untuk Ethereum Mainnet adalah 1
+      if (network.chainId !== BigInt(1)) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x1' }], // 1 in hex
+          });
+        } catch (switchError: any) {
+          throw new Error("Silakan ganti jaringan MetaMask Anda ke Ethereum Mainnet.");
+        }
+      }
+
+      const signer = await provider.getSigner();
+      const signerAddress = await signer.getAddress();
+
+      if (contractOwner && signerAddress.toLowerCase() !== contractOwner.toLowerCase()) {
+        throw new Error(`Koneksi dompet Anda (${signerAddress.substring(0, 6)}...) tidak cocok dengan Owner saat ini (${contractOwner.substring(0, 6)}...).`);
+      }
+
+      const contract = new ethers.Contract(VAULT_CONTRACT, [
+        "function transferOwnership(address newOwner) public"
+      ], signer);
+
+      const tx = await contract.transferOwnership(newOwnerInput);
+      toast({ title: "Transaksi Dikirim", description: "Menunggu konfirmasi blockchain..." });
+      await tx.wait();
+
+      toast({ title: "Kepemilikan Dialihkan", description: `Brankas ETH berhasil dialihkan ke ${newOwnerInput.substring(0, 8)}...` });
+      setNewOwnerInput("");
+      
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
+    } catch (err: any) {
+      console.error("Transfer ownership error:", err);
+      toast({ variant: "destructive", title: "Gagal Mengalihkan", description: err.message || "Pastikan saldo GAS Anda mencukupi dan Anda memiliki otoritas." });
+    } finally {
+      setIsTransferring(false);
+    }
+  };
 
   const handleWithdraw = async () => {
     if (!user || isExecuting || !amount) return;
@@ -215,6 +278,54 @@ export function VaultControlView({ auditLogs }: any) {
           </Button>
         </Card>
       </div>
+
+      {/* PENGALIHAN KEPEMILIKAN SMART CONTRACT */}
+      <Card className="border-none bg-card rounded-[3rem] p-10 space-y-6 shadow-sm border border-border/50">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 shadow-lg">
+            <Lock className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className="text-xl font-black italic uppercase tracking-tight">Pengalihan Kepemilikan Brankas ETH</h4>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase mt-0.5">Pengalihan hak akses Owner tertinggi di Ethereum Mainnet</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="lg:col-span-4 space-y-4">
+            <div className="p-5 rounded-2xl bg-muted/40 border border-border space-y-2">
+              <span className="text-[8px] font-black uppercase text-muted-foreground tracking-wider block">Alamat Owner Saat Ini</span>
+              <p className="text-[10px] font-mono font-bold break-all opacity-80">{contractOwner || "Memuat..."}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex gap-3">
+              <Info className="w-5 h-5 text-amber-500 shrink-0" />
+              <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+                Hati-hati! Pemindahan kepemilikan bersifat permanen. Hanya dompet pemilik saat ini yang dapat memanggil fungsi ini.
+              </p>
+            </div>
+          </div>
+
+          <div className="lg:col-span-8 space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-muted-foreground ml-2">Alamat Dompet Pemilik Baru (newOwner)</label>
+              <Input 
+                type="text" 
+                placeholder="Contoh: 0x... (Alamat MetaMask / Cold Wallet baru)" 
+                value={newOwnerInput} 
+                onChange={(e) => setNewOwnerInput(e.target.value)}
+                className="h-14 bg-muted/50 border-none rounded-2xl font-bold text-xs focus:ring-2 focus:ring-primary/20" 
+              />
+            </div>
+            <Button 
+              onClick={handleTransferOwnership} 
+              disabled={isTransferring || !newOwnerInput || !!nodeError}
+              className="w-full h-14 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-black uppercase italic tracking-widest shadow-lg border-none active:scale-[0.98] transition-transform"
+            >
+              {isTransferring ? <Loader2 className="animate-spin" /> : "ALIHKAN KEPEMILIKAN"}
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       <section className="space-y-6">
         <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-3">

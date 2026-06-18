@@ -25,6 +25,7 @@ export function useAlixCoin() {
   const [isPaused, setIsPaused]                 = useState<boolean>(false);
   const [isLoading, setIsLoading]               = useState<boolean>(true);
   const [isNodeError, setIsNodeError]           = useState<boolean>(false);
+  const [contractOwner, setContractOwner]       = useState<string>('');
 
   const fetchData = useCallback(async () => {
     let dynamicRpc = "";
@@ -65,12 +66,13 @@ export function useAlixCoin() {
         
         const contract = new ethers.Contract(dynamicAddress, AlixCoinABI, provider);
 
-        const [supply, max, remaining, rate, paused] = await Promise.all([
+        const [supply, max, remaining, rate, paused, ownerAddress] = await Promise.all([
           contract.totalSupply(),
           contract.MAX_SUPPLY(),
           contract.remainingMintable(),
           contract.circulationRate(),
           contract.paused(),
+          contract.owner(),
         ]);
 
         setTotalSupply(ethers.formatEther(supply));
@@ -78,6 +80,7 @@ export function useAlixCoin() {
         setRemaining(ethers.formatEther(remaining));
         setCirculationRate(Number(rate) / 100);
         setIsPaused(paused);
+        setContractOwner(ownerAddress);
         
         success = true;
         setIsNodeError(false);
@@ -177,6 +180,7 @@ export function useAlixCoin() {
     isPaused,
     isLoading,
     isNodeError,
+    contractOwner,
     mintALX,
     burnALX,
     togglePause,

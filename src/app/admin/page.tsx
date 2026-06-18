@@ -79,6 +79,7 @@ function AdminContent() {
     isPaused,
     isLoading: isLoadingAlix,
     isNodeError,
+    contractOwner,
     mintALX,
     burnALX,
     togglePause,
@@ -300,6 +301,7 @@ function AdminContent() {
               isPaused={isPaused}
               isLoadingAlix={isLoadingAlix}
               isNodeError={isNodeError}
+              contractOwner={contractOwner}
               mintALX={mintALX}
               burnALX={burnALX}
               togglePause={togglePause}
