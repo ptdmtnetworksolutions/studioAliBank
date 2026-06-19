@@ -69,6 +69,7 @@ function APIKeysContent() {
     midtransServerKey: "",
     ipaymuVa: "",
     ipaymuApiKey: "",
+    ipaymuSandbox: false,
     etherscanApiKey: "",
     ethereumRpcUrl: "",
     polygonRpcUrl: "",
@@ -95,6 +96,7 @@ function APIKeysContent() {
         midtransServerKey: storedKeys.midtransServerKey || "",
         ipaymuVa: storedKeys.ipaymuVa || "",
         ipaymuApiKey: storedKeys.ipaymuApiKey || "",
+        ipaymuSandbox: storedKeys.ipaymuSandbox ?? false,
         etherscanApiKey: storedKeys.etherscanApiKey || "",
         ethereumRpcUrl: storedKeys.ethereumRpcUrl || "",
         polygonRpcUrl: storedKeys.polygonRpcUrl || "",
@@ -120,12 +122,33 @@ function APIKeysContent() {
     setIsSaving(true);
 
     const docRef = doc(db, "system", "api_keys");
-    
-    setDoc(docRef, {
-      ...keys,
-      updatedAt: serverTimestamp(),
-      updatedBy: user?.email
-    }, { merge: true })
+    const publicDocRef = doc(db, "system", "public_keys");
+
+    const publicKeys = {
+      infuraProjectId: keys.infuraProjectId,
+      infuraGasApiUrl: keys.infuraGasApiUrl,
+      paypalClientId: keys.paypalClientId,
+      midtransClientKey: keys.midtransClientKey,
+      ipaymuVa: keys.ipaymuVa,
+      ipaymuSandbox: keys.ipaymuSandbox,
+      polygonRpcUrl: keys.polygonRpcUrl,
+      ethereumRpcUrl: keys.ethereumRpcUrl,
+      alxContractAddress: keys.alxContractAddress,
+      vaultContractAddress: keys.vaultContractAddress,
+    };
+
+    Promise.all([
+      setDoc(docRef, {
+        ...keys,
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.email
+      }, { merge: true }),
+      setDoc(publicDocRef, {
+        ...publicKeys,
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.email
+      }, { merge: true })
+    ])
       .then(() => {
         toast({ 
           title: "Vault Diperbarui", 
@@ -345,7 +368,7 @@ function APIKeysContent() {
                   <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black italic uppercase px-2 h-5">IDR Gateway</Badge>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <KeyField 
                     label="iPaymu Virtual Account (VA)" 
                     icon={Building2} 
@@ -363,6 +386,25 @@ function APIKeysContent() {
                     show={showKeys['ipaymu_key']}
                     onToggle={() => toggleShow('ipaymu_key')}
                   />
+                  <div className="md:col-span-2 flex flex-col space-y-3">
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">iPaymu Environment Mode</label>
+                    <div className="flex bg-white/5 p-1 rounded-2xl w-full max-w-[300px] border border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => setKeys({...keys, ipaymuSandbox: false})}
+                        className={`flex-1 py-2 text-[10px] font-black uppercase italic rounded-xl transition-all ${!keys.ipaymuSandbox ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-white"}`}
+                      >
+                        Production
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setKeys({...keys, ipaymuSandbox: true})}
+                        className={`flex-1 py-2 text-[10px] font-black uppercase italic rounded-xl transition-all ${keys.ipaymuSandbox ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-white"}`}
+                      >
+                        Sandbox
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </section>
 

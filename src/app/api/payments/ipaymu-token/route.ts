@@ -19,13 +19,14 @@ async function getIpaymuCredentials() {
       const data = snap.data();
       return {
         ipaymuVa: data?.ipaymuVa || '',
-        ipaymuApiKey: data?.ipaymuApiKey || ''
+        ipaymuApiKey: data?.ipaymuApiKey || '',
+        ipaymuSandbox: data?.ipaymuSandbox ?? false
       };
     }
   } catch (e: any) {
     console.warn('[iPaymu Route] Admin SDK unavailable:', e?.code || e?.message?.slice(0, 80));
   }
-  return { ipaymuVa: '', ipaymuApiKey: '' };
+  return { ipaymuVa: '', ipaymuApiKey: '', ipaymuSandbox: false };
 }
 
 export async function POST(request: NextRequest) {
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Parameter tidak lengkap.' }, { status: 400 });
     }
 
-    const { ipaymuVa, ipaymuApiKey } = await getIpaymuCredentials();
+    const { ipaymuVa, ipaymuApiKey, ipaymuSandbox } = await getIpaymuCredentials();
     if (!ipaymuVa || !ipaymuApiKey) {
       return NextResponse.json(
         { error: 'Kredensial iPaymu belum dikonfigurasi di Admin panel.' },
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isProduction = !ipaymuVa.startsWith('1179') && !ipaymuVa.startsWith('11');
+    const isProduction = !ipaymuSandbox;
     const ipaymuUrl = isProduction
       ? 'https://my.ipaymu.com/api/v2/payment'
       : 'https://sandbox.ipaymu.com/api/v2/payment';
@@ -96,9 +97,11 @@ export async function POST(request: NextRequest) {
     });
 
     const data = await response.json();
+    const responseStatus = data.Status !== undefined ? data.Status : data.status;
+    const responseMessage = data.Message !== undefined ? data.Message : data.message;
 
-    if (!response.ok || data.status !== 200) {
-      const errMsg = data.message || `iPaymu error (${response.status})`;
+    if (!response.ok || responseStatus !== 200) {
+      const errMsg = responseMessage || `iPaymu error (${response.status})`;
       console.error('[iPaymu Route] API error:', errMsg);
       return NextResponse.json({ error: errMsg }, { status: response.status === 200 ? 400 : response.status });
     }

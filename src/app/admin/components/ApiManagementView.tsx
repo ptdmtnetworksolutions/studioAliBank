@@ -48,6 +48,7 @@ export function ApiManagementView({ storedKeys }: any) {
     midtransServerKey: "",
     ipaymuVa: "",
     ipaymuApiKey: "",
+    ipaymuSandbox: false,
     etherscanApiKey: "",
     ethereumRpcUrl: "",
     polygonRpcUrl: "",
@@ -71,6 +72,7 @@ export function ApiManagementView({ storedKeys }: any) {
         midtransServerKey: storedKeys.midtransServerKey || "",
         ipaymuVa: storedKeys.ipaymuVa || "",
         ipaymuApiKey: storedKeys.ipaymuApiKey || "",
+        ipaymuSandbox: storedKeys.ipaymuSandbox ?? false,
         etherscanApiKey: storedKeys.etherscanApiKey || "",
         ethereumRpcUrl: storedKeys.ethereumRpcUrl || "",
         polygonRpcUrl: storedKeys.polygonRpcUrl || "",
@@ -94,6 +96,8 @@ export function ApiManagementView({ storedKeys }: any) {
       infuraGasApiUrl: keys.infuraGasApiUrl,
       paypalClientId: keys.paypalClientId,
       midtransClientKey: keys.midtransClientKey,
+      ipaymuVa: keys.ipaymuVa,
+      ipaymuSandbox: keys.ipaymuSandbox,
       polygonRpcUrl: keys.polygonRpcUrl,
       ethereumRpcUrl: keys.ethereumRpcUrl,
       alxContractAddress: keys.alxContractAddress,
@@ -280,6 +284,25 @@ export function ApiManagementView({ storedKeys }: any) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <KeyField label="iPaymu Virtual Account (VA)" icon={Building2} value={keys.ipaymuVa} placeholder="117900..." onChange={(v:any) => setKeys({...keys, ipaymuVa: v})} show={true} />
               <KeyField label="iPaymu API Key" icon={Lock} value={keys.ipaymuApiKey} placeholder="QbGcoO..." onChange={(v:any) => setKeys({...keys, ipaymuApiKey: v})} show={showKeys['ip_key']} onToggle={() => toggleShow('ip_key')} description="API Key akun iPaymu Anda untuk otentikasi transaksi." />
+              <div className="md:col-span-2 flex flex-col space-y-3">
+                <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">iPaymu Environment Mode</label>
+                <div className="flex bg-muted/50 p-1 rounded-xl w-full max-w-[300px] border border-border/10">
+                  <button
+                    type="button"
+                    onClick={() => setKeys({...keys, ipaymuSandbox: false})}
+                    className={`flex-1 py-2 text-[10px] font-black uppercase italic rounded-lg transition-all ${!keys.ipaymuSandbox ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Production
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setKeys({...keys, ipaymuSandbox: true})}
+                    className={`flex-1 py-2 text-[10px] font-black uppercase italic rounded-lg transition-all ${keys.ipaymuSandbox ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Sandbox
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
 

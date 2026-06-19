@@ -19,13 +19,14 @@ async function getIpaymuCredentials() {
       const data = snap.data();
       return {
         ipaymuVa: data?.ipaymuVa || '',
-        ipaymuApiKey: data?.ipaymuApiKey || ''
+        ipaymuApiKey: data?.ipaymuApiKey || '',
+        ipaymuSandbox: data?.ipaymuSandbox ?? false
       };
     }
   } catch (e: any) {
     console.warn('[iPaymu Webhook] Admin SDK unavailable:', e?.code || e?.message?.slice(0, 80));
   }
-  return { ipaymuVa: '', ipaymuApiKey: '' };
+  return { ipaymuVa: '', ipaymuApiKey: '', ipaymuSandbox: false };
 }
 
 async function verifyIpaymuTransaction(trxId: string, ipaymuVa: string, ipaymuApiKey: string, isProduction: boolean): Promise<boolean> {
@@ -34,7 +35,8 @@ async function verifyIpaymuTransaction(trxId: string, ipaymuVa: string, ipaymuAp
     : 'https://sandbox.ipaymu.com/api/v2/transaction';
 
   const checkBody = {
-    transactionId: trxId
+    transactionId: trxId,
+    account: ipaymuVa
   };
 
   const bodyString = JSON.stringify(checkBody);
@@ -58,8 +60,9 @@ async function verifyIpaymuTransaction(trxId: string, ipaymuVa: string, ipaymuAp
 
     if (res.ok) {
       const json = await res.json();
+      const responseStatus = json.Status !== undefined ? json.Status : json.status;
       // Status 1 in iPaymu means success/berhasil
-      if (json.status === 200 && json.Data && (json.Data.Status === 1 || json.Data.Status === '1')) {
+      if (responseStatus === 200 && json.Data && (json.Data.Status === 1 || json.Data.Status === '1')) {
         return true;
       }
     }
@@ -96,12 +99,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Abaikan status non-success' });
     }
 
-    const { ipaymuVa, ipaymuApiKey } = await getIpaymuCredentials();
+    const { ipaymuVa, ipaymuApiKey, ipaymuSandbox } = await getIpaymuCredentials();
     if (!ipaymuVa || !ipaymuApiKey) {
       return NextResponse.json({ error: 'Kredensial iPaymu belum diaktifkan.' }, { status: 500 });
     }
 
-    const isProduction = !ipaymuVa.startsWith('1179') && !ipaymuVa.startsWith('11');
+    const isProduction = !ipaymuSandbox;
 
     // Secure verification: check transaction status directly from iPaymu API
     const isVerified = await verifyIpaymuTransaction(trx_id, ipaymuVa, ipaymuApiKey, isProduction);

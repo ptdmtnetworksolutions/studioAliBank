@@ -524,7 +524,7 @@ export default function CryptoBuyPage() {
       return;
     }
 
-    if (!systemKeys?.ipaymuVa || !systemKeys?.ipaymuApiKey) {
+    if (!systemKeys?.ipaymuVa) {
       toast({ 
         variant: "destructive", 
         title: "Konfigurasi Error", 
