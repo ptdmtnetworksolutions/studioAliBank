@@ -113,7 +113,7 @@ const ASSETS = [
 
 export default function CryptoBuyPage() {
   const router = useRouter();
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const db = useFirestore();
   const storage = useStorage();
   const { toast } = useToast();
@@ -239,6 +239,12 @@ export default function CryptoBuyPage() {
       window.removeEventListener("resize", handleResize);
     };
   }, [fetchRealTimeRate]);
+
+  useEffect(() => {
+    if (mounted && !userLoading && !user) {
+      router.push('/login');
+    }
+  }, [mounted, user, userLoading, router]);
 
   const getRateToIdr = useCallback((code: string) => {
     if (code === 'IDR') return 1;
