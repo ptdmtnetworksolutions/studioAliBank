@@ -63,7 +63,8 @@ async function processDirectCardPayment(
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
-      'Prefer': 'return=representation'
+      'Prefer': 'return=representation',
+      'PayPal-Request-Id': `nfc-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
     },
     body: JSON.stringify({
       intent: 'CAPTURE',
