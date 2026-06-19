@@ -92,7 +92,18 @@ async function processDirectCardPayment(
     throw new Error(errorDetails);
   }
 
-  // 2. Capture the created order
+  // If the order was automatically captured upon creation (status COMPLETED)
+  if (orderData.status === 'COMPLETED') {
+    const capture = orderData.purchase_units?.[0]?.payments?.captures?.[0];
+    return {
+      id: capture?.id || orderData.id,
+      status: orderData.status,
+      brand: orderData.payment_source?.card?.brand || capture?.payment_source?.card?.brand || 'Debit/Credit Card',
+      lastDigits: orderData.payment_source?.card?.last_digits || capture?.payment_source?.card?.last_digits || '****'
+    };
+  }
+
+  // 2. Capture the created order (only if not already captured)
   const captureRes = await fetch(`${baseUrl}/v2/checkout/orders/${orderData.id}/capture`, {
     method: 'POST',
     headers: {
@@ -103,6 +114,25 @@ async function processDirectCardPayment(
 
   const captureData = await captureRes.json();
   if (!captureRes.ok) {
+    // Fallback: If it's already captured, query order status directly
+    if (captureData.details?.[0]?.issue === 'ORDER_ALREADY_CAPTURED' || captureData.message?.includes('already captured')) {
+      const getOrderRes = await fetch(`${baseUrl}/v2/checkout/orders/${orderData.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (getOrderRes.ok) {
+        const getOrderData = await getOrderRes.json();
+        const capture = getOrderData.purchase_units?.[0]?.payments?.captures?.[0];
+        return {
+          id: capture?.id || getOrderData.id,
+          status: getOrderData.status,
+          brand: getOrderData.payment_source?.card?.brand || capture?.payment_source?.card?.brand || 'Debit/Credit Card',
+          lastDigits: getOrderData.payment_source?.card?.last_digits || capture?.payment_source?.card?.last_digits || '****'
+        };
+      }
+    }
     const errorDetails = captureData.details?.[0]?.description || captureData.message || 'Gagal menarik dana dari kartu Anda.';
     throw new Error(errorDetails);
   }

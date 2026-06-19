@@ -35,7 +35,9 @@ import {
   LayoutGrid,
   Ticket,
   Settings,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -152,6 +154,7 @@ export default function CryptoBuyPage() {
   const [nfcCardExpiry, setNfcCardExpiry] = useState("");
   const [nfcCardCvv, setNfcCardCvv] = useState("");
   const [nfcCardHolder, setNfcCardHolder] = useState("");
+  const [showNfcCvv, setShowNfcCvv] = useState(false);
   
   // Bank transfer state
   const [bankStep, setBankStep] = useState<'instructions' | 'upload'>('instructions');
@@ -1533,14 +1536,23 @@ export default function CryptoBuyPage() {
                             </div>
                             <div className="space-y-1">
                               <label className="text-[9px] font-black text-muted-foreground uppercase">CVV / Kode Keamanan</label>
-                              <Input 
-                                type="password"
-                                placeholder="•••"
-                                value={nfcCardCvv}
-                                onChange={(e) => setNfcCardCvv(e.target.value.replace(/[^0-9]/g, ''))}
-                                className="h-10 bg-muted/40 border-border text-[10px] font-mono font-black text-center"
-                                maxLength={4}
-                              />
+                              <div className="relative">
+                                <Input 
+                                  type={showNfcCvv ? "text" : "password"}
+                                  placeholder="•••"
+                                  value={nfcCardCvv}
+                                  onChange={(e) => setNfcCardCvv(e.target.value.replace(/[^0-9]/g, ''))}
+                                  className="h-10 bg-muted/40 border-border text-[10px] font-mono font-black text-center pr-10"
+                                  maxLength={4}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowNfcCvv(!showNfcCvv)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                >
+                                  {showNfcCvv ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>

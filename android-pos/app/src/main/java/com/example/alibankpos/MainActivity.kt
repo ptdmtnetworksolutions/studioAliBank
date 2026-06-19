@@ -309,19 +309,68 @@ class MainActivity : ComponentActivity() {
                 return null
             }
 
+            var foundPan: String? = null
+            var foundExpiry: String? = null
+            var foundName: String? = null
+
             // 3. Loop through SFIs and records to read card details
             for (sfi in 1..4) {
                 val sfiByte = ((sfi shl 3) or 4).toByte()
                 for (rec in 1..5) {
                     val readRecord = byteArrayOf(0x00.toByte(), 0xB2.toByte(), rec.toByte(), sfiByte, 0x00.toByte())
-                    val recRes = isoDep.transceive(readRecord)
-                    if (isSuccess(recRes)) {
-                        val pan = extractPan(recRes)
-                        if (pan != null) {
-                            return pan
+                    val recRes = try { isoDep.transceive(readRecord) } catch (e: Exception) { null }
+                    if (recRes != null && isSuccess(recRes)) {
+                        // a. Try Track 2 Equivalent Data (Tag 0x57)
+                        val track2Val = findTagValue(recRes, 0x57)
+                        if (track2Val != null) {
+                            val track2Hex = bytesToHex(track2Val)
+                            val separator = track2Hex.indexOf('D')
+                            if (separator != -1) {
+                                if (foundPan == null) {
+                                    foundPan = track2Hex.substring(0, separator)
+                                }
+                                if (foundExpiry == null && separator + 5 <= track2Hex.length) {
+                                    foundExpiry = track2Hex.substring(separator + 1, separator + 5) // YYMM
+                                }
+                            }
+                        }
+
+                        // b. Try Application PAN (Tag 0x5A)
+                        if (foundPan == null) {
+                            val panVal = findTagValue(recRes, 0x5A)
+                            if (panVal != null) {
+                                foundPan = bytesToHex(panVal).trimEnd('F')
+                            }
+                        }
+
+                        // c. Try Expiration Date (Tag 0x5F24)
+                        if (foundExpiry == null) {
+                            val expiryVal = findTagValue(recRes, 0x5F24)
+                            if (expiryVal != null && expiryVal.size >= 2) {
+                                foundExpiry = bytesToHex(expiryVal).substring(0, 4) // YYMM
+                            }
+                        }
+
+                        // d. Try Cardholder Name (Tag 0x5F20)
+                        if (foundName == null) {
+                            val nameVal = findTagValue(recRes, 0x5F20)
+                            if (nameVal != null) {
+                                try {
+                                    val candidateName = String(nameVal, Charsets.US_ASCII).trim().replace("/", " ")
+                                    if (candidateName.isNotEmpty()) {
+                                        foundName = candidateName
+                                    }
+                                } catch (e: Exception) {}
+                            }
                         }
                     }
                 }
+            }
+
+            if (foundPan != null) {
+                val expiry = foundExpiry ?: "2912"
+                val name = foundName ?: "NATIVE CONTACTLESS"
+                return "$foundPan|$expiry|$name"
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -336,30 +385,6 @@ class MainActivity : ComponentActivity() {
         val sw1 = res[res.size - 2].toInt() and 0xFF
         val sw2 = res[res.size - 1].toInt() and 0xFF
         return sw1 == 0x90 && sw2 == 0x00
-    }
-
-    private fun extractPan(res: ByteArray): String? {
-        // Try to parse Track 2 Equivalent Data (Tag 0x57)
-        val track2Val = findTagValue(res, 0x57)
-        if (track2Val != null) {
-            val track2Hex = bytesToHex(track2Val)
-            val separator = track2Hex.indexOf('D')
-            if (separator != -1 && separator + 5 <= track2Hex.length) {
-                val pan = track2Hex.substring(0, separator)
-                val expiry = track2Hex.substring(separator + 1, separator + 5) // YYMM
-                return "$pan|$expiry"
-            }
-        }
-
-        // Try to parse Application PAN (Tag 0x5A)
-        val panVal = findTagValue(res, 0x5A)
-        if (panVal != null) {
-            val panHex = bytesToHex(panVal)
-            val cleanPan = panHex.trimEnd('F')
-            return "$cleanPan|2912"
-        }
-
-        return null
     }
 
     private fun findTagValue(bytes: ByteArray, targetTag: Int): ByteArray? {
