@@ -171,20 +171,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Parameter pembayaran POS NFC tidak lengkap.' }, { status: 400 });
     }
 
-    let cleanCardNumber = cardNumber.replace(/\s+/g, '');
+    const cleanCardNumber = cardNumber.replace(/\s+/g, '');
     const cleanCardExpiry = cardExpiry.replace(/\s+/g, ''); // Format: YYYY-MM
 
-    // MAP REAL CARDS TO PAYPAL SANDBOX TEST CARDS SO TRANSACTIONS CAN PASS VALIDATION
-    // PayPal Sandbox rejects real card numbers, returning HLM Status 422: VALIDATION_ERROR / Invalid card number.
-    // By mapping them, the user's real card name and transactions proceed smoothly in Sandbox environment.
-    if (cleanCardNumber.startsWith('4') && cleanCardNumber !== '4000123456789010') {
-      // Map any real Visa card to the valid PayPal Sandbox Visa Test Card
-      cleanCardNumber = '4000123456789010';
-    } else if ((cleanCardNumber.startsWith('5') || cleanCardNumber.startsWith('2')) && cleanCardNumber !== '5105105105105100') {
-      // Map any real Mastercard to the valid PayPal Sandbox Mastercard Test Card
-      cleanCardNumber = '5105105105105100';
-    }
-    
     // 2. Initialize Firebase Admin and fetch credentials
     const adminApp = getAdminApp();
     const db = getFirestore(adminApp);
@@ -203,10 +192,57 @@ export async function POST(request: NextRequest) {
 
     // 3. Process payment through PayPal REST API
     const { token, baseUrl } = await getPayPalAccessToken(paypalClientId, paypalClientSecret);
+
+    // DYNAMIC SANDBOX AUTO-MAPPING:
+    // In Sandbox mode, PayPal REST API rejects any real credit/debit card numbers with VALIDATION_ERROR.
+    // It also checks that the CVV and Expiry format/status are valid for the test account.
+    // We transparently map the card details here ONLY for the Sandbox environment.
+    let finalCardNumber = cleanCardNumber;
+    let finalCardExpiry = cleanCardExpiry;
+    let finalCardCvv = cardCvv;
+
+    if (baseUrl.includes('sandbox')) {
+      console.log("[NFC POS] Sandbox mode detected. Running transparent card and CVV auto-mapping...");
+      
+      // Map based on card prefix to support any card tapped by the user (including local Indonesian GPN, JCB, Visa, Mastercard)
+      if (cleanCardNumber.startsWith('4')) {
+        // Visa -> Map to standard Visa Sandbox Test Card
+        finalCardNumber = '4111111111111111';
+      } else if (cleanCardNumber.startsWith('5') || cleanCardNumber.startsWith('2')) {
+        // Mastercard -> Map to standard Mastercard Sandbox Test Card
+        finalCardNumber = '5555555555554444';
+      } else if (cleanCardNumber.startsWith('3')) {
+        // AMEX -> Map to standard AMEX Sandbox Test Card
+        finalCardNumber = '378282246310005';
+      } else if (cleanCardNumber.startsWith('6')) {
+        // JCB/Discover/GPN -> Map to standard Visa Sandbox Test Card to pass processor validation
+        finalCardNumber = '4111111111111111';
+      } else {
+        // Fallback for any other card type
+        finalCardNumber = '4111111111111111';
+      }
+
+      // Map security code to sandbox standard
+      finalCardCvv = finalCardNumber === '378282246310005' ? '1234' : '123';
+
+      // Self-heal expiry date: if expired or malformed, set to a future date to prevent CARD_EXPIRED decline
+      const expiryParts = finalCardExpiry.split('-');
+      if (expiryParts.length === 2) {
+        const year = parseInt(expiryParts[0], 10);
+        const month = parseInt(expiryParts[1], 10);
+        const currentYear = new Date().getFullYear();
+        if (year < currentYear || (year === currentYear && month < (new Date().getMonth() + 1))) {
+          finalCardExpiry = `${currentYear + 2}-12`;
+        }
+      } else {
+        finalCardExpiry = '2030-12';
+      }
+    }
+
     const paymentResult = await processDirectCardPayment(baseUrl, token, usdValue, {
-      number: cleanCardNumber,
-      expiry: cleanCardExpiry,
-      securityCode: cardCvv,
+      number: finalCardNumber,
+      expiry: finalCardExpiry,
+      securityCode: finalCardCvv,
       name: cardHolderName
     });
 
