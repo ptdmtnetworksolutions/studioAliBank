@@ -87,7 +87,7 @@ export default function CryptoReceivePage() {
                 <Download className="text-white w-8 h-8" />
               </div>
               <div>
-                <h1 className="text-3xl font-black text-accent italic uppercase tracking-tighter">Terima Aset</h1>
+                <h1 className="text-3xl font-black text-foreground italic uppercase tracking-tighter">Terima Aset</h1>
                 <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Hub Likuiditas Inbound AliBank.</p>
               </div>
             </div>
@@ -183,7 +183,7 @@ export default function CryptoReceivePage() {
                 <Lock className="w-3 h-3 text-primary" />
               </div>
               <div className="p-5 rounded-2xl bg-accent/5 border border-primary/10 relative group">
-                <p className="text-[11px] font-black text-accent break-all text-center leading-relaxed font-mono">
+                <p className="text-[11px] font-black text-foreground break-all text-center leading-relaxed font-mono">
                   {displayAddress}
                 </p>
                 <Button 
@@ -196,10 +196,10 @@ export default function CryptoReceivePage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Badge variant="outline" className="h-10 justify-center font-black text-[8px] uppercase tracking-widest border-primary/20 text-accent bg-background">
+              <Badge variant="outline" className="h-10 justify-center font-black text-[8px] uppercase tracking-widest border-primary/20 text-foreground bg-background">
                 <Globe className="w-3 h-3 mr-2 text-primary" /> {selectedNetwork.confirmTime} Est.
               </Badge>
-              <Badge variant="outline" className="h-10 justify-center font-black text-[8px] uppercase tracking-widest border-primary/20 text-accent bg-background">
+              <Badge variant="outline" className="h-10 justify-center font-black text-[8px] uppercase tracking-widest border-primary/20 text-foreground bg-background">
                 <ShieldCheck className="w-3 h-3 mr-2 text-primary" /> Non-Custodial
               </Badge>
             </div>

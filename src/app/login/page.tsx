@@ -64,7 +64,7 @@ export default function LoginPage() {
           <LogoIcon className="text-white" />
         </div>
         
-        <h1 className="text-3xl font-black text-accent mb-2 tracking-tighter italic uppercase">AliBank</h1>
+        <h1 className="text-3xl font-black text-foreground mb-2 tracking-tighter italic uppercase">AliBank</h1>
         <p className="text-muted-foreground mb-8 text-center text-sm font-medium leading-relaxed">
           Masuk ke portal perbankan premium Anda.
         </p>
@@ -78,7 +78,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="w-full space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-accent/60 ml-1">Alamat Email</Label>
+            <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Alamat Email</Label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40" />
               <Input 
@@ -94,7 +94,7 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-widest text-accent/60 ml-1">Kata Sandi</Label>
+            <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Kata Sandi</Label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40" />
               <Input 
@@ -132,7 +132,7 @@ export default function LoginPage() {
 
       <div className="mt-12 flex items-center gap-2 text-primary/40 bg-primary/5 px-4 py-1.5 rounded-full border border-primary/5">
         <ShieldCheck className="w-4 h-4" />
-        <span className="text-[9px] font-black uppercase tracking-widest text-accent/40">Secured by AliBank Systems</span>
+        <span className="text-[9px] font-black uppercase tracking-widest text-foreground/60">Secured by AliBank Systems</span>
       </div>
     </div>
   );
