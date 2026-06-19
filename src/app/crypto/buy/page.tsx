@@ -929,13 +929,13 @@ export default function CryptoBuyPage() {
       {isMobile ? (
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background z-50">
-            <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors"><ArrowLeft className="w-6 h-6" /></button>
+            <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors" title="Kembali" aria-label="Kembali"><ArrowLeft className="w-6 h-6" /></button>
             <div className="flex items-center gap-2">
                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[8px] font-black italic h-6 uppercase flex items-center gap-1.5 px-2.5">
                  <Wifi className={cn("w-2.5 h-2.5", isRateLoading ? "animate-pulse text-amber-500" : "text-green-500")} />
                  Kurs: Rp{isRateLoading ? "..." : dynamicUsdtRate.toLocaleString('id-ID')}
                </Badge>
-               <button className="p-2 hover:bg-muted rounded-full" onClick={() => router.push('/transactions')}><History className="w-5 h-5 text-muted-foreground" /></button>
+               <button className="p-2 hover:bg-muted rounded-full" onClick={() => router.push('/transactions')} title="Riwayat Transaksi" aria-label="Riwayat Transaksi"><History className="w-5 h-5 text-muted-foreground" /></button>
             </div>
           </header>
 
@@ -1039,7 +1039,7 @@ export default function CryptoBuyPage() {
                 ))}
                 <button onClick={() => setAmount(prev => prev.includes(',') ? prev : prev + ',')} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">,</button>
                 <button onClick={() => handleKeyPress("0")} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">0</button>
-                <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-3 transition-colors"><Delete className="w-7 h-7" /></button>
+                <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-3 transition-colors" title="Hapus Karakter" aria-label="Hapus Karakter"><Delete className="w-7 h-7" /></button>
               </div>
             </div>
           </main>
@@ -1061,7 +1061,7 @@ export default function CryptoBuyPage() {
                 </Badge>
               </h2>
               <div className="flex items-center gap-6">
-                <button className="p-2 hover:bg-muted rounded-full relative" onClick={() => router.push('/transactions')}>
+                <button className="p-2 hover:bg-muted rounded-full relative" onClick={() => router.push('/transactions')} title="Riwayat Transaksi" aria-label="Riwayat Transaksi">
                   <History className="w-5 h-5 text-muted-foreground" />
                 </button>
                 <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border">
@@ -1102,6 +1102,10 @@ export default function CryptoBuyPage() {
                         <div className="flex items-center justify-between bg-muted/30 p-6 rounded-2xl border border-border/50">
                           <input 
                             type="text" 
+                            id="amount-input-desktop"
+                            placeholder="0"
+                            title="Jumlah Transaksi"
+                            aria-label="Jumlah Transaksi"
                             value={amount}
                             onChange={(e) => {
                               const val = e.target.value;
@@ -1216,7 +1220,7 @@ export default function CryptoBuyPage() {
                           ))}
                           <button type="button" onClick={() => setAmount(prev => prev.includes(',') ? prev : prev + ',')} className="text-base font-black italic hover:bg-muted py-1.5 rounded-lg transition-colors">,</button>
                           <button type="button" onClick={() => handleKeyPress("0")} className="text-base font-black italic hover:bg-muted py-1.5 rounded-lg transition-colors">0</button>
-                          <button type="button" onClick={handleDelete} className="flex items-center justify-center hover:bg-muted py-1.5 rounded-lg transition-colors text-rose-500"><Delete className="w-4 h-4" /></button>
+                          <button type="button" onClick={handleDelete} className="flex items-center justify-center hover:bg-muted py-1.5 rounded-lg transition-colors text-rose-500" title="Hapus Karakter" aria-label="Hapus Karakter"><Delete className="w-4 h-4" /></button>
                         </div>
                       </div>
                     </div>
@@ -1399,7 +1403,7 @@ export default function CryptoBuyPage() {
                   ) : (
                     <>
                       {/* PayPal container - always rendered so ref is stable */}
-                      <div ref={paypalContainerRef} className="w-full" style={{ minHeight: '150px' }} />
+                      <div ref={paypalContainerRef} className="w-full min-h-[150px]" />
                       {/* Overlay loading spinner while PayPal SDK is loading */}
                       {(!paypalReady || !paypalRendered) && !gatewayError && (
                         <div className="flex flex-col items-center gap-3 py-4">
@@ -1684,6 +1688,9 @@ export default function CryptoBuyPage() {
                       <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Upload Bukti Transfer</p>
                       <input 
                         ref={proofInputRef}
+                        id="proof-upload-input"
+                        title="Upload Bukti Transfer"
+                        aria-label="Upload Bukti Transfer"
                         type="file" 
                         accept="image/*" 
                         className="hidden" 
@@ -1695,6 +1702,8 @@ export default function CryptoBuyPage() {
                           <button 
                             onClick={() => { setProofFile(null); setProofPreview(null); }}
                             className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center"
+                            title="Hapus Bukti"
+                            aria-label="Hapus Bukti"
                           >
                             <X className="w-4 h-4" />
                           </button>
