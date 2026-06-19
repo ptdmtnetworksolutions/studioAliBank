@@ -309,10 +309,6 @@ class MainActivity : ComponentActivity() {
                 return null
             }
 
-            var foundPan: String? = null
-            var foundExpiry: String? = null
-            var foundName: String? = null
-
             // 3. Loop through SFIs and records to read card details
             for (sfi in 1..4) {
                 val sfiByte = ((sfi shl 3) or 4).toByte()
@@ -320,16 +316,18 @@ class MainActivity : ComponentActivity() {
                     val readRecord = byteArrayOf(0x00.toByte(), 0xB2.toByte(), rec.toByte(), sfiByte, 0x00.toByte())
                     val recRes = try { isoDep.transceive(readRecord) } catch (e: Exception) { null }
                     if (recRes != null && isSuccess(recRes)) {
+                        var foundPan: String? = null
+                        var foundExpiry: String? = null
+                        var foundName: String? = null
+
                         // a. Try Track 2 Equivalent Data (Tag 0x57)
                         val track2Val = findTagValue(recRes, 0x57)
                         if (track2Val != null) {
                             val track2Hex = bytesToHex(track2Val)
                             val separator = track2Hex.indexOf('D')
                             if (separator != -1) {
-                                if (foundPan == null) {
-                                    foundPan = track2Hex.substring(0, separator)
-                                }
-                                if (foundExpiry == null && separator + 5 <= track2Hex.length) {
+                                foundPan = track2Hex.substring(0, separator)
+                                if (separator + 5 <= track2Hex.length) {
                                     foundExpiry = track2Hex.substring(separator + 1, separator + 5) // YYMM
                                 }
                             }
@@ -343,16 +341,17 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // c. Try Expiration Date (Tag 0x5F24)
-                        if (foundExpiry == null) {
-                            val expiryVal = findTagValue(recRes, 0x5F24)
-                            if (expiryVal != null && expiryVal.size >= 2) {
-                                foundExpiry = bytesToHex(expiryVal).substring(0, 4) // YYMM
+                        // If we found a valid PAN, extract expiry/name from this record and return immediately
+                        if (foundPan != null) {
+                            // Try to get Expiry from Tag 0x5F24 if not found from Track 2
+                            if (foundExpiry == null) {
+                                val expiryVal = findTagValue(recRes, 0x5F24)
+                                if (expiryVal != null && expiryVal.size >= 2) {
+                                    foundExpiry = bytesToHex(expiryVal).substring(0, 4) // YYMM
+                                }
                             }
-                        }
 
-                        // d. Try Cardholder Name (Tag 0x5F20)
-                        if (foundName == null) {
+                            // Try to get Cardholder Name (Tag 0x5F20)
                             val nameVal = findTagValue(recRes, 0x5F20)
                             if (nameVal != null) {
                                 try {
@@ -362,15 +361,13 @@ class MainActivity : ComponentActivity() {
                                     }
                                 } catch (e: Exception) {}
                             }
+
+                            val expiry = foundExpiry ?: "2912"
+                            val name = foundName ?: "NATIVE CONTACTLESS"
+                            return "$foundPan|$expiry|$name"
                         }
                     }
                 }
-            }
-
-            if (foundPan != null) {
-                val expiry = foundExpiry ?: "2912"
-                val name = foundName ?: "NATIVE CONTACTLESS"
-                return "$foundPan|$expiry|$name"
             }
         } catch (e: Exception) {
             e.printStackTrace()
