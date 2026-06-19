@@ -67,6 +67,8 @@ function APIKeysContent() {
     midtransMerchantId: "",
     midtransClientKey: "",
     midtransServerKey: "",
+    ipaymuVa: "",
+    ipaymuApiKey: "",
     etherscanApiKey: "",
     ethereumRpcUrl: "",
     polygonRpcUrl: "",
@@ -91,6 +93,8 @@ function APIKeysContent() {
         midtransMerchantId: storedKeys.midtransMerchantId || "",
         midtransClientKey: storedKeys.midtransClientKey || "",
         midtransServerKey: storedKeys.midtransServerKey || "",
+        ipaymuVa: storedKeys.ipaymuVa || "",
+        ipaymuApiKey: storedKeys.ipaymuApiKey || "",
         etherscanApiKey: storedKeys.etherscanApiKey || "",
         ethereumRpcUrl: storedKeys.ethereumRpcUrl || "",
         polygonRpcUrl: storedKeys.polygonRpcUrl || "",
@@ -328,6 +332,37 @@ function APIKeysContent() {
                       onToggle={() => toggleShow('mt_server')}
                     />
                   </div>
+                </div>
+              </section>
+
+              <div className="h-px bg-white/5 w-full" />
+
+              <section className="space-y-8">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-black italic uppercase tracking-tight flex items-center gap-3">
+                    <Building2 className="w-5 h-5 text-primary" /> Lokal Kliring (iPaymu)
+                  </h3>
+                  <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black italic uppercase px-2 h-5">IDR Gateway</Badge>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <KeyField 
+                    label="iPaymu Virtual Account (VA)" 
+                    icon={Building2} 
+                    value={keys.ipaymuVa} 
+                    placeholder="117900..."
+                    onChange={(v: any) => setKeys({...keys, ipaymuVa: v})}
+                    show={true}
+                  />
+                  <KeyField 
+                    label="iPaymu API Key" 
+                    icon={Lock} 
+                    value={keys.ipaymuApiKey} 
+                    placeholder="QbGcoO..."
+                    onChange={(v: any) => setKeys({...keys, ipaymuApiKey: v})}
+                    show={showKeys['ipaymu_key']}
+                    onToggle={() => toggleShow('ipaymu_key')}
+                  />
                 </div>
               </section>
 

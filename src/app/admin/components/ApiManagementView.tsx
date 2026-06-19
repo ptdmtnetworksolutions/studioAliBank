@@ -46,6 +46,8 @@ export function ApiManagementView({ storedKeys }: any) {
     midtransMerchantId: "",
     midtransClientKey: "",
     midtransServerKey: "",
+    ipaymuVa: "",
+    ipaymuApiKey: "",
     etherscanApiKey: "",
     ethereumRpcUrl: "",
     polygonRpcUrl: "",
@@ -67,6 +69,8 @@ export function ApiManagementView({ storedKeys }: any) {
         midtransMerchantId: storedKeys.midtransMerchantId || "" ,
         midtransClientKey: storedKeys.midtransClientKey || "",
         midtransServerKey: storedKeys.midtransServerKey || "",
+        ipaymuVa: storedKeys.ipaymuVa || "",
+        ipaymuApiKey: storedKeys.ipaymuApiKey || "",
         etherscanApiKey: storedKeys.etherscanApiKey || "",
         ethereumRpcUrl: storedKeys.ethereumRpcUrl || "",
         polygonRpcUrl: storedKeys.polygonRpcUrl || "",
@@ -263,6 +267,19 @@ export function ApiManagementView({ storedKeys }: any) {
               <div className="md:col-span-2">
                 <KeyField label="Midtrans Server Key (Sensitif)" icon={Lock} value={keys.midtransServerKey} placeholder="Mid-server-..." onChange={(v:any) => setKeys({...keys, midtransServerKey: v})} show={showKeys['mt_s']} onToggle={() => toggleShow('mt_s')} description="Server Key digunakan untuk otentikasi aman antar server. Jangan pernah bagikan." />
               </div>
+            </div>
+          </section>
+
+          <div className="h-px bg-border/50 w-full" />
+
+          {/* IPAYMU SECTION */}
+          <section className="space-y-6">
+            <h3 className="text-sm font-black italic uppercase tracking-widest text-primary flex items-center gap-2">
+              <Building2 className="w-4 h-4" /> Kliring Lokal (iPaymu)
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <KeyField label="iPaymu Virtual Account (VA)" icon={Building2} value={keys.ipaymuVa} placeholder="117900..." onChange={(v:any) => setKeys({...keys, ipaymuVa: v})} show={true} />
+              <KeyField label="iPaymu API Key" icon={Lock} value={keys.ipaymuApiKey} placeholder="QbGcoO..." onChange={(v:any) => setKeys({...keys, ipaymuApiKey: v})} show={showKeys['ip_key']} onToggle={() => toggleShow('ip_key')} description="API Key akun iPaymu Anda untuk otentikasi transaksi." />
             </div>
           </section>
 
