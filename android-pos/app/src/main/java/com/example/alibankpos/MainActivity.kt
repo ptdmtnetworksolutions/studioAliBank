@@ -8,13 +8,28 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebChromeClient
+import android.webkit.PermissionRequest
+import android.webkit.GeolocationPermissions
 import android.widget.Toast
 import android.view.ViewGroup
 import android.media.AudioManager
 import android.media.ToneGenerator
-import androidx.activity.ComponentActivity
+import android.content.Context
+import android.content.SharedPreferences
+import android.content.Intent
+import android.provider.ContactsContract
+import android.app.Activity
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.os.Build
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import androidx.core.app.NotificationCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,7 +61,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.alibankpos.theme.AliBankPOSTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     private var nfcAdapter: NfcAdapter? = null
     private var webView: WebView? = null
@@ -55,11 +70,25 @@ class MainActivity : ComponentActivity() {
     private var isScanning by mutableStateOf(false)
     private var scanAmount by mutableStateOf("0")
 
+    private val PREFS_NAME = "AliBankPrefs"
+    private val KEY_PIN_HASH = "pin_hash"
+    private val KEY_PIN_ENABLED = "pin_enabled"
+    private val KEY_BIOMETRICS_ENABLED = "biometrics_enabled"
+    private val CHANNEL_ID = "alibank_notifications"
+    private val CHANNEL_NAME = "AliBank Notifications"
+    private val CONTACT_PICKER_REQUEST = 1001
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+        createNotificationChannel()
+
+        // Request POST_NOTIFICATIONS permission dynamically on Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 102)
+        }
 
         setContent {
             AliBankPOSTheme {
@@ -97,11 +126,28 @@ class MainActivity : ComponentActivity() {
                             view?.evaluateJavascript("window.isAndroidNative = true;", null)
                         }
                     }
-                    webChromeClient = WebChromeClient()
+                    
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onGeolocationPermissionsShowPrompt(
+                            origin: String?,
+                            callback: GeolocationPermissions.Callback?
+                        ) {
+                            // Approve HTML5 Geolocation prompt automatically in Hybrid app
+                            callback?.invoke(origin, true, false)
+                        }
+
+                        override fun onPermissionRequest(request: PermissionRequest?) {
+                            // Approve WebView media permissions (camera/mic)
+                            runOnUiThread {
+                                request?.grant(request.resources)
+                            }
+                        }
+                    }
                     
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.databaseEnabled = true
+                    settings.setGeolocationEnabled(true)
                     
                     // Register native bridge
                     addJavascriptInterface(AndroidNfcBridge(), "AndroidBridge")
@@ -460,12 +506,213 @@ class MainActivity : ComponentActivity() {
         return sb.toString()
     }
 
-    // Javascript Interface definition
+    // --- SECURE PREFERENCES & NOTIFICATION & BIOMETRICS UTILITIES ---
+
+    private fun getPrefs(): SharedPreferences {
+        return getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+    
+    fun savePin(pinHash: String) {
+        getPrefs().edit().putString(KEY_PIN_HASH, pinHash).apply()
+    }
+    
+    fun verifyPin(pin: String): Boolean {
+        val savedHash = getPrefs().getString(KEY_PIN_HASH, "")
+        return savedHash == pin
+    }
+    
+    fun isPinEnabled(): Boolean {
+        return getPrefs().getBoolean(KEY_PIN_ENABLED, false)
+    }
+    
+    fun setPinEnabled(enabled: Boolean) {
+        getPrefs().edit().putBoolean(KEY_PIN_ENABLED, enabled).apply()
+    }
+    
+    fun isBiometricEnabled(): Boolean {
+        return getPrefs().getBoolean(KEY_BIOMETRICS_ENABLED, false)
+    }
+    
+    fun setBiometricEnabled(enabled: Boolean) {
+        getPrefs().edit().putBoolean(KEY_BIOMETRICS_ENABLED, enabled).apply()
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, importance).apply {
+                description = "Notifikasi Realtime AliBank"
+            }
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    fun showNotification(title: String, message: String) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(System.currentTimeMillis().toInt(), builder.build())
+    }
+
+    fun selectContact() {
+        val intent = Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)
+        startActivityForResult(intent, CONTACT_PICKER_REQUEST)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == CONTACT_PICKER_REQUEST && resultCode == Activity.RESULT_OK) {
+            val contactUri = data?.data ?: return
+            val projection = arrayOf(
+                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                ContactsContract.CommonDataKinds.Phone.NUMBER
+            )
+            contentResolver.query(contactUri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+                    val numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                    val name = cursor.getString(nameIndex)
+                    val number = cursor.getString(numberIndex)
+                    
+                    // Send back to WebView
+                    runOnUiThread {
+                        webView?.evaluateJavascript(
+                            "javascript:if(window.onAndroidContactPicked) window.onAndroidContactPicked('$name', '$number');",
+                            null
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun isBiometricAvailable(): Boolean {
+        val biometricManager = BiometricManager.from(this)
+        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        return biometricManager.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
+    }
+    
+    fun authenticateBiometric() {
+        val executor = ContextCompat.getMainExecutor(this)
+        val biometricPrompt = BiometricPrompt(this, executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    super.onAuthenticationError(errorCode, errString)
+                    runOnUiThread {
+                        webView?.evaluateJavascript(
+                            "javascript:if (window.onAndroidBiometricResult) window.onAndroidBiometricResult(false, '$errString');",
+                            null
+                        )
+                    }
+                }
+
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    super.onAuthenticationSucceeded(result)
+                    runOnUiThread {
+                        webView?.evaluateJavascript(
+                            "javascript:if (window.onAndroidBiometricResult) window.onAndroidBiometricResult(true, 'Authentication succeeded');",
+                            null
+                        )
+                    }
+                }
+
+                override fun onAuthenticationFailed() {
+                    super.onAuthenticationFailed()
+                    runOnUiThread {
+                        webView?.evaluateJavascript(
+                            "javascript:if (window.onAndroidBiometricResult) window.onAndroidBiometricResult(false, 'Biometric verification failed');",
+                            null
+                        )
+                    }
+                }
+            })
+
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Verifikasi Keamanan AliBank")
+            .setSubtitle("Gunakan Sidik Jari atau Wajah Anda")
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+            .build()
+
+        runOnUiThread {
+            biometricPrompt.authenticate(promptInfo)
+        }
+    }
+
+    // --- JAVASCRIPT WEB-BRIDGE CONTROLLER INTERFACE ---
+
     inner class AndroidNfcBridge {
         @JavascriptInterface
         fun startNfcScan(amount: String) {
             runOnUiThread {
                 startScanning(amount)
+            }
+        }
+        
+        @JavascriptInterface
+        fun showNotification(title: String, message: String) {
+            showNotification(title, message)
+        }
+        
+        @JavascriptInterface
+        fun isBiometricAvailable(): Boolean {
+            return this@MainActivity.isBiometricAvailable()
+        }
+        
+        @JavascriptInterface
+        fun authenticateBiometric() {
+            this@MainActivity.authenticateBiometric()
+        }
+        
+        @JavascriptInterface
+        fun setBiometricEnabled(enabled: Boolean) {
+            this@MainActivity.setBiometricEnabled(enabled)
+        }
+        
+        @JavascriptInterface
+        fun isBiometricEnabled(): Boolean {
+            return this@MainActivity.isBiometricEnabled()
+        }
+        
+        @JavascriptInterface
+        fun savePin(pinHash: String) {
+            this@MainActivity.savePin(pinHash)
+        }
+        
+        @JavascriptInterface
+        fun verifyPin(pin: String): Boolean {
+            return this@MainActivity.verifyPin(pin)
+        }
+        
+        @JavascriptInterface
+        fun setPinEnabled(enabled: Boolean) {
+            this@MainActivity.setPinEnabled(enabled)
+        }
+        
+        @JavascriptInterface
+        fun isPinEnabled(): Boolean {
+            return this@MainActivity.isPinEnabled()
+        }
+        
+        @JavascriptInterface
+        fun pickContact() {
+            runOnUiThread {
+                selectContact()
             }
         }
     }

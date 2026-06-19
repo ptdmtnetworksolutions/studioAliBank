@@ -7,6 +7,8 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
+import { SecurityLockWrapper } from '@/components/layout/SecurityLockWrapper';
+import { NotificationWatcher } from '@/components/layout/NotificationWatcher';
 import Script from 'next/script';
 import { Suspense } from 'react';
 
@@ -56,16 +58,19 @@ export default function RootLayout({
         >
           <LanguageProvider>
             <FirebaseClientProvider>
-              <div className="min-h-screen relative flex flex-col">
-                <div className="flex-1">
-                  {children}
+              <SecurityLockWrapper>
+                <div className="min-h-screen relative flex flex-col">
+                  <div className="flex-1">
+                    {children}
+                  </div>
+                  <InstallPrompt />
+                  <Suspense fallback={null}>
+                    <BottomNav />
+                  </Suspense>
                 </div>
-                <InstallPrompt />
-                <Suspense fallback={null}>
-                  <BottomNav />
-                </Suspense>
-              </div>
-              <Toaster />
+                <Toaster />
+                <NotificationWatcher />
+              </SecurityLockWrapper>
             </FirebaseClientProvider>
           </LanguageProvider>
         </ThemeProvider>

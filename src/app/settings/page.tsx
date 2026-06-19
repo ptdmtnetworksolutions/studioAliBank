@@ -83,6 +83,102 @@ export default function SettingsHubPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Android Bridge settings states
+  const [hasAndroidBridge, setHasAndroidBridge] = useState(false);
+  const [apkPinEnabled, setApkPinEnabled] = useState(false);
+  const [apkBiometricEnabled, setApkBiometricEnabled] = useState(false);
+  const [apkBiometricAvailable, setApkBiometricAvailable] = useState(false);
+  const [isPinSetupOpen, setIsPinSetupOpen] = useState(false);
+  const [setupPinValue, setSetupPinValue] = useState("");
+  const [setupPinConfirm, setSetupPinConfirm] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const bridge = (window as any).AndroidBridge;
+      if (bridge) {
+        setHasAndroidBridge(true);
+        const pinActive = typeof bridge.isPinEnabled === "function" && bridge.isPinEnabled();
+        const bioActive = typeof bridge.isBiometricEnabled === "function" && bridge.isBiometricEnabled();
+        const bioAvail = typeof bridge.isBiometricAvailable === "function" && bridge.isBiometricAvailable();
+        
+        setApkPinEnabled(pinActive);
+        setApkBiometricEnabled(bioActive);
+        setApkBiometricAvailable(bioAvail);
+      }
+    }
+  }, []);
+
+  const handleTogglePin = () => {
+    const bridge = (window as any).AndroidBridge;
+    if (!bridge) return;
+
+    if (apkPinEnabled) {
+      if (confirm("Nonaktifkan Kunci PIN Aplikasi?")) {
+        bridge.setPinEnabled(false);
+        setApkPinEnabled(false);
+        if (apkBiometricEnabled) {
+          bridge.setBiometricEnabled(false);
+          setApkBiometricEnabled(false);
+        }
+        toast({ title: "Kunci PIN Dinonaktifkan", description: "Aplikasi tidak lagi terkunci PIN." });
+      }
+    } else {
+      setSetupPinValue("");
+      setSetupPinConfirm("");
+      setIsPinSetupOpen(true);
+    }
+  };
+
+  const handleSaveApkPin = () => {
+    if (setupPinValue.length !== 6 || setupPinConfirm.length !== 6) {
+      toast({ variant: "destructive", title: "Format PIN Salah", description: "PIN harus terdiri dari 6 angka." });
+      return;
+    }
+    if (setupPinValue !== setupPinConfirm) {
+      toast({ variant: "destructive", title: "PIN Tidak Cocok", description: "Konfirmasi PIN harus sama dengan PIN awal." });
+      return;
+    }
+
+    const bridge = (window as any).AndroidBridge;
+    if (bridge && typeof bridge.savePin === "function" && typeof bridge.setPinEnabled === "function") {
+      bridge.savePin(setupPinValue);
+      bridge.setPinEnabled(true);
+      setApkPinEnabled(true);
+      setIsPinSetupOpen(false);
+      toast({ title: "PIN Berhasil Diaktifkan", description: "Keamanan PIN 6-digit kini melindungi aplikasi Anda." });
+    }
+  };
+
+  const handleToggleBiometric = () => {
+    const bridge = (window as any).AndroidBridge;
+    if (!bridge) return;
+
+    if (!apkPinEnabled) {
+      toast({ variant: "destructive", title: "Wajib Aktifkan PIN", description: "Aktifkan Kunci PIN terlebih dahulu sebelum mengaktifkan biometrik." });
+      return;
+    }
+
+    if (apkBiometricEnabled) {
+      bridge.setBiometricEnabled(false);
+      setApkBiometricEnabled(false);
+      toast({ title: "Biometrik Dinonaktifkan" });
+    } else {
+      (window as any).onAndroidBiometricResult = (success: boolean, message: string) => {
+        if (success) {
+          bridge.setBiometricEnabled(true);
+          setApkBiometricEnabled(true);
+          toast({ title: "Autentikasi Biometrik Aktif", description: "Sidik jari atau pengenalan wajah kini aktif." });
+        } else {
+          toast({ variant: "destructive", title: "Autentikasi Gagal", description: "Gagal memverifikasi sidik jari/wajah Anda." });
+        }
+      };
+      
+      if (typeof bridge.authenticateBiometric === "function") {
+        bridge.authenticateBiometric();
+      }
+    }
+  };
+
   // Profile Edit State
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
@@ -338,6 +434,66 @@ export default function SettingsHubPage() {
               </Card>
             </section>
 
+            {hasAndroidBridge && (
+              <section className="space-y-4">
+                <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1 italic">Keamanan APK Mobile</h2>
+                <Card className="p-0 border-none bg-muted/30 overflow-hidden rounded-[1.5rem]">
+                  <div className="flex items-center justify-between p-5 hover:bg-muted/50 transition-all cursor-pointer group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
+                        <Lock className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-black italic uppercase text-foreground block">Kunci PIN 6-Digit</span>
+                        <span className="text-[9px] text-muted-foreground font-bold uppercase mt-0.5 block">Wajib PIN saat membuka aplikasi</span>
+                      </div>
+                    </div>
+                    <div>
+                      <button 
+                        onClick={handleTogglePin}
+                        className={cn(
+                          "w-12 h-6 rounded-full transition-colors relative flex items-center px-1",
+                          apkPinEnabled ? "bg-[#D4AF37]" : "bg-white/10"
+                        )}
+                        aria-label="Toggle PIN Lock"
+                      >
+                        <div className={cn("w-4 h-4 rounded-full bg-white transition-all shadow-md", apkPinEnabled ? "translate-x-6" : "translate-x-0")} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {apkBiometricAvailable && (
+                    <>
+                      <div className="h-px bg-border mx-4" />
+                      <div className="flex items-center justify-between p-5 hover:bg-muted/50 transition-all cursor-pointer group">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
+                            <ShieldCheck className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className="text-sm font-black italic uppercase text-foreground block">Autentikasi Biometrik</span>
+                            <span className="text-[9px] text-muted-foreground font-bold uppercase mt-0.5 block">Sidik jari atau Wajah</span>
+                          </div>
+                        </div>
+                        <div>
+                          <button 
+                            onClick={handleToggleBiometric}
+                            className={cn(
+                              "w-12 h-6 rounded-full transition-colors relative flex items-center px-1",
+                              apkBiometricEnabled ? "bg-[#D4AF37]" : "bg-white/10"
+                            )}
+                            aria-label="Toggle Biometric Lock"
+                          >
+                            <div className={cn("w-4 h-4 rounded-full bg-white transition-all shadow-md", apkBiometricEnabled ? "translate-x-6" : "translate-x-0")} />
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </Card>
+              </section>
+            )}
+
             {/* ABOUT */}
             <section className="space-y-4">
               <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Tentang</h2>
@@ -547,6 +703,56 @@ export default function SettingsHubPage() {
                         <PreferenceItem icon={Globe} label="Bahasa Sistem" value="Bahasa Indonesia (ID)" desc="Ubah bahasa antarmuka aplikasi." />
                         <PreferenceItem icon={Moon} label="Tampilan Tema" value="Otomatis (Sistem)" desc="Ganti tema gelap, terang, atau ikuti pengaturan perangkat." />
                         <PreferenceItem icon={Bell} label="Notifikasi Instan" value="Aktif" desc="Kelola pemberitahuan transaksi masuk dan keamanan akun." onClick={() => router.push('/notifications')} />
+                        
+                        {hasAndroidBridge && (
+                          <>
+                            <div className="flex items-center justify-between py-4 group">
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors shrink-0">
+                                  <Lock className="w-5 h-5" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-black uppercase italic leading-none text-foreground">Kunci PIN APK Mobile</p>
+                                  <span className="text-[10px] font-medium text-muted-foreground mt-1 block uppercase">Wajib PIN 6-digit saat membuka aplikasi POS.</span>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={handleTogglePin}
+                                className={cn(
+                                  "w-12 h-6 rounded-full transition-colors relative flex items-center px-1",
+                                  apkPinEnabled ? "bg-[#D4AF37]" : "bg-white/10"
+                                )}
+                                aria-label="Toggle PIN Lock"
+                              >
+                                <div className={cn("w-4 h-4 rounded-full bg-white transition-all shadow-md", apkPinEnabled ? "translate-x-6" : "translate-x-0")} />
+                              </button>
+                            </div>
+
+                            {apkBiometricAvailable && (
+                              <div className="flex items-center justify-between py-4 group">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors shrink-0">
+                                    <ShieldCheck className="w-5 h-5" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-black uppercase italic leading-none text-foreground">Autentikasi Biometrik APK</p>
+                                    <span className="text-[10px] font-medium text-muted-foreground mt-1 block uppercase">Gunakan Sidik Jari atau Wajah untuk membuka aplikasi.</span>
+                                  </div>
+                                </div>
+                                <button 
+                                  onClick={handleToggleBiometric}
+                                  className={cn(
+                                    "w-12 h-6 rounded-full transition-colors relative flex items-center px-1",
+                                    apkBiometricEnabled ? "bg-[#D4AF37]" : "bg-white/10"
+                                  )}
+                                  aria-label="Toggle Biometric Lock"
+                                >
+                                  <div className={cn("w-4 h-4 rounded-full bg-white transition-all shadow-md", apkBiometricEnabled ? "translate-x-6" : "translate-x-0")} />
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     </Card>
                   )}
@@ -869,6 +1075,63 @@ export default function SettingsHubPage() {
                 {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : "SIMPAN METODE"}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG SETUP PIN MOBILE APK */}
+      <Dialog open={isPinSetupOpen} onOpenChange={setIsPinSetupOpen}>
+        <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-8 shadow-2xl overflow-hidden">
+          <div className="gold-gradient h-2 w-full absolute top-0 left-0" />
+          <DialogHeader className="text-center space-y-2 pt-4">
+            <div className="w-14 h-14 rounded-2xl gold-gradient mx-auto flex items-center justify-center shadow-xl p-3.5 mb-2">
+              <Lock className="text-white w-full h-full" />
+            </div>
+            <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">Atur PIN Keamanan</DialogTitle>
+            <DialogDescription className="text-[10px] font-bold uppercase tracking-widest italic">PIN 6-digit untuk membuka aplikasi POS.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 pt-6">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-muted-foreground uppercase ml-1 flex items-center gap-2">
+                  Masukkan PIN Baru (6 Angka)
+                </label>
+                <Input 
+                  type="password"
+                  pattern="[0-9]*"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="------" 
+                  value={setupPinValue}
+                  onChange={(e) => setSetupPinValue(e.target.value.replace(/\D/g, ''))}
+                  className="h-14 rounded-2xl bg-muted/50 border-none font-mono text-center text-2xl font-bold tracking-widest italic" 
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-muted-foreground uppercase ml-1 flex items-center gap-2">
+                  Ulangi PIN Baru
+                </label>
+                <Input 
+                  type="password"
+                  pattern="[0-9]*"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="------" 
+                  value={setupPinConfirm}
+                  onChange={(e) => setSetupPinConfirm(e.target.value.replace(/\D/g, ''))}
+                  className="h-14 rounded-2xl bg-muted/50 border-none font-mono text-center text-2xl font-bold tracking-widest italic" 
+                />
+              </div>
+            </div>
+
+            <Button 
+              onClick={handleSaveApkPin} 
+              disabled={setupPinValue.length !== 6 || setupPinConfirm.length !== 6}
+              className="w-full h-14 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl tracking-wider"
+            >
+              SIMPAN PIN KEAMANAN
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
