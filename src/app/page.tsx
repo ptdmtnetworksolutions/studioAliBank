@@ -80,6 +80,7 @@ function DashboardContent() {
   const { toast } = useToast();
   
   const [mounted, setMounted] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [isError, setIsError] = useState(false);
   const [lastSync, setLastSync] = useState("");
   const [marketCoins, setMarketCoins] = useState<any[]>(INITIAL_COINS);
@@ -135,14 +136,16 @@ function DashboardContent() {
   // Auth guard and viewport routing logic
   useEffect(() => {
     setMounted(true);
+    if (typeof window !== "undefined") {
+      const isMobile = window.innerWidth < 768;
+      setIsMobileViewport(isMobile);
+      if (isMobile && user) {
+        router.replace('/m/home');
+      }
+    }
     if (!userLoading && !user) {
       router.push('/login');
       return;
-    }
-    
-    // Check viewport. Mobile users go to dedicated mobile dashboard
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      router.replace('/m/home');
     }
   }, [user, userLoading, router]);
 
@@ -354,7 +357,7 @@ function DashboardContent() {
     }
   };
 
-  if (!mounted || userLoading) return (
+  if (!mounted || userLoading || isMobileViewport) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
       <div className="w-16 h-16 rounded-2xl gold-gradient animate-pulse flex items-center justify-center p-3">
         <LogoIcon className="text-white" />
