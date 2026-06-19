@@ -143,12 +143,6 @@ export async function POST(request: NextRequest) {
     const cleanCardNumber = cardNumber.replace(/\s+/g, '');
     const cleanCardExpiry = cardExpiry.replace(/\s+/g, ''); // Format: YYYY-MM
     
-    // Check if it's a test card to bypass external network charges during manual verification
-    const isTestCard = 
-      cleanCardNumber === '4000123456789010' || 
-      cleanCardNumber === '5105105105105100' || 
-      cleanCardNumber === '371234567890123';
-
     // 2. Initialize Firebase Admin and fetch credentials
     const adminApp = getAdminApp();
     const db = getFirestore(adminApp);
@@ -165,28 +159,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Kredensial kliring PayPal belum diaktifkan di admin panel.' }, { status: 500 });
     }
 
-    // 3. Process payment through PayPal or Mock Bypass if using a testing card
-    let paymentResult;
-    
-    if (isTestCard) {
-      // Mock successful payment for testing cards
-      paymentResult = {
-        id: `MOCK-NFC-${Date.now()}`,
-        status: 'COMPLETED',
-        brand: cleanCardNumber.startsWith('4') ? 'VISA' : cleanCardNumber.startsWith('5') ? 'MASTERCARD' : 'AMEX',
-        lastDigits: cleanCardNumber.slice(-4)
-      };
-      console.log(`[POS NFC]: Memproses kartu tes ${paymentResult.brand} secara aman.`);
-    } else {
-      // Live processing via PayPal REST API
-      const { token, baseUrl } = await getPayPalAccessToken(paypalClientId, paypalClientSecret);
-      paymentResult = await processDirectCardPayment(baseUrl, token, usdValue, {
-        number: cleanCardNumber,
-        expiry: cleanCardExpiry,
-        securityCode: cardCvv,
-        name: cardHolderName
-      });
-    }
+    // 3. Process payment through PayPal REST API
+    const { token, baseUrl } = await getPayPalAccessToken(paypalClientId, paypalClientSecret);
+    const paymentResult = await processDirectCardPayment(baseUrl, token, usdValue, {
+      number: cleanCardNumber,
+      expiry: cleanCardExpiry,
+      securityCode: cardCvv,
+      name: cardHolderName
+    });
 
     // 4. Update Ledger in Firestore (Transaction)
     const userRef = db.collection('users').doc(userId);
