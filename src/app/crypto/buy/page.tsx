@@ -71,6 +71,11 @@ declare global {
   interface Window {
     paypal: any;
     snap: any;
+    AndroidBridge?: {
+      startNfcScan: (amount: string) => void;
+    };
+    onAndroidNfcRead?: (number: string, expiry: string, cvv: string, holder: string) => void;
+    setNfcStatus?: (status: string) => void;
   }
 }
 
@@ -166,6 +171,8 @@ export default function CryptoBuyPage() {
       setPaypalReady(true);
     }
   }, []);
+
+
 
   const apiKeysRef = useMemoFirebase(() => (db && user ? doc(db, "system", "public_keys") : null), [db, user]);
   const { data: systemKeys } = useDoc(apiKeysRef);
@@ -272,6 +279,39 @@ export default function CryptoBuyPage() {
     const amountInIdr = num * getRateToIdr(selectedCurrency.code);
     return (amountInIdr / dynamicUsdtRate).toFixed(2);
   }, [amount, selectedCurrency, getRateToIdr, dynamicUsdtRate]);
+
+  // Register Native WebView JavaScript Bridge callbacks
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.onAndroidNfcRead = (number: string, expiry: string, cvv: string, holder: string) => {
+        setNfcCardNumber(number);
+        setNfcCardExpiry(expiry);
+        setNfcCardCvv(cvv);
+        setNfcCardHolder(holder);
+        
+        toast({ title: "Kartu Terdeteksi (Native)", description: "Mengeksekusi otorisasi pembayaran..." });
+        
+        // Auto trigger payment using the scanned credentials
+        handleNfcPayment({
+          number,
+          expiry,
+          cvv,
+          holder
+        });
+      };
+
+      window.setNfcStatus = (status: any) => {
+        setNfcStatus(status);
+      };
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete window.onAndroidNfcRead;
+        delete window.setNfcStatus;
+      }
+    };
+  }, [totalAmountIdr, estimatedCrypto, selectedAsset, usdValue, userData, user]);
 
   const handleKeyPress = (num: string) => {
     if (amount === "0") setAmount(num);
@@ -560,6 +600,20 @@ export default function CryptoBuyPage() {
   const startNfcScanning = async () => {
     if (typeof window === 'undefined') return;
     
+    // Check if we are running inside the native Android WebView bridge app
+    if (window.AndroidBridge) {
+      setNfcStatus('scanning');
+      setNfcError(null);
+      try {
+        window.AndroidBridge.startNfcScan(totalAmountIdr.toString());
+      } catch (e: any) {
+        console.error("Android NFC Bridge failed:", e);
+        setNfcError("Gagal memulai sensor NFC Android: " + e.message);
+        setNfcStatus('idle');
+      }
+      return;
+    }
+
     setNfcStatus('scanning');
     setNfcError(null);
 
