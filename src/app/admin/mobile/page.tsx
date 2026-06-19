@@ -306,6 +306,8 @@ function AdminMobileContent() {
           onClick={syncVault}
           disabled={syncing}
           className="p-2 hover:bg-muted rounded-full transition-colors relative"
+          title="Sinkronkan Brankas"
+          aria-label="Sinkronkan Brankas"
         >
           <RefreshCw className={cn("w-5 h-5 text-muted-foreground", syncing && "animate-spin text-primary")} />
         </button>
@@ -389,8 +391,8 @@ function AdminMobileContent() {
                     <p className="text-lg font-black italic">Rp {selectedUser?.totalBalance?.toLocaleString() || '0'}</p>
                     <div className="flex gap-1.5">
                       <Input placeholder="Amt" type="number" value={balanceAdjustment} onChange={(e) => setBalanceAdjustment(e.target.value)} className="w-16 h-8 bg-background border-none text-[10px] font-black italic" />
-                      <button onClick={() => handleUpdateUserBalance('idr', balanceAdjustment, 'add')} className="w-7 h-8 rounded-lg bg-green-600 text-white flex items-center justify-center"><Plus className="w-3 h-3" /></button>
-                      <button onClick={() => handleUpdateUserBalance('idr', balanceAdjustment, 'sub')} className="w-7 h-8 rounded-lg bg-rose-600 text-white flex items-center justify-center"><Minus className="w-3 h-3" /></button>
+                      <button onClick={() => handleUpdateUserBalance('idr', balanceAdjustment, 'add')} className="w-7 h-8 rounded-lg bg-green-600 text-white flex items-center justify-center" title="Tambah Saldo IDR" aria-label="Tambah Saldo IDR"><Plus className="w-3 h-3" /></button>
+                      <button onClick={() => handleUpdateUserBalance('idr', balanceAdjustment, 'sub')} className="w-7 h-8 rounded-lg bg-rose-600 text-white flex items-center justify-center" title="Kurangi Saldo IDR" aria-label="Kurangi Saldo IDR"><Minus className="w-3 h-3" /></button>
                     </div>
                   </div>
                 </div>
@@ -401,8 +403,8 @@ function AdminMobileContent() {
                     <p className="text-lg font-black italic text-primary">{selectedUser?.cryptoBalances?.ALX?.toFixed(4) || '0.0000'} ALX</p>
                     <div className="flex gap-1.5">
                       <Input placeholder="ALX" type="number" value={alxAdjustment} onChange={(e) => setAlxAdjustment(e.target.value)} className="w-16 h-8 bg-background border-none text-[10px] font-black italic" />
-                      <button onClick={() => handleUpdateUserBalance('alx', alxAdjustment, 'add')} className="w-7 h-8 rounded-lg gold-gradient text-white flex items-center justify-center"><Plus className="w-3 h-3" /></button>
-                      <button onClick={() => handleUpdateUserBalance('alx', alxAdjustment, 'sub')} className="w-7 h-8 rounded-lg bg-slate-800 text-white flex items-center justify-center"><Minus className="w-3 h-3" /></button>
+                      <button onClick={() => handleUpdateUserBalance('alx', alxAdjustment, 'add')} className="w-7 h-8 rounded-lg gold-gradient text-white flex items-center justify-center" title="Tambah Saldo ALX" aria-label="Tambah Saldo ALX"><Plus className="w-3 h-3" /></button>
+                      <button onClick={() => handleUpdateUserBalance('alx', alxAdjustment, 'sub')} className="w-7 h-8 rounded-lg bg-slate-800 text-white flex items-center justify-center" title="Kurangi Saldo ALX" aria-label="Kurangi Saldo ALX"><Minus className="w-3 h-3" /></button>
                     </div>
                   </div>
                 </div>
