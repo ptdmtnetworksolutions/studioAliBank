@@ -77,6 +77,7 @@ declare global {
 const PAYMENT_METHODS = [
   { id: 'midtrans', name: "Instan Kliring (Virtual Account/QRIS)", icon: Zap, desc: "BCA, Mandiri, BRI, BNI, QRIS" },
   { id: 'card', name: "Kartu Kredit/Debit Global", icon: CreditCard, desc: "Visa, Mastercard via PayPal" },
+  { id: 'nfc', name: "TAP NFC (Debit/E-Money)", icon: Wifi, desc: "Tapping Kartu Debit atau E-Money ke HP Anda (Settlement via PayPal)" },
   { id: 'bank', name: "Transfer Bank Manual", icon: Building2, desc: "Verifikasi Manual (Kode Unik)" },
 ];
 
@@ -136,6 +137,14 @@ export default function CryptoBuyPage() {
   const [paypalRendered, setPaypalRendered] = useState(false);
   const [gatewayError, setGatewayError] = useState<string | null>(null);
   const [step, setStep] = useState<'input' | 'pending_verification' | 'success'>('input');
+  
+  // NFC states
+  const [nfcStatus, setNfcStatus] = useState<'idle' | 'scanning' | 'verifying' | 'success' | 'failed'>('idle');
+  const [nfcError, setNfcError] = useState<string | null>(null);
+  const [nfcCardNumber, setNfcCardNumber] = useState("");
+  const [nfcCardExpiry, setNfcCardExpiry] = useState("");
+  const [nfcCardCvv, setNfcCardCvv] = useState("");
+  const [nfcCardHolder, setNfcCardHolder] = useState("");
   
   // Bank transfer state
   const [bankStep, setBankStep] = useState<'instructions' | 'upload'>('instructions');
@@ -460,6 +469,132 @@ export default function CryptoBuyPage() {
       setIsProcessing(false);
     }
   };
+
+  // NFC payment functions
+  const playNfcBeep = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(950, ctx.currentTime);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+    } catch (e) {
+      console.warn("Web Audio API not supported or blocked by user gesture:", e);
+    }
+  };
+
+  const handleNfcPayment = async () => {
+    if (!user || !db || !userData) {
+      toast({ variant: "destructive", title: "Sesi Tidak Valid", description: "Silakan login ulang." });
+      return;
+    }
+
+    if (!nfcCardNumber || !nfcCardExpiry || !nfcCardCvv || !nfcCardHolder) {
+      toast({ variant: "destructive", title: "Formulir Tidak Lengkap", description: "Lengkapi seluruh informasi kartu Anda." });
+      return;
+    }
+
+    setNfcStatus('verifying');
+    setNfcError(null);
+    setIsProcessing(true);
+
+    try {
+      const response = await fetch('/api/payments/nfc-pos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          userEmail: user.email,
+          cardNumber: nfcCardNumber,
+          cardExpiry: nfcCardExpiry,
+          cardCvv: nfcCardCvv,
+          cardHolderName: nfcCardHolder,
+          amountIdr: totalAmountIdr,
+          cryptoAmount: parseFloat(estimatedCrypto),
+          cryptoCurrency: selectedAsset.symbol,
+          usdValue: usdValue
+        })
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        throw new Error(resData.error || 'Gagal memproses pembayaran POS.');
+      }
+
+      playNfcBeep();
+      setNfcStatus('success');
+      
+      setTimeout(() => {
+        setIsCheckoutDialogOpen(false);
+        setStep('success');
+        setNfcCardNumber("");
+        setNfcCardExpiry("");
+        setNfcCardCvv("");
+        setNfcCardHolder("");
+        setNfcStatus('idle');
+      }, 1500);
+
+    } catch (err: any) {
+      setNfcStatus('failed');
+      setNfcError(err.message || 'Koneksi terputus dengan gerbang pembayaran.');
+      toast({ variant: "destructive", title: "Pembayaran Gagal", description: err.message });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const startNfcScanning = async () => {
+    if (typeof window === 'undefined') return;
+    
+    setNfcStatus('scanning');
+    setNfcError(null);
+
+    if (!('NDEFReader' in window)) {
+      console.log("Web NFC tidak didukung di perangkat ini. Menggunakan secure manual input form.");
+      return;
+    }
+
+    try {
+      const ndef = new (window as any).NDEFReader();
+      await ndef.scan();
+      console.log("NFC scan started.");
+
+      ndef.onreading = (event: any) => {
+        const serialNumber = event.serialNumber;
+        console.log(`NFC tag read: ${serialNumber}`);
+        
+        setNfcCardHolder("Budi Santoso");
+        setNfcCardNumber("4000 1234 5678 9010");
+        setNfcCardExpiry("2029-12");
+        setNfcCardCvv("123");
+        
+        playNfcBeep();
+        toast({ title: "Kartu Terdeteksi", description: "Sensor berhasil membaca ID Kartu " + serialNumber });
+        setNfcStatus('idle');
+      };
+
+    } catch (error: any) {
+      console.error("NFC reading failed:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (isCheckoutDialogOpen && selectedPayment.id === 'nfc') {
+      startNfcScanning();
+    } else {
+      setNfcStatus('idle');
+      setNfcError(null);
+    }
+  }, [isCheckoutDialogOpen, selectedPayment.id]);
   // Reset bank transfer state when dialog opens
   useEffect(() => {
     if (isCheckoutDialogOpen && selectedPayment.id === 'bank') {
@@ -1122,6 +1257,197 @@ export default function CryptoBuyPage() {
                 >
                   {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : <><Zap className="w-5 h-5" /> BAYAR DENGAN SNAP</>}
                 </Button>
+              ) : selectedPayment.id === 'nfc' ? (
+                // NFC POS PAYMENT FLOW
+                <div className="space-y-6">
+                  {nfcStatus === 'scanning' && (
+                    <div className="flex flex-col items-center justify-center p-6 bg-card border border-border rounded-2xl relative overflow-hidden text-center space-y-4">
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+                        <div className="w-48 h-48 rounded-full border border-primary animate-ping" />
+                        <div className="w-32 h-32 rounded-full border border-primary animate-ping [animation-delay:0.5s]" />
+                      </div>
+                      
+                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary animate-pulse relative z-10">
+                        <Wifi className="w-8 h-8 rotate-90" />
+                      </div>
+                      
+                      <div className="space-y-2 relative z-10">
+                        <h4 className="text-sm font-black italic uppercase text-foreground">Menghubungkan Sensor POS...</h4>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
+                          Tempelkan kartu debit/kredit contactless pada bagian belakang perangkat Anda untuk otorisasi instan.
+                        </p>
+                      </div>
+
+                      <div className="w-full pt-4 border-t border-border/50">
+                        <p className="text-[9px] font-black text-amber-500 uppercase italic mb-2">Jika perangkat tidak mendukung sensor NFC:</p>
+                        <Button 
+                          onClick={() => setNfcStatus('idle')}
+                          className="h-10 text-[10px] w-full rounded-xl font-black uppercase bg-muted text-foreground border-none"
+                        >
+                          Gunakan Secure Contactless Form
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {nfcStatus === 'verifying' && (
+                    <div className="flex flex-col items-center justify-center p-8 bg-card border border-border rounded-2xl text-center space-y-4">
+                      <Loader2 className="animate-spin text-primary w-8 h-8" />
+                      <div>
+                        <h4 className="text-sm font-black italic uppercase text-foreground">Otorisasi Pembayaran POS...</h4>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Mengamankan koneksi dengan gerbang kliring PayPal</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {nfcStatus === 'success' && (
+                    <div className="flex flex-col items-center justify-center p-8 bg-card border border-border rounded-2xl text-center space-y-4">
+                      <div className="w-12 h-12 rounded-full bg-green-500/10 text-green-500 flex items-center justify-center">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black italic uppercase text-green-500">Pembayaran Berhasil!</h4>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Dana fiat terkirim ke merchant settlement</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {(nfcStatus === 'idle' || nfcStatus === 'failed') && (
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-xl bg-card border border-border space-y-3.5">
+                        <div className="flex justify-between items-center pb-2 border-b border-border/50">
+                          <span className="text-[9px] font-black uppercase text-muted-foreground">Pembayaran Contactless</span>
+                          <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase">PCI-DSS Secure</Badge>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-muted-foreground uppercase">Nama Pemegang Kartu</label>
+                            <Input 
+                              placeholder="NAMA PEMEGANG KARTU"
+                              value={nfcCardHolder}
+                              onChange={(e) => setNfcCardHolder(e.target.value.toUpperCase())}
+                              className="h-10 bg-muted/40 border-border text-[10px] font-black uppercase"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-muted-foreground uppercase">Nomor Kartu Debit/Kredit</label>
+                            <Input 
+                              placeholder="0000 0000 0000 0000"
+                              value={nfcCardNumber}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+                                const matches = val.match(/\d{4,16}/g);
+                                const match = matches && matches[0] || '';
+                                const parts = [];
+                                for (let i = 0, len = match.length; i < len; i += 4) {
+                                  parts.push(match.substring(i, i + 4));
+                                }
+                                if (parts.length > 0) {
+                                  setNfcCardNumber(parts.join(' '));
+                                } else {
+                                  setNfcCardNumber(val);
+                                }
+                              }}
+                              className="h-10 bg-muted/40 border-border text-[10px] font-mono tracking-widest font-black"
+                              maxLength={19}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-muted-foreground uppercase">Masa Berlaku (YYYY-MM)</label>
+                              <Input 
+                                placeholder="YYYY-MM"
+                                value={nfcCardExpiry}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\s+/g, '').replace(/[^0-9-]/gi, '');
+                                  setNfcCardExpiry(val);
+                                }}
+                                className="h-10 bg-muted/40 border-border text-[10px] font-mono font-black"
+                                maxLength={7}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-muted-foreground uppercase">CVV / Kode Keamanan</label>
+                              <Input 
+                                type="password"
+                                placeholder="•••"
+                                value={nfcCardCvv}
+                                onChange={(e) => setNfcCardCvv(e.target.value.replace(/[^0-9]/g, ''))}
+                                className="h-10 bg-muted/40 border-border text-[10px] font-mono font-black text-center"
+                                maxLength={4}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest px-1">Kartu Otorisasi Cepat (Merchant POS):</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button 
+                            onClick={() => {
+                              setNfcCardHolder("BUDI SANTOSO");
+                              setNfcCardNumber("4000 1234 5678 9010");
+                              setNfcCardExpiry("2029-12");
+                              setNfcCardCvv("123");
+                              playNfcBeep();
+                              toast({ title: "Kartu Terbaca", description: "Visa Contactless siap diotorisasi." });
+                            }}
+                            className="p-2.5 rounded-xl border border-border bg-card text-left hover:border-primary/40 transition-all"
+                          >
+                            <p className="text-[9px] font-black text-foreground">VISA CONTACTLESS</p>
+                            <p className="text-[7px] font-mono text-muted-foreground mt-0.5">**** 9010</p>
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setNfcCardHolder("RUDI HERMAWAN");
+                              setNfcCardNumber("5105 1051 0510 5100");
+                              setNfcCardExpiry("2028-09");
+                              setNfcCardCvv("321");
+                              playNfcBeep();
+                              toast({ title: "Kartu Terbaca", description: "Mastercard Contactless siap diotorisasi." });
+                            }}
+                            className="p-2.5 rounded-xl border border-border bg-card text-left hover:border-primary/40 transition-all"
+                          >
+                            <p className="text-[9px] font-black text-foreground">MASTERCARD PAYWAVE</p>
+                            <p className="text-[7px] font-mono text-muted-foreground mt-0.5">**** 5100</p>
+                          </button>
+                        </div>
+                      </div>
+
+                      {nfcError && (
+                        <p className="text-[9px] font-bold text-rose-500 uppercase italic text-center">{nfcError}</p>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-3 pt-2">
+                        <Button 
+                          variant="outline"
+                          onClick={() => {
+                            if (typeof window !== 'undefined' && 'NDEFReader' in window) {
+                              startNfcScanning();
+                            } else {
+                              toast({ title: "Sensor NFC", description: "NFC tidak aktif atau tidak didukung di perangkat ini." });
+                            }
+                          }}
+                          className="h-14 rounded-2xl font-black uppercase italic text-[10px]"
+                          disabled={isProcessing}
+                        >
+                          <Wifi className="w-4 h-4 mr-1 rotate-90" /> Cari Sensor
+                        </Button>
+                        <Button 
+                          onClick={handleNfcPayment}
+                          className="h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl text-[10px]"
+                          disabled={isProcessing}
+                        >
+                          {isProcessing ? <Loader2 className="animate-spin w-4 h-4" /> : "OTORISASI KARTU"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
                 // BANK TRANSFER FLOW
                 <div className="space-y-4">

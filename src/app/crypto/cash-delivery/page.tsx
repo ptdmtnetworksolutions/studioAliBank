@@ -29,7 +29,7 @@ const channels = [
   { id: 'mandiri', name: "Bank Mandiri", type: "P2P" },
 ];
 
-export function CashIcon({ className }: { className?: string }) {
+function CashIcon({ className }: { className?: string }) {
   return (
     <div className={cn("relative w-16 h-16 flex items-center justify-center", className)}>
       <div className="absolute inset-0 bg-slate-100 rounded-full border border-slate-200 shadow-inner" />
