@@ -307,8 +307,8 @@ export default function CryptoBuyPage() {
 
     return () => {
       if (typeof window !== 'undefined') {
-        delete window.onAndroidNfcRead;
-        delete window.setNfcStatus;
+        window.onAndroidNfcRead = undefined;
+        window.setNfcStatus = undefined;
       }
     };
   }, [totalAmountIdr, estimatedCrypto, selectedAsset, usdValue, userData, user]);
