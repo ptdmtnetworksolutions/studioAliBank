@@ -82,7 +82,7 @@ export default function ConvertPage() {
     IDR: 1 / USDT_IDR_RATE
   });
 
-  const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
+  const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
   const fetchPrices = useCallback(async () => {

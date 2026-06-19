@@ -65,7 +65,7 @@ export default function AliSpinPage() {
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
+  const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
   const dynamicAlxPriceUsdt = globalLiquidity?.lastAlxPriceUsdt || 12.24;
   const alxPriceIdr = useMemo(() => Math.round(dynamicAlxPriceUsdt * 15850), [dynamicAlxPriceUsdt]);

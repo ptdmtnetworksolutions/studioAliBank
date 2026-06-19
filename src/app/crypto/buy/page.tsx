@@ -180,7 +180,7 @@ export default function CryptoBuyPage() {
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
-  const liquidityRef = useMemoFirebase(() => (db ? doc(db, "system", "liquidity") : null), [db]);
+  const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
   const fetchRealTimeRate = useCallback(async () => {
@@ -842,12 +842,14 @@ export default function CryptoBuyPage() {
           }}
         />
       )}
-      <Script 
-        src={systemKeys?.midtransClientKey?.startsWith('SB-') 
-          ? "https://app.sandbox.midtrans.com/snap/snap.js" 
-          : "https://app.midtrans.com/snap/snap.js"}
-        data-client-key={systemKeys?.midtransClientKey}
-      />
+      {systemKeys?.midtransClientKey && (
+        <Script 
+          src={systemKeys.midtransClientKey.startsWith('SB-') 
+            ? "https://app.sandbox.midtrans.com/snap/snap.js" 
+            : "https://app.midtrans.com/snap/snap.js"}
+          data-client-key={systemKeys.midtransClientKey}
+        />
+      )}
       
       {isMobile ? (
         <div className="flex flex-col flex-1 overflow-hidden">
