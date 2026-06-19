@@ -12,7 +12,7 @@ function getAdminApp(): App {
 // Helper to authenticate with PayPal
 async function getPayPalAccessToken(clientId: string, clientSecret: string) {
   const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-  
+
   // Try Live endpoint first
   try {
     const res = await fetch('https://api-m.paypal.com/v1/oauth2/token', {
@@ -30,7 +30,7 @@ async function getPayPalAccessToken(clientId: string, clientSecret: string) {
   } catch (e) {
     console.warn("PayPal Live authentication failed, attempting Sandbox fallback...");
   }
-  
+
   // Fallback to Sandbox
   const res = await fetch('https://api-m.sandbox.paypal.com/v1/oauth2/token', {
     method: 'POST',
@@ -40,12 +40,12 @@ async function getPayPalAccessToken(clientId: string, clientSecret: string) {
     },
     body: 'grant_type=client_credentials'
   });
-  
+
   if (!res.ok) {
     const errText = await res.text();
     throw new Error(`Gagal otentikasi PayPal: ${errText || res.statusText}`);
   }
-  
+
   const data = await res.json();
   return { token: data.access_token, baseUrl: 'https://api-m.sandbox.paypal.com' };
 }
@@ -153,17 +153,17 @@ async function processDirectCardPayment(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { 
-      userId, 
-      userEmail, 
-      cardNumber, 
-      cardExpiry, 
-      cardCvv, 
-      cardHolderName, 
-      amountIdr, 
-      cryptoAmount, 
-      cryptoCurrency, 
-      usdValue 
+    const {
+      userId,
+      userEmail,
+      cardNumber,
+      cardExpiry,
+      cardCvv,
+      cardHolderName,
+      amountIdr,
+      cryptoAmount,
+      cryptoCurrency,
+      usdValue
     } = body;
 
     // 1. Parameter Validation
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
 
     if (baseUrl.includes('sandbox')) {
       console.log("[NFC POS] Sandbox mode detected. Running transparent card and CVV auto-mapping...");
-      
+
       // Map based on card prefix to support any card tapped by the user (including local Indonesian GPN, JCB, Visa, Mastercard)
       if (cleanCardNumber.startsWith('4')) {
         // Visa -> Map to standard Visa Sandbox Test Card
@@ -248,7 +248,7 @@ export async function POST(request: NextRequest) {
 
     // 4. Update Ledger in Firestore (Transaction)
     const userRef = db.collection('users').doc(userId);
-    
+
     await db.runTransaction(async (transaction) => {
       const userSnap = await transaction.get(userRef);
       if (!userSnap.exists) {
