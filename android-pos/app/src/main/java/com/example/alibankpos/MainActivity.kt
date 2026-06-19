@@ -339,33 +339,94 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun extractPan(res: ByteArray): String? {
-        val hex = bytesToHex(res)
-        
-        // Track 2 Equivalent Data (Tag 57)
-        val index57 = hex.indexOf("57")
-        if (index57 != -1 && index57 + 2 < hex.length) {
-            val len = hex.substring(index57 + 2, index57 + 4).toInt(16)
-            if (index57 + 4 + len * 2 <= hex.length) {
-                val track2 = hex.substring(index57 + 4, index57 + 4 + len * 2)
-                val separator = track2.indexOf('D')
-                if (separator != -1) {
-                    val pan = track2.substring(0, separator)
-                    val expiry = track2.substring(separator + 1, separator + 5) // YYMM
-                    return "$pan|$expiry"
+        // Try to parse Track 2 Equivalent Data (Tag 0x57)
+        val track2Val = findTagValue(res, 0x57)
+        if (track2Val != null) {
+            val track2Hex = bytesToHex(track2Val)
+            val separator = track2Hex.indexOf('D')
+            if (separator != -1 && separator + 5 <= track2Hex.length) {
+                val pan = track2Hex.substring(0, separator)
+                val expiry = track2Hex.substring(separator + 1, separator + 5) // YYMM
+                return "$pan|$expiry"
+            }
+        }
+
+        // Try to parse Application PAN (Tag 0x5A)
+        val panVal = findTagValue(res, 0x5A)
+        if (panVal != null) {
+            val panHex = bytesToHex(panVal)
+            val cleanPan = panHex.trimEnd('F')
+            return "$cleanPan|2912"
+        }
+
+        return null
+    }
+
+    private fun findTagValue(bytes: ByteArray, targetTag: Int): ByteArray? {
+        return parseTlv(bytes, 0, bytes.size, targetTag)
+    }
+
+    private fun parseTlv(bytes: ByteArray, start: Int, end: Int, targetTag: Int): ByteArray? {
+        var i = start
+        while (i < end - 1) {
+            val b = bytes[i].toInt() and 0xFF
+            if (b == 0x00 || b == 0xFF) {
+                i++
+                continue
+            }
+            
+            // Determine Tag
+            var tag = b
+            var tagSize = 1
+            if ((b and 0x1F) == 0x1F) {
+                if (i + 1 >= end) break
+                val b2 = bytes[i + 1].toInt() and 0xFF
+                tag = (tag shl 8) or b2
+                tagSize = 2
+            }
+            i += tagSize
+            if (i >= end) break
+            
+            // Determine Length
+            val lenByte = bytes[i].toInt() and 0xFF
+            var len = lenByte
+            var lenSize = 1
+            if ((lenByte and 0x80) == 0x80) {
+                val numLengthBytes = lenByte and 0x7F
+                if (numLengthBytes == 1) {
+                    if (i + 1 >= end) break
+                    len = bytes[i + 1].toInt() and 0xFF
+                    lenSize = 2
+                } else if (numLengthBytes == 2) {
+                    if (i + 2 >= end) break
+                    val len1 = bytes[i + 1].toInt() and 0xFF
+                    val len2 = bytes[i + 2].toInt() and 0xFF
+                    len = (len1 shl 8) or len2
+                    lenSize = 3
+                } else {
+                    break
                 }
             }
-        }
-
-        // Application PAN (Tag 5A)
-        val index5A = hex.indexOf("5A")
-        if (index5A != -1 && index5A + 2 < hex.length) {
-            val len = hex.substring(index5A + 2, index5A + 4).toInt(16)
-            if (index5A + 4 + len * 2 <= hex.length) {
-                val pan = hex.substring(index5A + 4, index5A + 4 + len * 2)
-                return pan.trimEnd('F') + "|2912"
+            i += lenSize
+            if (i + len > end) break
+            
+            // Check if this is the target tag
+            if (tag == targetTag) {
+                val value = ByteArray(len)
+                System.arraycopy(bytes, i, value, 0, len)
+                return value
             }
+            
+            // Check if constructed (constructed tag has bit 6 set)
+            val firstTagByte = if (tagSize == 2) (tag shr 8) else tag
+            val isConstructed = (firstTagByte and 0x20) == 0x20
+            if (isConstructed) {
+                val found = parseTlv(bytes, i, i + len, targetTag)
+                if (found != null) return found
+            }
+            
+            i += len
         }
-
         return null
     }
 
