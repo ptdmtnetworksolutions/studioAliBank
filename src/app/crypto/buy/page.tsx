@@ -79,6 +79,7 @@ declare global {
     };
     onAndroidNfcRead?: (number: string, expiry: string, cvv: string, holder: string) => void;
     setNfcStatus?: (status: string) => void;
+    setNfcError?: (error: string | null) => void;
   }
 }
 
