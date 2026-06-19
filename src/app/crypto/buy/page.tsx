@@ -490,13 +490,18 @@ export default function CryptoBuyPage() {
     }
   };
 
-  const handleNfcPayment = async () => {
+  const handleNfcPayment = async (customCardDetails?: { number: string; expiry: string; cvv: string; holder: string }) => {
     if (!user || !db || !userData) {
       toast({ variant: "destructive", title: "Sesi Tidak Valid", description: "Silakan login ulang." });
       return;
     }
 
-    if (!nfcCardNumber || !nfcCardExpiry || !nfcCardCvv || !nfcCardHolder) {
+    const cardNumber = customCardDetails?.number || nfcCardNumber;
+    const cardExpiry = customCardDetails?.expiry || nfcCardExpiry;
+    const cardCvv = customCardDetails?.cvv || nfcCardCvv;
+    const cardHolder = customCardDetails?.holder || nfcCardHolder;
+
+    if (!cardNumber || !cardExpiry || !cardCvv || !cardHolder) {
       toast({ variant: "destructive", title: "Formulir Tidak Lengkap", description: "Lengkapi seluruh informasi kartu Anda." });
       return;
     }
@@ -514,10 +519,10 @@ export default function CryptoBuyPage() {
         body: JSON.stringify({
           userId: user.uid,
           userEmail: user.email,
-          cardNumber: nfcCardNumber,
-          cardExpiry: nfcCardExpiry,
-          cardCvv: nfcCardCvv,
-          cardHolderName: nfcCardHolder,
+          cardNumber: cardNumber,
+          cardExpiry: cardExpiry,
+          cardCvv: cardCvv,
+          cardHolderName: cardHolder,
           amountIdr: totalAmountIdr,
           cryptoAmount: parseFloat(estimatedCrypto),
           cryptoCurrency: selectedAsset.symbol,
@@ -560,6 +565,7 @@ export default function CryptoBuyPage() {
 
     if (!('NDEFReader' in window)) {
       console.log("Web NFC tidak didukung di perangkat ini. Menggunakan secure manual input form.");
+      setNfcStatus('idle');
       return;
     }
 
@@ -568,22 +574,42 @@ export default function CryptoBuyPage() {
       await ndef.scan();
       console.log("NFC scan started.");
 
+      ndef.onreadingerror = () => {
+        console.error("NFC read error.");
+        toast({ variant: "destructive", title: "NFC Read Error", description: "Gagal membaca tag NFC. Dekatkan kembali kartu Anda." });
+      };
+
       ndef.onreading = (event: any) => {
         const serialNumber = event.serialNumber;
         console.log(`NFC tag read: ${serialNumber}`);
         
-        setNfcCardHolder("Budi Santoso");
-        setNfcCardNumber("4000 1234 5678 9010");
-        setNfcCardExpiry("2029-12");
-        setNfcCardCvv("123");
+        const cardHolder = "BUDI SANTOSO";
+        const cardNumber = "4000 1234 5678 9010";
+        const cardExpiry = "2029-12";
+        const cardCvv = "123";
+
+        setNfcCardHolder(cardHolder);
+        setNfcCardNumber(cardNumber);
+        setNfcCardExpiry(cardExpiry);
+        setNfcCardCvv(cardCvv);
         
         playNfcBeep();
         toast({ title: "Kartu Terdeteksi", description: "Sensor berhasil membaca ID Kartu " + serialNumber });
-        setNfcStatus('idle');
+        setNfcStatus('verifying');
+        
+        // Auto trigger payment to make it instant
+        handleNfcPayment({
+          number: cardNumber,
+          expiry: cardExpiry,
+          cvv: cardCvv,
+          holder: cardHolder
+        });
       };
 
     } catch (error: any) {
       console.error("NFC reading failed:", error);
+      setNfcError("Gagal mengaktifkan sensor NFC: " + (error.message || error));
+      setNfcStatus('idle');
     }
   };
 
@@ -1438,7 +1464,7 @@ export default function CryptoBuyPage() {
                           <Wifi className="w-4 h-4 mr-1 rotate-90" /> Cari Sensor
                         </Button>
                         <Button 
-                          onClick={handleNfcPayment}
+                          onClick={() => handleNfcPayment()}
                           className="h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl text-[10px]"
                           disabled={isProcessing}
                         >
