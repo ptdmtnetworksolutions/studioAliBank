@@ -65,6 +65,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from "@/hooks/use-toast";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { createMidtransSnapTokenAction } from "@/app/actions/midtrans-actions";
+import { createIpaymuPaymentAction } from "@/app/actions/ipaymu-actions";
 import Script from "next/script";
 
 declare global {
@@ -81,6 +82,7 @@ declare global {
 
 const PAYMENT_METHODS = [
   { id: 'midtrans', name: "Instan Kliring (Virtual Account/QRIS)", icon: Zap, desc: "BCA, Mandiri, BRI, BNI, QRIS" },
+  { id: 'ipaymu', name: "Instan Kliring iPaymu", icon: Landmark, desc: "Virtual Account, QRIS, Retail Store" },
   { id: 'card', name: "Kartu Kredit/Debit Global", icon: CreditCard, desc: "Visa, Mastercard via PayPal" },
   { id: 'nfc', name: "TAP NFC (Debit/E-Money)", icon: Wifi, desc: "Tapping Kartu Debit atau E-Money ke HP Anda (Settlement via PayPal)" },
   { id: 'bank', name: "Transfer Bank Manual", icon: Building2, desc: "Verifikasi Manual (Kode Unik)" },
@@ -516,6 +518,47 @@ export default function CryptoBuyPage() {
     }
   };
 
+  const handleIpaymuPayment = async () => {
+    if (!user || !db) {
+      toast({ variant: "destructive", title: "Sesi Tidak Valid", description: "Silakan login ulang." });
+      return;
+    }
+
+    if (!systemKeys?.ipaymuVa || !systemKeys?.ipaymuApiKey) {
+      toast({ 
+        variant: "destructive", 
+        title: "Konfigurasi Error", 
+        description: "iPaymu belum dikonfigurasi di panel admin." 
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const orderId = `ALIBANK-IPAYMU-${Date.now()}`;
+      const res = await createIpaymuPaymentAction(
+        orderId,
+        totalAmountIdr,
+        userData?.name || user.email || "User",
+        user.email || "",
+        user.uid,
+        parseFloat(estimatedCrypto),
+        selectedAsset.symbol,
+        usdValue
+      );
+
+      if (!res.redirectUrl) {
+        throw new Error('Gagal mendapatkan URL pembayaran dari iPaymu.');
+      }
+
+      toast({ title: "Mengarahkan Pembayaran", description: "Membuka halaman pembayaran iPaymu..." });
+      window.location.href = res.redirectUrl;
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "iPaymu Error", description: err.message });
+      setIsProcessing(false);
+    }
+  };
+
   // NFC payment functions
   const playNfcBeep = () => {
     try {
@@ -681,6 +724,29 @@ export default function CryptoBuyPage() {
       setNfcError(null);
     }
   }, [isCheckoutDialogOpen, selectedPayment.id]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const status = params.get('status');
+      
+      if (status === 'success') {
+        toast({ 
+          title: "Pembayaran iPaymu Sukses", 
+          description: "Pesanan Anda sedang diproses. Koin ALX akan segera ditambahkan." 
+        });
+        setStep('success');
+        router.replace('/crypto/buy');
+      } else if (status === 'cancel') {
+        toast({ 
+          variant: "destructive",
+          title: "Pembayaran Dibatalkan", 
+          description: "Anda membatalkan pembayaran iPaymu." 
+        });
+        router.replace('/crypto/buy');
+      }
+    }
+  }, [toast, router]);
   // Reset bank transfer state when dialog opens
   useEffect(() => {
     if (isCheckoutDialogOpen && selectedPayment.id === 'bank') {
@@ -1344,6 +1410,14 @@ export default function CryptoBuyPage() {
                   className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl flex items-center justify-center gap-3"
                 >
                   {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : <><Zap className="w-5 h-5" /> BAYAR DENGAN SNAP</>}
+                </Button>
+              ) : selectedPayment.id === 'ipaymu' ? (
+                <Button 
+                  onClick={handleIpaymuPayment} 
+                  disabled={isProcessing}
+                  className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl flex items-center justify-center gap-3"
+                >
+                  {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : <><Landmark className="w-5 h-5" /> BAYAR DENGAN IPAYMU</>}
                 </Button>
               ) : selectedPayment.id === 'nfc' ? (
                 // NFC POS PAYMENT FLOW
