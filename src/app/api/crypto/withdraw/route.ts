@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { ethers } from 'ethers';
+import { AliBankVaultABI } from '@/lib/abi/AliBankVault';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,19 +134,35 @@ export async function POST(request: NextRequest) {
         txResponse.wait(1).catch((e: any) => console.error('[USDT Tx Wait Error]:', e));
 
       } else if (asset === 'ETH') {
-        // ETH withdrawal over Ethereum Mainnet
+        // ETH withdrawal from AliBankVault contract over Ethereum Mainnet
         const rpcUrl = config.ethereumRpcUrl || 'https://ethereum-rpc.publicnode.com';
         const provider = new ethers.JsonRpcProvider(rpcUrl);
         const wallet = new ethers.Wallet(privateKey, provider);
+        const contractAddress = config.vaultContractAddress || '0x56268032A3B3E64CFeF1916d591087CF8dF40945';
         
-        const txResponse = await wallet.sendTransaction({
-          to: recipient,
-          value: ethers.parseEther(numAmount.toString())
+        // Initialize contract
+        const vaultContract = new ethers.Contract(contractAddress, AliBankVaultABI, wallet);
+        
+        // 1. Call withdraw() on the vault contract to transfer ETH to the admin wallet
+        console.log(`[ETH Withdraw] Calling AliBankVault.withdraw for ${numAmount} ETH...`);
+        const vaultTx = await vaultContract.withdraw(ethers.parseEther(numAmount.toString()), {
+          gasLimit: 120000
         });
-        txHash = txResponse.hash;
-        usedNetwork = 'Ethereum Mainnet';
+        await vaultTx.wait(1);
+        txHash = vaultTx.hash;
+        usedNetwork = 'Ethereum Mainnet (AliBankVault)';
 
-        txResponse.wait(1).catch((e: any) => console.error('[ETH Tx Wait Error]:', e));
+        // 2. Forward the ETH from the admin wallet to the recipient
+        if (recipient.toLowerCase() !== wallet.address.toLowerCase()) {
+          console.log(`[ETH Withdraw] Forwarding ${numAmount} ETH from admin wallet to ${recipient}...`);
+          const forwardTx = await wallet.sendTransaction({
+            to: recipient,
+            value: ethers.parseEther(numAmount.toString()),
+            gasLimit: 21000
+          });
+          await forwardTx.wait(1);
+          txHash = forwardTx.hash; // Use the final transfer hash
+        }
 
       } else if (asset === 'BTC') {
         // BTC is not EVM-native, simulate clearing queue but with real status update
