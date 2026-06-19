@@ -314,12 +314,17 @@ export default function CryptoBuyPage() {
       window.setNfcStatus = (status: any) => {
         setNfcStatus(status);
       };
+
+      window.setNfcError = (error: string | null) => {
+        setNfcError(error);
+      };
     }
 
     return () => {
       if (typeof window !== 'undefined') {
         window.onAndroidNfcRead = undefined;
         window.setNfcStatus = undefined;
+        window.setNfcError = undefined;
       }
     };
   }, [totalAmountIdr, estimatedCrypto, selectedAsset, usdValue, userData, user]);

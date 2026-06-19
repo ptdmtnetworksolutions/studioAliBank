@@ -232,6 +232,7 @@ class MainActivity : ComponentActivity() {
                 val parts = cardDetails.split("|")
                 val number = parts[0]
                 val rawExpiry = parts[1] // YYMM
+                val name = if (parts.size > 2) parts[2] else "NATIVE CONTACTLESS"
                 
                 // Format Expiry from YYMM to YYYY-MM
                 val expiry = if (rawExpiry.length == 4) {
@@ -244,17 +245,16 @@ class MainActivity : ComponentActivity() {
                 
                 // Send read details back to Next.js WebView
                 webView?.evaluateJavascript(
-                    "javascript:if(window.onAndroidNfcRead) window.onAndroidNfcRead('$number', '$expiry', '123', 'NATIVE CONTACTLESS');",
+                    "javascript:if(window.onAndroidNfcRead) window.onAndroidNfcRead('$number', '$expiry', '123', '$name');",
                     null
                 )
             } else {
-                // Fallback for E-Toll/E-Money tags - generate mock details for simulation
-                val serial = bytesToHex(tag.id)
-                Toast.makeText(this, "E-Toll/E-Money Terdeteksi (ID: $serial)", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Gagal Membaca Kartu Contactless", Toast.LENGTH_LONG).show()
                 
-                // We pass test credentials that will go through PayPal API check
+                // Notify the WebView of the failure and set a clear error message
                 webView?.evaluateJavascript(
-                    "javascript:if(window.onAndroidNfcRead) window.onAndroidNfcRead('4000 1234 5678 9010', '2029-12', '123', 'MOCK CONTACTLESS');",
+                    "javascript:if(window.setNfcError) window.setNfcError('Gagal membaca kartu contactless. Pastikan Anda menggunakan kartu Debit/Kredit Visa/Mastercard contactless.');" +
+                    "if(window.setNfcStatus) window.setNfcStatus('failed');",
                     null
                 )
             }
