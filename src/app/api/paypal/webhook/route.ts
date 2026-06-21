@@ -15,6 +15,67 @@ function getAdminApp(): App {
   return initializeApp({ projectId: 'darmedia-pos' });
 }
 
+// Helper to authenticate with PayPal
+async function getPayPalAccessToken(clientId: string, clientSecret: string) {
+  const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  try {
+    const res = await fetch('https://api-m.paypal.com/v1/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials'
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { token: data.access_token, baseUrl: 'https://api-m.paypal.com' };
+    }
+  } catch (e) {
+    console.warn("PayPal Live authentication failed, attempting Sandbox fallback...");
+  }
+
+  const res = await fetch('https://api-m.sandbox.paypal.com/v1/oauth2/token', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials'
+  });
+
+  if (!res.ok) {
+    throw new Error('Gagal otentikasi PayPal API.');
+  }
+  const data = await res.json();
+  return { token: data.access_token, baseUrl: 'https://api-m.sandbox.paypal.com' };
+}
+
+// Helper to verify payment capture via back-channel GET request
+async function verifyPayPalCapture(transactionId: string, clientId: string, clientSecret: string): Promise<boolean> {
+  try {
+    const { token, baseUrl } = await getPayPalAccessToken(clientId, clientSecret);
+    const res = await fetch(`${baseUrl}/v2/payments/captures/${transactionId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!res.ok) {
+      console.warn(`[PayPal Audit] Gagal menanyakan status capture ${transactionId} ke PayPal REST API.`);
+      return false;
+    }
+
+    const data = await res.json();
+    return data.status === 'COMPLETED';
+  } catch (err: any) {
+    console.error('[PayPal Audit Error] Gagal melakukan audit back-channel:', err.message);
+    return false;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -32,6 +93,19 @@ export async function POST(req: NextRequest) {
       const amountUsd = parseFloat(resource.amount.value);
       const transactionId = resource.id; // Capture ID
       const orderId = resource.supplementary_data?.related_ids?.order_id; // Order ID jika ada
+
+      // 1b. Dapatkan kredensial PayPal dari Firestore untuk verifikasi back-channel
+      const apiKeysSnap = await db.collection('system').doc('api_keys').get();
+      const keys = apiKeysSnap.exists ? apiKeysSnap.data()! : {};
+      const { paypalClientId, paypalClientSecret } = keys;
+
+      if (paypalClientId && paypalClientSecret) {
+        const isLegit = await verifyPayPalCapture(transactionId, paypalClientId, paypalClientSecret);
+        if (!isLegit) {
+          console.warn(`[PayPal Webhook Warning] Transaksi ${transactionId} gagal diverifikasi lewat back-channel! Potensi fraud/spoofing.`);
+          return NextResponse.json({ error: 'Verifikasi transaksi gagal.' }, { status: 400 });
+        }
+      }
 
       // LOGIKA ANTI-DUPLIKASI (Idempotency):
       // Pembayaran POS NFC (NFC Tap) dan checkout client-side (finalizeTransaction) sudah merekam 

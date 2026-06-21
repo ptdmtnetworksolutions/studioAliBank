@@ -41,11 +41,15 @@ export function Sidebar() {
   const db = useFirestore();
 
   const [cryptoExpanded, setCryptoExpanded] = useState(false);
+  const [gamesExpanded, setGamesExpanded] = useState(false);
 
-  // Auto expand crypto submenu if current path is a crypto subpage
+  // Auto expand submenus if on subpages
   useEffect(() => {
     if (pathname && (pathname.startsWith("/crypto") || pathname.includes("/trade-pro") || pathname.includes("/market/"))) {
       setCryptoExpanded(true);
+    }
+    if (pathname && pathname.startsWith("/games")) {
+      setGamesExpanded(true);
     }
   }, [pathname]);
 
@@ -220,12 +224,39 @@ export function Sidebar() {
             active={pathname === "/ai-assistant"} 
             onClick={() => handleNavigation("/ai-assistant")} 
           />
-          <SidebarItem 
-            icon={Gamepad2} 
-            label="Mini Games" 
-            active={pathname === "/games/spin"} 
-            onClick={() => handleNavigation("/games/spin")} 
-          />
+          {/* Collapsible Mini Games Submenu */}
+          <div>
+            <div 
+              onClick={() => setGamesExpanded(!gamesExpanded)} 
+              className={cn(
+                "flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all group",
+                pathname?.startsWith("/games") && !gamesExpanded
+                  ? "bg-primary/5 text-primary font-bold" 
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <Gamepad2 className={cn("w-4.5 h-4.5", pathname?.startsWith("/games") ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+                <span className="text-xs font-black uppercase italic tracking-tight">Mini Games</span>
+              </div>
+              {gamesExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </div>
+            
+            {gamesExpanded && (
+              <div className="pl-4 space-y-1 mt-1 ml-4 border-l border-border/40">
+                <SubmenuItem 
+                  label="Ali Spin Wheel" 
+                  active={pathname === "/games/spin"} 
+                  onClick={() => handleNavigation("/games/spin")} 
+                />
+                <SubmenuItem 
+                  label="AliBank MOBA" 
+                  active={pathname === "/games/moba"} 
+                  onClick={() => handleNavigation("/games/moba")} 
+                />
+              </div>
+            )}
+          </div>
           <SidebarItem 
             icon={Settings} 
             label="Pengaturan" 

@@ -343,7 +343,7 @@ function DashboardContent() {
 
     const totalDebt = illegalDebtIdr + totalCryptoDebtValIdr;
     return {
-      hasDebt: totalDebt > 1000,
+      hasDebt: totalDebt > 1000 && userData.tier !== "Restructured (Legal)",
       totalDebtValIdr: totalDebt,
       illegalDebtIdr,
       cryptoDebts
@@ -509,6 +509,19 @@ function DashboardContent() {
                     <div>
                       <p className="text-sm font-black uppercase italic leading-tight group-hover:text-orange-500 transition-colors">Ali Spin Wheel</p>
                       <span className="text-[9px] font-bold text-muted-foreground uppercase mt-0.5 block">Fortune Spin Harian</span>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </Card>
+
+                <Card className="p-4 bg-muted/30 border border-border rounded-2xl flex items-center justify-between cursor-pointer hover:bg-muted/60 transition-all shadow-sm group" onClick={() => router.push('/games/moba')}>
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500 shrink-0 group-hover:scale-105 transition-transform">
+                      <Gamepad2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black uppercase italic leading-tight group-hover:text-purple-500 transition-colors">AliBank Arena MOBA</p>
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase mt-0.5 block">Pertempuran Hero & Klaim Token ALX</span>
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />

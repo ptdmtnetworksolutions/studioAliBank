@@ -28,7 +28,8 @@ import {
   Loader2,
   Coins,
   Cpu,
-  Bitcoin
+  Bitcoin,
+  Gamepad2
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { doc, collection, query, where, orderBy, limit } from "firebase/firestore";
@@ -350,7 +351,7 @@ function MobileHomePageContent() {
 
     const totalDebt = illegalDebtIdr + totalCryptoDebtValIdr;
     return {
-      hasDebt: totalDebt > 1000,
+      hasDebt: totalDebt > 1000 && userData.tier !== "Restructured (Legal)",
       totalDebtValIdr: totalDebt
     };
   }, [userData, userTxs, globalLiquidity, currentUsdtRate]);
@@ -464,6 +465,13 @@ function MobileHomePageContent() {
                   <div className="min-w-0">
                     <p className="text-xs font-black uppercase italic leading-tight">Ali Spin</p>
                     <span className="text-[7px] font-bold text-muted-foreground uppercase leading-none block mt-0.5">Fortune Wheel</span>
+                  </div>
+                </Card>
+                <Card className="p-4 bg-muted/40 border border-border/80 rounded-2xl flex items-center gap-3 cursor-pointer hover:bg-muted/80 transition-all shadow-sm col-span-2" onClick={() => router.push('/games/moba')}>
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500 shrink-0"><Gamepad2 className="w-5 h-5" /></div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-black uppercase italic leading-tight font-extrabold text-primary">AliBank MOBA</p>
+                    <span className="text-[7px] font-bold text-muted-foreground uppercase leading-none block mt-0.5">Pertempuran Hero & Klaim Token ALX</span>
                   </div>
                 </Card>
               </div>

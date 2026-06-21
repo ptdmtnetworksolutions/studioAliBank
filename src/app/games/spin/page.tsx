@@ -129,6 +129,19 @@ export default function AliSpinPage() {
         totalFiatInjected: increment(amountInIdr),
         spinGrossVolumeIdr: increment(amountInIdr) 
       });
+
+      // Record bet transaction to user history for reconciliation audit compatibility
+      addDoc(collection(db, "users", user!.uid, "transactions"), {
+        date: new Date().toISOString(),
+        description: `Taruhan Ali-Spin (${betAmount} ${stakeCurrency})`,
+        category: "Game",
+        amount: stakeCurrency === 'IDR' ? betAmount : 0,
+        cryptoAmount: stakeCurrency !== 'IDR' ? betAmount : 0,
+        cryptoCurrency: stakeCurrency !== 'IDR' ? stakeCurrency : null,
+        type: 'expense',
+        status: "success",
+        timestamp: serverTimestamp()
+      });
     } else {
       setFreeSpins(prev => prev - 1);
     }
@@ -204,9 +217,9 @@ export default function AliSpinPage() {
         date: new Date().toISOString(),
         description: `Ali-Spin Win: ${winDescription} (${multiplier}x)`,
         category: "Game",
-        stake: betAmount,
-        currency: stakeCurrency,
-        rewardAlx: winAmountInAlx,
+        cryptoAmount: winAmountInAlx,
+        cryptoCurrency: "ALX",
+        type: "income",
         status: "WIN",
         timestamp: serverTimestamp()
       });

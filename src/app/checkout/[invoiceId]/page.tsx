@@ -213,44 +213,38 @@ export default function CheckoutPage() {
   }, [paymentStep, paypalReady, renderPayPalButtons]);
 
   const processPaymentFinalization = async (details: any) => {
-    if (!db || !invoice) return;
+    if (!invoice) return;
 
     try {
-      const systemLiquidityRef = doc(db, "system", "liquidity");
-      const globalAuditRef = collection(db, "system", "audit", "global_transactions");
-      const timestamp = new Date().toISOString();
-      const gatewayId = details.id || `TXN-${Date.now()}`;
-
-      if (!invoice.isMarketplaceItem) {
-        const invoiceRef = doc(db, invoice.path);
-        await setDoc(invoiceRef, {
-          status: "paid",
-          paidAt: timestamp,
-          paymentMethod: details.gateway || "AliBank Production Gateway",
-          gatewayOrderId: gatewayId,
-        }, { merge: true });
+      const token = user ? await user.getIdToken() : null;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
-      await setDoc(systemLiquidityRef, {
-        totalFiatInjected: increment(invoice.amountIdr),
-        totalUsdInjected: increment(invoice.amountUsd), 
-      }, { merge: true });
-
-      await addDoc(globalAuditRef, {
-        id: `CHECKOUT-${gatewayId}`,
-        category: "External Settlement",
-        gateway: details.gateway || "AliBank V3 Production",
-        bankName: details.bankName || "Global Issuer",
-        amountIdr: invoice.amountIdr,
-        amountUsd: invoice.amountUsd,
-        description: `Settlement for Invoice ${invoice.invoiceId} (${invoice.productName || 'Marketplace Item'}).`,
-        status: "success", 
-        timestamp: serverTimestamp(),
-        userEmail: user?.email || "external_client@alibank.com"
+      const res = await fetch('/api/payments/finalize-checkout', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          invoiceId: invoice.invoiceId,
+          isMarketplaceItem: invoice.isMarketplaceItem,
+          path: invoice.path,
+          amountIdr: invoice.amountIdr,
+          amountUsd: invoice.amountUsd,
+          productName: invoice.productName,
+          details
+        })
       });
 
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Gagal memproses finalisasi pembayaran.');
+      }
+
       setPaymentStep('success');
-      toast({ title: "Settlement Berhasil", description: "Dana riil telah dikonfirmasi." });
+      toast({ title: "Settlement Berhasil", description: "Dana riil telah dikonfirmasi secara aman." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Settlement Error", description: err.message });
     }
