@@ -189,6 +189,25 @@ export default function CryptoBuyPage() {
   const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
+  // Feature flags: metode pembayaran yang diaktifkan admin
+  const paymentConfigRef = useMemoFirebase(() => (db ? doc(db, "system", "payment_config") : null), [db]);
+  const { data: paymentConfig } = useDoc(paymentConfigRef);
+
+  // Hanya tampilkan metode yang diaktifkan admin (default: semua aktif)
+  const enabledPaymentMethods = useMemo(() => {
+    if (!paymentConfig?.methods) return PAYMENT_METHODS;
+    return PAYMENT_METHODS.filter((m) => paymentConfig.methods[m.id] !== false);
+  }, [paymentConfig]);
+
+  // Auto-switch selectedPayment jika dinonaktifkan oleh admin
+  useEffect(() => {
+    if (enabledPaymentMethods.length === 0) return;
+    const stillEnabled = enabledPaymentMethods.find((m) => m.id === selectedPayment.id);
+    if (!stillEnabled) {
+      setSelectedPayment(enabledPaymentMethods[0]);
+    }
+  }, [enabledPaymentMethods, selectedPayment.id]);
+
   const fetchRealTimeRate = useCallback(async () => {
     try {
       setIsRateLoading(true);
@@ -1297,25 +1316,32 @@ export default function CryptoBuyPage() {
                 <SheetDescription className="text-[10px] font-bold text-muted-foreground uppercase">Pilih gerbang kliring untuk penyelesaian dana.</SheetDescription>
               </SheetHeader>
               <div className="space-y-3">
-                {PAYMENT_METHODS.map((method) => (
-                  <div 
-                    key={method.id} 
-                    onClick={() => { setSelectedPayment(method); setIsPaymentSheetOpen(false); }}
-                    className={cn(
-                      "p-5 rounded-2xl border-2 flex items-center justify-between transition-all cursor-pointer",
-                      selectedPayment.id === method.id ? "border-primary bg-primary/5" : "border-muted bg-card hover:border-primary/10"
-                    )}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-primary"><method.icon className="w-5 h-5" /></div>
-                      <div className="text-left">
-                        <p className="text-sm font-black italic uppercase">{method.name}</p>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase">{method.desc}</p>
-                      </div>
-                    </div>
-                    {selectedPayment.id === method.id && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                {enabledPaymentMethods.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <p className="text-sm font-black text-muted-foreground uppercase">Tidak Ada Metode Tersedia</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Hubungi administrator untuk mengaktifkan metode pembayaran.</p>
                   </div>
-                ))}
+                ) : (
+                  enabledPaymentMethods.map((method) => (
+                    <div 
+                      key={method.id} 
+                      onClick={() => { setSelectedPayment(method); setIsPaymentSheetOpen(false); }}
+                      className={cn(
+                        "p-5 rounded-2xl border-2 flex items-center justify-between transition-all cursor-pointer",
+                        selectedPayment.id === method.id ? "border-primary bg-primary/5" : "border-muted bg-card hover:border-primary/10"
+                      )}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-primary"><method.icon className="w-5 h-5" /></div>
+                        <div className="text-left">
+                          <p className="text-sm font-black italic uppercase">{method.name}</p>
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase">{method.desc}</p>
+                        </div>
+                      </div>
+                      {selectedPayment.id === method.id && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </SheetContent>
@@ -1328,25 +1354,32 @@ export default function CryptoBuyPage() {
               <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase">Pilih gerbang kliring untuk penyelesaian dana.</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
-              {PAYMENT_METHODS.map((method) => (
-                <div 
-                  key={method.id} 
-                  onClick={() => { setSelectedPayment(method); setIsPaymentSheetOpen(false); }}
-                  className={cn(
-                    "p-5 rounded-2xl border border-border flex items-center justify-between transition-all cursor-pointer",
-                    selectedPayment.id === method.id ? "border-primary bg-primary/5" : "bg-card hover:border-primary/10"
-                  )}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-primary"><method.icon className="w-5 h-5" /></div>
-                    <div className="text-left">
-                      <p className="text-sm font-black italic uppercase">{method.name}</p>
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase">{method.desc}</p>
-                    </div>
-                  </div>
-                  {selectedPayment.id === method.id && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+              {enabledPaymentMethods.length === 0 ? (
+                <div className="py-8 text-center">
+                  <p className="text-sm font-black text-muted-foreground uppercase">Tidak Ada Metode Tersedia</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Hubungi administrator untuk mengaktifkan metode pembayaran.</p>
                 </div>
-              ))}
+              ) : (
+                enabledPaymentMethods.map((method) => (
+                  <div 
+                    key={method.id} 
+                    onClick={() => { setSelectedPayment(method); setIsPaymentSheetOpen(false); }}
+                    className={cn(
+                      "p-5 rounded-2xl border border-border flex items-center justify-between transition-all cursor-pointer",
+                      selectedPayment.id === method.id ? "border-primary bg-primary/5" : "bg-card hover:border-primary/10"
+                    )}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-primary"><method.icon className="w-5 h-5" /></div>
+                      <div className="text-left">
+                        <p className="text-sm font-black italic uppercase">{method.name}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase">{method.desc}</p>
+                      </div>
+                    </div>
+                    {selectedPayment.id === method.id && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                  </div>
+                ))
+              )}
             </div>
           </DialogContent>
         </Dialog>

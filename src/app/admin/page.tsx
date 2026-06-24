@@ -19,7 +19,8 @@ import {
   Menu,
   X,
   BookOpenCheck,
-  ShieldAlert
+  ShieldAlert,
+  CreditCard
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
@@ -58,6 +59,7 @@ import { PendingRequestsView } from "./components/PendingRequestsView";
 import { KycVerificationView } from "./components/KycVerificationView";
 import { ClientLedgerView } from "./components/ClientLedgerView";
 import { ReconciliationView } from "./components/ReconciliationView";
+import { PaymentMethodsView } from "./components/PaymentMethodsView";
 
 import { useAlixCoin } from '@/hooks/useAlixCoin';
 
@@ -198,6 +200,7 @@ function AdminContent() {
       <SidebarItem icon={Wallet} label="Kontrol Brankas" active={activeTab === 'vault'} onClick={() => handleTabChange('vault')} />
       <SidebarItem icon={Coins} label="Tokenomik" active={activeTab === 'tokenomics'} onClick={() => handleTabChange('tokenomics')} />
       <SidebarItem icon={Key} label="Manajemen API" active={activeTab === 'api'} onClick={() => handleTabChange('api')} />
+      <SidebarItem icon={CreditCard} label="Metode Pembayaran" active={activeTab === 'payment_methods'} onClick={() => handleTabChange('payment_methods')} />
       <SidebarItem icon={Box} label="Inventaris" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
       <SidebarItem icon={ShieldAlert} label="Rekonsiliasi & Fraud" active={activeTab === 'reconciliation'} onClick={() => handleTabChange('reconciliation')} />
       <SidebarItem icon={FileText} label="Log Audit" active={activeTab === 'audit'} onClick={() => handleTabChange('audit')} />
@@ -312,6 +315,7 @@ function AdminContent() {
             />
           )}
           {activeTab === 'api' && <ApiManagementView storedKeys={storedKeys} />}
+          {activeTab === 'payment_methods' && <PaymentMethodsView />}
           {activeTab === 'inventory' && <InventoryView marketplaceProducts={marketplaceProducts} />}
           {activeTab === 'reconciliation' && <ReconciliationView setActiveTab={setActiveTab} />}
           {activeTab === 'audit' && <AuditLogsView auditLogs={combinedAuditLogs} />}
