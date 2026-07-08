@@ -202,25 +202,35 @@ export function ClientsView({ allUsers }: any) {
   const forensicCheck = useMemo(() => {
     if (!selectedUser) return { discrepancy: 0, isClean: true, totalIn: 0, totalOut: 0, ledgerBalance: 0 };
     
-    const ALX_PRICE_IDR = 194004;
-
     const isNeutralCategory = (cat: string) => ['Legalization', 'Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat || '');
 
-    const getVal = (t: any) => {
-      // Jangan hitung kuitansi netral untuk mendeteksi gap un-audited asli
-      if (isNeutralCategory(t.category)) return 0;
+    let inflow = 0;
+    let outflow = 0;
 
-      if (t.amountIdr) return t.amountIdr;
-      if (t.amount) return t.amount;
-      if (t.stakeAmount && (t.stakeCurrency === 'IDR' || !t.stakeCurrency)) return t.stakeAmount;
-      if (t.rewardAlx) return t.rewardAlx * ALX_PRICE_IDR;
-      if (t.cryptoCurrency === 'ALX' && t.cryptoAmount) return t.cryptoAmount * ALX_PRICE_IDR;
+    userTxs.forEach(t => {
+      if (isNeutralCategory(t.category)) return;
+      const isIncome = t.type === 'income';
+      const isExpense = t.type === 'expense';
       
-      return 0;
-    };
-
-    const inflow = userTxs.filter(t => t.type === 'income').reduce((acc, t) => acc + getVal(t), 0);
-    const outflow = userTxs.filter(t => t.type === 'expense').reduce((acc, t) => acc + getVal(t), 0);
+      // Jika transaksi memiliki cryptoCurrency (misal beli via iPaymu),
+      // itu adalah transaksi kripto murni yang tidak merubah totalBalance (IDR) nasabah.
+      if (t.cryptoCurrency && t.cryptoCurrency !== 'IDR') {
+        return;
+      }
+      
+      if (t.asset) {
+        const amt = t.amount || 0;
+        if (t.asset === 'IDR') {
+          if (isIncome) inflow += amt;
+          else if (isExpense) outflow += amt;
+        }
+      } else {
+        // Fallback untuk transaksi IDR fiat biasa (seperti Deposit, Withdraw, Adjustment)
+        const amt = t.amount || t.amountIdr || 0;
+        if (isIncome) inflow += amt;
+        else if (isExpense) outflow += amt;
+      }
+    });
     
     const calculated = inflow - outflow;
     const actual = (selectedUser.totalBalance || 0); 

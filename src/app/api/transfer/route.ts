@@ -99,14 +99,14 @@ export async function POST(request: NextRequest) {
 
     const batch = db.batch();
 
+    const isIdr = asset === 'IDR';
+
     // Sender transaction log
     const senderTxRef = db.collection('users').doc(senderId).collection('transactions').doc();
-    batch.set(senderTxRef, {
+    const senderTxData: any = {
       date: now,
       description: `Transfer ${asset} ke ${recipientName}`,
       category: 'Transfer',
-      amount: numAmount,
-      asset,
       type: 'expense',
       status: 'success',
       timestamp: FieldValue.serverTimestamp(),
@@ -114,16 +114,23 @@ export async function POST(request: NextRequest) {
       transferId: txId,
       counterpartyId: recipientId,
       counterpartyName: recipientName,
-    });
+    };
+    if (isIdr) {
+      senderTxData.amount = numAmount;
+      senderTxData.asset = 'IDR';
+    } else {
+      senderTxData.cryptoAmount = numAmount;
+      senderTxData.cryptoCurrency = asset;
+      senderTxData.asset = asset;
+    }
+    batch.set(senderTxRef, senderTxData);
 
     // Recipient transaction log
     const recipientTxRef = db.collection('users').doc(recipientId).collection('transactions').doc();
-    batch.set(recipientTxRef, {
+    const recipientTxData: any = {
       date: now,
       description: `Menerima ${asset} dari ${senderName || 'Pengguna AliBank'}`,
       category: 'Transfer',
-      amount: numAmount,
-      asset,
       type: 'income',
       status: 'success',
       timestamp: FieldValue.serverTimestamp(),
@@ -131,7 +138,16 @@ export async function POST(request: NextRequest) {
       transferId: txId,
       counterpartyId: senderId,
       counterpartyName: senderName || 'Pengguna AliBank',
-    });
+    };
+    if (isIdr) {
+      recipientTxData.amount = numAmount;
+      recipientTxData.asset = 'IDR';
+    } else {
+      recipientTxData.cryptoAmount = numAmount;
+      recipientTxData.cryptoCurrency = asset;
+      recipientTxData.asset = asset;
+    }
+    batch.set(recipientTxRef, recipientTxData);
 
     // Recipient notification
     const recipientNotifRef = db.collection('users').doc(recipientId).collection('notifications').doc();
