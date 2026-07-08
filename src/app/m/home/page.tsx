@@ -328,16 +328,16 @@ function MobileHomePageContent() {
     if (!userData || !userTxs) return { hasDebt: false, totalDebtValIdr: 0 };
     const isNeutralCategory = (cat: string) => ['Legalization', 'Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat);
     
-    const idrInflow = userTxs.filter(t => t.type === 'income' && t.amount && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.amount || 0), 0);
-    const idrOutflow = userTxs.filter(t => t.type === 'expense' && t.amount && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.amount || 0), 0);
+    const idrInflow = userTxs.filter(t => t.type === 'income' && t.amount && (t.asset === 'IDR' || (!t.asset && !t.cryptoCurrency)) && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.amount || 0), 0);
+    const idrOutflow = userTxs.filter(t => t.type === 'expense' && t.amount && (t.asset === 'IDR' || (!t.asset && !t.cryptoCurrency)) && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.amount || 0), 0);
     const idrLedger = idrInflow - idrOutflow;
     const illegalDebtIdr = Math.max(0, (userData.totalBalance || 0) - idrLedger);
 
     let totalCryptoDebtValIdr = 0;
     const assets = ['ALX', 'BTC', 'ETH', 'USDT'];
     assets.forEach(asset => {
-      const cryptoIn = userTxs.filter(t => t.type === 'income' && t.cryptoCurrency === asset && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.cryptoAmount || t.toAmount || 0), 0);
-      const cryptoOut = userTxs.filter(t => t.type === 'expense' && t.cryptoCurrency === asset && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.cryptoAmount || t.fromAmount || 0), 0);
+      const cryptoIn = userTxs.filter(t => t.type === 'income' && (t.cryptoCurrency === asset || t.asset === asset) && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.cryptoAmount || (t.asset === asset ? t.amount : 0) || t.toAmount || 0), 0);
+      const cryptoOut = userTxs.filter(t => t.type === 'expense' && (t.cryptoCurrency === asset || t.asset === asset) && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.cryptoAmount || (t.asset === asset ? t.amount : 0) || t.fromAmount || 0), 0);
       const cryptoLedger = cryptoIn - cryptoOut;
       const cryptoActual = userData.cryptoBalances?.[asset] || 0;
       const diff = Math.max(0, cryptoActual - cryptoLedger);
