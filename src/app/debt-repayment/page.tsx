@@ -54,16 +54,16 @@ export default function DebtRepaymentPage() {
   const debtInfo = useMemo(() => {
     if (!userData || !userTxs) return { totalDebtValIdr: 0 };
 
-    const idrInflow = userTxs.filter(t => t.type === 'income' && t.amount).reduce((acc, t) => acc + (t.amount || 0), 0);
-    const idrOutflow = userTxs.filter(t => t.type === 'expense' && t.amount).reduce((acc, t) => acc + (t.amount || 0), 0);
+    const idrInflow = userTxs.filter(t => t.type === 'income' && t.amount && (t.asset === 'IDR' || (!t.asset && !t.cryptoCurrency))).reduce((acc, t) => acc + (t.amount || 0), 0);
+    const idrOutflow = userTxs.filter(t => t.type === 'expense' && t.amount && (t.asset === 'IDR' || (!t.asset && !t.cryptoCurrency))).reduce((acc, t) => acc + (t.amount || 0), 0);
     const idrLedger = idrInflow - idrOutflow;
     const illegalDebtIdr = Math.max(0, (userData.totalBalance || 0) - idrLedger);
 
     const assets = ['ALX', 'BTC', 'ETH', 'USDT'];
     let totalCryptoDebtValIdr = 0;
     assets.forEach(asset => {
-      const cryptoIn = userTxs.filter(t => t.type === 'income' && t.cryptoCurrency === asset).reduce((acc, t) => acc + (t.cryptoAmount || t.toAmount || 0), 0);
-      const cryptoOut = userTxs.filter(t => t.type === 'expense' && t.cryptoCurrency === asset).reduce((acc, t) => acc + (t.cryptoAmount || t.fromAmount || 0), 0);
+      const cryptoIn = userTxs.filter(t => t.type === 'income' && (t.cryptoCurrency === asset || t.asset === asset)).reduce((acc, t) => acc + (t.cryptoAmount || (t.asset === asset ? t.amount : 0) || t.toAmount || 0), 0);
+      const cryptoOut = userTxs.filter(t => t.type === 'expense' && (t.cryptoCurrency === asset || t.asset === asset)).reduce((acc, t) => acc + (t.cryptoAmount || (t.asset === asset ? t.amount : 0) || t.fromAmount || 0), 0);
       const diff = Math.max(0, (userData.cryptoBalances?.[asset] || 0) - (cryptoIn - cryptoOut));
       
       const dynamicAlxPriceUsdt = globalLiquidity?.lastAlxPriceUsdt || 12.24;
