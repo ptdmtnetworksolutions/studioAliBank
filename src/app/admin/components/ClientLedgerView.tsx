@@ -48,6 +48,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 import Image from "next/image";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 const ALX_PRICE_IDR = 194004;
 
@@ -204,11 +205,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl gold-gradient flex items-center justify-center p-0.5">
                     <div className="w-full h-full rounded-2xl bg-background flex items-center justify-center overflow-hidden">
-                      {u.avatarUrl ? (
-                        <img src={u.avatarUrl} alt="av" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="font-black text-foreground uppercase">{u.name?.[0] || 'U'}</span>
-                      )}
+                      <UserAvatar avatarUrl={u.avatarUrl} photoURL={u.photoURL} name={u.name} email={u.email} size={48} />
                     </div>
                   </div>
                   <div className="min-w-0">
@@ -229,11 +226,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
             
             <div className="w-32 h-32 rounded-[2.5rem] gold-gradient flex items-center justify-center p-1.5 shadow-2xl relative z-10">
               <div className="w-full h-full rounded-[2.2rem] bg-background flex items-center justify-center overflow-hidden border-[6px] border-background">
-                {selectedUser.avatarUrl ? (
-                  <Image src={selectedUser.avatarUrl} alt="av" width={128} height={128} className="object-cover w-full h-full" />
-                ) : (
-                  <User className="w-12 h-12 text-muted-foreground" />
-                )}
+                <UserAvatar avatarUrl={selectedUser?.avatarUrl} photoURL={selectedUser?.photoURL} name={selectedUser?.name} email={selectedUser?.email} size={128} />
               </div>
             </div>
 

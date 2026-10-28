@@ -39,7 +39,7 @@ service firebase.storage {
 
     // --- Jalur Avatar Profil ---
     match /avatars/{userId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isOwner(userId) || isAdmin();
     }
     

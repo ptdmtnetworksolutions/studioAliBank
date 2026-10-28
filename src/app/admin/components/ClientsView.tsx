@@ -70,6 +70,7 @@ import {
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 
@@ -289,11 +290,7 @@ export function ClientsView({ allUsers }: any) {
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl overflow-hidden border border-border shrink-0 bg-muted flex items-center justify-center relative">
-                        {u.avatarUrl ? (
-                          <Image src={u.avatarUrl} alt="avatar" width={48} height={48} className="object-cover w-full h-full" />
-                        ) : (
-                          <User className="w-6 h-6 text-muted-foreground" />
-                        )}
+                        <UserAvatar avatarUrl={u.avatarUrl} photoURL={u.photoURL} name={u.name} email={u.email} size={48} />
                       </div>
                       <div>
                         <p className="text-sm font-black italic uppercase leading-none">{u.name}</p>
@@ -350,11 +347,7 @@ export function ClientsView({ allUsers }: any) {
           
           <div className="gold-gradient h-40 w-full relative">
             <div className="absolute -bottom-12 left-12 w-32 h-32 rounded-[2.5rem] bg-background border-[10px] border-background overflow-hidden shadow-2xl flex items-center justify-center">
-              {selectedUser?.avatarUrl ? (
-                <Image src={selectedUser.avatarUrl} alt="avatar" width={120} height={120} className="object-cover w-full h-full" />
-              ) : (
-                <User className="w-12 h-12 text-muted-foreground" />
-              )}
+              <UserAvatar avatarUrl={selectedUser?.avatarUrl} photoURL={selectedUser?.photoURL} name={selectedUser?.name} email={selectedUser?.email} size={128} />
             </div>
           </div>
 

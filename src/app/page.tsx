@@ -38,6 +38,7 @@ import { Card } from "@/components/ui/card";
 import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { doc, collection, query, where, orderBy, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { useVaultBalance } from "@/hooks/useVaultBalance";
 import { useVaultStaking } from "@/hooks/useVaultStaking";
 import { LogoIcon } from "@/components/ui/logo";
@@ -399,14 +400,8 @@ function DashboardContent() {
                   </span>
                 )}
               </div>
-              <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border cursor-pointer" onClick={() => router.push('/profile')}>
-                {userData?.avatarUrl ? (
-                  <img src={userData.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-black italic text-[10px] uppercase">
-                    {userData?.name?.[0] || 'U'}
-                  </div>
-                )}
+              <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border cursor-pointer shrink-0" onClick={() => router.push('/profile')}>
+                <UserAvatar avatarUrl={userData?.avatarUrl} photoURL={user?.photoURL} name={userData?.name} email={user?.email} size={32} />
               </div>
             </div>
           </div>

@@ -25,22 +25,25 @@ import {
   Ticket,
   ArrowRightLeft,
   CalendarDays,
-  Smile
+  Smile,
+  Camera
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { useUser, useDoc, useFirestore, useAuth, useMemoFirebase } from "@/firebase";
+import { useUser, useDoc, useFirestore, useAuth, useStorage, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, getFirestore, getDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getApps, getApp, initializeApp } from "firebase/app";
 import { firebaseConfig } from "@/firebase/config";
 import { signOut } from "firebase/auth";
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 import { Sidebar } from "@/components/layout/Sidebar";
 import Image from "next/image";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { useMetaMask } from "@/hooks/useMetaMask";
 import { useVaultBalance } from "@/hooks/useVaultBalance";
 import { ethers } from "ethers";
@@ -99,6 +102,40 @@ export default function ProfilePage() {
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
+
+  const storage = useStorage();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !user || !storage || !userDocRef) return;
+    
+    const file = e.target.files[0];
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "Ukuran Terlalu Besar", description: "Maksimal ukuran foto adalah 5MB." });
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const storageRef = ref(storage, `avatars/${user.uid}`);
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+      
+      await updateDoc(userDocRef, {
+        avatarUrl: downloadUrl
+      });
+      
+      toast({ title: "Foto Profil Diperbarui", description: "Wajah baru Anda kini aktif di seluruh sistem AliBank." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Unggah", description: err.message || "Gagal mengunggah foto profil." });
+    } finally {
+      setIsUploadingAvatar(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   // Alamat dompet terhubung yang aktif (dari MetaMask session atau Firestore link)
   const activeAddress = useMemo(() => {
@@ -257,6 +294,7 @@ export default function ProfilePage() {
   if (isMobile) {
     return (
       <div className="min-h-screen bg-background text-foreground pb-20 flex flex-col font-body transition-colors duration-300">
+        <input type="file" ref={fileInputRef} onChange={handleAvatarUpload} accept="image/*" className="hidden" />
         <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-md z-50">
           <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors">
             <X className="w-6 h-6 text-foreground" />
@@ -274,15 +312,23 @@ export default function ProfilePage() {
         <main className="flex-1 px-5 pt-2 space-y-8 overflow-y-auto no-scrollbar pb-10">
           <section className="flex items-start justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-3xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-2 border-border relative shadow-xl">
-                {userData?.avatarUrl ? (
-                  <Image src={userData.avatarUrl} alt="Avatar" width={80} height={80} className="object-cover w-full h-full" />
-                ) : (
-                  <>
-                    <div className="absolute inset-0 bg-yellow-400 rounded-full scale-90" />
-                    <User className="w-12 h-12 text-slate-100 dark:text-slate-900 relative z-10 mt-2" />
-                  </>
-                )}
+              <div className="relative group shrink-0">
+                <div className="w-20 h-20 rounded-3xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-2 border-border shadow-xl">
+                  <UserAvatar avatarUrl={userData?.avatarUrl} photoURL={user?.photoURL} name={userData?.name} email={user?.email} size={80} />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg border-2 border-background hover:scale-105 active:scale-95 transition-all"
+                  title="Ubah Foto Profil"
+                >
+                  {isUploadingAvatar ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Camera className="w-3.5 h-3.5" />
+                  )}
+                </button>
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
@@ -473,6 +519,7 @@ export default function ProfilePage() {
   // DESKTOP VIEW LAYOUT (PREMIUM SIDEBAR + PANEL GRID)
   return (
     <div className="min-h-screen bg-background text-foreground flex font-body selection:bg-primary/30">
+      <input type="file" ref={fileInputRef} onChange={handleAvatarUpload} accept="image/*" className="hidden" />
 
       {/* SIDEBAR NAVIGATION */}
       <Sidebar />
@@ -490,14 +537,8 @@ export default function ProfilePage() {
               className="w-5 h-5 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
               onClick={() => router.push('/settings')}
             />
-            <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border">
-              {userData?.avatarUrl ? (
-                <img src={userData.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-black italic text-[10px] uppercase">
-                  {userData?.name?.[0] || 'U'}
-                </div>
-              )}
+            <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border shrink-0 cursor-pointer" onClick={() => fileInputRef.current?.click()} title="Ubah Foto Profil">
+              <UserAvatar avatarUrl={userData?.avatarUrl} photoURL={user?.photoURL} name={userData?.name} email={user?.email} size={32} />
             </div>
           </div>
         </header>
@@ -513,15 +554,23 @@ export default function ProfilePage() {
               <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none" />
 
               <div className="flex flex-col sm:flex-row items-center gap-6">
-                <div className="w-24 h-24 rounded-3xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-2 border-border relative shadow-xl shrink-0">
-                  {userData?.avatarUrl ? (
-                    <img src={userData.avatarUrl} alt="Avatar" className="object-cover w-full h-full" />
-                  ) : (
-                    <>
-                      <div className="absolute inset-0 bg-yellow-400 rounded-full scale-90" />
-                      <User className="w-14 h-14 text-slate-100 dark:text-slate-900 relative z-10 mt-2" />
-                    </>
-                  )}
+                <div className="relative group shrink-0">
+                  <div className="w-24 h-24 rounded-3xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-2 border-border shadow-xl">
+                    <UserAvatar avatarUrl={userData?.avatarUrl} photoURL={user?.photoURL} name={userData?.name} email={user?.email} size={96} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingAvatar}
+                    className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg border-2 border-background hover:scale-105 active:scale-95 transition-all"
+                    title="Ubah Foto Profil"
+                  >
+                    {isUploadingAvatar ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Camera className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
 
                 <div className="space-y-2 text-center sm:text-left">

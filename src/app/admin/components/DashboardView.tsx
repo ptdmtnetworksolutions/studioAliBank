@@ -5,6 +5,7 @@ import { useMemo, useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { 
   Database, 
   CandlestickChart, 
@@ -167,7 +168,7 @@ export function DashboardView({
           <div className="flex -space-x-3 mb-10">
             {(allUsers || []).slice(0, 5).map((u: any, i: number) => (
               <div key={i} className="h-12 w-12 rounded-full ring-4 ring-card overflow-hidden border border-border bg-muted">
-                {u.avatarUrl ? <img src={u.avatarUrl} alt="u" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs font-black uppercase italic text-muted-foreground">{u.name?.[0]}</div>}
+                <UserAvatar avatarUrl={u.avatarUrl} photoURL={u.photoURL} name={u.name} email={u.email} size={48} />
               </div>
             ))}
           </div>

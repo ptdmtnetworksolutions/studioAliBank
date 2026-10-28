@@ -43,6 +43,7 @@ import { doc } from "firebase/firestore";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { GasStation } from "@/components/crypto/GasStation";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 const MARKUP = 1.02; 
 const GLOBAL_SYMBOLS = [
@@ -73,6 +74,9 @@ export default function DesktopDiscoverPage() {
 
   const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
+
+  const userDocRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
+  const { data: userData } = useDoc(userDocRef);
 
   const fetchTrendData = async (symbol: string) => {
     try {
@@ -204,8 +208,8 @@ export default function DesktopDiscoverPage() {
               <GasStation />
               <Activity className="w-4 h-4 text-muted-foreground" />
               <Bell className="w-5 h-5 text-muted-foreground" />
-              <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border cursor-pointer" onClick={() => router.push('/profile')}>
-                {user?.photoURL ? <img src={user.photoURL} alt="p" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-black italic text-[10px] uppercase">{user?.displayName?.[0] || 'U'}</div>}
+              <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border cursor-pointer shrink-0" onClick={() => router.push('/profile')}>
+                <UserAvatar avatarUrl={userData?.avatarUrl} photoURL={user?.photoURL} name={userData?.name} email={user?.email} size={32} />
               </div>
             </div>
           </div>

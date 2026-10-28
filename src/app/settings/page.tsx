@@ -57,6 +57,7 @@ import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 import { Sidebar } from "@/components/layout/Sidebar";
 import Image from "next/image";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 const EWALLETS = [
   { id: 'dana', name: 'DANA', color: 'bg-[#008FE2]', logo: 'D' },
@@ -525,14 +526,8 @@ export default function SettingsHubPage() {
                 <h2 className="text-xl font-black text-foreground uppercase italic tracking-tight">Pengaturan</h2>
               </div>
               <div className="flex items-center gap-6">
-                <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border">
-                  {userData?.avatarUrl ? (
-                    <img src={userData.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-black italic text-[10px] uppercase">
-                      {userData?.name?.[0] || 'U'}
-                    </div>
-                  )}
+                <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border shrink-0">
+                  <UserAvatar avatarUrl={userData?.avatarUrl} photoURL={user?.photoURL} name={userData?.name} email={user?.email} size={32} />
                 </div>
               </div>
             </header>
@@ -578,11 +573,7 @@ export default function SettingsHubPage() {
                       <div className="flex flex-col sm:flex-row items-center justify-between gap-6 border-b border-border/50 pb-6">
                         <div className="flex items-center gap-4">
                           <div className="w-20 h-20 rounded-3xl bg-muted border border-border flex items-center justify-center overflow-hidden relative shadow-lg shrink-0">
-                            {userData?.avatarUrl ? (
-                              <img src={userData.avatarUrl} alt="Avatar" className="object-cover w-full h-full" />
-                            ) : (
-                              <User className="w-10 h-10 text-muted-foreground" />
-                            )}
+                            <UserAvatar avatarUrl={userData?.avatarUrl} photoURL={user?.photoURL} name={userData?.name} email={user?.email} size={80} />
                             {isUploading && (
                               <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
                                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -808,10 +799,8 @@ export default function SettingsHubPage() {
               <div className="w-20 h-20 rounded-3xl bg-muted border-4 border-background shadow-xl overflow-hidden flex items-center justify-center">
                 {isUploading ? (
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                ) : userData?.avatarUrl ? (
-                  <Image src={userData.avatarUrl} alt="Avatar" width={80} height={80} className="object-cover w-full h-full" />
                 ) : (
-                  <User className="w-10 h-10 text-muted-foreground" />
+                  <UserAvatar avatarUrl={userData?.avatarUrl} photoURL={user?.photoURL} name={userData?.name} email={user?.email} size={80} />
                 )}
               </div>
               <button 

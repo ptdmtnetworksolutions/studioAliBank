@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 import { useTheme } from "next-themes";
 import Image from "next/image";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { 
   Sheet, 
   SheetContent, 
@@ -269,11 +270,7 @@ function AdminContent() {
             </div>
             <div className="w-10 h-10 rounded-3xl gold-gradient p-[2px]">
               <div className="w-full h-full rounded-3xl bg-background flex items-center justify-center overflow-hidden border-2 border-background">
-                {user?.photoURL ? (
-                  <Image src={user.photoURL} alt="avatar" width={40} height={40} className="object-cover w-full h-full" />
-                ) : (
-                  <Image src={`https://picsum.photos/seed/${user?.uid}/100/100`} alt="avatar" width={40} height={40} className="object-cover" />
-                )}
+                <UserAvatar photoURL={user?.photoURL} name={user?.displayName || "Super Admin"} email={user?.email} size={40} />
               </div>
             </div>
           </div>

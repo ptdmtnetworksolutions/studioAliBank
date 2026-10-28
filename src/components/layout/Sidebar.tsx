@@ -28,8 +28,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
+import { collection, query, where, doc } from "firebase/firestore";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
@@ -39,6 +40,9 @@ export function Sidebar() {
   const router = useRouter();
   const { user } = useUser();
   const db = useFirestore();
+
+  const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
+  const { data: userData } = useDoc(userDocRef);
 
   const [cryptoExpanded, setCryptoExpanded] = useState(false);
   const [gamesExpanded, setGamesExpanded] = useState(false);
@@ -276,9 +280,24 @@ export function Sidebar() {
 
       </nav>
 
-      {/* FOOTER SYSTEM HEALTH */}
-      <div className="p-6 border-t border-border/40 shrink-0 space-y-4 bg-card/50">
-        <div className="flex items-center justify-between text-[8px] font-black text-muted-foreground uppercase tracking-widest">
+      {/* FOOTER USER CARD & SYSTEM HEALTH */}
+      <div className="p-4 border-t border-border/40 shrink-0 space-y-3 bg-card/50">
+        {user && (
+          <div 
+            onClick={() => router.push('/profile')}
+            className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted/50 cursor-pointer transition-all group"
+            title="Buka Profil"
+          >
+            <div className="w-9 h-9 rounded-full bg-muted overflow-hidden border border-border shrink-0">
+              <UserAvatar avatarUrl={userData?.avatarUrl} photoURL={user?.photoURL} name={userData?.name} email={user?.email} size={36} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-black uppercase italic truncate group-hover:text-primary transition-colors">{userData?.name || user?.displayName || "Nasabah AliBank"}</p>
+              <p className="text-[9px] font-bold text-muted-foreground font-mono truncate">{user?.email}</p>
+            </div>
+          </div>
+        )}
+        <div className="flex items-center justify-between text-[8px] font-black text-muted-foreground uppercase tracking-widest px-2">
           <span>Network Health</span>
           <span className="flex items-center gap-1 text-green-500">
             <Wifi className="w-2.5 h-2.5" /> Live

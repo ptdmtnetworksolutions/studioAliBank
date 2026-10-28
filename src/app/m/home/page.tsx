@@ -40,6 +40,7 @@ import { LogoIcon } from "@/components/ui/logo";
 import { useToast } from "@/hooks/use-toast";
 import { useVaultBalance } from "@/hooks/useVaultBalance";
 import { useVaultStaking } from "@/hooks/useVaultStaking";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 const getIconUrl = (symbol: string) => {
   const s = symbol.toLowerCase();
@@ -375,11 +376,7 @@ function MobileHomePageContent() {
       <header className="px-4 h-14 flex items-center justify-between sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/40">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border cursor-pointer shrink-0" onClick={() => router.push('/profile')}>
-            {userData?.avatarUrl ? (
-              <img src={userData.avatarUrl} className="object-cover w-full h-full" alt="Avatar" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-slate-200"><User className="w-4 h-4 text-slate-500" /></div>
-            )}
+            <UserAvatar avatarUrl={userData?.avatarUrl} photoURL={user?.photoURL} name={userData?.name} email={user?.email} size={32} />
           </div>
           <div className="relative cursor-pointer shrink-0" onClick={() => router.push('/notifications')}>
             <MessageSquareText className="w-6 h-6" />
