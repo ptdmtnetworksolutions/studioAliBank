@@ -280,7 +280,10 @@ export default function ProfilePage() {
     if (!auth) return;
     try {
       await signOut(auth);
-      router.push('/login');
+      if (typeof document !== 'undefined') {
+        document.cookie = "alibank_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+      }
+      router.replace('/login');
       toast({ title: "Berhasil Keluar", description: "Anda telah keluar dari akun AliBank." });
     } catch (error) {
       console.error("Logout error:", error);

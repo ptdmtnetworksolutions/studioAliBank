@@ -137,16 +137,16 @@ function DashboardContent() {
   // Auth guard and viewport routing logic
   useEffect(() => {
     setMounted(true);
+    if (!userLoading && !user) {
+      router.replace('/login');
+      return;
+    }
     if (typeof window !== "undefined") {
       const isMobile = window.innerWidth < 768;
       setIsMobileViewport(isMobile);
       if (isMobile && user) {
         router.replace('/m/home');
       }
-    }
-    if (!userLoading && !user) {
-      router.push('/login');
-      return;
     }
   }, [user, userLoading, router]);
 
@@ -358,7 +358,7 @@ function DashboardContent() {
     }
   };
 
-  if (!mounted || userLoading || isMobileViewport) return (
+  if (!mounted || userLoading || !user || isMobileViewport) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
       <div className="w-16 h-16 rounded-2xl gold-gradient animate-pulse flex items-center justify-center p-3">
         <LogoIcon className="text-white" />

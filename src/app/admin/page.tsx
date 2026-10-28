@@ -175,11 +175,12 @@ function AdminContent() {
 
   useEffect(() => {
     if (userLoading) return;
-    if (!user || (user.email === OWNER_EMAIL || user.uid === OWNER_UID)) {
+    if (user && (user.email === OWNER_EMAIL || user.uid === OWNER_UID)) {
       setIsAuthorized(true);
       syncOnChainData();
     } else {
-      router.push('/login');
+      setIsAuthorized(false);
+      router.replace('/login');
     }
   }, [user, userLoading, router, syncOnChainData]);
 
@@ -188,8 +189,7 @@ function AdminContent() {
     setIsMobileMenuOpen(false);
   };
 
-  if (userLoading) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
-  if (!isAuthorized) return null;
+  if (userLoading || !user || !isAuthorized) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
 
   const NavItems = () => (
     <>

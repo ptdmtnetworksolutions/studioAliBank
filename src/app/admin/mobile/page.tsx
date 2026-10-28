@@ -276,18 +276,18 @@ function AdminMobileContent() {
   useEffect(() => {
     if (userLoading) return;
     if (!user || (user.email !== OWNER_EMAIL && user.uid !== OWNER_UID)) {
-      router.push('/login');
+      router.replace('/login');
       return;
     }
     setIsAuthorized(true);
     syncVault();
 
     if (typeof window !== "undefined" && window.innerWidth >= 768) {
-      router.push('/admin');
+      router.replace('/admin');
     }
   }, [user, userLoading, router, syncVault]);
 
-  if (userLoading || !isAuthorized) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
+  if (userLoading || !user || !isAuthorized) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-body">

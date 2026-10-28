@@ -30,11 +30,14 @@ export default function LoginPage() {
     setErrorMessage(null);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      if (typeof document !== 'undefined') {
+        document.cookie = "alibank_session=1; path=/; max-age=2592000; SameSite=Lax";
+      }
       toast({
         title: "Selamat Datang Kembali",
         description: "Berhasil masuk ke akun AliBank Anda.",
       });
-      router.push('/');
+      router.replace('/');
     } catch (error: any) {
       console.error('Login error:', error);
       let msg = "Email atau kata sandi salah. Silakan coba lagi.";

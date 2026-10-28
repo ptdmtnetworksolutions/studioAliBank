@@ -107,7 +107,7 @@ function MobileHomePageContent() {
   useEffect(() => {
     setMounted(true);
     if (!userLoading && !user) {
-      router.push('/login');
+      router.replace('/login');
       return;
     }
     if (typeof window !== "undefined" && window.innerWidth >= 768) {
@@ -364,7 +364,7 @@ function MobileHomePageContent() {
     }
   };
 
-  if (!mounted || userLoading) return (
+  if (!mounted || userLoading || !user) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
       <Loader2 className="w-8 h-8 animate-spin text-primary" />
     </div>

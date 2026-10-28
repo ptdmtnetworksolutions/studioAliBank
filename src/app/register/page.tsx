@@ -66,11 +66,15 @@ export default function RegisterPage() {
         createdAt: serverTimestamp()
       });
 
+      if (typeof document !== 'undefined') {
+        document.cookie = "alibank_session=1; path=/; max-age=2592000; SameSite=Lax";
+      }
+
       toast({
         title: "Pendaftaran Berhasil",
         description: "Akun AliBank aktif. Selamat datang di masa depan perbankan.",
       });
-      router.push('/');
+      router.replace('/');
     } catch (error: any) {
       console.error('Registration error:', error);
       toast({

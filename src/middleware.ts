@@ -32,14 +32,20 @@ export async function middleware(req: NextRequest) {
   }
 
   // 5. Allow local development (127.0.0.1, private LAN) so developers don't get locked out locally
-  if (process.env.NODE_ENV === "development" && isPrivate) {
-    return NextResponse.next();
-  }
+  const isDevLocal = process.env.NODE_ENV === "development" && isPrivate;
 
   // 6. Verify against official Tor Exit Nodes
   const isTor = await isTorExitNode(clientIp);
 
-  if (isTor) {
+  if (isTor || isDevLocal) {
+    // 7. Cegah Flash of Dashboard: User belum login langsung dialihkan ke /login di level Edge
+    if (pathname === "/" || pathname === "/m/home") {
+      const hasSession = req.cookies.has("alibank_session");
+      if (!hasSession) {
+        return NextResponse.redirect(new URL("/login", req.url));
+      }
+    }
+
     // Verified Tor user - grant access
     const response = NextResponse.next();
     response.headers.set("x-tor-verified", "true");
