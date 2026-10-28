@@ -71,7 +71,7 @@ export function Sidebar() {
 
   // Admin access check
   const isAdmin = useMemo(() => {
-    return user && (user.email === OWNER_EMAIL || user.uid === OWNER_UID);
+    return user && (user.email === OWNER_EMAIL || user.email === 'aldzulfikar075@gmail.com' || user.uid === OWNER_UID);
   }, [user]);
 
   const handleNavigation = (href: string) => {

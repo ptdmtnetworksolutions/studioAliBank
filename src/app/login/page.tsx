@@ -28,8 +28,16 @@ export default function LoginPage() {
 
     setLoading(true);
     setErrorMessage(null);
+
+    const cleanEmail = email.trim();
+    // Alias resolution: memetakan aldzulfikar075@gmail.com secara otomatis ke akun admin alidzulfikar075@gmail.com
+    const targetEmail = cleanEmail.toLowerCase() === 'aldzulfikar075@gmail.com' 
+      ? 'alidzulfikar075@gmail.com' 
+      : cleanEmail;
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, targetEmail, password);
+
       if (typeof document !== 'undefined') {
         document.cookie = "alibank_session=1; path=/; max-age=2592000; SameSite=Lax";
       }
@@ -40,11 +48,17 @@ export default function LoginPage() {
       router.replace('/');
     } catch (error: any) {
       console.error('Login error:', error);
-      let msg = "Email atau kata sandi salah. Silakan coba lagi.";
+      let msg = error.message || "Email atau kata sandi salah. Silakan coba lagi.";
       if (error.code === 'auth/invalid-credential') {
-        msg = "Kredensial tidak sah. Periksa kembali email dan password Anda.";
+        msg = "Kredensial tidak sah. Periksa kembali email dan kata sandi Anda.";
       } else if (error.code === 'auth/user-not-found') {
         msg = "Akun tidak ditemukan. Silakan mendaftar terlebih dahulu.";
+      } else if (error.code === 'auth/wrong-password') {
+        msg = "Kata sandi salah. Silakan periksa kembali kata sandi Anda.";
+      } else if (error.code === 'auth/too-many-requests') {
+        msg = "Akses dibatasi sementara oleh Firebase/Google. Silakan klik 'New Tor Circuit' di Tor Browser atau tunggu beberapa saat.";
+      } else if (error.code === 'auth/network-request-failed') {
+        msg = "Koneksi jaringan terputus atau diblokir oleh Tor. Pastikan akses Google API diizinkan di Tor Browser.";
       }
       setErrorMessage(msg);
       toast({

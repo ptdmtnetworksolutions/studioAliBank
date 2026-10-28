@@ -275,7 +275,7 @@ function AdminMobileContent() {
 
   useEffect(() => {
     if (userLoading) return;
-    if (!user || (user.email !== OWNER_EMAIL && user.uid !== OWNER_UID)) {
+    if (!user || (user.email !== OWNER_EMAIL && user.email !== 'aldzulfikar075@gmail.com' && user.uid !== OWNER_UID)) {
       router.replace('/login');
       return;
     }
