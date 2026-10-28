@@ -4,14 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
   ShieldAlert, 
-  ShieldCheck, 
-  Globe, 
-  ExternalLink, 
   RotateCw, 
   Terminal, 
   Lock, 
-  Unlock,
-  Key,
   CheckCircle2,
   AlertTriangle
 } from "lucide-react";
@@ -29,9 +24,7 @@ export default function TorRequiredPage() {
     clientIp?: string;
     isTor?: boolean;
     isPrivate?: boolean;
-    isBypassed?: boolean;
   }>({});
-  const [bypassing, setBypassing] = useState(false);
 
   const fetchStatus = async () => {
     setLoading(true);
@@ -40,14 +33,14 @@ export default function TorRequiredPage() {
       if (res.ok) {
         const data = await res.json();
         setStatusData(data);
-        if (data.isTor || data.isBypassed) {
+        if (data.isTor) {
           toast({
             title: "Akses Diizinkan!",
             description: "Koneksi Tor terverifikasi. Mengarahkan ke AliBank...",
           });
           setTimeout(() => {
             router.push("/");
-          }, 1200);
+          }, 1000);
         }
       }
     } catch (err) {
@@ -60,43 +53,6 @@ export default function TorRequiredPage() {
   useEffect(() => {
     fetchStatus();
   }, []);
-
-  const handleToggleBypass = async (enable: boolean) => {
-    setBypassing(true);
-    try {
-      const res = await fetch("/api/tor/status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: enable ? "bypass" : "enforce" })
-      });
-      if (res.ok) {
-        if (enable) {
-          toast({
-            title: "Mode Simulasi Tor Diaktifkan",
-            description: "Bypass aktif untuk sesi browser ini. Mengarahkan ke aplikasi...",
-          });
-          setTimeout(() => {
-            router.push("/");
-            router.refresh();
-          }, 1000);
-        } else {
-          toast({
-            title: "Proteksi Tor Diaktifkan Kembali",
-            description: "Akses kembali dibatasi hanya untuk Tor Browser.",
-          });
-          fetchStatus();
-        }
-      }
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Gagal Mengubah Mode",
-        description: "Terjadi kesalahan saat memproses permintaan."
-      });
-    } finally {
-      setBypassing(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between p-4 sm:p-8 font-sans selection:bg-amber-500/30 relative overflow-hidden">
@@ -123,7 +79,7 @@ export default function TorRequiredPage() {
       </header>
 
       {/* Main Security Card */}
-      <main className="max-w-2xl w-full mx-auto my-auto z-10 py-6">
+      <main className="max-w-xl w-full mx-auto my-auto z-10 py-6">
         <Card className="rounded-[2.5rem] bg-slate-900/90 border border-slate-800 shadow-2xl p-6 sm:p-10 backdrop-blur-xl relative overflow-hidden space-y-8">
           
           {/* Security Banner Header */}
@@ -134,7 +90,7 @@ export default function TorRequiredPage() {
             <h2 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tight text-white">
               Akses Khusus Tor Browser
             </h2>
-            <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto font-medium leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto font-medium leading-relaxed">
               Demi privasi keuangan total, anonimitas identitas, dan enkripsi on-chain, aplikasi AliBank V3 hanya dapat dibuka melalui jaringan resmi <strong className="text-amber-400">Tor Browser</strong>.
             </p>
           </div>
@@ -178,19 +134,8 @@ export default function TorRequiredPage() {
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="space-y-3 pt-2">
-            <a 
-              href="https://www.torproject.org/download/" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black uppercase italic tracking-wider text-xs shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
-            >
-              <Globe className="w-4 h-4" />
-              Unduh Tor Browser Resmi
-              <ExternalLink className="w-3.5 h-3.5 ml-1" />
-            </a>
-
+          {/* Action Button: Only Refresh Connection */}
+          <div className="pt-2">
             <Button
               type="button"
               variant="outline"
@@ -201,38 +146,6 @@ export default function TorRequiredPage() {
               <RotateCw className={`w-3.5 h-3.5 mr-2 ${loading ? "animate-spin" : ""}`} />
               Cek Ulang Status Koneksi
             </Button>
-          </div>
-
-          {/* Developer Testing / Simulation Section */}
-          <div className="border-t border-slate-800/80 pt-6">
-            <div className="rounded-xl bg-slate-950/40 border border-slate-800/60 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-black uppercase text-amber-400/90 tracking-wider flex items-center gap-1.5">
-                  <Key className="w-3.5 h-3.5" />
-                  Mode Pengujian Pengembang (Trial)
-                </p>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  Ingin menguji aplikasi di browser ini tanpa membuka Tor Browser?
-                </p>
-              </div>
-
-              <Button
-                size="sm"
-                variant={statusData.isBypassed ? "destructive" : "secondary"}
-                onClick={() => handleToggleBypass(!statusData.isBypassed)}
-                disabled={bypassing}
-                className="h-8 px-3 rounded-lg text-[10px] font-bold uppercase shrink-0"
-              >
-                {bypassing ? (
-                  <RotateCw className="w-3 h-3 animate-spin mr-1" />
-                ) : statusData.isBypassed ? (
-                  <Lock className="w-3 h-3 mr-1" />
-                ) : (
-                  <Unlock className="w-3 h-3 mr-1" />
-                )}
-                {statusData.isBypassed ? "Aktifkan Proteksi Tor" : "Bypass Sesi (Uji Coba)"}
-              </Button>
-            </div>
           </div>
 
         </Card>

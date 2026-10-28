@@ -17,45 +17,26 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Allow developer bypass token via query parameter (?tor_bypass=alibank_dev)
-  if (searchParams.get("tor_bypass") === "alibank_dev") {
-    const cleanUrl = req.nextUrl.clone();
-    cleanUrl.searchParams.delete("tor_bypass");
-    const response = NextResponse.redirect(cleanUrl);
-    response.cookies.set("alibank_tor_bypass", "true", {
-      path: "/",
-      maxAge: 7 * 24 * 60 * 60,
-      httpOnly: false,
-      sameSite: "lax",
-    });
-    return response;
-  }
-
-  // 3. Allow session if bypass cookie is active
-  if (req.cookies.get("alibank_tor_bypass")?.value === "true") {
-    return NextResponse.next();
-  }
-
-  // 4. Check environment variable toggle (if set to false, skip Tor enforcement)
+  // 2. Check environment variable toggle (if set to false, skip Tor enforcement)
   if (process.env.NEXT_PUBLIC_REQUIRE_TOR === "false") {
     return NextResponse.next();
   }
 
-  // 5. Extract visitor IP
+  // 3. Extract visitor IP
   const clientIp = getClientIpFromHeaders(req.headers);
   const isPrivate = isPrivateIp(clientIp);
 
-  // 6. Force simulation block if ?simulate_block=1 is present
+  // 4. Force simulation block if ?simulate_block=1 is present
   if (searchParams.get("simulate_block") === "1") {
     return NextResponse.redirect(new URL("/tor-required", req.url));
   }
 
-  // 7. Allow local development (127.0.0.1, private LAN) so developers don't get locked out locally
+  // 5. Allow local development (127.0.0.1, private LAN) so developers don't get locked out locally
   if (process.env.NODE_ENV === "development" && isPrivate) {
     return NextResponse.next();
   }
 
-  // 8. Verify against official Tor Exit Nodes
+  // 6. Verify against official Tor Exit Nodes
   const isTor = await isTorExitNode(clientIp);
 
   if (isTor) {
