@@ -142,7 +142,7 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
                   <User className="w-7 h-7" />
                 </div>
                 <div>
-                  <h4 className="text-base font-black italic uppercase">{u.kycData?.fullName || u.name}</h4>
+                  <h4 className="text-base font-black italic uppercase">{u.kycData?.fullName || u.kycData?.nama || u.name}</h4>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{u.email}</p>
                   <div className="flex gap-2 mt-1">
                     <Badge variant="outline" className="bg-amber-100 text-amber-600 border-none text-[7px] font-black h-4 px-1.5 uppercase">MENUNGGU TINJAUAN</Badge>
@@ -198,7 +198,7 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
                   <img src={`https://picsum.photos/seed/${selectedKyc?.id}/200/200`} alt="p" className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <h2 className="text-3xl font-black italic uppercase tracking-tighter">{selectedKyc?.kycData?.fullName}</h2>
+                  <h2 className="text-3xl font-black italic uppercase tracking-tighter">{selectedKyc?.kycData?.fullName || selectedKyc?.kycData?.nama || selectedKyc?.name}</h2>
                   <p className="text-xs font-bold text-muted-foreground uppercase">{selectedKyc?.email}</p>
                 </div>
               </div>
@@ -211,9 +211,15 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
                   <FileText className="w-4 h-4" /> Informasi Pribadi
                 </h3>
                 <div className="space-y-4">
-                  <DetailItem icon={Hash} label="Nomor ID (NIK)" value={selectedKyc?.kycData?.idNumber} isMono />
-                  <DetailItem icon={MapPin} label="Alamat Tempat Tinggal" value={selectedKyc?.kycData?.address} />
-                  <DetailItem icon={Calendar} label="Dikirim Pada" value={new Date(selectedKyc?.kycData?.submittedAt).toLocaleString()} />
+                  <DetailItem icon={Hash} label="Nomor ID (NIK)" value={selectedKyc?.kycData?.idNumber || selectedKyc?.kycData?.nik} isMono />
+                  <DetailItem icon={MapPin} label="Alamat Tempat Tinggal" value={selectedKyc?.kycData?.address || selectedKyc?.kycData?.alamat} />
+                  <DetailItem icon={Calendar} label="Dikirim Pada" value={selectedKyc?.kycData?.submittedAt ? new Date(selectedKyc.kycData.submittedAt).toLocaleString('id-ID') : '---'} />
+                  {selectedKyc?.kycData?.whatsapp && (
+                    <DetailItem icon={MapPin} label="Kontak WhatsApp" value={selectedKyc.kycData.whatsapp} />
+                  )}
+                  {selectedKyc?.kycData?.province && (
+                    <DetailItem icon={MapPin} label="Provinsi / Kode Pos" value={`${selectedKyc.kycData.province} - ${selectedKyc.kycData.postalCode || ''}`} />
+                  )}
                 </div>
               </section>
 

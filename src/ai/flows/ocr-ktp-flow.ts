@@ -38,7 +38,14 @@ const KtpOcrOutputSchema = z.object({
 export type KtpOcrOutput = z.infer<typeof KtpOcrOutputSchema>;
 
 export async function extractKtpData(input: KtpOcrInput): Promise<KtpOcrOutput> {
-  return ktpOcrFlow(input);
+  try {
+    return await ktpOcrFlow(input);
+  } catch (error: any) {
+    console.warn("OCR KTP analysis fallback:", error?.message || error);
+    return {
+      isKtp: false,
+    };
+  }
 }
 
 const ktpOcrPrompt = ai.definePrompt({
