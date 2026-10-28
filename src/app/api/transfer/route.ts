@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,11 +31,34 @@ function getAdminApp(): App {
 
 export async function POST(request: NextRequest) {
   try {
+    const adminApp = getAdminApp();
+    const auth = getAuth(adminApp);
+    const db = getFirestore(adminApp);
+
+    // --- 1. Verifikasi Token Otentikasi (Cegah IDOR / Akses Ilegal) ---
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Akses ditolak. Token otentikasi diperlukan.' }, { status: 401 });
+    }
+
+    const token = authHeader.substring(7);
+    let decodedToken;
+    try {
+      decodedToken = await auth.verifyIdToken(token);
+    } catch (authErr: any) {
+      return NextResponse.json({ error: 'Sesi kedaluwarsa atau tidak valid. Silakan login kembali.' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { senderId, recipientId, asset, amount, note, senderName } = body;
 
+    // --- 2. Proteksi IDOR: Pastikan pemanggil adalah pemilik sah akun pengirim ---
+    if (!senderId || decodedToken.uid !== senderId) {
+      return NextResponse.json({ error: 'Pelanggaran keamanan: Anda tidak diizinkan mentransfer dari akun lain.' }, { status: 403 });
+    }
+
     // --- Input validation ---
-    if (!senderId || !recipientId || !asset || amount == null) {
+    if (!recipientId || !asset || amount == null) {
       return NextResponse.json({ error: 'Parameter tidak lengkap.' }, { status: 400 });
     }
     if (!SUPPORTED_ASSETS.includes(asset as Asset)) {
@@ -47,9 +71,6 @@ export async function POST(request: NextRequest) {
     if (senderId === recipientId) {
       return NextResponse.json({ error: 'Tidak bisa transfer ke diri sendiri.' }, { status: 400 });
     }
-
-    const adminApp = getAdminApp();
-    const db = getFirestore(adminApp);
 
     const senderRef = db.collection('users').doc(senderId);
     const recipientRef = db.collection('users').doc(recipientId);

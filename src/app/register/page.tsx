@@ -57,7 +57,6 @@ export default function RegisterPage() {
         kycStatus: 'unverified',
         walletAddress: internalWallet.address,
         btcAddress: mockBtcAddress,
-        privateKey: internalWallet.privateKey,
         cryptoBalances: {
           BTC: 0,
           ETH: 0,

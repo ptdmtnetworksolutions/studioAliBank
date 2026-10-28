@@ -3,8 +3,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * ALIBANK SECURITY RULES V14.0 - SUPREME ADMIN & ROOT ACCESS
-     * Memberikan kontrol mutlak dan dukungan kueri rekonsiliasi global.
+     * ALIBANK SECURITY RULES V15.0 - HARDENED PRODUCTION SECURITY
+     * Melindungi saldo, KYC, dan data pribadi nasabah dari manipulasi sisi klien.
      */
 
     function isSignedIn() {
@@ -21,12 +21,30 @@ service cloud.firestore {
       );
     }
 
+    function isFieldUnchanged(fieldName) {
+      return !(fieldName in request.resource.data) || 
+             request.resource.data[fieldName] == resource.data[fieldName];
+    }
+
+    function canUserUpdateProfile() {
+      return isFieldUnchanged('totalBalance') &&
+             isFieldUnchanged('cryptoBalances') &&
+             isFieldUnchanged('savings') &&
+             isFieldUnchanged('tier') &&
+             isFieldUnchanged('isSuspended') &&
+             isFieldUnchanged('accountNumber') &&
+             isFieldUnchanged('role') &&
+             isFieldUnchanged('admin') &&
+             // User hanya dapat mengajukan kycStatus 'pending' atau membiarkannya tetap
+             (isFieldUnchanged('kycStatus') || request.resource.data.kycStatus == 'pending');
+    }
+
     // --- ROOT LEVEL LIST SUPPORT ---
     match /{topLevelCollection} {
       allow list: if isAdmin();
     }
 
-    // --- GLOBAL ADMIN OVERRIDE (KUASA TANPA BATAS) ---
+    // --- GLOBAL ADMIN OVERRIDE ---
     match /{document=**} {
       allow read, write: if isAdmin();
     }
@@ -46,10 +64,14 @@ service cloud.firestore {
 
     // --- ATURAN KHUSUS UNTUK NASABAH (NON-ADMIN) ---
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && request.auth.uid == userId;
-      allow delete: if false;
+      // Nasabah hanya dapat membaca profil pribadinya sendiri (kecuali admin)
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Cegah kebocoran massal: hanya admin yang bisa listing seluruh user di Firestore
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Nasabah dilarang memanipulasi saldo, tier, atau status verifikasi langsung dari browser
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId && canUserUpdateProfile());
+      allow delete: if isAdmin();
 
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn() && request.auth.uid == userId;
@@ -72,13 +94,11 @@ service cloud.firestore {
     }
 
     // --- TRANSAKSI NASABAH ---
-    // User bisa baca transaksi miliknya sendiri
     match /transactions/{txId} {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow list: if isSignedIn();
     }
-
 
     match /market/{pairId} {
       allow read: if isSignedIn();

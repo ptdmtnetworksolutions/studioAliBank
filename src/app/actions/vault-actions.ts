@@ -1,17 +1,21 @@
-
 'use server';
 
 /**
  * @fileOverview Server Actions untuk operasional Vault AliBank.
- * Mendukung interaksi dengan Smart Contract AliBankVault milik user.
+ * Mendukung interaksi dengan Smart Contract AliBankVault milik user dengan verifikasi kriptografis token admin.
  */
 
 import { ethers } from 'ethers';
 import { getVaultPrivateKey } from '@/lib/secrets';
 import { AliBankVaultABI } from '@/lib/abi/AliBankVault';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
-import { firebaseConfig } from '@/firebase/config';
+import { initializeApp as initAdminApp, getApps as getAdminApps, App as AdminApp } from 'firebase-admin/app';
+import { getAuth as getAdminAuth } from 'firebase-admin/auth';
+import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
+
+function getAdminApp(): AdminApp {
+  if (getAdminApps().length > 0) return getAdminApps()[0];
+  return initAdminApp({ projectId: 'darmedia-pos' });
+}
 
 // Identitas Super Admin Tetap
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
@@ -19,33 +23,43 @@ const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 
 /**
  * Mengeksekusi penarikan dana dari Vault AliBank.
- * Menggunakan Kredensial riil dari Vault Firestore/Secret Manager.
+ * Memvalidasi token ID Firebase secara kriptografis di server sebelum mengeksekusi on-chain.
  */
 export async function executeVaultWithdrawalAction(
   recipient: string, 
   amount: string, 
-  adminUid: string,
-  adminEmail: string
+  idToken: string
 ) {
-  // 1. Otorisasi Ketat
-  if (adminUid !== OWNER_UID || adminEmail !== OWNER_EMAIL) {
-    throw new Error('Unauthorized: Akses administratif ditolak.');
+  // 1. Otorisasi Ketat Berbasis Verifikasi Token Kriptografis
+  if (!idToken) {
+    throw new Error('Unauthorized: Token otentikasi diperlukan.');
+  }
+
+  const adminApp = getAdminApp();
+  const auth = getAdminAuth(adminApp);
+  let decodedToken;
+  try {
+    decodedToken = await auth.verifyIdToken(idToken);
+  } catch (err: any) {
+    throw new Error('Unauthorized: Sesi kedaluwarsa atau token otentikasi tidak valid.');
+  }
+
+  if (decodedToken.uid !== OWNER_UID || decodedToken.email !== OWNER_EMAIL) {
+    throw new Error('Unauthorized: Akses administratif ditolak. Anda bukan Super Admin.');
   }
 
   try {
-    // 2. Ambil Konfigurasi dari Firestore
-    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-    const db = getFirestore(app);
-    const keySnap = await getDoc(doc(db, "system", "api_keys"));
+    // 2. Ambil Konfigurasi dari Firestore via Admin SDK
+    const db = getAdminFirestore(adminApp);
+    const keySnap = await db.collection("system").doc("api_keys").get();
     
-    if (!keySnap.exists()) {
+    if (!keySnap.exists) {
       throw new Error("Konfigurasi API Keys tidak ditemukan di Brankas.");
     }
 
-    const config = keySnap.data();
+    const config = keySnap.data()!;
     
-    // 3. Ambil Kunci Vault (Private Key MetaMask Anda)
-    // Mencoba Secret Manager (GCP), fallback ke field vaultPrivateKey di Firestore
+    // 3. Ambil Kunci Vault (Private Key MetaMask Admin)
     const privateKey = await getVaultPrivateKey();
 
     if (!privateKey || privateKey === "YOUR_KEY") {
@@ -59,7 +73,7 @@ export async function executeVaultWithdrawalAction(
     }
     
     if (!rpcUrl) {
-      rpcUrl = "https://ethereum-rpc.publicnode.com"; // Terakhir
+      rpcUrl = "https://ethereum-rpc.publicnode.com";
     }
 
     const contractAddress = config.vaultContractAddress || "0x56268032A3B3E64CFeF1916d591087CF8dF40945";

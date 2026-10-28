@@ -142,7 +142,8 @@ export function VaultControlView({ auditLogs }: any) {
     if (!user || isExecuting || !amount) return;
     setIsExecuting(true);
     try {
-      const res = await executeVaultWithdrawalAction(recipient, amount, user.uid, user.email!);
+      const idToken = await user.getIdToken();
+      const res = await executeVaultWithdrawalAction(recipient, amount, idToken);
       if (res.success) {
         toast({ title: "Penarikan Berhasil", description: res.message });
         setAmount("");

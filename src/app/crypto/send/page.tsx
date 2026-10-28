@@ -190,9 +190,13 @@ export default function CryptoSendPage() {
           throw new Error(`Saldo ${assetType} Anda tidak mencukupi.`);
         }
 
+        const idToken = await user.getIdToken();
         const res = await fetch('/api/crypto/withdraw', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+          },
           body: JSON.stringify({
             userId: user.uid,
             asset: assetType,

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
-import { ethers } from 'ethers';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,12 +10,14 @@ function getAdminApp(): App {
   return initializeApp({ projectId: 'darmedia-pos' });
 }
 
+const INVOICE_PATH_REGEX = /^merchants\/[a-zA-Z0-9_-]+\/invoices\/[a-zA-Z0-9_-]+$/;
+
 export async function POST(req: NextRequest) {
   try {
     const adminApp = getAdminApp();
     const db = getFirestore(adminApp);
 
-    // Get authorization if present (optional, since guest checkouts are supported)
+    // Get authorization if present (guest checkouts are supported for public POS payment)
     let userEmail = 'external_client@alibank.com';
     const authHeader = req.headers.get('Authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -36,6 +37,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Parameter finalisasi checkout tidak lengkap.' }, { status: 400 });
     }
 
+    // Validasi format path invoice untuk mencegah manipulasi dokumen sembarang
+    if (!isMarketplaceItem && path) {
+      if (!INVOICE_PATH_REGEX.test(path)) {
+        return NextResponse.json({ error: 'Format jalur invoice tidak valid.' }, { status: 400 });
+      }
+    }
+
     const gatewayId = details?.id || `TXN-${Date.now()}`;
     const gatewayName = details?.gateway || 'AliBank Production Gateway';
     const bankName = details?.bankName || 'Global Issuer';
@@ -43,9 +51,31 @@ export async function POST(req: NextRequest) {
 
     // Perform atomic transaction
     await db.runTransaction(async (transaction) => {
-      // 1. Update Invoice status if not a marketplace item
+      let finalAmountIdr = parseFloat(amountIdr);
+      let finalAmountUsd = parseFloat(amountUsd);
+
+      // 1. Verifikasi integritas invoice dari database jika bukan marketplace item
       if (!isMarketplaceItem && path) {
         const invoiceRef = db.doc(path);
+        const invoiceSnap = await transaction.get(invoiceRef);
+
+        if (!invoiceSnap.exists) {
+          throw new Error('Invoice tidak ditemukan di sistem.');
+        }
+
+        const invoiceData = invoiceSnap.data()!;
+        if (invoiceData.status === 'paid') {
+          throw new Error('Invoice ini sudah pernah diselesaikan sebelumnya.');
+        }
+
+        // Ambil nominal riil dari database, bukan dari input klien
+        if (invoiceData.amountIdr != null) {
+          finalAmountIdr = parseFloat(invoiceData.amountIdr);
+        }
+        if (invoiceData.amountUsd != null) {
+          finalAmountUsd = parseFloat(invoiceData.amountUsd);
+        }
+
         transaction.set(invoiceRef, {
           status: "paid",
           paidAt: timestamp,
@@ -57,8 +87,8 @@ export async function POST(req: NextRequest) {
       // 2. Update Global Liquidity
       const liquidityRef = db.collection('system').doc('liquidity');
       transaction.update(liquidityRef, {
-        totalFiatInjected: FieldValue.increment(parseFloat(amountIdr)),
-        totalUsdInjected: FieldValue.increment(parseFloat(amountUsd))
+        totalFiatInjected: FieldValue.increment(finalAmountIdr),
+        totalUsdInjected: FieldValue.increment(finalAmountUsd)
       });
 
       // 3. Record Global Audit Log
@@ -68,8 +98,8 @@ export async function POST(req: NextRequest) {
         category: "External Settlement",
         gateway: gatewayName,
         bankName: bankName,
-        amountIdr: parseFloat(amountIdr),
-        amountUsd: parseFloat(amountUsd),
+        amountIdr: finalAmountIdr,
+        amountUsd: finalAmountUsd,
         description: `Settlement for Invoice ${invoiceId} (${productName || 'Marketplace Item'}).`,
         status: "success",
         timestamp: FieldValue.serverTimestamp(),

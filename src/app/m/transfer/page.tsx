@@ -110,27 +110,29 @@ export default function MobileTransferPage() {
 
   // ── SEARCH RECIPIENT ─────────────────────────────────────────────────────────
   const handleSearch = async () => {
-    if (!db || searchQuery.length < 3) return;
+    if (!user || searchQuery.length < 3) return;
     setIsSearching(true);
     try {
-      const [s1, s2, s3] = await Promise.all([
-        getDocs(query(collection(db, "users"), where("accountNumber", "==", searchQuery), limit(1))),
-        getDocs(query(collection(db, "users"), where("walletAddress", "==", searchQuery), limit(1))),
-        getDocs(query(collection(db, "users"), where("email", "==", searchQuery.toLowerCase()), limit(1))),
-      ]);
-      const snap = !s1.empty ? s1 : !s2.empty ? s2 : s3;
-      if (!snap.empty) {
-        const found = snap.docs[0];
-        if (found.id === user?.uid) {
-          toast({ variant: "destructive", title: "Tidak bisa transfer ke diri sendiri." });
-          return;
+      const idToken = await user.getIdToken();
+      const res = await fetch(`/api/users/lookup?q=${encodeURIComponent(searchQuery)}`, {
+        headers: {
+          'Authorization': `Bearer ${idToken}`
         }
-        setRecipient({ id: found.id, ...found.data() });
-        setStep('amount');
-        setSearchQuery('');
-      } else {
+      });
+      const data = await res.json();
+      if (!res.ok || !data.user) {
         toast({ variant: "destructive", title: "Pengguna tidak ditemukan." });
+        return;
       }
+
+      if (data.user.id === user.uid) {
+        toast({ variant: "destructive", title: "Tidak bisa transfer ke diri sendiri." });
+        return;
+      }
+
+      setRecipient(data.user);
+      setStep('amount');
+      setSearchQuery('');
     } catch {
       toast({ variant: "destructive", title: "Gagal mencari pengguna." });
     } finally {
@@ -143,9 +145,13 @@ export default function MobileTransferPage() {
     if (!user || !recipient) return;
     setIsProcessing(true);
     try {
+      const idToken = await user.getIdToken();
       const res = await fetch('/api/transfer', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           senderId: user.uid,
           senderName: userData?.name || user.email,

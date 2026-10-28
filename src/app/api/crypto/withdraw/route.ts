@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 import { ethers } from 'ethers';
 import { AliBankVaultABI } from '@/lib/abi/AliBankVault';
 
@@ -25,11 +26,34 @@ const ERC20_ABI = [
  */
 export async function POST(request: NextRequest) {
   try {
+    const adminApp = getAdminApp();
+    const auth = getAuth(adminApp);
+    const db = getFirestore(adminApp);
+
+    // --- 1. Verifikasi Token Otentikasi (Cegah IDOR / Akses Ilegal) ---
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Akses ditolak. Token otentikasi diperlukan.' }, { status: 401 });
+    }
+
+    const token = authHeader.substring(7);
+    let decodedToken;
+    try {
+      decodedToken = await auth.verifyIdToken(token);
+    } catch (authErr: any) {
+      return NextResponse.json({ error: 'Sesi kedaluwarsa atau tidak valid. Silakan login kembali.' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { userId, asset, amount, recipient } = body;
 
+    // --- 2. Proteksi IDOR: Pastikan pemanggil adalah pemilik sah akun ---
+    if (!userId || decodedToken.uid !== userId) {
+      return NextResponse.json({ error: 'Pelanggaran keamanan: Anda tidak diizinkan menarik dana dari akun lain.' }, { status: 403 });
+    }
+
     // 1. Validation
-    if (!userId || !asset || !amount || !recipient) {
+    if (!asset || !amount || !recipient) {
       return NextResponse.json({ error: 'Parameter tidak lengkap.' }, { status: 400 });
     }
 
@@ -38,12 +62,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Jumlah penarikan harus lebih dari 0.' }, { status: 400 });
     }
 
-    if (!ethers.isAddress(recipient)) {
-      return NextResponse.json({ error: 'Alamat dompet tujuan tidak valid.' }, { status: 400 });
+    if (asset !== 'BTC' && !ethers.isAddress(recipient)) {
+      return NextResponse.json({ error: 'Alamat dompet tujuan EVM tidak valid.' }, { status: 400 });
     }
-
-    const adminApp = getAdminApp();
-    const db = getFirestore(adminApp);
 
     const userRef = db.collection('users').doc(userId);
     const apiKeysSnap = await db.collection('system').doc('api_keys').get();

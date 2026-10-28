@@ -104,26 +104,28 @@ export default function TransferPage() {
   }, [rawTxs]);
 
   const handleSearch = async () => {
-    if (!db || searchQuery.length < 3) return;
+    if (!user || searchQuery.length < 3) return;
     setIsSearching(true);
     try {
-      const q1 = query(collection(db, "users"), where("accountNumber", "==", searchQuery), limit(1));
-      const q2 = query(collection(db, "users"), where("walletAddress", "==", searchQuery), limit(1));
-      const q3 = query(collection(db, "users"), where("email", "==", searchQuery.toLowerCase()), limit(1));
-
-      const [snap1, snap2, snap3] = await Promise.all([getDocs(q1), getDocs(q2), getDocs(q3)]);
-      const snap = !snap1.empty ? snap1 : !snap2.empty ? snap2 : snap3;
-
-      if (!snap.empty) {
-        const found = snap.docs[0];
-        if (found.id === user?.uid) {
-          toast({ variant: "destructive", title: "Tidak Bisa", description: "Anda tidak bisa transfer ke diri sendiri." });
-          return;
+      const idToken = await user.getIdToken();
+      const res = await fetch(`/api/users/lookup?q=${encodeURIComponent(searchQuery)}`, {
+        headers: {
+          'Authorization': `Bearer ${idToken}`
         }
-        setSelectedRecipient({ id: found.id, ...found.data() });
-      } else {
-        toast({ variant: "destructive", title: "Tidak Ditemukan", description: "Pengguna tidak ditemukan. Coba nomor rekening, wallet address, atau email." });
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.user) {
+        toast({ variant: "destructive", title: "Tidak Ditemukan", description: data.error || data.message || "Pengguna tidak ditemukan." });
+        return;
       }
+
+      if (data.user.id === user.uid) {
+        toast({ variant: "destructive", title: "Tidak Bisa", description: "Anda tidak bisa transfer ke diri sendiri." });
+        return;
+      }
+
+      setSelectedRecipient(data.user);
     } catch (e) {
       toast({ variant: "destructive", title: "Error", description: "Gagal mencari pengguna." });
     } finally {
@@ -146,9 +148,13 @@ export default function TransferPage() {
     if (!user || !selectedRecipient) return;
     setIsProcessing(true);
     try {
+      const idToken = await user.getIdToken();
       const res = await fetch('/api/transfer', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           senderId: user.uid,
           senderName: userData?.name || user.email,
