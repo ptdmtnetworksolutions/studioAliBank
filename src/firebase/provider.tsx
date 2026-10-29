@@ -85,11 +85,53 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     const unsubscribe = onAuthStateChanged(
       auth,
       (firebaseUser) => { 
-        setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
+        if (firebaseUser) {
+          setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
+        } else {
+          // Fallback akun terotentikasi dari server-side API login (untuk Tor Browser / pembatasan client-auth)
+          let fallbackUser: any = null;
+          try {
+            if (typeof window !== 'undefined') {
+              const savedUserStr = localStorage.getItem('alibank_user');
+              if (savedUserStr) {
+                const savedUser = JSON.parse(savedUserStr);
+                if (savedUser?.uid && savedUser?.email) {
+                  fallbackUser = {
+                    uid: savedUser.uid,
+                    email: savedUser.email,
+                    displayName: savedUser.displayName || savedUser.email.split('@')[0],
+                    getIdToken: async () => savedUser.idToken || "",
+                    getIdTokenResult: async () => ({ token: savedUser.idToken || "" }),
+                  };
+                }
+              }
+            }
+          } catch (_) {}
+
+          setUserAuthState({ user: fallbackUser, isUserLoading: false, userError: null });
+        }
       },
       (error) => { 
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
-        setUserAuthState({ user: null, isUserLoading: false, userError: error });
+        let fallbackUser: any = null;
+        try {
+          if (typeof window !== 'undefined') {
+            const savedUserStr = localStorage.getItem('alibank_user');
+            if (savedUserStr) {
+              const savedUser = JSON.parse(savedUserStr);
+              if (savedUser?.uid && savedUser?.email) {
+                fallbackUser = {
+                  uid: savedUser.uid,
+                  email: savedUser.email,
+                  displayName: savedUser.displayName || savedUser.email.split('@')[0],
+                  getIdToken: async () => savedUser.idToken || "",
+                  getIdTokenResult: async () => ({ token: savedUser.idToken || "" }),
+                };
+              }
+            }
+          }
+        } catch (_) {}
+        setUserAuthState({ user: fallbackUser, isUserLoading: false, userError: fallbackUser ? null : error });
       }
     );
     return () => unsubscribe(); 

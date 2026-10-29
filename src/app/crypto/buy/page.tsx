@@ -127,11 +127,16 @@ export default function CryptoBuyPage() {
   const [isMobile, setIsMobile] = useState(true);
   const [activeTab, setActiveTab] = useState<'beli' | 'jual' | 'convert'>('beli');
   const [amount, setAmount] = useState("0");
-  const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currencies.find(c => c.code === "IDR")!);
+  const defaultCurrency: Currency = useMemo(() => {
+    return currencies.find(c => c.code === "IDR") || currencies[0] || { code: "IDR", name: "Rupiah Indonesia", color: "bg-rose-600", symbol: "Rp" };
+  }, []);
+  const [selectedCurrency, setSelectedCurrency] = useState<Currency>(defaultCurrency);
   
   const [coinsList, setCoinsList] = useState(ASSETS);
   const [selectedAssetSymbol, setSelectedAssetSymbol] = useState<string>("ALX");
-  const selectedAsset = useMemo(() => coinsList.find(c => c.symbol === selectedAssetSymbol) || coinsList[0], [coinsList, selectedAssetSymbol]);
+  const selectedAsset = useMemo(() => {
+    return coinsList.find(c => c.symbol === selectedAssetSymbol) || coinsList[0] || ASSETS[0];
+  }, [coinsList, selectedAssetSymbol]);
 
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS[0]);
   const [dynamicUsdtRate, setDynamicUsdtRate] = useState(17690);
@@ -196,17 +201,23 @@ export default function CryptoBuyPage() {
   // Hanya tampilkan metode yang diaktifkan admin (default: semua aktif)
   const enabledPaymentMethods = useMemo(() => {
     if (!paymentConfig?.methods) return PAYMENT_METHODS;
-    return PAYMENT_METHODS.filter((m) => paymentConfig.methods[m.id] !== false);
+    const filtered = PAYMENT_METHODS.filter((m) => paymentConfig.methods[m.id] !== false);
+    return filtered.length > 0 ? filtered : PAYMENT_METHODS;
   }, [paymentConfig]);
+
+  // Jaminan activePayment tidak pernah undefined
+  const activePayment = useMemo(() => {
+    return selectedPayment || enabledPaymentMethods[0] || PAYMENT_METHODS[0];
+  }, [selectedPayment, enabledPaymentMethods]);
 
   // Auto-switch selectedPayment jika dinonaktifkan oleh admin
   useEffect(() => {
     if (enabledPaymentMethods.length === 0) return;
-    const stillEnabled = enabledPaymentMethods.find((m) => m.id === selectedPayment.id);
+    const stillEnabled = enabledPaymentMethods.find((m) => m.id === selectedPayment?.id);
     if (!stillEnabled) {
       setSelectedPayment(enabledPaymentMethods[0]);
     }
-  }, [enabledPaymentMethods, selectedPayment.id]);
+  }, [enabledPaymentMethods, selectedPayment?.id]);
 
   const fetchRealTimeRate = useCallback(async () => {
     try {
@@ -267,7 +278,11 @@ export default function CryptoBuyPage() {
 
   useEffect(() => {
     if (mounted && !userLoading && !user) {
-      router.push('/login');
+      const hasCookie = typeof document !== 'undefined' && document.cookie.includes('alibank_session=1');
+      const hasStored = typeof window !== 'undefined' && !!localStorage.getItem('alibank_user');
+      if (!hasCookie && !hasStored) {
+        router.push('/login');
+      }
     }
   }, [mounted, user, userLoading, router]);
 
@@ -1031,7 +1046,7 @@ export default function CryptoBuyPage() {
                       {activeTab === 'jual' ? (
                         <Landmark className="w-5 h-5" />
                       ) : (
-                        <selectedPayment.icon className="w-5 h-5" />
+                        <activePayment.icon className="w-5 h-5" />
                       )}
                     </div>
                     <div>
@@ -1039,7 +1054,7 @@ export default function CryptoBuyPage() {
                         {activeTab === 'jual' ? "Penerima" : "Metode pembayaran"}
                       </p>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase">
-                        {activeTab === 'jual' ? "Saldo Dompet AliBank (Instan)" : selectedPayment.name}
+                        {activeTab === 'jual' ? "Saldo Dompet AliBank (Instan)" : activePayment.name}
                       </p>
                     </div>
                   </div>
@@ -1204,7 +1219,7 @@ export default function CryptoBuyPage() {
                               {activeTab === 'jual' ? (
                                 <Landmark className="w-5 h-5" />
                               ) : (
-                                <selectedPayment.icon className="w-5 h-5" />
+                                <activePayment.icon className="w-5 h-5" />
                               )}
                             </div>
                             <div className="text-left">
@@ -1212,7 +1227,7 @@ export default function CryptoBuyPage() {
                                 {activeTab === 'jual' ? "Penerima Hasil" : "Metode Pembayaran"}
                               </p>
                               <p className="text-xs font-black text-foreground truncate max-w-[150px]">
-                                {activeTab === 'jual' ? "Saldo Dompet (Instan)" : selectedPayment.name}
+                                {activeTab === 'jual' ? "Saldo Dompet (Instan)" : activePayment.name}
                               </p>
                             </div>
                           </div>
@@ -1272,7 +1287,7 @@ export default function CryptoBuyPage() {
                       </div>
                       <div className="flex justify-between items-center py-2.5 border-b border-border/50">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase">Metode Kliring</span>
-                        <span className="font-black text-foreground">{activeTab === 'jual' ? "Saldo Dompet" : selectedPayment.name}</span>
+                        <span className="font-black text-foreground">{activeTab === 'jual' ? "Saldo Dompet" : activePayment.name}</span>
                       </div>
                       <div className="flex justify-between items-center py-2.5">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase">Sinkronisasi Kurs</span>

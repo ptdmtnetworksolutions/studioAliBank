@@ -68,16 +68,32 @@ export default function LoginPage() {
         }
       }
 
-      // 3. Pastikan cookie sesi tersimpan untuk Edge Middleware
-      if (typeof document !== 'undefined') {
+      // 3. Simpan sesi user dan cookie untuk Edge Middleware & Client Provider
+      if (typeof window !== 'undefined') {
         document.cookie = "alibank_session=1; path=/; max-age=2592000; SameSite=Lax";
+        try {
+          localStorage.setItem('alibank_user', JSON.stringify({
+            uid: data.uid,
+            email: data.email || targetEmail,
+            displayName: data.displayName || '',
+            idToken: data.idToken || '',
+            loggedInAt: Date.now()
+          }));
+        } catch (_) {}
       }
 
       toast({
         title: "Selamat Datang Kembali",
         description: "Berhasil masuk ke akun AliBank Anda.",
       });
-      router.replace('/');
+
+      // Gunakan navigasi langsung window.location agar sesi dan state termuat penuh tanpa bounce-back
+      if (typeof window !== 'undefined') {
+        const isMobile = window.innerWidth < 768;
+        window.location.href = isMobile ? '/m/home' : '/';
+      } else {
+        router.replace('/');
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       const msg = error.message || "Email atau kata sandi salah. Silakan coba lagi.";

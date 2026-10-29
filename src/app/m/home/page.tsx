@@ -107,8 +107,12 @@ function MobileHomePageContent() {
   useEffect(() => {
     setMounted(true);
     if (!userLoading && !user) {
-      router.replace('/login');
-      return;
+      const hasCookie = typeof document !== 'undefined' && document.cookie.includes('alibank_session=1');
+      const hasStored = typeof window !== 'undefined' && !!localStorage.getItem('alibank_user');
+      if (!hasCookie && !hasStored) {
+        router.replace('/login');
+        return;
+      }
     }
     if (typeof window !== "undefined" && window.innerWidth >= 768) {
       router.replace('/');

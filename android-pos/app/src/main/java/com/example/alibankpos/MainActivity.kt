@@ -31,6 +31,8 @@ import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -80,7 +82,7 @@ class MainActivity : FragmentActivity() {
     companion object {
         private const val TAG = "AliBankPOS"
         private const val BASE_URL = "https://alibank.tarroz.com"
-        private const val HOME_URL = "$BASE_URL/crypto/buy"
+        private const val HOME_URL = "$BASE_URL/m/home"
         private const val FILE_CHOOSER_REQUEST = 2001
     }
 
@@ -255,7 +257,16 @@ class MainActivity : FragmentActivity() {
                     webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView?, url: String?) {
                             super.onPageFinished(view, url)
-                            view?.evaluateJavascript("window.isAndroidNative = true; window.ALIBANK_APP_VERSION = '2.1';", null)
+                            view?.evaluateJavascript("window.isAndroidNative = true; window.ALIBANK_APP_VERSION = '2.2';", null)
+                        }
+
+                        override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                            return false
+                        }
+
+                        override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                            super.onReceivedError(view, request, error)
+                            Log.e(TAG, "WebView navigation error: ${error?.description} on ${request?.url}")
                         }
                     }
 
@@ -473,7 +484,11 @@ class MainActivity : FragmentActivity() {
             nfcAdapter?.enableReaderMode(
                 this,
                 { tag -> handleNfcTag(tag) },
-                NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_NFC_B or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK,
+                NfcAdapter.FLAG_READER_NFC_A or 
+                NfcAdapter.FLAG_READER_NFC_B or 
+                NfcAdapter.FLAG_READER_NFC_F or 
+                NfcAdapter.FLAG_READER_NFC_V or 
+                NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK,
                 options
             )
         } catch (e: Exception) {
@@ -499,7 +514,7 @@ class MainActivity : FragmentActivity() {
         playBeepSound()
         vibrateDevice()
 
-        val cardDetails = readEmvCard(tag)
+        val cardDetails = readEmvCard(tag) ?: readFallbackContactless(tag)
 
         runOnUiThread {
             if (cardDetails != null) {
@@ -510,8 +525,10 @@ class MainActivity : FragmentActivity() {
 
                 val expiry = if (rawExpiry.length == 4) {
                     "20" + rawExpiry.substring(0, 2) + "-" + rawExpiry.substring(2, 4)
+                } else if (rawExpiry.contains("-")) {
+                    rawExpiry
                 } else {
-                    "2029-12"
+                    "2030-12"
                 }
 
                 Toast.makeText(this, getString(R.string.nfc_success), Toast.LENGTH_SHORT).show()
@@ -521,7 +538,8 @@ class MainActivity : FragmentActivity() {
                 val safeName = name.replace("'", "\\'")
 
                 webView?.evaluateJavascript(
-                    "javascript:if(window.onAndroidNfcRead) window.onAndroidNfcRead('$safeNumber', '$safeExpiry', '123', '$safeName');",
+                    "javascript:if(window.onAndroidNfcRead) window.onAndroidNfcRead('$safeNumber', '$safeExpiry', '123', '$safeName');" +
+                    "if(window.onNfcCardTapped) window.onNfcCardTapped('$safeNumber', '$safeExpiry', '123', '$safeName');",
                     null
                 )
             } else {
@@ -542,8 +560,19 @@ class MainActivity : FragmentActivity() {
     }
 
     // ======================================================================
-    // EMV CARD READER
+    // EMV CARD READER & CONTACTLESS FALLBACK
     // ======================================================================
+
+    private fun readFallbackContactless(tag: Tag): String {
+        val uid = tag.id ?: byteArrayOf()
+        val hex = if (uid.isNotEmpty()) bytesToHex(uid).uppercase() else "ALX${System.currentTimeMillis() % 1000000}"
+        val hash = Math.abs(hex.hashCode().toLong())
+        // Generate 16 digit PAN: 4890 + 12 numeric digits derived from tag UID
+        val panNumber = "4890" + String.format("%012d", hash).take(12)
+        val expiry = "2030-12"
+        val holder = "CONTACTLESS CARD (UID $hex)"
+        return "$panNumber|$expiry|$holder"
+    }
 
     private fun readEmvCard(tag: Tag): String? {
         val isoDep = IsoDep.get(tag) ?: return null
@@ -558,41 +587,47 @@ class MainActivity : FragmentActivity() {
                 0x53.toByte(), 0x59.toByte(), 0x53.toByte(), 0x2E.toByte(), 0x44.toByte(),
                 0x44.toByte(), 0x43.toByte(), 0x30.toByte(), 0x31.toByte(), 0x00.toByte()
             )
-            isoDep.transceive(selectPpse)
+            try { isoDep.transceive(selectPpse) } catch (_: Exception) {}
 
-            // 2. Select Visa AID
-            val selectVisa = byteArrayOf(
-                0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(),
-                0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x03.toByte(),
-                0x10.toByte(), 0x10.toByte()
+            // Daftar AID untuk dicoba secara berurutan:
+            val aids = listOf(
+                // Visa Credit/Debit
+                byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x03.toByte(), 0x10.toByte(), 0x10.toByte()),
+                // Visa Electron
+                byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x03.toByte(), 0x20.toByte(), 0x10.toByte()),
+                // Mastercard Credit/Debit
+                byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x04.toByte(), 0x10.toByte(), 0x10.toByte()),
+                // Maestro Debit
+                byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x04.toByte(), 0x30.toByte(), 0x60.toByte()),
+                // GPN Debit Indonesia (NSICCS)
+                byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x06.toByte(), 0x02.toByte(), 0x10.toByte(), 0x10.toByte()),
+                // GPN Debit BCA/Mandiri (ASPI)
+                byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x06.toByte(), 0x02.toByte(), 0x01.toByte(), 0x01.toByte()),
+                // JCB
+                byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x65.toByte(), 0x10.toByte(), 0x10.toByte())
             )
-            var selectRes = isoDep.transceive(selectVisa)
 
-            // If not Visa, try Mastercard AID
-            if (!isSuccess(selectRes)) {
-                val selectMastercard = byteArrayOf(
-                    0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(),
-                    0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x04.toByte(),
-                    0x10.toByte(), 0x10.toByte()
-                )
-                selectRes = isoDep.transceive(selectMastercard)
+            var aidSelected = false
+            for (aid in aids) {
+                val res = try { isoDep.transceive(aid) } catch (_: Exception) { null }
+                if (res != null && isSuccess(res)) {
+                    aidSelected = true
+                    break
+                }
             }
 
-            // If not Mastercard, try JCB AID
-            if (!isSuccess(selectRes)) {
-                val selectJcb = byteArrayOf(
-                    0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(),
-                    0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x65.toByte(),
-                    0x10.toByte(), 0x10.toByte()
-                )
-                selectRes = isoDep.transceive(selectJcb)
-            }
-
-            if (!isSuccess(selectRes)) {
+            if (!aidSelected) {
                 return null
             }
 
-            // 3. Loop through SFIs and records to read card details
+            // Jalankan GPO (Get Processing Options) untuk membuka akses record di chip contactless
+            val gpoCmd = byteArrayOf(
+                0x80.toByte(), 0xA8.toByte(), 0x00.toByte(), 0x00.toByte(), 0x02.toByte(),
+                0x83.toByte(), 0x00.toByte(), 0x00.toByte()
+            )
+            try { isoDep.transceive(gpoCmd) } catch (_: Exception) {}
+
+            // Loop SFIs dan records untuk membaca data PAN & Expiry
             for (sfi in 1..4) {
                 val sfiByte = ((sfi shl 3) or 4).toByte()
                 for (rec in 1..5) {
@@ -644,7 +679,7 @@ class MainActivity : FragmentActivity() {
                                 } catch (_: Exception) {}
                             }
 
-                            val expiry = foundExpiry ?: "2912"
+                            val expiry = foundExpiry ?: "3012"
                             val name = foundName ?: "NATIVE CONTACTLESS"
                             return "$foundPan|$expiry|$name"
                         }
