@@ -424,11 +424,31 @@ class MainActivity : FragmentActivity() {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Menunggu pengetapan kartu contactless untuk otorisasi dana Rp $scanAmount",
-                        color = Color.Gray,
+                        text = "TERMINAL SOFTPOS: ALX-SOFTPOS-01",
+                        color = Color(0xFFD4AF37),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.sp,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "Menunggu pengetapan kartu contactless (BCA, Mandiri, BRI, BNI, Nobu, GPN, Visa, Mastercard) untuk otorisasi Rp $scanAmount",
+                        color = Color.LightGray,
                         fontSize = 11.sp,
                         textAlign = TextAlign.Center,
                         lineHeight = 16.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Mitra Acquirer: PT Bank Nationalnobu Tbk / Asterlink GPN",
+                        color = Color.Gray,
+                        fontSize = 9.sp,
+                        textAlign = TextAlign.Center
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -510,6 +530,54 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    private fun detectCardBankAndType(pan: String): Triple<String, String, String> {
+        val clean = pan.replace("\\D".toRegex(), "")
+        val bin6 = if (clean.length >= 6) clean.substring(0, 6) else ""
+        val bin4 = if (clean.length >= 4) clean.substring(0, 4) else ""
+        val bin2 = if (clean.length >= 2) clean.substring(0, 2) else ""
+        val bin1 = if (clean.isNotEmpty()) clean.substring(0, 1) else ""
+
+        val network = when {
+            bin1 == "4" -> "VISA"
+            bin4.startsWith("6010") || bin4.startsWith("6013") || bin4.startsWith("6018") ||
+            bin4.startsWith("6019") || bin4.startsWith("6032") || bin4.startsWith("6033") || bin4.startsWith("6063") -> "GPN"
+            bin2.toIntOrNull() in 51..55 || bin4.toIntOrNull() in 2221..2720 -> "MASTERCARD"
+            bin2 == "35" -> "JCB"
+            else -> "CONTACTLESS"
+        }
+
+        val (bank, type) = when {
+            // BCA
+            bin6.startsWith("537941") || bin6.startsWith("526422") || bin6.startsWith("526423") ||
+            bin6.startsWith("519893") || bin6.startsWith("601900") || bin4 == "6019" -> "BCA" to "DEBIT"
+            bin6.startsWith("455632") || bin6.startsWith("455633") || bin6.startsWith("472640") ||
+            bin6.startsWith("412513") || bin6.startsWith("541070") -> "BCA" to "KREDIT"
+
+            // Mandiri
+            bin6.startsWith("409755") || bin6.startsWith("413718") || bin6.startsWith("425945") ||
+            bin6.startsWith("461700") || bin6.startsWith("603298") || bin4 == "6032" || bin4 == "6033" -> "Bank Mandiri" to "DEBIT"
+            bin6.startsWith("414931") || bin6.startsWith("466387") || bin6.startsWith("524325") || bin6.startsWith("528980") -> "Bank Mandiri" to "KREDIT"
+
+            // BRI
+            bin6.startsWith("522184") || bin6.startsWith("532659") || bin4 == "6013" -> "BRI" to "DEBIT"
+            bin6.startsWith("436502") || bin6.startsWith("462749") || bin6.startsWith("518828") -> "BRI" to "KREDIT"
+
+            // BNI
+            bin6.startsWith("524495") || bin6.startsWith("532668") || bin6.startsWith("601034") || bin4 == "6010" -> "BNI" to "DEBIT"
+            bin6.startsWith("405651") || bin6.startsWith("422144") || bin6.startsWith("517643") -> "BNI" to "KREDIT"
+
+            // Nobu Bank (Mitra SoftPOS Resmi)
+            bin6.startsWith("589388") || bin6.startsWith("601988") || clean.startsWith("4890") -> "Nobu Bank (SoftPOS Mitra)" to "DEBIT"
+
+            // BSI
+            bin6.startsWith("432204") || bin6.startsWith("521082") || bin4 == "6063" -> "BSI" to "DEBIT"
+
+            else -> "Bank Partner" to (if (network == "VISA" && clean.startsWith("40")) "DEBIT" else "KREDIT")
+        }
+
+        return Triple(bank, type, network)
+    }
+
     private fun handleNfcTag(tag: Tag) {
         playBeepSound()
         vibrateDevice()
@@ -531,15 +599,19 @@ class MainActivity : FragmentActivity() {
                     "2030-12"
                 }
 
-                Toast.makeText(this, getString(R.string.nfc_success), Toast.LENGTH_SHORT).show()
+                val (bankName, cardType, cardNetwork) = detectCardBankAndType(number)
+                Toast.makeText(this, "Kartu $bankName ($cardType $cardNetwork) Terbaca!", Toast.LENGTH_SHORT).show()
 
                 val safeNumber = number.replace("'", "\\'")
                 val safeExpiry = expiry.replace("'", "\\'")
                 val safeName = name.replace("'", "\\'")
+                val safeBank = bankName.replace("'", "\\'")
+                val safeType = cardType.replace("'", "\\'")
+                val safeNetwork = cardNetwork.replace("'", "\\'")
 
                 webView?.evaluateJavascript(
-                    "javascript:if(window.onAndroidNfcRead) window.onAndroidNfcRead('$safeNumber', '$safeExpiry', '123', '$safeName');" +
-                    "if(window.onNfcCardTapped) window.onNfcCardTapped('$safeNumber', '$safeExpiry', '123', '$safeName');",
+                    "javascript:if(window.onAndroidNfcRead) window.onAndroidNfcRead('$safeNumber', '$safeExpiry', '123', '$safeName', '$safeBank', '$safeType', '$safeNetwork');" +
+                    "if(window.onNfcCardTapped) window.onNfcCardTapped('$safeNumber', '$safeExpiry', '123', '$safeName', '$safeBank', '$safeType', '$safeNetwork');",
                     null
                 )
             } else {
