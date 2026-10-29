@@ -110,6 +110,13 @@ export function Sidebar() {
             onClick={() => handleNavigation("/profile")} 
           />
           <SidebarItem 
+            icon={ShieldCheck} 
+            label="Verifikasi KYC" 
+            active={pathname === "/settings/kyc"} 
+            onClick={() => handleNavigation("/settings/kyc")} 
+            tag={userData?.kycStatus === 'verified' ? 'Verified' : 'Wajib'}
+          />
+          <SidebarItem 
             icon={Bell} 
             label="Notifikasi" 
             active={pathname === "/notifications"} 

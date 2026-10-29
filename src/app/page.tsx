@@ -16,6 +16,7 @@ import {
   ArrowUpDown,
   Loader2,
   ShieldAlert,
+  ShieldCheck,
   Skull,
   Send,
   Download,
@@ -432,6 +433,37 @@ function DashboardContent() {
                 </Button>
               </div>
             </Card>
+          )}
+
+          {/* KYC VERIFICATION ALERT */}
+          {!debtInfo.hasDebt && userData && userData.kycStatus !== 'verified' && (
+            <div className="p-4 px-6 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-300">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/30 shadow-inner">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase italic text-foreground flex items-center gap-2">
+                    Verifikasi Identitas Nasabah (KYC)
+                    <Badge className="bg-amber-500 text-white text-[8px] font-black px-1.5 h-4 uppercase border-none">
+                      {userData.kycStatus === 'pending' ? 'Sedang Ditinjau' : 'Verifikasi Diperlukan'}
+                    </Badge>
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                    {userData.kycStatus === 'pending' 
+                      ? 'Dokumen identitas Anda sedang ditinjau tim kepatuhan AliBank. Klik untuk memeriksa detail status pengajuan Anda.'
+                      : 'Lakukan verifikasi KTP & selfie biometrik untuk membuka limit transaksi hingga Rp 100 Juta, pencairan rekening bank, dan fitur kliring PayPal.'}
+                  </p>
+                </div>
+              </div>
+              <Button 
+                onClick={() => router.push('/settings/kyc')}
+                className="gold-gradient text-white font-black uppercase italic text-[11px] h-9 px-5 rounded-xl shadow-md shrink-0 flex items-center gap-1.5"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                {userData.kycStatus === 'pending' ? 'Cek Status KYC' : 'Verifikasi Sekarang'}
+              </Button>
+            </div>
           )}
 
           {/* TOP ROW GRID */}

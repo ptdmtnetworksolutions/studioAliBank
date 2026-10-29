@@ -545,6 +545,12 @@ export default function SettingsHubPage() {
                     onClick={() => setActiveTab('account')} 
                   />
                   <TabMenuItem 
+                    icon={ShieldCheck} 
+                    label="Verifikasi Identitas (KYC)" 
+                    active={false} 
+                    onClick={() => router.push('/settings/kyc')} 
+                  />
+                  <TabMenuItem 
                     icon={Landmark} 
                     label="Metode Penerimaan" 
                     active={activeTab === 'payment'} 
@@ -604,6 +610,39 @@ export default function SettingsHubPage() {
                         </div>
                       </div>
 
+                      {/* KYC VERIFICATION BANNER */}
+                      {userData?.kycStatus !== 'verified' && (
+                        <div className="p-5 rounded-2xl border border-amber-500/30 bg-amber-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="flex items-start gap-3.5">
+                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/20 shadow-inner">
+                              <ShieldCheck className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-black uppercase italic text-foreground">
+                                  Verifikasi Identitas Nasabah (KYC)
+                                </h4>
+                                <Badge className="bg-amber-500 text-white text-[8px] font-black px-1.5 h-4 uppercase border-none">
+                                  {userData?.kycStatus === 'pending' ? 'Sedang Ditinjau' : 'Wajib'}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1 max-w-xl leading-relaxed">
+                                {userData?.kycStatus === 'pending'
+                                  ? 'Dokumen KYC Anda sedang dalam proses peninjauan tim kepatuhan. Klik untuk memeriksa detail pengajuan Anda.'
+                                  : 'Unggah KTP & Selfie biometrik Anda untuk membuka limit transfer hingga Rp 100.000.000/hari, pencairan rekening bank, dan klaim reward ALX.'}
+                              </p>
+                            </div>
+                          </div>
+                          <Button 
+                            onClick={() => router.push('/settings/kyc')}
+                            className="gold-gradient text-white font-black uppercase italic text-xs h-10 px-5 rounded-xl shadow-lg shrink-0 flex items-center gap-2"
+                          >
+                            <ShieldCheck className="w-4 h-4" />
+                            {userData?.kycStatus === 'pending' ? 'Cek Status KYC' : 'Mulai Verifikasi KYC'}
+                          </Button>
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <DetailBlock label="Nama Lengkap" value={userData?.name} />
                         <DetailBlock label="Alamat Email" value={userData?.email} isMono />
@@ -612,12 +651,30 @@ export default function SettingsHubPage() {
                         <DetailBlock 
                           label="Status KYC" 
                           customValue={
-                            <Badge className={cn(
-                              "text-[9px] font-black h-5 border-none px-2 rounded-md italic uppercase",
-                              userData?.kycStatus === 'verified' ? "bg-green-500/10 text-green-500" : "bg-amber-500/10 text-amber-500"
-                            )}>
-                              {userData?.kycStatus === 'verified' ? 'Terverifikasi' : 'Belum Verifikasi'}
-                            </Badge>
+                            <div className="flex items-center justify-between gap-2">
+                              <Badge className={cn(
+                                "text-[9px] font-black h-5 border-none px-2 rounded-md italic uppercase",
+                                userData?.kycStatus === 'verified' ? "bg-green-500/10 text-green-500" :
+                                userData?.kycStatus === 'pending' ? "bg-amber-500/10 text-amber-500" :
+                                "bg-rose-500/10 text-rose-500"
+                              )}>
+                                {userData?.kycStatus === 'verified' ? 'Terverifikasi' : 
+                                 userData?.kycStatus === 'pending' ? 'Sedang Ditinjau' : 
+                                 'Belum Verifikasi'}
+                              </Badge>
+                              <Button 
+                                onClick={() => router.push('/settings/kyc')}
+                                size="sm"
+                                variant="outline"
+                                className={cn(
+                                  "h-7 text-[10px] font-black uppercase italic rounded-lg px-2.5 border-border hover:bg-muted",
+                                  userData?.kycStatus !== 'verified' && "gold-gradient text-white border-none shadow-sm hover:opacity-90"
+                                )}
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5 mr-1" />
+                                {userData?.kycStatus === 'verified' ? 'Detail KYC' : 'Verifikasi Sekarang'}
+                              </Button>
+                            </div>
                           } 
                         />
                       </div>

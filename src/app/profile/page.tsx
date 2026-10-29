@@ -579,11 +579,14 @@ export default function ProfilePage() {
                 <div className="space-y-2 text-center sm:text-left">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <h1 className="text-2xl font-black tracking-tight">{userData?.name || "Nasabah AliBank"}</h1>
-                    <Badge className={cn(
-                      "text-[10px] font-black h-5 border-none px-2 rounded-md italic w-fit mx-auto sm:mx-0",
-                      userData?.kycStatus === 'verified' ? "bg-green-500/10 text-green-500" : "bg-amber-500/10 text-amber-500"
-                    )}>
-                      {userData?.kycStatus === 'verified' ? 'Terverifikasi' : 'Belum Verifikasi'}
+                    <Badge 
+                      onClick={() => router.push('/settings/kyc')}
+                      className={cn(
+                        "text-[10px] font-black h-5 border-none px-2 rounded-md italic w-fit mx-auto sm:mx-0 cursor-pointer hover:opacity-80 transition-opacity",
+                        userData?.kycStatus === 'verified' ? "bg-green-500/10 text-green-500" : "bg-amber-500/10 text-amber-500"
+                      )}
+                    >
+                      {userData?.kycStatus === 'verified' ? 'Terverifikasi' : 'Belum Verifikasi (Klik untuk KYC)'}
                     </Badge>
                   </div>
 
@@ -607,11 +610,20 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <div className="flex gap-3 w-full sm:w-auto">
+                <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+                  {userData?.kycStatus !== 'verified' && (
+                    <Button 
+                      className="flex-1 sm:flex-initial h-10 gold-gradient text-white rounded-xl font-black italic uppercase text-xs flex items-center gap-1.5 shadow-lg"
+                      onClick={() => router.push('/settings/kyc')}
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      Verifikasi KYC
+                    </Button>
+                  )}
                   <Button variant="outline" className="flex-1 sm:flex-initial h-10 rounded-xl border-border hover:bg-muted font-bold text-xs" onClick={() => router.push('/settings')}>
                     Edit Profil
                   </Button>
-                  <Button className="flex-1 sm:flex-initial h-10 gold-gradient text-white rounded-xl font-black italic uppercase text-xs" onClick={() => router.push('/crypto/market/alx')}>
+                  <Button className="flex-1 sm:flex-initial h-10 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-xl font-black italic uppercase text-xs" onClick={() => router.push('/crypto/market/alx')}>
                     Upgrade Tier
                   </Button>
                 </div>
