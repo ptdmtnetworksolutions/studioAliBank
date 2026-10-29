@@ -17,8 +17,8 @@ export function EdcSalesDraft({ receipt, onDone }: EdcSalesDraftProps) {
   const handleCopyReceipt = () => {
     const text = `
 ========================================
-       PT ALIBANK DIGITAL INDONESIA
-       TERMINAL EDC SOFTPOS MANDIRI
+       PT DMT NETWORK SOLUTIONS
+       TERMINAL EDC SOFTPOS ALIBANK
 ========================================
 ACQUIRER : ${receipt.acquirer}
 MERCHANT : ${receipt.merchantName}
@@ -168,3 +168,4 @@ SETTLE TO: ${receipt.settlementDestination}
     </div>
   );
 }
+

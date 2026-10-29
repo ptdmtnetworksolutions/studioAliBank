@@ -338,3 +338,4 @@ export function detectCardBin(cardNumber: string): CardBinResult {
     formattedPan: formatCardNumber(cleanPan)
   };
 }
+

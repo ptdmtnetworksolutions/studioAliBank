@@ -154,8 +154,9 @@ export function BankCardBadge({
           <ShieldCheck className="w-2.5 h-2.5 text-emerald-400" />
           PCI-CPOC SoftPOS Certified
         </span>
-        <span>Acquirer: PT Bank Nationalnobu Tbk</span>
+        <span>Settle to: PT DMT Network Solutions (BSI)</span>
       </div>
     </div>
   );
 }
+

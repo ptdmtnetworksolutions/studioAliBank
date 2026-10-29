@@ -27,14 +27,14 @@ export interface SoftPosTerminalProfile {
 export const DEFAULT_SOFTPOS_PROFILE: SoftPosTerminalProfile = {
   merchantId: "NOBU-ALIBANK-8829013",
   terminalId: "ALX-SOFTPOS-01",
-  merchantName: "PT ALIBANK DIGITAL INDONESIA",
+  merchantName: "PT DMT NETWORK SOLUTIONS (ALIBANK)",
   merchantCategoryCode: "6051",
   acquirerName: "PT BANK NATIONALNOBU TBK / ASTERLINK GPN SWITCH",
-  acquirerBankCode: "503",
+  acquirerBankCode: "451",
   settlementAccount: {
-    accountNumber: "140-00-8899221-1",
-    accountHolder: "PT ALIBANK DIGITAL INDONESIA - REK PENAMPUNGAN",
-    bankName: "Bank Mandiri / Nobu Bank Corporate Escrow"
+    accountNumber: "7216683913",
+    accountHolder: "PT DMT Network Solutions",
+    bankName: "Bank Syariah Indonesia (BSI)"
   },
   pciComplianceLevel: "PCI MPoC / EMVCo Contactless L2 Approved",
   kernelVersion: "AliBank-SoftPOS-Kernel v2.4"
@@ -161,3 +161,4 @@ export async function executeSoftPosAcquirerTransaction(
 
   return receipt;
 }
+

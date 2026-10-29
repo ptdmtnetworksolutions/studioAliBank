@@ -445,7 +445,7 @@ class MainActivity : FragmentActivity() {
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Mitra Acquirer: PT Bank Nationalnobu Tbk / Asterlink GPN",
+                        text = "Mitra Acquirer: PT Bank Nationalnobu Tbk / Asterlink GPN\nSettlement: PT DMT Network Solutions (BSI)",
                         color = Color.Gray,
                         fontSize = 9.sp,
                         textAlign = TextAlign.Center

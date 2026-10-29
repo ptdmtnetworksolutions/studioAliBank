@@ -1916,15 +1916,15 @@ function CryptoBuyPageInner() {
                         <div className="space-y-2">
                           <div className="flex justify-between items-center">
                             <span className="text-[10px] font-bold text-muted-foreground uppercase">Bank</span>
-                            <span className="text-sm font-black italic">BCA</span>
+                            <span className="text-sm font-black italic">Bank Syariah Indonesia (BSI)</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-[10px] font-bold text-muted-foreground uppercase">No. Rekening</span>
-                            <span className="text-sm font-black italic font-mono">3210902545</span>
+                            <span className="text-sm font-black italic font-mono">7216683913</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-[10px] font-bold text-muted-foreground uppercase">Atas Nama</span>
-                            <span className="text-sm font-black italic">DZ******* **I **DLO</span>
+                            <span className="text-sm font-black italic">PT DMT Network Solutions</span>
                           </div>
                         </div>
                         <div className="h-px bg-amber-500/20" />
