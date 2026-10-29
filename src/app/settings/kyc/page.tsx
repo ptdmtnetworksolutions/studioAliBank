@@ -175,14 +175,39 @@ export default function KycPage() {
   const startCamera = async (mode: 'idCard' | 'selfie') => {
     try {
       stopCamera();
-      const constraints = {
-        video: {
-          facingMode: mode === 'idCard' ? "environment" : "user",
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+      
+      let stream: MediaStream | null = null;
+      // 1. Coba dengan constraint ideal (agar tidak error di laptop yang tidak punya rear camera)
+      try {
+        const constraints = {
+          video: {
+            facingMode: mode === 'idCard' ? { ideal: "environment" } : { ideal: "user" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        };
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err1) {
+        // 2. Fallback untuk webcam laptop/PC biasa tanpa batasan facingMode
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        } catch (err2) {
+          console.warn("Akses kamera langsung diblokir oleh browser/Tor, membuka opsi unggah/kamera bawaan:", err2);
+          // 3. Fallback jika browser memblokir kamera langsung (seperti di Tor Browser): buka pemilih file/kamera OS
+          if (mode === 'idCard') {
+            ktpFileInputRef.current?.click();
+          } else {
+            selfieFileInputRef.current?.click();
+          }
+          toast({
+            title: 'Pilih File / Kamera Perangkat',
+            description: 'Browser (Tor) membatasi akses video langsung demi privasi. Silakan pilih foto KTP atau ambil gambar dari perangkat.',
+          });
+          return;
         }
-      };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      }
+
+      if (!stream) return;
       streamRef.current = stream;
       setCameraActiveMode(mode);
       setIsCameraActive(true);
@@ -190,6 +215,7 @@ export default function KycPage() {
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(e => console.warn("Video play error:", e));
         }
       }, 300);
     } catch (error) {

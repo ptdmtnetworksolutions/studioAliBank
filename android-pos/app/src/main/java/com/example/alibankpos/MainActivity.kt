@@ -136,6 +136,23 @@ class MainActivity : FragmentActivity() {
         pendingGeoOrigin = null
     }
 
+    // --- Camera Permission (for KYC verification in WebView) ---
+    private var pendingCameraPermissionRequest: PermissionRequest? = null
+    private val cameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            pendingCameraPermissionRequest?.let { req ->
+                runOnUiThread {
+                    req.grant(req.resources)
+                }
+            }
+        } else {
+            pendingCameraPermissionRequest?.deny()
+        }
+        pendingCameraPermissionRequest = null
+    }
+
     // ======================================================================
     // LIFECYCLE
     // ======================================================================
@@ -270,8 +287,18 @@ class MainActivity : FragmentActivity() {
                         }
 
                         override fun onPermissionRequest(request: PermissionRequest?) {
-                            runOnUiThread {
-                                request?.grant(request.resources)
+                            val resources = request?.resources ?: emptyArray()
+                            val needsCamera = resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)
+                            if (needsCamera && ContextCompat.checkSelfPermission(
+                                    this@MainActivity, Manifest.permission.CAMERA
+                                ) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                pendingCameraPermissionRequest = request
+                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                            } else {
+                                runOnUiThread {
+                                    request?.grant(resources)
+                                }
                             }
                         }
 
