@@ -1,3 +1,16 @@
 <resources>
-    <string name="app_name">AliBankPOS</string>
+    <string name="app_name">AliBank</string>
+    <string name="loading_text">Memuat AliBank…</string>
+    <string name="offline_title">Tidak Ada Koneksi Internet</string>
+    <string name="offline_message">Periksa koneksi internet Anda dan coba lagi.</string>
+    <string name="offline_retry">Coba Lagi</string>
+    <string name="nfc_dialog_title">ALIBANK POS TERMINAL</string>
+    <string name="nfc_scanning">DEKATKAN KARTU ANDA</string>
+    <string name="nfc_cancel">BATALKAN</string>
+    <string name="nfc_not_supported">NFC Hardware tidak didukung di perangkat ini.</string>
+    <string name="nfc_disabled">NFC belum aktif. Aktifkan NFC di pengaturan sistem Anda.</string>
+    <string name="nfc_success">Kartu Contactless Berhasil Dibaca</string>
+    <string name="nfc_failed">Gagal Membaca Kartu Contactless</string>
+    <string name="biometric_title">Verifikasi Keamanan AliBank</string>
+    <string name="biometric_subtitle">Gunakan Sidik Jari atau Wajah Anda</string>
 </resources>

@@ -17,28 +17,43 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Check environment variable toggle (if set to false, skip Tor enforcement)
+  // 2. Allow native Android app via User-Agent
+  const userAgent = req.headers.get("user-agent") || "";
+  const isNativeApp = userAgent.includes("AliBank-Android") || req.headers.get("x-requested-with") === "com.alibank.pos";
+  if (isNativeApp) {
+    if (pathname === "/" || pathname === "/m/home") {
+      const hasSession = req.cookies.has("alibank_session");
+      if (!hasSession) {
+        return NextResponse.redirect(new URL("/login", req.url));
+      }
+    }
+    const response = NextResponse.next();
+    response.headers.set("x-native-app", "true");
+    return response;
+  }
+
+  // 3. Check environment variable toggle (if set to false, skip Tor enforcement)
   if (process.env.NEXT_PUBLIC_REQUIRE_TOR === "false") {
     return NextResponse.next();
   }
 
-  // 3. Extract visitor IP
+  // 4. Extract visitor IP
   const clientIp = getClientIpFromHeaders(req.headers);
   const isPrivate = isPrivateIp(clientIp);
 
-  // 4. Force simulation block if ?simulate_block=1 is present
+  // 5. Force simulation block if ?simulate_block=1 is present
   if (searchParams.get("simulate_block") === "1") {
     return NextResponse.redirect(new URL("/tor-required", req.url));
   }
 
-  // 5. Allow local development (127.0.0.1, private LAN) so developers don't get locked out locally
+  // 6. Allow local development (127.0.0.1, private LAN) so developers don't get locked out locally
   const isDevLocal = process.env.NODE_ENV === "development" && isPrivate;
 
-  // 6. Verify against official Tor Exit Nodes
+  // 7. Verify against official Tor Exit Nodes
   const isTor = await isTorExitNode(clientIp);
 
   if (isTor || isDevLocal) {
-    // 7. Cegah Flash of Dashboard: User belum login langsung dialihkan ke /login di level Edge
+    // 8. Cegah Flash of Dashboard: User belum login langsung dialihkan ke /login di level Edge
     if (pathname === "/" || pathname === "/m/home") {
       const hasSession = req.cookies.has("alibank_session");
       if (!hasSession) {

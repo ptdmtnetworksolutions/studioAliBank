@@ -2,9 +2,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '@/firebase';
+import { signInWithCustomToken } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,11 +12,9 @@ import { Loader2, Mail, Lock, Phone, User, ArrowLeft, Wallet } from 'lucide-reac
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { LogoIcon } from '@/components/ui/logo';
-import { ethers } from 'ethers';
 
 export default function RegisterPage() {
   const auth = useAuth();
-  const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -31,41 +28,38 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth || !db) return;
 
     setLoading(true);
     try {
-      // Create random internal AliBank Wallet (Metamask equivalent)
-      const internalWallet = ethers.Wallet.createRandom();
-      
-      // Generate Simulated BTC Address (bc1... SegWit format)
-      const mockBtcSuffix = Array.from({length: 38}, () => "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 36)]).join("");
-      const mockBtcAddress = `bc1q${mockBtcSuffix}`;
-      
-      const result = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      const user = result.user;
-
-      await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        accountNumber: '88' + Math.floor(1000000000 + Math.random() * 9000000000).toString(),
-        totalBalance: 0,
-        savings: 0,
-        tier: 'Regular',
-        kycStatus: 'unverified',
-        walletAddress: internalWallet.address,
-        btcAddress: mockBtcAddress,
-        cryptoBalances: {
-          BTC: 0,
-          ETH: 0,
-          USDT: 0,
-          ALX: 0
-        },
-        createdAt: serverTimestamp()
+      // Kirim pendaftaran ke Server API (anti-blokir Tor/VPN)
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+        }),
       });
 
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Gagal mendaftar. Silakan coba lagi.');
+      }
+
+      // Sinkronkan sesi Firebase Auth di sisi client menggunakan Custom Token
+      if (auth && data.customToken) {
+        try {
+          await signInWithCustomToken(auth, data.customToken);
+        } catch (syncErr) {
+          console.warn('Sinkronisasi sesi client gagal (non-fatal):', syncErr);
+          // Tidak fatal: session cookie sudah di-set oleh server
+        }
+      }
+
+      // Fallback: set cookie manual jika server belum sempat set
       if (typeof document !== 'undefined') {
         document.cookie = "alibank_session=1; path=/; max-age=2592000; SameSite=Lax";
       }

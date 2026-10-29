@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithCustomToken } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,23 +24,37 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
 
     setLoading(true);
     setErrorMessage(null);
 
-    const cleanEmail = email.trim();
-    // Alias resolution: memetakan aldzulfikar075@gmail.com secara otomatis ke akun admin alidzulfikar075@gmail.com
-    const targetEmail = cleanEmail.toLowerCase() === 'aldzulfikar075@gmail.com' 
-      ? 'alidzulfikar075@gmail.com' 
-      : cleanEmail;
-
     try {
-      await signInWithEmailAndPassword(auth, targetEmail, password);
+      // Kirim login ke Server API (anti-blokir Tor/VPN)
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Gagal masuk. Silakan coba lagi.');
+      }
+
+      // Sinkronkan sesi Firebase Auth di sisi client menggunakan Custom Token
+      if (auth && data.customToken) {
+        try {
+          await signInWithCustomToken(auth, data.customToken);
+        } catch (syncErr) {
+          console.warn('Sinkronisasi sesi client gagal (non-fatal):', syncErr);
+        }
+      }
 
       if (typeof document !== 'undefined') {
         document.cookie = "alibank_session=1; path=/; max-age=2592000; SameSite=Lax";
       }
+
       toast({
         title: "Selamat Datang Kembali",
         description: "Berhasil masuk ke akun AliBank Anda.",
@@ -48,18 +62,7 @@ export default function LoginPage() {
       router.replace('/');
     } catch (error: any) {
       console.error('Login error:', error);
-      let msg = error.message || "Email atau kata sandi salah. Silakan coba lagi.";
-      if (error.code === 'auth/invalid-credential') {
-        msg = "Kredensial tidak sah. Periksa kembali email dan kata sandi Anda.";
-      } else if (error.code === 'auth/user-not-found') {
-        msg = "Akun tidak ditemukan. Silakan mendaftar terlebih dahulu.";
-      } else if (error.code === 'auth/wrong-password') {
-        msg = "Kata sandi salah. Silakan periksa kembali kata sandi Anda.";
-      } else if (error.code === 'auth/too-many-requests') {
-        msg = "Akses dibatasi sementara oleh Firebase/Google. Silakan klik 'New Tor Circuit' di Tor Browser atau tunggu beberapa saat.";
-      } else if (error.code === 'auth/network-request-failed') {
-        msg = "Koneksi jaringan terputus atau diblokir oleh Tor. Pastikan akses Google API diizinkan di Tor Browser.";
-      }
+      const msg = error.message || "Email atau kata sandi salah. Silakan coba lagi.";
       setErrorMessage(msg);
       toast({
         variant: "destructive",
