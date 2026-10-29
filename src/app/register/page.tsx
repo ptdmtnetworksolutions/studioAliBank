@@ -53,8 +53,19 @@ export default function RegisterPage() {
       if (auth) {
         try {
           await signInWithEmailAndPassword(auth, formData.email.trim().toLowerCase(), formData.password);
-        } catch (syncErr) {
-          console.warn('Sinkronisasi sesi client dilewati (berjalan di lingkungan Tor):', syncErr);
+        } catch (syncErr: any) {
+          console.warn('Sinkronisasi sesi client direct gagal:', syncErr?.code || syncErr);
+          try {
+            const { setPersistence, browserSessionPersistence, inMemoryPersistence } = await import('firebase/auth');
+            try {
+              await setPersistence(auth, browserSessionPersistence);
+            } catch {
+              await setPersistence(auth, inMemoryPersistence);
+            }
+            await signInWithEmailAndPassword(auth, formData.email.trim().toLowerCase(), formData.password);
+          } catch (retryErr) {
+            console.warn('Sinkronisasi sesi client in-memory dilewati:', retryErr);
+          }
         }
       }
 

@@ -172,13 +172,24 @@ export default function KycPage() {
     setCameraActiveMode(null);
   }, []);
 
+  // Pastikan stream video langsung terpasang saat elemen <video> di-mount oleh React
+  useEffect(() => {
+    if (isCameraActive && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(e => console.warn("Video play error:", e));
+    }
+  }, [isCameraActive, cameraMode]);
+
   const startCamera = async (mode: 'idCard' | 'selfie') => {
     try {
       stopCamera();
       
       let stream: MediaStream | null = null;
-      // 1. Coba dengan constraint ideal (agar tidak error di laptop yang tidak punya rear camera)
+      // 1. Coba dengan constraint ideal (agar kompatibel di mobile & laptop tanpa rear camera)
       try {
+        if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+          throw new Error("getUserMedia not supported in this browser environment");
+        }
         const constraints = {
           video: {
             facingMode: mode === 'idCard' ? { ideal: "environment" } : { ideal: "user" },
@@ -190,6 +201,9 @@ export default function KycPage() {
       } catch (err1) {
         // 2. Fallback untuk webcam laptop/PC biasa tanpa batasan facingMode
         try {
+          if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+            throw new Error("getUserMedia not supported in this browser environment");
+          }
           stream = await navigator.mediaDevices.getUserMedia({ video: true });
         } catch (err2) {
           console.warn("Akses kamera langsung diblokir oleh browser/Tor, membuka opsi unggah/kamera bawaan:", err2);
@@ -201,7 +215,7 @@ export default function KycPage() {
           }
           toast({
             title: 'Pilih File / Kamera Perangkat',
-            description: 'Browser (Tor) membatasi akses video langsung demi privasi. Silakan pilih foto KTP atau ambil gambar dari perangkat.',
+            description: 'Browser membatasi streaming video langsung demi privasi. Membuka pemilih kamera atau foto perangkat.',
           });
           return;
         }
@@ -217,7 +231,7 @@ export default function KycPage() {
           videoRef.current.srcObject = stream;
           videoRef.current.play().catch(e => console.warn("Video play error:", e));
         }
-      }, 300);
+      }, 100);
     } catch (error) {
       toast({ 
         variant: 'destructive', 

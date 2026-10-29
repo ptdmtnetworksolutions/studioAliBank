@@ -51,8 +51,20 @@ export default function LoginPage() {
       if (auth) {
         try {
           await signInWithEmailAndPassword(auth, targetEmail, password);
-        } catch (clientErr) {
-          console.warn('Client auth direct sync skipped (running under restricted browser/Tor):', clientErr);
+        } catch (clientErr: any) {
+          console.warn('Client direct auth attempt 1 failed:', clientErr?.code || clientErr);
+          // Fallback untuk browser dengan IndexedDB terbatas (Tor / Private Browsing)
+          try {
+            const { setPersistence, browserSessionPersistence, inMemoryPersistence } = await import('firebase/auth');
+            try {
+              await setPersistence(auth, browserSessionPersistence);
+            } catch {
+              await setPersistence(auth, inMemoryPersistence);
+            }
+            await signInWithEmailAndPassword(auth, targetEmail, password);
+          } catch (retryErr) {
+            console.warn('Client auth in-memory sync skipped:', retryErr);
+          }
         }
       }
 
