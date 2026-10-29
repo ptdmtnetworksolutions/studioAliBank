@@ -43,10 +43,82 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense, Component, type ErrorInfo, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { currencies, type Currency } from "@/lib/currencies";
 import { LogoIcon } from "@/components/ui/logo";
+
+function PaymentIcon({ icon: Icon, className = "w-5 h-5" }: { icon: any; className?: string }) {
+  const Comp = Icon || Zap;
+  return <Comp className={className} />;
+}
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class CryptoErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("CryptoBuyPage Error Caught:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+          <Card className="max-w-md w-full p-8 rounded-[2rem] border border-border shadow-2xl text-center space-y-6">
+            <div className="w-16 h-16 rounded-3xl bg-rose-500/10 text-rose-500 mx-auto flex items-center justify-center shadow-lg">
+              <ShieldAlert className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-black italic uppercase tracking-tight">Sistem Kliring Kripto</h2>
+              <p className="text-xs text-muted-foreground font-bold">
+                Terjadi penyesuaian sesi modul. Silakan muat ulang halaman.
+              </p>
+            </div>
+            <div className="space-y-3 pt-2">
+              <Button
+                onClick={() => {
+                  this.setState({ hasError: false });
+                  if (typeof window !== 'undefined') window.location.reload();
+                }}
+                className="w-full h-12 gold-gradient text-white font-black italic uppercase rounded-xl flex items-center justify-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Muat Ulang
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (typeof window !== 'undefined') window.location.href = '/';
+                }}
+                className="w-full h-12 rounded-xl font-black italic uppercase flex items-center justify-center gap-2 border-border"
+              >
+                Kembali ke Beranda
+              </Button>
+            </div>
+          </Card>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { 
   Sheet, 
   SheetContent, 
@@ -116,7 +188,7 @@ const ASSETS = [
   { symbol: "ARB", name: "Arbitrum", priceUsd: 0.95, isNative: false }
 ];
 
-export default function CryptoBuyPage() {
+function CryptoBuyPageInner() {
   const router = useRouter();
   const { user, loading: userLoading } = useUser();
   const db = useFirestore();
@@ -951,7 +1023,7 @@ export default function CryptoBuyPage() {
           }}
         />
       )}
-      {systemKeys?.midtransClientKey && (
+      {typeof systemKeys?.midtransClientKey === 'string' && systemKeys.midtransClientKey.trim() !== '' && (
         <Script 
           src={systemKeys.midtransClientKey.startsWith('SB-') 
             ? "https://app.sandbox.midtrans.com/snap/snap.js" 
@@ -1046,7 +1118,7 @@ export default function CryptoBuyPage() {
                       {activeTab === 'jual' ? (
                         <Landmark className="w-5 h-5" />
                       ) : (
-                        <activePayment.icon className="w-5 h-5" />
+                        <PaymentIcon icon={activePayment?.icon} className="w-5 h-5" />
                       )}
                     </div>
                     <div>
@@ -1219,7 +1291,7 @@ export default function CryptoBuyPage() {
                               {activeTab === 'jual' ? (
                                 <Landmark className="w-5 h-5" />
                               ) : (
-                                <activePayment.icon className="w-5 h-5" />
+                                <PaymentIcon icon={activePayment?.icon} className="w-5 h-5" />
                               )}
                             </div>
                             <div className="text-left">
@@ -1347,7 +1419,7 @@ export default function CryptoBuyPage() {
                       )}
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-primary"><method.icon className="w-5 h-5" /></div>
+                        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-primary"><PaymentIcon icon={method?.icon} className="w-5 h-5" /></div>
                         <div className="text-left">
                           <p className="text-sm font-black italic uppercase">{method.name}</p>
                           <p className="text-[9px] font-bold text-muted-foreground uppercase">{method.desc}</p>
@@ -1385,7 +1457,7 @@ export default function CryptoBuyPage() {
                     )}
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-primary"><method.icon className="w-5 h-5" /></div>
+                      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-primary"><PaymentIcon icon={method?.icon} className="w-5 h-5" /></div>
                       <div className="text-left">
                         <p className="text-sm font-black italic uppercase">{method.name}</p>
                         <p className="text-[9px] font-bold text-muted-foreground uppercase">{method.desc}</p>
@@ -1411,8 +1483,8 @@ export default function CryptoBuyPage() {
               </DialogTitle>
               <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                 {activeTab === 'jual' 
-                  ? `Konfirmasi Jual ${selectedAsset.symbol} ke Saldo Dompet` 
-                  : `Konfirmasi Beli via ${selectedPayment.name}`}
+                  ? `Konfirmasi Jual ${selectedAsset?.symbol || 'Kripto'} ke Saldo Dompet` 
+                  : `Konfirmasi Beli via ${selectedPayment?.name || 'Metode Kliring'}`}
               </DialogDescription>
             </DialogHeader>
 
@@ -1420,10 +1492,10 @@ export default function CryptoBuyPage() {
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">
                 {activeTab === 'jual' ? "Total Diterima" : "Total Bayar"}
               </p>
-              <h3 className="text-3xl font-black italic text-foreground">Rp {totalAmountIdr.toLocaleString('id-ID')}</h3>
+              <h3 className="text-3xl font-black italic text-foreground">Rp {(totalAmountIdr || 0).toLocaleString('id-ID')}</h3>
               <p className="text-[10px] font-black text-primary uppercase">
                 {activeTab === 'jual' 
-                  ? `Menjual ≈ ${estimatedCrypto} ${selectedAsset.symbol}` 
+                  ? `Menjual ≈ ${estimatedCrypto} ${selectedAsset?.symbol || 'ALX'}` 
                   : `≈ $ ${usdValue}`}
               </p>
             </div>
@@ -1437,7 +1509,7 @@ export default function CryptoBuyPage() {
                 >
                   {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : "KONFIRMASI PENJUALAN"}
                 </Button>
-              ) : selectedPayment.id === 'card' ? (
+              ) : selectedPayment?.id === 'card' ? (
                 <div className="min-h-[160px] flex flex-col items-center justify-center">
                   {gatewayError ? (
                     <div className="text-center p-4 space-y-3">
@@ -1464,7 +1536,7 @@ export default function CryptoBuyPage() {
                     </>
                   )}
                 </div>
-              ) : selectedPayment.id === 'midtrans' ? (
+              ) : selectedPayment?.id === 'midtrans' ? (
                 <Button 
                   onClick={handleMidtransPayment} 
                   disabled={isProcessing}
@@ -1472,7 +1544,7 @@ export default function CryptoBuyPage() {
                 >
                   {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : <><Zap className="w-5 h-5" /> BAYAR DENGAN SNAP</>}
                 </Button>
-              ) : selectedPayment.id === 'ipaymu' ? (
+              ) : selectedPayment?.id === 'ipaymu' ? (
                 <Button 
                   onClick={handleIpaymuPayment} 
                   disabled={isProcessing}
@@ -1480,7 +1552,7 @@ export default function CryptoBuyPage() {
                 >
                   {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : <><Landmark className="w-5 h-5" /> BAYAR DENGAN IPAYMU</>}
                 </Button>
-              ) : selectedPayment.id === 'nfc' ? (
+              ) : selectedPayment?.id === 'nfc' ? (
                 // NFC POS PAYMENT FLOW
                 <div className="space-y-6">
                   {nfcStatus === 'scanning' && (
@@ -1896,9 +1968,9 @@ export default function CryptoBuyPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-black italic text-foreground">
-                        ${asset.priceUsd >= 1 
-                          ? asset.priceUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
-                          : asset.priceUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                        {(asset.priceUsd ?? 0) >= 1 
+                          ? (asset.priceUsd ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
+                          : (asset.priceUsd ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                       </p>
                     </div>
                   </div>
@@ -1959,9 +2031,9 @@ export default function CryptoBuyPage() {
                   </div>
                   <div className="text-right shrink-0 ml-2">
                     <p className="text-xs font-black italic text-foreground">
-                      ${asset.priceUsd >= 1 
-                        ? asset.priceUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
-                        : asset.priceUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                      ${(asset.priceUsd ?? 0) >= 1 
+                        ? (asset.priceUsd ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
+                        : (asset.priceUsd ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                     </p>
                     {selectedAsset.symbol === asset.symbol && <div className="w-1.5 h-1.5 rounded-full bg-primary ml-auto mt-1" />}
                   </div>
@@ -1972,6 +2044,20 @@ export default function CryptoBuyPage() {
         </Dialog>
       )}
     </div>
+  );
+}
+
+export default function CryptoBuyPage() {
+  return (
+    <CryptoErrorBoundary>
+      <Suspense fallback={
+        <div className="h-screen bg-background text-foreground flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      }>
+        <CryptoBuyPageInner />
+      </Suspense>
+    </CryptoErrorBoundary>
   );
 }
 
