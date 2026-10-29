@@ -87,10 +87,15 @@ export default function LoginPage() {
         description: "Berhasil masuk ke akun AliBank Anda.",
       });
 
-      // Gunakan navigasi langsung window.location agar sesi dan state termuat penuh tanpa bounce-back
+      // Navigasi setelah sesi tersimpan dan state termuat penuh
+      // Delay kecil agar Firebase Auth dan cookie selesai disimpan sebelum redirect
       if (typeof window !== 'undefined') {
         const isMobile = window.innerWidth < 768;
-        window.location.href = isMobile ? '/m/home' : '/';
+        const dest = isMobile ? '/m/home' : '/';
+        // Pastikan redirect terjadi setelah state sync selesai
+        setTimeout(() => {
+          window.location.replace(dest);
+        }, 300);
       } else {
         router.replace('/');
       }

@@ -37,7 +37,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useUser, useDoc, useFirestore, useMemoFirebase, useStorage } from "@/firebase";
+import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { 
   doc, 
   setDoc, 
@@ -49,7 +49,7 @@ import {
   limit,
   addDoc 
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+// Storage import dihapus - foto KTP/selfie tidak di-upload ke Firebase Storage
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { extractKtpData } from "@/ai/flows/ocr-ktp-flow";
@@ -60,7 +60,7 @@ export default function KycPage() {
   const router = useRouter();
   const { user, loading } = useUser();
   const db = useFirestore();
-  const storage = useStorage();
+  // storage tidak digunakan - foto KTP/selfie tidak di-upload
   const { toast } = useToast();
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);

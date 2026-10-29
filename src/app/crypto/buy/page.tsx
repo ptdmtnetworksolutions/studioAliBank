@@ -742,15 +742,21 @@ function CryptoBuyPageInner() {
       playNfcBeep();
       setNfcStatus('success');
       
-      setTimeout(() => {
+      if (!resData.serverUpdated) {
+        await finalizeTransaction({
+          id: resData.transactionId || `POS-NFC-${Date.now()}`,
+          gateway: `NFC Tap (${resData.brand || 'Contactless'} *${resData.lastDigits || '****'})`
+        });
+      } else {
         setIsCheckoutDialogOpen(false);
         setStep('success');
-        setNfcCardNumber("");
-        setNfcCardExpiry("");
-        setNfcCardCvv("");
-        setNfcCardHolder("");
-        setNfcStatus('idle');
-      }, 1500);
+      }
+
+      setNfcCardNumber("");
+      setNfcCardExpiry("");
+      setNfcCardCvv("");
+      setNfcCardHolder("");
+      setNfcStatus('idle');
 
     } catch (err: any) {
       setNfcStatus('failed');
@@ -832,13 +838,18 @@ function CryptoBuyPageInner() {
   };
 
   useEffect(() => {
-    if (isCheckoutDialogOpen && selectedPayment.id === 'nfc') {
-      startNfcScanning();
+    if (isCheckoutDialogOpen && selectedPayment?.id === 'nfc') {
+      // Hanya auto-scan di AndroidBridge (native NFC handler), bukan di browser web
+      // Di browser Chrome, Web NFC membutuhkan user gesture (klik) untuk mengaktifkan scan
+      if (typeof window !== 'undefined' && (window as any).AndroidBridge) {
+        startNfcScanning();
+      }
+      // Untuk browser web: user harus klik tombol "Cari Sensor" secara manual
     } else {
       setNfcStatus('idle');
       setNfcError(null);
     }
-  }, [isCheckoutDialogOpen, selectedPayment.id]);
+  }, [isCheckoutDialogOpen, selectedPayment?.id]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -864,17 +875,17 @@ function CryptoBuyPageInner() {
   }, [toast, router]);
   // Reset bank transfer state when dialog opens
   useEffect(() => {
-    if (isCheckoutDialogOpen && selectedPayment.id === 'bank') {
+    if (isCheckoutDialogOpen && selectedPayment?.id === 'bank') {
       setBankStep('instructions');
       setUniqueCode(0);
       setProofFile(null);
       setProofPreview(null);
     }
-  }, [isCheckoutDialogOpen, selectedPayment.id]);
+  }, [isCheckoutDialogOpen, selectedPayment?.id]);
 
   const renderPayPalButtons = useCallback(async () => {
     if (!paypalContainerRef.current || !isCheckoutDialogOpen || !systemKeys?.paypalClientId) return;
-    if (selectedPayment.id !== 'card') return;
+    if (selectedPayment?.id !== 'card') return;
 
     // Check both the state flag and the actual window object
     const paypalSdkLoaded = (typeof window !== 'undefined') && !!window.paypal;
@@ -940,10 +951,10 @@ function CryptoBuyPageInner() {
         setGatewayError("Gagal merender tombol PayPal.");
       }
     }
-  }, [isCheckoutDialogOpen, selectedPayment.id, usdValue, estimatedCrypto, selectedAsset.symbol, systemKeys?.paypalClientId, toast]);
+  }, [isCheckoutDialogOpen, selectedPayment?.id, usdValue, estimatedCrypto, selectedAsset.symbol, systemKeys?.paypalClientId, toast]);
 
   useEffect(() => {
-    if (isCheckoutDialogOpen && selectedPayment.id === 'card') {
+    if (isCheckoutDialogOpen && selectedPayment?.id === 'card') {
       retryCount.current = 0;
       renderInProgress.current = false;
       setPaypalRendered(false);
@@ -951,16 +962,16 @@ function CryptoBuyPageInner() {
       // Small delay to let DOM settle, then try rendering
       setTimeout(renderPayPalButtons, 600);
     }
-  }, [isCheckoutDialogOpen, selectedPayment.id, renderPayPalButtons]);
+  }, [isCheckoutDialogOpen, selectedPayment?.id, renderPayPalButtons]);
 
   // When paypalReady fires (onLoad callback), trigger rendering if dialog is open
   useEffect(() => {
-    if (paypalReady && isCheckoutDialogOpen && selectedPayment.id === 'card' && !paypalRendered) {
+    if (paypalReady && isCheckoutDialogOpen && selectedPayment?.id === 'card' && !paypalRendered) {
       retryCount.current = 0;
       renderInProgress.current = false;
       setTimeout(renderPayPalButtons, 300);
     }
-  }, [paypalReady, isCheckoutDialogOpen, selectedPayment.id, paypalRendered, renderPayPalButtons]);
+  }, [paypalReady, isCheckoutDialogOpen, selectedPayment?.id, paypalRendered, renderPayPalButtons]);
 
   if (!mounted) return null;
 
