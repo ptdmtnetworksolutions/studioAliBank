@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/firebase';
-import { signInWithCustomToken } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,29 +28,35 @@ export default function LoginPage() {
     setLoading(true);
     setErrorMessage(null);
 
+    const cleanEmail = email.trim();
+    const targetEmail = cleanEmail.toLowerCase() === 'aldzulfikar075@gmail.com' 
+      ? 'alidzulfikar075@gmail.com' 
+      : cleanEmail;
+
     try {
-      // Kirim login ke Server API (anti-blokir Tor/VPN)
+      // 1. Verifikasi kredensial via Server API (IP datacenter bersih, bebas blokir Tor)
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: targetEmail, password }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Gagal masuk. Silakan coba lagi.');
+        throw new Error(data.error || 'Email atau kata sandi salah. Silakan coba lagi.');
       }
 
-      // Sinkronkan sesi Firebase Auth di sisi client menggunakan Custom Token
-      if (auth && data.customToken) {
+      // 2. Sinkronkan sesi Firebase Auth di client jika lingkungan browser mengizinkan
+      if (auth) {
         try {
-          await signInWithCustomToken(auth, data.customToken);
-        } catch (syncErr) {
-          console.warn('Sinkronisasi sesi client gagal (non-fatal):', syncErr);
+          await signInWithEmailAndPassword(auth, targetEmail, password);
+        } catch (clientErr) {
+          console.warn('Client auth direct sync skipped (running under restricted browser/Tor):', clientErr);
         }
       }
 
+      // 3. Pastikan cookie sesi tersimpan untuk Edge Middleware
       if (typeof document !== 'undefined') {
         document.cookie = "alibank_session=1; path=/; max-age=2592000; SameSite=Lax";
       }

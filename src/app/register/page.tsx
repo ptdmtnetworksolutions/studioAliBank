@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/firebase';
-import { signInWithCustomToken } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +31,7 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      // Kirim pendaftaran ke Server API (anti-blokir Tor/VPN)
+      // 1. Kirim pendaftaran ke Server API (anti-blokir Tor/VPN, tanpa ADC)
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -49,17 +49,16 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Gagal mendaftar. Silakan coba lagi.');
       }
 
-      // Sinkronkan sesi Firebase Auth di sisi client menggunakan Custom Token
-      if (auth && data.customToken) {
+      // 2. Sinkronkan sesi di sisi client jika lingkungan browser mengizinkan
+      if (auth) {
         try {
-          await signInWithCustomToken(auth, data.customToken);
+          await signInWithEmailAndPassword(auth, formData.email.trim().toLowerCase(), formData.password);
         } catch (syncErr) {
-          console.warn('Sinkronisasi sesi client gagal (non-fatal):', syncErr);
-          // Tidak fatal: session cookie sudah di-set oleh server
+          console.warn('Sinkronisasi sesi client dilewati (berjalan di lingkungan Tor):', syncErr);
         }
       }
 
-      // Fallback: set cookie manual jika server belum sempat set
+      // 3. Pastikan cookie sesi tersimpan untuk Edge Middleware
       if (typeof document !== 'undefined') {
         document.cookie = "alibank_session=1; path=/; max-age=2592000; SameSite=Lax";
       }
