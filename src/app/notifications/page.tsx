@@ -236,6 +236,27 @@ export default function NotificationsPage() {
                     
                     <h3 className="text-sm font-black italic uppercase tracking-tight text-foreground group-hover:text-primary transition-colors">{n.title}</h3>
                     <p className="text-[11px] font-medium text-muted-foreground mt-1.5 leading-relaxed italic">{n.message}</p>
+
+                    {(n.terminalId || n.approvalCode || n.settlementDestination) && (
+                      <div className="mt-3 p-3 rounded-2xl bg-muted/40 border border-border/60 text-[10px] space-y-1.5 font-mono">
+                        <div className="flex justify-between items-center text-muted-foreground">
+                          <span>Terminal: <strong className="text-foreground">{n.terminalId || 'ALX-SOFTPOS-01'}</strong></span>
+                          <span>Auth: <strong className="text-emerald-500 font-bold">{n.approvalCode || 'APPROVED'}</strong></span>
+                        </div>
+                        {n.rrn && (
+                          <div className="flex justify-between items-center text-muted-foreground">
+                            <span>RRN: <strong className="text-foreground">{n.rrn}</strong></span>
+                            <span>Kartu: <strong className="text-foreground">{n.cardType || 'DEBIT'}</strong></span>
+                          </div>
+                        )}
+                        {n.settlementDestination && (
+                          <div className="pt-1.5 border-t border-border/40 text-[9px] text-muted-foreground">
+                            <span>Settlement: </span>
+                            <span className="text-primary font-bold">{n.settlementDestination}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))
               ) : (
@@ -375,6 +396,27 @@ export default function NotificationsPage() {
                       
                       <h3 className="text-sm font-black italic uppercase tracking-tight text-foreground group-hover:text-primary transition-colors">{n.title}</h3>
                       <p className="text-[11px] font-medium text-muted-foreground mt-1.5 leading-relaxed italic">{n.message}</p>
+
+                      {(n.terminalId || n.approvalCode || n.settlementDestination) && (
+                        <div className="mt-3 p-3 rounded-2xl bg-muted/40 border border-border/60 text-[10px] space-y-1.5 font-mono">
+                          <div className="flex justify-between items-center text-muted-foreground">
+                            <span>Terminal: <strong className="text-foreground">{n.terminalId || 'ALX-SOFTPOS-01'}</strong></span>
+                            <span>Auth: <strong className="text-emerald-500 font-bold">{n.approvalCode || 'APPROVED'}</strong></span>
+                          </div>
+                          {n.rrn && (
+                            <div className="flex justify-between items-center text-muted-foreground">
+                              <span>RRN: <strong className="text-foreground">{n.rrn}</strong></span>
+                              <span>Kartu: <strong className="text-foreground">{n.cardType || 'DEBIT'}</strong></span>
+                            </div>
+                          )}
+                          {n.settlementDestination && (
+                            <div className="pt-1.5 border-t border-border/40 text-[9px] text-muted-foreground">
+                              <span>Settlement: </span>
+                              <span className="text-primary font-bold">{n.settlementDestination}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </Card>
                   ))
                 ) : (

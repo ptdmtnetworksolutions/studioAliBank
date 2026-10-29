@@ -18,7 +18,7 @@ export interface BankInfo {
 export interface CardBinResult {
   bank: BankInfo;
   network: 'GPN' | 'VISA' | 'MASTERCARD' | 'JCB' | 'AMEX' | 'UNKNOWN';
-  cardType: 'DEBIT' | 'KREDIT' | 'PREPAID / E-MONEY';
+  cardType: 'DEBIT' | 'KREDIT' | 'PREPAID' | 'PREPAID / E-MONEY';
   cardLevel?: string; // Silver, Gold, Platinum, Priority
   isIndonesian: boolean;
   cleanPan: string;
@@ -224,15 +224,20 @@ export function detectCardBin(cardNumber: string): CardBinResult {
 
   // --- BANK MANDIRI ---
   else if (
+    bin4 === '6032' || bin4 === '6033' || bin6.startsWith('603298') || bin6.startsWith('603299') || bin6.startsWith('603300')
+  ) {
+    bank = SUPPORTED_BANKS.mandiri;
+    cardType = 'PREPAID / E-MONEY';
+    isIndonesian = true;
+    cardLevel = 'Mandiri e-Money Prabayar';
+  } else if (
     bin6.startsWith('409755') || bin6.startsWith('413718') || bin6.startsWith('413719') ||
-    bin6.startsWith('425945') || bin6.startsWith('461700') || bin6.startsWith('461701') ||
-    bin6.startsWith('603298') || bin6.startsWith('603299') || bin6.startsWith('603300') ||
-    bin4 === '6032' || bin4 === '6033'
+    bin6.startsWith('425945') || bin6.startsWith('461700') || bin6.startsWith('461701')
   ) {
     bank = SUPPORTED_BANKS.mandiri;
     cardType = 'DEBIT';
     isIndonesian = true;
-    cardLevel = 'Mandiri Debit Prioritas';
+    cardLevel = 'Mandiri Debit Prioritas / GPN';
   } else if (
     bin6.startsWith('414931') || bin6.startsWith('466387') || bin6.startsWith('524325') ||
     bin6.startsWith('528980') || bin6.startsWith('557338')

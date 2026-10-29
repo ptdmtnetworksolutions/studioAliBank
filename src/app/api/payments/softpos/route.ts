@@ -125,6 +125,34 @@ export async function POST(request: NextRequest) {
             approvalCode: receipt.approvalCode,
             rrn: receipt.retrievalRefNumber,
             terminalId: DEFAULT_SOFTPOS_PROFILE.terminalId,
+            merchantName: DEFAULT_SOFTPOS_PROFILE.merchantName,
+            settlementDestination: receipt.settlementDestination,
+            bankName: cardBin.bank.name,
+            cardType: cardBin.cardType,
+            maskedPan: cardBin.maskedPan,
+            timestamp: FieldValue.serverTimestamp()
+          });
+
+          // Catat Notifikasi Resmi ke Inbox Pengguna
+          const userNotifRef = userRef.collection('notifications').doc();
+          transaction.set(userNotifRef, {
+            title: `Pembayaran EDC SoftPOS Berhasil (${cardBin.bank.shortName})`,
+            message: `Pembelian ${cryptoAmount} ${cryptoCurrency} senilai Rp ${Number(amountIdr).toLocaleString('id-ID')} via SoftPOS Contactless (${cardBin.bank.shortName} ${cardBin.cardType} *${cardBin.cleanPan.slice(-4)}). Otorisasi: ${receipt.approvalCode}, RRN: ${receipt.retrievalRefNumber}. Dana disalurkan ke Rekening Penampungan PT DMT Network Solutions di Bank Syariah Indonesia (BSI - 7216683913).`,
+            type: "success",
+            category: "transaksi",
+            read: false,
+            createdAt: new Date().toISOString(),
+            amount: parseFloat(String(amountIdr)),
+            cryptoAmount: parseFloat(String(cryptoAmount)),
+            cryptoCurrency: cryptoCurrency,
+            terminalId: DEFAULT_SOFTPOS_PROFILE.terminalId,
+            merchantName: DEFAULT_SOFTPOS_PROFILE.merchantName,
+            approvalCode: receipt.approvalCode,
+            rrn: receipt.retrievalRefNumber,
+            bankName: cardBin.bank.name,
+            cardType: cardBin.cardType,
+            maskedPan: cardBin.maskedPan,
+            settlementDestination: receipt.settlementDestination,
             timestamp: FieldValue.serverTimestamp()
           });
         });

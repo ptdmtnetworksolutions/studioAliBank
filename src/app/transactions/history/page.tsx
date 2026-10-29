@@ -121,6 +121,13 @@ function TransactionHistoryContent() {
         txHash: tx.txHash || null,
         network: tx.network || null,
         walletAddress: tx.walletAddress || null,
+        terminalId: tx.terminalId || null,
+        approvalCode: tx.approvalCode || null,
+        rrn: tx.rrn || null,
+        bankName: tx.bankName || null,
+        cardType: tx.cardType || null,
+        maskedPan: tx.maskedPan || null,
+        settlementDestination: tx.settlementDestination || null,
         raw: tx
       };
     });
@@ -393,6 +400,26 @@ function TransactionHistoryContent() {
                         : `https://etherscan.io/tx/${selectedTx.txHash}`
                     }
                   />
+                )}
+
+                {/* SoftPOS EDC specific metadata */}
+                {selectedTx.terminalId && (
+                  <DetailRow label="Terminal ID (TID)" value={selectedTx.terminalId} isMono />
+                )}
+                {selectedTx.approvalCode && (
+                  <DetailRow label="Approval Code (Auth)" value={selectedTx.approvalCode} isMono />
+                )}
+                {selectedTx.rrn && (
+                  <DetailRow label="Retrieval Ref (RRN)" value={selectedTx.rrn} isMono isCopyable />
+                )}
+                {selectedTx.bankName && (
+                  <DetailRow label="Bank Penerbit" value={`${selectedTx.bankName} (${selectedTx.cardType || 'KARTU'})`} />
+                )}
+                {selectedTx.maskedPan && (
+                  <DetailRow label="Nomor Kartu (PAN)" value={selectedTx.maskedPan} isMono />
+                )}
+                {selectedTx.settlementDestination && (
+                  <DetailRow label="Rekening Penampungan" value={selectedTx.settlementDestination} />
                 )}
               </div>
 

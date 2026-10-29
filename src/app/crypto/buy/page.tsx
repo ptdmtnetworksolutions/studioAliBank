@@ -25,6 +25,7 @@ import {
   QrCode,
   Info,
   AlertCircle,
+  AlertTriangle,
   Plus,
   Search,
   Wifi,
@@ -465,12 +466,15 @@ function CryptoBuyPageInner() {
     setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : "0");
   };
 
-  const finalizeTransaction = async (paymentDetails: any) => {
+  const finalizeTransaction = async (paymentDetails: any, keepDialogOpen: boolean = false) => {
     if (!user || !db || !userDocRef || !userData) return;
     setIsProcessing(true);
     
     const cryptoAmount = parseFloat(estimatedCrypto);
     const fiatAmountIdr = totalAmountIdr;
+    const isSoftPos = !!paymentDetails.receipt || selectedPayment?.id === 'nfc';
+    const receipt = paymentDetails.receipt || softPosReceipt;
+    const cardBin = paymentDetails.cardBin || detectedCardBin;
 
     try {
       const userUpdates: any = {};
@@ -500,34 +504,82 @@ function CryptoBuyPageInner() {
         });
       }
 
+      // 1. Audit trail global
       await addDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `${activeTab === 'jual' ? 'SELL' : 'BUY'}-${paymentDetails.id || Date.now()}`,
-        category: "Market Execution",
-        gateway: activeTab === 'jual' ? "Saldo Dompet" : (paymentDetails.gateway || selectedPayment.name),
+        category: isSoftPos ? "SoftPOS EDC Contactless" : "Market Execution",
+        gateway: activeTab === 'jual' ? "Saldo Dompet" : (paymentDetails.gateway || selectedPayment?.name || "Payment"),
         amountIdr: fiatAmountIdr,
         cryptoAmount: cryptoAmount,
         cryptoCurrency: selectedAsset.symbol,
         status: "success",
         timestamp: serverTimestamp(),
-        userEmail: user.email
+        userEmail: user.email,
+        terminalId: receipt?.terminalId || (isSoftPos ? "ALX-SOFTPOS-01" : null),
+        merchantName: receipt?.merchantName || (isSoftPos ? "PT DMT NETWORK SOLUTIONS (ALIBANK)" : null),
+        approvalCode: receipt?.approvalCode || null,
+        rrn: receipt?.retrievalRefNumber || null,
+        bankName: cardBin?.bank?.name || receipt?.bankName || null,
+        cardType: cardBin?.cardType || receipt?.cardType || null,
+        maskedPan: cardBin?.maskedPan || receipt?.maskedPan || null,
+        settlementDestination: receipt?.settlementDestination || "Bank Syariah Indonesia (BSI) - No: 7216683913 (PT DMT Network Solutions)"
       });
 
+      // 2. Riwayat transaksi pengguna lengkap dengan metadata EDC
       await addDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
         description: activeTab === 'jual' 
           ? `Jual ${selectedAsset.symbol} ke Saldo Dompet` 
-          : `Beli ${selectedAsset.symbol} via ${paymentDetails.gateway || selectedPayment.name}`,
+          : isSoftPos
+            ? `Beli ${selectedAsset.symbol} via EDC SoftPOS Tap (${cardBin?.bank?.shortName || 'Bank'} ${cardBin?.cardType || 'Contactless'})`
+            : `Beli ${selectedAsset.symbol} via ${paymentDetails.gateway || selectedPayment?.name || "Payment"}`,
         category: "Trading",
         amount: fiatAmountIdr,
         cryptoAmount: cryptoAmount,
         cryptoCurrency: selectedAsset.symbol,
         type: 'income',
         status: "success",
+        timestamp: serverTimestamp(),
+        terminalId: receipt?.terminalId || (isSoftPos ? "ALX-SOFTPOS-01" : null),
+        merchantName: receipt?.merchantName || (isSoftPos ? "PT DMT NETWORK SOLUTIONS (ALIBANK)" : null),
+        approvalCode: receipt?.approvalCode || null,
+        rrn: receipt?.retrievalRefNumber || null,
+        bankName: cardBin?.bank?.name || receipt?.bankName || null,
+        cardType: cardBin?.cardType || receipt?.cardType || null,
+        maskedPan: cardBin?.maskedPan || receipt?.maskedPan || null,
+        settlementDestination: receipt?.settlementDestination || (isSoftPos ? "Bank Syariah Indonesia (BSI) - No: 7216683913 (PT DMT Network Solutions)" : null)
+      });
+
+      // 3. Notifikasi resmi dan detail ke inbox nasabah
+      await addDoc(collection(db, "users", user.uid, "notifications"), {
+        title: isSoftPos 
+          ? `Pembayaran EDC SoftPOS Berhasil (${cardBin?.bank?.shortName || 'Bank Partner'})` 
+          : `Pembelian ${selectedAsset.symbol} Berhasil`,
+        message: isSoftPos
+          ? `Pembelian ${cryptoAmount} ${selectedAsset.symbol} senilai Rp ${fiatAmountIdr.toLocaleString('id-ID')} via SoftPOS Contactless (${cardBin?.bank?.shortName || 'Bank'} ${cardBin?.cardType || 'Kartu'} ${cardBin?.maskedPan || ''}). Otorisasi: ${receipt?.approvalCode || 'APPROVED'}, RRN: ${receipt?.retrievalRefNumber || '-'}. Dana disalurkan ke Rekening Penampungan PT DMT Network Solutions di Bank Syariah Indonesia (BSI - 7216683913).`
+          : `Pembelian ${cryptoAmount} ${selectedAsset.symbol} senilai Rp ${fiatAmountIdr.toLocaleString('id-ID')} melalui ${paymentDetails.gateway || selectedPayment?.name || "Payment"} berhasil diselesaikan.`,
+        type: "success",
+        category: "transaksi",
+        read: false,
+        createdAt: new Date().toISOString(),
+        amount: fiatAmountIdr,
+        cryptoAmount: cryptoAmount,
+        cryptoCurrency: selectedAsset.symbol,
+        terminalId: receipt?.terminalId || (isSoftPos ? "ALX-SOFTPOS-01" : null),
+        merchantName: receipt?.merchantName || (isSoftPos ? "PT DMT NETWORK SOLUTIONS (ALIBANK)" : null),
+        approvalCode: receipt?.approvalCode || null,
+        rrn: receipt?.retrievalRefNumber || null,
+        bankName: cardBin?.bank?.name || receipt?.bankName || null,
+        cardType: cardBin?.cardType || receipt?.cardType || null,
+        maskedPan: cardBin?.maskedPan || receipt?.maskedPan || null,
+        settlementDestination: receipt?.settlementDestination || (isSoftPos ? "Bank Syariah Indonesia (BSI) - No: 7216683913 (PT DMT Network Solutions)" : null),
         timestamp: serverTimestamp()
       });
 
-      setIsCheckoutDialogOpen(false);
-      setStep('success');
+      if (!keepDialogOpen) {
+        setIsCheckoutDialogOpen(false);
+        setStep('success');
+      }
     } catch (err: any) {
       toast({ variant: "destructive", title: "Sync Error", description: err.message });
     } finally {
@@ -795,8 +847,10 @@ function CryptoBuyPageInner() {
       if (!resData.serverUpdated) {
         await finalizeTransaction({
           id: resData.receipt?.transactionId || resData.transactionId || `SOFTPOS-${Date.now()}`,
-          gateway: `SoftPOS EDC (${resData.cardBin?.bank?.shortName || resData.brand || 'Contactless'} *${resData.cardBin?.cleanPan?.slice(-4) || resData.lastDigits || '****'})`
-        });
+          gateway: `SoftPOS EDC (${resData.cardBin?.bank?.shortName || resData.brand || 'Contactless'} *${resData.cardBin?.cleanPan?.slice(-4) || resData.lastDigits || '****'})`,
+          receipt: resData.receipt,
+          cardBin: resData.cardBin
+        }, !!resData.receipt /* Keep dialog open so EDC receipt remains displayed */);
       }
       
       toast({
@@ -804,7 +858,7 @@ function CryptoBuyPageInner() {
         description: `Dana Rp ${totalAmountIdr.toLocaleString('id-ID')} disalurkan ke Rekening Penampungan Perusahaan.`
       });
 
-      // Jika ada struk resmi, biarkan dialog tetap menampilkan struk EDC
+      // Jika TIDAK ada struk resmi barulah dialog ditutup otomatis
       if (!resData.receipt) {
         setIsCheckoutDialogOpen(false);
         setStep('success');
@@ -1030,22 +1084,41 @@ function CryptoBuyPageInner() {
 
   if (step === 'success') {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 animate-in zoom-in duration-500">
-        <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mb-6">
-          <CheckCircle2 className="w-10 h-10 text-green-600" />
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 md:p-6 py-10 animate-in zoom-in duration-500 overflow-y-auto">
+        <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-4 shrink-0">
+          <CheckCircle2 className="w-8 h-8 text-green-600" />
         </div>
-        <h2 className="text-2xl font-black italic uppercase text-center mb-2">
+        <h2 className="text-xl md:text-2xl font-black italic uppercase text-center mb-1">
           {activeTab === 'jual' ? "Penjualan Berhasil" : "Pembelian Berhasil"}
         </h2>
-        <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 space-y-4 mb-8 text-center shadow-2xl">
-          <p className="text-[10px] font-black text-muted-foreground uppercase">
-            {activeTab === 'jual' ? "Jumlah Dikreditkan" : "Jumlah Diterima"}
-          </p>
-          <p className="text-3xl font-black text-primary italic">
-            {activeTab === 'jual' ? `Rp ${totalAmountIdr.toLocaleString('id-ID')}` : `${estimatedCrypto} ${selectedAsset.symbol}`}
-          </p>
-        </Card>
-        <Button className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl" onClick={() => router.push('/')}>Beranda</Button>
+        <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mb-6 text-center">
+          Koin {selectedAsset.symbol} telah dikreditkan ke dompet Anda
+        </p>
+
+        {softPosReceipt ? (
+          <div className="w-full max-w-sm mb-6">
+            <EdcSalesDraft 
+              receipt={softPosReceipt} 
+              onDone={() => router.push('/')} 
+            />
+          </div>
+        ) : (
+          <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 space-y-4 mb-6 text-center shadow-2xl">
+            <p className="text-[10px] font-black text-muted-foreground uppercase">
+              {activeTab === 'jual' ? "Jumlah Dikreditkan" : "Jumlah Diterima"}
+            </p>
+            <p className="text-3xl font-black text-primary italic">
+              {activeTab === 'jual' ? `Rp ${totalAmountIdr.toLocaleString('id-ID')}` : `${estimatedCrypto} ${selectedAsset.symbol}`}
+            </p>
+          </Card>
+        )}
+
+        <Button 
+          className="w-full max-w-sm h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl shrink-0" 
+          onClick={() => router.push('/')}
+        >
+          Kembali ke Beranda
+        </Button>
       </div>
     );
   }
@@ -1624,7 +1697,6 @@ function CryptoBuyPageInner() {
                     <EdcSalesDraft 
                       receipt={softPosReceipt} 
                       onDone={() => {
-                        setSoftPosReceipt(null);
                         setIsCheckoutDialogOpen(false);
                         setStep('success');
                       }} 
@@ -1638,6 +1710,20 @@ function CryptoBuyPageInner() {
                         expiry={nfcCardExpiry || "2030-12"} 
                         isNfcTapped={nfcStatus === 'verifying' || nfcStatus === 'success'} 
                       />
+
+                      {/* Alert Khusus untuk Kartu E-Money Offline */}
+                      {(detectedCardBin.cardType === 'PREPAID / E-MONEY' || detectedCardBin.cardType === 'PREPAID') && (
+                        <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-1.5 text-left">
+                          <div className="flex items-center gap-1.5 text-amber-500 font-black text-[9px] uppercase">
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                            <span>Kartu Prabayar Offline (Stored-Value Chip)</span>
+                          </div>
+                          <p className="text-[8px] text-muted-foreground leading-relaxed">
+                            Kartu <strong>{detectedCardBin.bank.shortName} e-Money</strong> menyimpan saldo secara offline di dalam chip fisik kartu (bukan rekening bank online). Pemotongan saldo e-money memerlukan hardware SAM resmi Mandiri.
+                            Untuk pemotongan saldo rekening langsung via SoftPOS AliBank, gunakan <strong>Kartu Debit Mandiri Contactless</strong> (logo gelombang) atau kartu Debit/Kredit bank lainnya.
+                          </p>
+                        </div>
+                      )}
 
                       {/* Info Terminal SoftPOS & Rekening Penampungan */}
                       <div className="p-3 bg-muted/40 rounded-xl border border-border/80 flex items-center justify-between text-[8px] font-bold text-muted-foreground">
@@ -1816,6 +1902,21 @@ function CryptoBuyPageInner() {
                               >
                                 <p className="text-[8.5px] font-black text-[#003D79] dark:text-amber-400">MANDIRI</p>
                                 <p className="text-[7px] font-bold text-muted-foreground mt-0.5">Debit Visa • *8901</p>
+                              </button>
+
+                              <button 
+                                onClick={() => {
+                                  setNfcCardHolder("PEMEGANG E-MONEY");
+                                  setNfcCardNumber("6032 9812 3456 7890");
+                                  setNfcCardExpiry("2030-12");
+                                  setNfcCardCvv("000");
+                                  playNfcBeep();
+                                  toast({ title: "Mandiri e-Money Terdeteksi", description: "Kartu Prabayar Offline Mandiri terdeteksi." });
+                                }}
+                                className="p-2 rounded-xl border border-border bg-card text-left hover:border-[#F5A623] transition-all"
+                              >
+                                <p className="text-[8.5px] font-black text-[#F5A623]">E-MONEY</p>
+                                <p className="text-[7px] font-bold text-muted-foreground mt-0.5">Prabayar • *7890</p>
                               </button>
 
                               <button 

@@ -555,7 +555,8 @@ class MainActivity : FragmentActivity() {
 
             // Mandiri
             bin6.startsWith("409755") || bin6.startsWith("413718") || bin6.startsWith("425945") ||
-            bin6.startsWith("461700") || bin6.startsWith("603298") || bin4 == "6032" || bin4 == "6033" -> "Bank Mandiri" to "DEBIT"
+            bin6.startsWith("461700") -> "Bank Mandiri" to "DEBIT"
+            bin6.startsWith("603298") || bin4 == "6032" || bin4 == "6033" -> "Bank Mandiri" to "E-MONEY PRABAYAR"
             bin6.startsWith("414931") || bin6.startsWith("466387") || bin6.startsWith("524325") || bin6.startsWith("528980") -> "Bank Mandiri" to "KREDIT"
 
             // BRI
@@ -640,10 +641,18 @@ class MainActivity : FragmentActivity() {
         val uid = tag.id ?: byteArrayOf()
         val hex = if (uid.isNotEmpty()) bytesToHex(uid).uppercase() else "ALX${System.currentTimeMillis() % 1000000}"
         val hash = Math.abs(hex.hashCode().toLong())
-        // Generate 16 digit PAN: 4890 + 12 numeric digits derived from tag UID
-        val panNumber = "4890" + String.format("%012d", hash).take(12)
+
+        // Deteksi apakah tag adalah kartu Mifare / E-Money Mandiri / Kartu Prabayar non-EMV
+        val isMifareOrNfcA = tag.techList.any { it.contains("Mifare") || it.contains("NfcA") }
+
+        val panNumber = if (isMifareOrNfcA) {
+            // Mandiri e-Money IIN prefix resmi 6032
+            "6032" + String.format("%012d", hash).take(12)
+        } else {
+            "4890" + String.format("%012d", hash).take(12)
+        }
         val expiry = "2030-12"
-        val holder = "CONTACTLESS CARD (UID $hex)"
+        val holder = if (isMifareOrNfcA) "MANDIRI E-MONEY (UID $hex)" else "CONTACTLESS CARD (UID $hex)"
         return "$panNumber|$expiry|$holder"
     }
 
