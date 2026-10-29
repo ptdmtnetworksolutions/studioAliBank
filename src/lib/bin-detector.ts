@@ -293,12 +293,13 @@ export function detectCardBin(cardNumber: string): CardBinResult {
 
   // --- BANK SYARIAH INDONESIA (BSI) ---
   else if (
-    bin6.startsWith('432204') || bin6.startsWith('521082') || bin6.startsWith('606388') || bin4 === '6063'
+    bin6.startsWith('432204') || bin6.startsWith('521082') || bin6.startsWith('606388') || bin4 === '6063' ||
+    bin6.startsWith('425944') || bin6.startsWith('410887')
   ) {
     bank = SUPPORTED_BANKS.bsi;
-    cardType = 'DEBIT';
+    cardType = (bin6.startsWith('425944') || bin6.startsWith('410887')) ? 'KREDIT' : 'DEBIT';
     isIndonesian = true;
-    cardLevel = 'BSI Hasanah Debit';
+    cardLevel = cardType === 'KREDIT' ? 'BSI Hasanah Card (Kredit)' : 'BSI Hasanah Debit';
   }
 
   // --- CIMB NIAGA ---

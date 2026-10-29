@@ -570,7 +570,8 @@ class MainActivity : FragmentActivity() {
             bin6.startsWith("589388") || bin6.startsWith("601988") || clean.startsWith("4890") -> "Nobu Bank (SoftPOS Mitra)" to "DEBIT"
 
             // BSI
-            bin6.startsWith("432204") || bin6.startsWith("521082") || bin4 == "6063" -> "BSI" to "DEBIT"
+            bin6.startsWith("432204") || bin6.startsWith("606388") || bin4 == "6063" -> "BSI" to "DEBIT"
+            bin6.startsWith("425944") || bin6.startsWith("410887") || bin6.startsWith("521082") -> "BSI" to "KREDIT"
 
             else -> "Bank Partner" to (if (network == "VISA" && clean.startsWith("40")) "DEBIT" else "KREDIT")
         }

@@ -153,7 +153,8 @@ declare global {
     AndroidBridge?: {
       startNfcScan: (amount: string) => void;
     };
-    onAndroidNfcRead?: (number: string, expiry: string, cvv: string, holder: string) => void;
+    onAndroidNfcRead?: (number: string, expiry: string, cvv: string, holder: string, bank?: string, type?: string, network?: string) => void;
+    onNfcCardTapped?: (number: string, expiry: string, cvv: string, holder: string, bank?: string, type?: string, network?: string) => void;
     setNfcStatus?: (status: string) => void;
     setNfcError?: (error: string | null) => void;
   }
@@ -411,16 +412,21 @@ function CryptoBuyPageInner() {
   // Register Native WebView JavaScript Bridge callbacks
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.onAndroidNfcRead = (number: string, expiry: string, cvv: string, holder: string) => {
+      window.onAndroidNfcRead = (number: string, expiry: string, cvv: string, holder: string, bank?: string, type?: string, network?: string) => {
         setNfcCardNumber(number);
         setNfcCardExpiry(expiry);
         setNfcCardCvv(cvv);
         setNfcCardHolder(holder);
         
         const detected = detectCardBin(number);
+        const bankTitle = bank || detected.bank.shortName;
+        const typeTitle = type || detected.cardType;
+        const netTitle = network || detected.network;
+
+        playNfcBeep();
         toast({ 
-          title: `Kartu ${detected.bank.shortName} Terdeteksi!`, 
-          description: `${detected.cardType} (${detected.network}) - Terminal SoftPOS siap otorisasi.` 
+          title: `Kartu ${bankTitle} Terdeteksi!`, 
+          description: `${typeTitle} (${netTitle}) - Terminal SoftPOS siap otorisasi.` 
         });
         
         // Auto trigger payment using the scanned credentials
