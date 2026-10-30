@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,33 +12,48 @@ import {
   ShieldCheck, 
   RefreshCw, 
   AlertTriangle, 
-  Clock, 
   Database, 
   Wallet, 
   Coins, 
-  UserX, 
-  UserCheck,
   Search,
-  ArrowRight,
   Loader2,
   Lock,
   Unlock,
-  ChevronRight,
-  TrendingDown,
-  Activity,
-  Skull
+  Skull,
+  CheckCircle2,
+  RotateCcw
 } from "lucide-react";
 import { 
   collection, 
   doc, 
   getDoc, 
   getDocs, 
-  updateDoc, 
   query, 
   orderBy, 
-  limit, 
-  where 
+  limit 
 } from "firebase/firestore";
+import {
+  getStoredAuthTokens,
+  proxyUpdateDoc,
+  proxyAddDoc,
+  triggerFirestoreSync
+} from "@/lib/firestore-proxy-client";
+
+function formatRunTimestamp(ts: any): string {
+  if (!ts) return "Belum pernah dijalankan";
+  try {
+    if (typeof ts === "string") {
+      return `Terakhir: ${new Date(ts).toLocaleString("id-ID")}`;
+    }
+    if (typeof ts?.seconds === "number") {
+      return `Terakhir: ${new Date(ts.seconds * 1000).toLocaleString("id-ID")}`;
+    }
+    if (ts instanceof Date) {
+      return `Terakhir: ${ts.toLocaleString("id-ID")}`;
+    }
+  } catch {}
+  return "Baru saja diperbarui";
+}
 
 export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
   const db = useFirestore();
@@ -48,15 +63,36 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
   const [isLoading, setIsLoading] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
   const [latestRun, setLatestRun] = useState<any>(null);
-  const [autoSuspend, setAutoSuspend] = useState(true);
+  const [autoSuspend, setAutoSuspend] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Load latest run details
-  const fetchLatestRun = async () => {
-    if (!db) return;
+  const getAdminToken = useCallback(async (): Promise<string> => {
+    try {
+      const t = await auth?.currentUser?.getIdToken();
+      if (t) return t;
+    } catch {}
+    return getStoredAuthTokens().idToken || "";
+  }, [auth]);
+
+  // Load latest run details via Server API first, fallback to client Firestore
+  const fetchLatestRun = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Get reconciliation status doc
+      const token = await getAdminToken();
+      const apiRes = await fetch("/api/admin/reconcile", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        cache: "no-store",
+      });
+      if (apiRes.ok) {
+        const apiData = await apiRes.json().catch(() => null);
+        if (apiData?.latestRun) {
+          setLatestRun(apiData.latestRun);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      if (!db) return;
       const summarySnap = await getDoc(doc(db, "system", "reconciliation"));
       let runId = "";
       if (summarySnap.exists()) {
@@ -69,7 +105,6 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
           setLatestRun(runSnap.data());
         }
       } else {
-        // Fallback: query last run in runs subcollection
         const runsSnap = await getDocs(
           query(collection(db, "system", "reconciliation", "runs"), orderBy("timestamp", "desc"), limit(1))
         );
@@ -79,27 +114,21 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
       }
     } catch (err: any) {
       console.error("Error loading reconciliation details:", err);
-      toast({
-        variant: "destructive",
-        title: "Gagal memuat log rekonsiliasi",
-        description: err.message
-      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [db, getAdminToken]);
 
   useEffect(() => {
     fetchLatestRun();
-  }, [db]);
+  }, [fetchLatestRun]);
 
   // Trigger reconciliation run
   const handleRunReconciliation = async () => {
-    if (!auth || !db) return;
     setIsLoading(true);
     try {
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) throw new Error("Gagal memperoleh token autentikasi admin.");
+      const token = await getAdminToken();
+      if (!token) throw new Error("Gagal memperoleh token autentikasi admin. Silakan login ulang.");
 
       const res = await fetch("/api/admin/reconcile", {
         method: "POST",
@@ -115,6 +144,7 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
         throw new Error(data.error || "Gagal menjalankan rekonsiliasi.");
       }
 
+      triggerFirestoreSync();
       toast({
         title: "Rekonsiliasi Selesai",
         description: `Berhasil memeriksa ${data.totalUsersAudited} akun nasabah. ${data.flaggedUsersCount} anomali terdeteksi.`
@@ -140,13 +170,12 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
       const userRef = doc(db, "users", userId);
       const newStatus = !currentlySuspended;
       
-      await updateDoc(userRef, {
+      await proxyUpdateDoc(userRef, {
         isSuspended: newStatus,
         securityLockReason: newStatus ? "Suspended by admin: Reconciliation manual audit flag." : null
       });
 
-      // Write notification
-      await updateDoc(doc(collection(userRef, "notifications")), {
+      await proxyAddDoc(collection(db, "users", userId, "notifications"), {
         title: newStatus ? "⚠️ Akun Ditangguhkan" : "✅ Akun Diaktifkan Kembali",
         message: newStatus 
           ? "Akun Anda telah ditangguhkan secara manual oleh administrator untuk pemeriksaan keamanan."
@@ -161,7 +190,6 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
         description: `Akun nasabah berhasil ${newStatus ? 'dibekukan' : 'diaktifkan kembali'}.`
       });
 
-      // Update local state
       if (latestRun) {
         const updatedFlagged = latestRun.flaggedUsers.map((u: any) => {
           if (u.userId === userId) {
@@ -182,14 +210,61 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
     }
   };
 
+  // Legalisasi atau Sita Saldo Hantu (Clawback) langsung dari tabel Rekonsiliasi
+  const handleResolveDiscrepancy = async (userItem: any, action: 'legalize' | 'clawback') => {
+    setIsActionLoading(`${userItem.userId}-${action}`);
+    try {
+      const token = await getAdminToken();
+      if (!token) throw new Error("Token autentikasi tidak ditemukan.");
+
+      const res = await fetch("/api/admin/reconcile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action,
+          userId: userItem.userId,
+          flaggedAssets: userItem.flaggedAssets,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Gagal memproses tindakan rekonsiliasi.");
+      }
+
+      triggerFirestoreSync();
+      toast({
+        title: action === 'legalize' ? "Saldo Dilegalisasi" : "Saldo Hantu Disita (Reset)",
+        description:
+          action === 'legalize'
+            ? `Selisih mutasi akun ${userItem.name} telah disahkan ke dalam Buku Besar.`
+            : `Saldo tanpa bukti mutasi pada akun ${userItem.name} telah dikembalikan sesuai riwayat transaksi sah.`,
+      });
+
+      // Jalankan ulang rekonsiliasi agar seluruh angka kustodi & daftar anomali terbarui secara akurat
+      await handleRunReconciliation();
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Tindakan Gagal",
+        description: err.message,
+      });
+    } finally {
+      setIsActionLoading(null);
+    }
+  };
+
   const filteredFlaggedUsers = useMemo(() => {
     if (!latestRun?.flaggedUsers) return [];
     if (!searchTerm) return latestRun.flaggedUsers;
     const s = searchTerm.toLowerCase();
     return latestRun.flaggedUsers.filter((u: any) => 
-      u.name.toLowerCase().includes(s) || 
-      u.email.toLowerCase().includes(s) ||
-      u.userId.toLowerCase().includes(s)
+      (u.name || "").toLowerCase().includes(s) || 
+      (u.email || "").toLowerCase().includes(s) ||
+      (u.userId || "").toLowerCase().includes(s)
     );
   }, [latestRun, searchTerm]);
 
@@ -201,6 +276,17 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
     BTC: 1100000000,
     IDR: 1
   };
+
+  function openUserLedger(userItem: any) {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("alibank_admin_selected_ledger_uid", userItem.userId);
+    }
+    setActiveTab("ledger");
+    toast({
+      title: "Membuka Buku Besar",
+      description: `Membuka riwayat audit detail untuk nasabah: ${userItem.name}`
+    });
+  }
 
   return (
     <div className="animate-in fade-in duration-700 space-y-10">
@@ -255,7 +341,7 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
             <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest leading-none mb-1.5">Nasabah Diperiksa</p>
             <p className="text-2xl font-black italic tracking-tighter text-foreground">{latestRun?.totalUsersAudited || 0} Akun</p>
             <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1 opacity-60 italic">
-              {latestRun?.timestamp ? `Terakhir: ${new Date(latestRun.timestamp.seconds * 1000).toLocaleString()}` : 'Belum pernah dijalankan'}
+              {formatRunTimestamp(latestRun?.timestamp)}
             </p>
           </div>
         </Card>
@@ -305,7 +391,7 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
           <h4 className="text-lg font-black italic uppercase tracking-tighter flex items-center gap-3">
             <Coins className="w-5 h-5 text-primary" /> Rekonsiliasi Aset Riil vs Liabilitas Database
           </h4>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Audit perbandingan saldo seluruh nasabah dengan saldo on-chain wallet AliBank</p>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Audit perbandingan saldo seluruh nasabah dengan saldo on-chain wallet & cadangan gateway AliBank</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[700px]">
@@ -368,7 +454,7 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
               ) : (
                 <tr>
                   <td colSpan={4} className="py-12 text-center opacity-40 italic text-xs">
-                    Silakan jalankan audit rekonsiliasi untuk melihat status.
+                    Silakan klik "Jalankan Rekonsiliasi Audit" untuk memuat status terkini.
                   </td>
                 </tr>
               )}
@@ -399,7 +485,7 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[900px]">
+          <table className="w-full text-left min-w-[960px]">
             <thead className="bg-muted/50 text-[10px] font-black uppercase text-muted-foreground tracking-widest border-b border-border">
               <tr>
                 <th className="px-8 py-6">Nasabah</th>
@@ -432,7 +518,7 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
                     <div className="space-y-1">
                       {u.flaggedAssets.map((f: any) => (
                         <p key={f.asset} className="text-xs font-bold text-rose-600 font-mono">
-                          {f.asset}: +{f.diff.toFixed(f.asset === 'IDR' ? 0 : 6)} ({f.asset === 'IDR' ? 'IDR' : f.asset} unbacked)
+                          {f.asset}: +{Number(f.diff || 0).toFixed(f.asset === 'IDR' ? 0 : 6)} ({f.asset} unbacked)
                         </p>
                       ))}
                     </div>
@@ -449,16 +535,46 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
                     )}
                   </td>
                   <td className="px-8 py-5 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
                       <Button 
                         size="sm" 
                         variant="outline" 
-                        onClick={() => {
-                          setSelectedUserLedger(u);
-                        }}
+                        onClick={() => openUserLedger(u)}
                         className="h-9 text-[9px] font-black uppercase rounded-lg border-border text-foreground hover:bg-muted"
                       >
                         Buku Besar
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isActionLoading === `${u.userId}-legalize`}
+                        onClick={() => handleResolveDiscrepancy(u, 'legalize')}
+                        className="h-9 text-[9px] font-black uppercase rounded-lg border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+                      >
+                        {isActionLoading === `${u.userId}-legalize` ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-3 h-3 mr-1" /> Legalisasi
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isActionLoading === `${u.userId}-clawback`}
+                        onClick={() => handleResolveDiscrepancy(u, 'clawback')}
+                        className="h-9 text-[9px] font-black uppercase rounded-lg border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
+                      >
+                        {isActionLoading === `${u.userId}-clawback` ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <>
+                            <RotateCcw className="w-3 h-3 mr-1" /> Sita Saldo
+                          </>
+                        )}
                       </Button>
                       
                       <Button 
@@ -509,13 +625,4 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
       )}
     </div>
   );
-
-  function setSelectedUserLedger(user: any) {
-    // Switch to client ledger tab and let admin examine
-    setActiveTab('ledger');
-    toast({
-      title: "Membuka Buku Besar",
-      description: `Membuka riwayat audit detail untuk nasabah: ${user.name}`
-    });
-  }
 }

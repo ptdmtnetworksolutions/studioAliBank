@@ -223,15 +223,15 @@ export function ClientsView({ allUsers }: any) {
 
       if (t.cryptoCurrency && t.cryptoCurrency !== 'IDR') {
         if (desc.includes('ke Saldo Dompet') || desc.startsWith('Jual ')) {
-          inflow += Number(t.amount || 0);
-        } else if (desc.includes('via Saldo Dompet')) {
-          outflow += Number(t.amount || 0);
+          inflow += Math.abs(Number(t.amount || 0));
+        } else if (desc.includes('via Saldo Dompet') || (desc.startsWith('Beli ') && t.type === 'expense')) {
+          outflow += Math.abs(Number(t.amount || 0));
         }
         return;
       }
 
       if (t.asset === 'IDR' || (!t.asset && !t.cryptoCurrency)) {
-        const amt = Number(t.amount || t.amountIdr || 0);
+        const amt = Math.abs(Number(t.amount || t.amountIdr || 0));
         if (t.type === 'income') inflow += amt;
         else if (t.type === 'expense') outflow += amt;
       }

@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 import Image from "next/image";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { proxyGetCollection } from "@/lib/firestore-proxy-client";
 
 const ALX_PRICE_IDR = 194004;
 
@@ -59,9 +60,24 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userTxs, setUserTxs] = useState<any[]>([]);
   const [pendingTopups, setPendingTopups] = useState<any[]>([]);
+  const [approvedTopups, setApprovedTopups] = useState<any[]>([]);
   const [globalAuditMatches, setGlobalAuditMatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isForensicLoading, setIsForensicLoading] = useState(false);
+
+  // Otomatis pilih nasabah jika diklik dari tab Rekonsiliasi & Anti-Fraud
+  useEffect(() => {
+    if (!allUsers || allUsers.length === 0) return;
+    if (typeof window === "undefined") return;
+    const preselectedUid = sessionStorage.getItem("alibank_admin_selected_ledger_uid");
+    if (preselectedUid) {
+      const found = allUsers.find((u: any) => u.id === preselectedUid || u.uid === preselectedUid);
+      if (found) {
+        setSelectedUser(found);
+      }
+      sessionStorage.removeItem("alibank_admin_selected_ledger_uid");
+    }
+  }, [allUsers]);
 
   // LOGIKA PENCARIAN & SARAN NASABAH
   const suggestions = useMemo(() => {
@@ -83,24 +99,37 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
       setIsForensicLoading(true);
       
       try {
-        // 1. Ambil Riwayat Transaksi Nasabah (Local Ledger)
+        // 1. Ambil Riwayat Transaksi Nasabah (Local Ledger) dengan fallback Proxy REST
         const qLocal = query(
           collection(db, "users", selectedUser.id, "transactions"),
           orderBy("timestamp", "desc"),
-          limit(200)
+          limit(300)
         );
-        const localSnap = await getDocs(qLocal);
-        setUserTxs(localSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        try {
+          const localSnap = await getDocs(qLocal);
+          setUserTxs(localSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        } catch {
+          const proxyRes = await proxyGetCollection(qLocal);
+          setUserTxs(proxyRes?.docs || []);
+        }
 
-        // 2. Ambil Topup Requests (Hutang Manual yang belum dibayar)
+        // 2. Ambil Topup Requests (Pending & Approved)
         const qTopup = query(
           collection(db, "topup_requests"),
           where("userId", "==", selectedUser.id),
-          where("status", "==", "pending"),
-          limit(50)
+          limit(100)
         );
-        const topupSnap = await getDocs(qTopup);
-        setPendingTopups(topupSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        try {
+          const topupSnap = await getDocs(qTopup);
+          const allReqs = topupSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+          setPendingTopups(allReqs.filter(r => r.status === 'pending' && r.type !== 'withdraw' && r.type !== 'cash_delivery'));
+          setApprovedTopups(allReqs.filter(r => r.status === 'approved' && r.type !== 'withdraw' && r.type !== 'cash_delivery'));
+        } catch {
+          const proxyReqs = await proxyGetCollection(qTopup);
+          const allReqs: any[] = proxyReqs?.docs || [];
+          setPendingTopups(allReqs.filter(r => r.status === 'pending' && r.type !== 'withdraw' && r.type !== 'cash_delivery'));
+          setApprovedTopups(allReqs.filter(r => r.status === 'approved' && r.type !== 'withdraw' && r.type !== 'cash_delivery'));
+        }
 
         // 3. DEEP SCAN: Cari bukti di Audit Global
         const qGlobal = query(
@@ -109,9 +138,13 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
           orderBy("timestamp", "desc"),
           limit(100)
         );
-        
-        const globalSnap = await getDocs(qGlobal).catch(() => ({ docs: [] }));
-        setGlobalAuditMatches(globalSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        try {
+          const globalSnap = await getDocs(qGlobal);
+          setGlobalAuditMatches(globalSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        } catch {
+          const proxyGlobal = await proxyGetCollection(qGlobal);
+          setGlobalAuditMatches(proxyGlobal?.docs || []);
+        }
 
       } catch (e) {
         console.error("Ledger fetch error:", e);
@@ -126,35 +159,170 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
   const ledgerStats = useMemo(() => {
     if (!selectedUser) return { totalIn: 0, totalOut: 0, illegalDebtIdr: 0, totalCryptoDebtValIdr: 0, cryptoDebtBreakdown: [], pendingDebt: 0, totalTotalDebt: 0 };
     
-    // KRITIS: Filter keluar transaksi pelunasan agar tidak merusak kalkulasi forensik
-    const isNeutralCategory = (cat: string) => ['Legalization', 'Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat || '');
+    const isOwnerAccount =
+      String(selectedUser.email || '').toLowerCase() === 'alidzulfikar075@gmail.com' ||
+      selectedUser.id === 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2' ||
+      selectedUser.role === 'admin';
 
-    // 1. IDR Ledger Check
-    const idrInflow = userTxs.filter(t => t.type === 'income' && t.amount && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.amount || 0), 0);
-    const idrOutflow = userTxs.filter(t => t.type === 'expense' && t.amount && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.amount || 0), 0);
+    let idrInflow = 0;
+    let idrOutflow = 0;
+    const cryptoInflows: Record<string, number> = { ALX: 0, USDT: 0, ETH: 0, BTC: 0 };
+    const cryptoOutflows: Record<string, number> = { ALX: 0, USDT: 0, ETH: 0, BTC: 0 };
+
+    let hasLegalization = false;
+    let hasDepositApprovedTx = false;
+    let hasTradeXTx = false;
+
+    userTxs.forEach(t => {
+      if (t.status === 'rejected' || t.status === 'cancelled') return;
+      const cat = String(t.category || '');
+      const desc = String(t.description || '');
+
+      if (['Legalization', 'Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat)) {
+        hasLegalization = true;
+        return;
+      }
+      if (cat === 'Security Lock') return;
+      if (cat === 'Deposit' && desc.includes('Setoran Disetujui')) {
+        hasDepositApprovedTx = true;
+      }
+
+      // 0. Trade-X Pro
+      if (cat === 'Trade-X' || t.stakeCurrency || t.rewardAlx !== undefined) {
+        hasTradeXTx = true;
+        const stakeCur = String(t.stakeCurrency || 'IDR');
+        const stakeAmt = Math.abs(Number(t.stakeAmount || 0));
+        const rewardAlx = Math.abs(Number(t.rewardAlx || 0));
+
+        if (stakeCur === 'IDR') idrOutflow += stakeAmt;
+        else if (stakeCur in cryptoOutflows) cryptoOutflows[stakeCur] += stakeAmt;
+
+        if (rewardAlx > 0) cryptoInflows.ALX += rewardAlx;
+        return;
+      }
+
+      // 1. Swap / Convert
+      if (t.fromCurrency && t.toCurrency) {
+        const fromCur = String(t.fromCurrency);
+        const toCur = String(t.toCurrency);
+        const fromAmt = Math.abs(Number(t.fromAmount || 0));
+        const toAmt = Math.abs(Number(t.toAmount || 0));
+
+        if (fromCur === 'IDR') idrOutflow += fromAmt;
+        else if (fromCur in cryptoOutflows) cryptoOutflows[fromCur] += fromAmt;
+
+        if (toCur === 'IDR') idrInflow += toAmt;
+        else if (toCur in cryptoInflows) cryptoInflows[toCur] += toAmt;
+        return;
+      }
+
+      // 2. Jual Kripto ke Saldo Dompet IDR
+      if (desc.includes('Jual ') && desc.includes('ke Saldo Dompet')) {
+        const sym = String(t.cryptoCurrency || t.asset || '');
+        const cryptoAmt = Math.abs(Number(t.cryptoAmount || 0));
+        const idrAmt = Math.abs(Number(t.amount || 0));
+        if (sym in cryptoOutflows) cryptoOutflows[sym] += cryptoAmt;
+        idrInflow += idrAmt;
+        return;
+      }
+
+      // 3. Beli Kripto via Saldo Dompet / Ali-Premium
+      if (
+        desc.startsWith('Beli ') &&
+        (desc.includes('Saldo Dompet') || desc.includes('(Ali-Premium)') || t.type === 'expense')
+      ) {
+        const sym = String(t.cryptoCurrency || t.asset || '');
+        const cryptoAmt = Math.abs(Number(t.cryptoAmount || 0));
+        const idrAmt = Math.abs(Number(t.amount || 0));
+        idrOutflow += idrAmt;
+        if (sym in cryptoInflows) cryptoInflows[sym] += cryptoAmt;
+        return;
+      }
+
+      // 4. Beli Kripto via Gateway Eksternal
+      if (desc.startsWith('Beli ') && t.type === 'income' && t.cryptoCurrency) {
+        const sym = String(t.cryptoCurrency);
+        const cryptoAmt = Math.abs(Number(t.cryptoAmount || 0));
+        if (sym in cryptoInflows) cryptoInflows[sym] += cryptoAmt;
+        return;
+      }
+
+      // 5. Transaksi Kripto Murni
+      const sym = String(t.cryptoCurrency || (t.asset && t.asset !== 'IDR' ? t.asset : ''));
+      const cryptoAmt = Math.abs(Number(t.cryptoAmount || (sym ? t.amount : 0) || 0));
+      if (sym && sym in cryptoInflows && cryptoAmt > 0) {
+        if (t.type === 'income') cryptoInflows[sym] += cryptoAmt;
+        else if (t.type === 'expense') cryptoOutflows[sym] += cryptoAmt;
+        return;
+      }
+
+      // 6. Transaksi Fiat IDR Murni
+      const idrAmt = Math.abs(Number(t.amount || 0));
+      if (idrAmt > 0) {
+        if (t.type === 'income') idrInflow += idrAmt;
+        else if (t.type === 'expense') idrOutflow += idrAmt;
+      }
+    });
+
+    if (!hasDepositApprovedTx) {
+      approvedTopups.forEach(req => {
+        const asset = String(req.asset || 'IDR');
+        const amt = Math.abs(Number(req.estimatedAsset || req.amount || 0));
+        if (amt <= 0) return;
+        if (asset === 'IDR') idrInflow += amt;
+        else if (asset in cryptoInflows) cryptoInflows[asset] += amt;
+      });
+    }
+
+    globalAuditMatches.forEach(g => {
+      if (g.status !== 'success' && g.status !== 'berhasil') return;
+      const gCat = String(g.category || '');
+      if (!hasTradeXTx && gCat === 'Trade-X Win' && g.cryptoCurrency === 'ALX') {
+        cryptoInflows.ALX += Math.abs(Number(g.cryptoAmount || 0));
+      } else if (gCat === 'Futures Settlement' && !g.userLoggedInTx) {
+        const desc = String(g.description || '');
+        if (desc.includes('User Profit')) {
+          const match = desc.match(/PNL:\s*([0-9.]+)\s*USDT/i);
+          if (match && match[1]) {
+            cryptoInflows.USDT += parseFloat(match[1]);
+          }
+        }
+      }
+    });
+
+    if (selectedUser.syncedOnChainBalances && typeof selectedUser.syncedOnChainBalances === 'object') {
+      (['ALX', 'USDT', 'ETH', 'BTC'] as const).forEach(coin => {
+        const onChainBal = Number(selectedUser.syncedOnChainBalances[coin] || 0);
+        if (onChainBal > cryptoInflows[coin]) {
+          cryptoInflows[coin] = onChainBal;
+        }
+      });
+    }
+
     const idrLedgerBal = idrInflow - idrOutflow;
-    const illegalDebtIdr = Math.max(0, (selectedUser.totalBalance || 0) - idrLedgerBal);
+    const illegalDebtIdr = (hasLegalization || isOwnerAccount)
+      ? 0
+      : Math.max(0, (selectedUser.totalBalance || 0) - idrLedgerBal);
 
     // 2. Crypto Ledger Check (ALX, BTC, ETH, USDT)
     const assets = ['ALX', 'BTC', 'ETH', 'USDT'];
     const cryptoDebtBreakdown: any[] = [];
     let totalCryptoDebtValIdr = 0;
 
-    assets.forEach(asset => {
-      const assetInflow = userTxs.filter(t => t.type === 'income' && t.cryptoCurrency === asset && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.cryptoAmount || t.toAmount || 0), 0);
-      const assetOutflow = userTxs.filter(t => t.type === 'expense' && t.cryptoCurrency === asset && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.cryptoAmount || t.fromAmount || 0), 0);
-      const ledgerBal = assetInflow - assetOutflow;
-      const actualBal = selectedUser.cryptoBalances?.[asset] || 0;
-      const diff = Math.max(0, actualBal - ledgerBal);
+    if (!hasLegalization && !isOwnerAccount) {
+      assets.forEach(asset => {
+        const ledgerBal = (cryptoInflows[asset] || 0) - (cryptoOutflows[asset] || 0);
+        const actualBal = selectedUser.cryptoBalances?.[asset] || 0;
+        const diff = Math.max(0, actualBal - ledgerBal);
 
-      if (diff > 0.000001) {
-        // Approximate valuation for total sum
-        const priceMap: Record<string, number> = { ALX: ALX_PRICE_IDR, BTC: 1100000000, ETH: 35000000, USDT: 17690 };
-        const valIdr = diff * (priceMap[asset] || 0);
-        totalCryptoDebtValIdr += valIdr;
-        cryptoDebtBreakdown.push({ asset, amount: diff, valueIdr: valIdr });
-      }
-    });
+        if (diff > 0.001) {
+          const priceMap: Record<string, number> = { ALX: ALX_PRICE_IDR, BTC: 1100000000, ETH: 35000000, USDT: 17690 };
+          const valIdr = diff * (priceMap[asset] || 0);
+          totalCryptoDebtValIdr += valIdr;
+          cryptoDebtBreakdown.push({ asset, amount: diff, valueIdr: valIdr });
+        }
+      });
+    }
 
     const pendingManualDebt = pendingTopups.reduce((acc, curr) => acc + (curr.totalToTransfer || curr.amount || 0), 0);
 
@@ -167,7 +335,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
       pendingDebt: pendingManualDebt,
       totalTotalDebt: illegalDebtIdr + totalCryptoDebtValIdr + pendingManualDebt
     };
-  }, [userTxs, selectedUser, pendingTopups]);
+  }, [userTxs, selectedUser, pendingTopups, approvedTopups, globalAuditMatches]);
 
   return (
     <div className="animate-in fade-in duration-700 space-y-10">

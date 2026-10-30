@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { doc, addDoc, updateDoc, increment, collection, serverTimestamp, query, orderBy, limit, deleteDoc, getDocs, where } from "firebase/firestore";
+import { proxyUpdateDoc, proxyAddDoc } from "@/lib/firestore-proxy-client";
 import { useToast } from "@/hooks/use-toast";
 import { 
   ResponsiveContainer, 
@@ -168,19 +169,18 @@ export default function FuturesPage() {
     setIsProcessing(true);
     try {
       // 1. Potong Saldo USDT Nasabah (Margin + Platform Fee)
-      await updateDoc(userDocRef!, { "cryptoBalances.USDT": increment(-totalDeduction) });
+      await proxyUpdateDoc(`users/${user.uid}`, { "cryptoBalances.USDT": increment(-totalDeduction) });
 
       // 2. Transfer Fee ke Likuiditas Admin
-      const sysRef = doc(db, "system", "liquidity");
       const platformFeeIdr = platformFeeUsdt * USDT_IDR_RATE;
-      await updateDoc(sysRef, { 
+      await proxyUpdateDoc("system/liquidity", { 
         totalFiatInjected: increment(platformFeeIdr),
         futuresGrossProfitIdr: increment(platformFeeIdr),
         totalTradingFeesIdr: increment(platformFeeIdr)
       });
 
       // 3. Buka Posisi di Firestore
-      await addDoc(collection(db, "users", user.uid, "futures_positions"), {
+      await proxyAddDoc(`users/${user.uid}/futures_positions`, {
         symbol: "BTCUSDT",
         side: tradeSide,
         leverage: leverage,
@@ -193,15 +193,28 @@ export default function FuturesPage() {
         createdAt: new Date().toISOString()
       });
 
-      // 4. Catat Audit Ledger Global (Untuk Admin)
-      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+      // 4. Catat di Riwayat Transaksi Nasabah
+      await proxyAddDoc(`users/${user.uid}/transactions`, {
+        description: `Margin Futures ${tradeSide.toUpperCase()} ${leverage}x BTCUSDT`,
+        amount: totalDeduction * USDT_IDR_RATE,
+        cryptoAmount: totalDeduction,
+        cryptoCurrency: "USDT",
+        type: "expense",
+        category: "Futures",
+        status: "completed",
+        timestamp: serverTimestamp()
+      });
+
+      // 5. Catat Audit Ledger Global (Untuk Admin)
+      await proxyAddDoc("system/audit/global_transactions", {
         id: `FUTURES-OPEN-${Date.now()}`,
         category: "Futures Entry",
         description: `Open ${tradeSide.toUpperCase()} ${leverage}x BTCUSDT by ${userData.name}. Fee captured: ${platformFeeUsdt.toFixed(4)} USDT.`,
         amountIdr: platformFeeIdr,
         status: "success",
         timestamp: serverTimestamp(),
-        userEmail: user.email
+        userEmail: user.email,
+        userLoggedInTx: true
       });
 
       setAmountUsdt("");
@@ -226,32 +239,47 @@ export default function FuturesPage() {
       // Jika rugi, selisih margin yang hilang tetap di kas Admin
       // Jika untung, kas Admin (Liquidity) akan berkurang untuk membayar profit nasabah
       if (realizedPnl > 0) {
-        const sysRef = doc(db, "system", "liquidity");
-        await updateDoc(sysRef, { 
+        await proxyUpdateDoc("system/liquidity", { 
           totalFiatInjected: increment(-(realizedPnl * USDT_IDR_RATE)) 
         });
       }
 
+      const settledReturn = Math.max(0, finalReturn);
       // Kembalikan Modal + PNL ke Saldo USDT (Hanya jika masih ada sisa setelah rugi)
-      await updateDoc(userDocRef, { "cryptoBalances.USDT": increment(Math.max(0, finalReturn)) });
+      await proxyUpdateDoc(`users/${user.uid}`, { "cryptoBalances.USDT": increment(settledReturn) });
       
       // Update Status Posisi
-      await updateDoc(doc(db, "users", user.uid, "futures_positions", pos.id), { 
+      await proxyUpdateDoc(`users/${user.uid}/futures_positions/${pos.id}`, { 
         status: "closed", 
         exitPrice: livePrice, 
         realizedPnl: realizedPnl,
         closedAt: serverTimestamp() 
       });
 
+      // Catat di Riwayat Transaksi Nasabah
+      if (settledReturn > 0) {
+        await proxyAddDoc(`users/${user.uid}/transactions`, {
+          description: `Settlement Futures ${pos.side?.toUpperCase() || 'LONG'} BTCUSDT (PNL: ${realizedPnl >= 0 ? '+' : ''}${realizedPnl.toFixed(2)} USDT)`,
+          amount: settledReturn * USDT_IDR_RATE,
+          cryptoAmount: settledReturn,
+          cryptoCurrency: "USDT",
+          type: "income",
+          category: "Futures",
+          status: "completed",
+          timestamp: serverTimestamp()
+        });
+      }
+
       // Audit Log untuk Admin
-      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+      await proxyAddDoc("system/audit/global_transactions", {
         id: `FUTURES-CLOSE-${Date.now()}`,
         category: "Futures Settlement",
         description: `Settled position for ${userData?.name}. Result: ${realizedPnl >= 0 ? 'User Profit' : 'Bank Captured Loss'}. PNL: ${realizedPnl.toFixed(2)} USDT.`,
         amountIdr: Math.abs(realizedPnl * USDT_IDR_RATE),
         status: "success",
         timestamp: serverTimestamp(),
-        userEmail: user.email
+        userEmail: user.email,
+        userLoggedInTx: true
       });
 
       toast({ 

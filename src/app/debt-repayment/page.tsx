@@ -71,15 +71,15 @@ export default function DebtRepaymentPage() {
 
       if (t.cryptoCurrency && t.cryptoCurrency !== 'IDR') {
         if (desc.includes('ke Saldo Dompet') || desc.startsWith('Jual ')) {
-          idrInflow += Number(t.amount || 0);
-        } else if (desc.includes('via Saldo Dompet')) {
-          idrOutflow += Number(t.amount || 0);
+          idrInflow += Math.abs(Number(t.amount || 0));
+        } else if (desc.includes('via Saldo Dompet') || (desc.startsWith('Beli ') && t.type === 'expense')) {
+          idrOutflow += Math.abs(Number(t.amount || 0));
         }
         return;
       }
 
       if (t.asset === 'IDR' || (!t.asset && !t.cryptoCurrency)) {
-        const amt = Number(t.amount || t.amountIdr || 0);
+        const amt = Math.abs(Number(t.amount || t.amountIdr || 0));
         if (t.type === 'income') idrInflow += amt;
         else if (t.type === 'expense') idrOutflow += amt;
       }
@@ -99,22 +99,25 @@ export default function DebtRepaymentPage() {
         const desc = String(t.description || '');
 
         if (t.fromCurrency || t.toCurrency) {
-          if (t.toCurrency === asset) cryptoIn += Number(t.toAmount || t.cryptoAmount || 0);
-          if (t.fromCurrency === asset) cryptoOut += Number(t.fromAmount || 0);
+          if (t.toCurrency === asset) cryptoIn += Math.abs(Number(t.toAmount || t.cryptoAmount || 0));
+          if (t.fromCurrency === asset) cryptoOut += Math.abs(Number(t.fromAmount || 0));
           return;
         }
 
         if (t.cryptoCurrency === asset || t.asset === asset) {
-          const cAmt = Number(t.cryptoAmount || (t.asset === asset ? t.amount : 0) || 0);
+          const cAmt = Math.abs(Number(t.cryptoAmount || (t.asset === asset ? t.amount : 0) || 0));
           if (desc.includes('ke Saldo Dompet') || desc.startsWith('Jual ')) {
             cryptoOut += cAmt;
-          } else if (t.type === 'income') {
+          } else if (desc.startsWith('Beli ') || t.type === 'income') {
             cryptoIn += cAmt;
           } else if (t.type === 'expense') {
             cryptoOut += cAmt;
           }
         }
       });
+
+      const onChainSynced = Number(userData.syncedOnChainBalances?.[asset] || 0);
+      if (onChainSynced > cryptoIn) cryptoIn = onChainSynced;
 
       const diff = Math.max(0, (userData.cryptoBalances?.[asset] || 0) - (cryptoIn - cryptoOut));
       
