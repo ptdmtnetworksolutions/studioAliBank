@@ -694,9 +694,13 @@ class MainActivity : FragmentActivity() {
             // Nobu Bank (Mitra SoftPOS Resmi)
             bin6.startsWith("589388") || bin6.startsWith("601988") || clean.startsWith("4890") -> "Nobu Bank (SoftPOS Mitra)" to "DEBIT"
 
-            // BSI
-            bin6.startsWith("432204") || bin6.startsWith("521082") || bin6.startsWith("606388") || bin4 == "6063" -> "BSI" to "DEBIT"
-            bin6.startsWith("425944") || bin6.startsWith("410887") -> "BSI" to "KREDIT"
+            // Bank Syariah Indonesia (BSI)
+            bin6.startsWith("404305") || bin4 == "4043" || bin6.startsWith("432204") ||
+            bin6.startsWith("403816") || bin6.startsWith("606388") || bin6.startsWith("606389") ||
+            bin4 == "6063" || bin4 == "1955" -> "Bank Syariah Indonesia (BSI)" to "DEBIT"
+
+            bin6.startsWith("518446") || bin6.startsWith("531857") || bin6.startsWith("522028") ||
+            bin6.startsWith("521082") || bin6.startsWith("425944") || bin6.startsWith("410887") -> "Bank Syariah Indonesia (BSI)" to "KREDIT"
 
             else -> "Bank Partner" to (if (network == "VISA" && clean.startsWith("40")) "DEBIT" else "KREDIT")
         }

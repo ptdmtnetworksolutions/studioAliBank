@@ -298,13 +298,30 @@ export function detectCardBin(cardNumber: string): CardBinResult {
 
   // --- BANK SYARIAH INDONESIA (BSI) ---
   else if (
-    bin6.startsWith('432204') || bin6.startsWith('521082') || bin6.startsWith('606388') || bin4 === '6063' ||
-    bin6.startsWith('425944') || bin6.startsWith('410887')
+    bin6.startsWith('404305') || bin4 === '4043' || bin6.startsWith('432204') ||
+    bin6.startsWith('403816') || bin6.startsWith('606388') || bin6.startsWith('606389') ||
+    bin4 === '6063' || bin4 === '1955'
   ) {
     bank = SUPPORTED_BANKS.bsi;
-    cardType = (bin6.startsWith('425944') || bin6.startsWith('410887')) ? 'KREDIT' : 'DEBIT';
+    cardType = 'DEBIT';
     isIndonesian = true;
-    cardLevel = cardType === 'KREDIT' ? 'BSI Hasanah Card (Kredit)' : 'BSI Hasanah Debit';
+    cardLevel = (bin6.startsWith('404305') || bin4 === '4043') 
+      ? 'BSI Debit Visa Contactless' 
+      : 'BSI Debit GPN';
+  } else if (
+    bin6.startsWith('518446') || bin6.startsWith('531857') || bin6.startsWith('522028') ||
+    bin6.startsWith('521082') || bin6.startsWith('425944') || bin6.startsWith('410887')
+  ) {
+    bank = SUPPORTED_BANKS.bsi;
+    cardType = 'KREDIT';
+    isIndonesian = true;
+    cardLevel = bin6.startsWith('518446') 
+      ? 'BSI Hasanah Card Platinum' 
+      : bin6.startsWith('531857')
+      ? 'BSI Hasanah Card Gold'
+      : bin6.startsWith('522028')
+      ? 'BSI Hasanah Card Classic'
+      : 'BSI Hasanah Card';
   }
 
   // --- CIMB NIAGA ---

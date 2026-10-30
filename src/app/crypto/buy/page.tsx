@@ -1683,27 +1683,27 @@ function CryptoBuyPageInner() {
       )}
 
       <Dialog open={isCheckoutDialogOpen} onOpenChange={setIsCheckoutDialogOpen}>
-        <DialogContent className="max-w-md rounded-[2.5rem] bg-background border-none p-0 overflow-hidden shadow-2xl">
-          <div className="gold-gradient h-3 w-full" />
-          <div className="p-8 space-y-8">
-            <DialogHeader className="text-center space-y-2">
-              <div className="w-12 h-12 rounded-2xl gold-gradient mx-auto flex items-center justify-center shadow-xl p-2.5 mb-2"><LogoIcon className="text-white" /></div>
-              <DialogTitle className="text-xl font-black italic uppercase tracking-tight">
+        <DialogContent className="max-w-md w-[95vw] sm:w-full rounded-[2rem] sm:rounded-[2.5rem] bg-background border border-border/60 p-0 overflow-hidden shadow-2xl max-h-[92vh] flex flex-col my-auto">
+          <div className="gold-gradient h-2.5 w-full shrink-0" />
+          <div className="p-4 sm:p-7 space-y-4 sm:space-y-6 overflow-y-auto flex-1 overscroll-contain">
+            <DialogHeader className="text-center space-y-1.5">
+              <div className="w-10 h-10 rounded-2xl gold-gradient mx-auto flex items-center justify-center shadow-xl p-2 mb-1"><LogoIcon className="text-white" /></div>
+              <DialogTitle className="text-lg sm:text-xl font-black italic uppercase tracking-tight">
                 {activeTab === 'jual' ? "ALIBANK CRYPTO EXCHANGE" : "ALIBANK SECURE GATEWAY"}
               </DialogTitle>
-              <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              <DialogDescription className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                 {activeTab === 'jual' 
                   ? `Konfirmasi Jual ${selectedAsset?.symbol || 'Kripto'} ke Saldo Dompet` 
                   : `Konfirmasi Beli via ${selectedPayment?.name || 'Metode Kliring'}`}
               </DialogDescription>
             </DialogHeader>
 
-            <div className="bg-muted/50 rounded-[2rem] p-6 text-center space-y-2 border border-border">
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">
+            <div className="bg-muted/50 rounded-2xl p-4 sm:p-5 text-center space-y-1 border border-border">
+              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
                 {activeTab === 'jual' ? "Total Diterima" : "Total Bayar"}
               </p>
-              <h3 className="text-3xl font-black italic text-foreground">Rp {(totalAmountIdr || 0).toLocaleString('id-ID')}</h3>
-              <p className="text-[10px] font-black text-primary uppercase">
+              <h3 className="text-2xl sm:text-3xl font-black italic text-foreground">Rp {(totalAmountIdr || 0).toLocaleString('id-ID')}</h3>
+              <p className="text-[9px] font-black text-primary uppercase">
                 {activeTab === 'jual' 
                   ? `Menjual ≈ ${estimatedCrypto} ${selectedAsset?.symbol || 'ALX'}` 
                   : `≈ $ ${usdValue}`}
@@ -2040,16 +2040,31 @@ function CryptoBuyPageInner() {
                               <button 
                                 onClick={() => {
                                   setNfcCardHolder("SITI AISYAH");
-                                  setNfcCardNumber("4322 0467 8901 2345");
+                                  setNfcCardNumber("4043 0567 8901 2345");
                                   setNfcCardExpiry("2029-08");
                                   setNfcCardCvv("555");
                                   playNfcBeep();
-                                  toast({ title: "BSI Terdeteksi", description: "BSI Hasanah Debit siap diotorisasi." });
+                                  toast({ title: "BSI Terdeteksi", description: "BSI Debit Visa Contactless siap diotorisasi." });
                                 }}
                                 className="p-2 rounded-xl border border-border bg-card text-left hover:border-[#00A39D] transition-all"
                               >
-                                <p className="text-[8.5px] font-black text-[#00A39D] dark:text-teal-400">BSI HASANAH</p>
-                                <p className="text-[7px] font-bold text-muted-foreground mt-0.5">Debit Syariah</p>
+                                <p className="text-[8.5px] font-black text-[#00A39D] dark:text-teal-400">BSI DEBIT VISA</p>
+                                <p className="text-[7px] font-bold text-muted-foreground mt-0.5">Debit Contactless</p>
+                              </button>
+
+                              <button 
+                                onClick={() => {
+                                  setNfcCardHolder("AHMAD FAUZI");
+                                  setNfcCardNumber("5184 4612 3456 7890");
+                                  setNfcCardExpiry("2028-12");
+                                  setNfcCardCvv("888");
+                                  playNfcBeep();
+                                  toast({ title: "BSI Terdeteksi", description: "BSI Hasanah Card Platinum siap diotorisasi." });
+                                }}
+                                className="p-2 rounded-xl border border-border bg-card text-left hover:border-[#EB8C00] transition-all"
+                              >
+                                <p className="text-[8.5px] font-black text-[#EB8C00] dark:text-amber-400">BSI HASANAH</p>
+                                <p className="text-[7px] font-bold text-muted-foreground mt-0.5">Kredit Platinum</p>
                               </button>
                             </div>
                           </div>
@@ -2058,7 +2073,7 @@ function CryptoBuyPageInner() {
                             <p className="text-[9px] font-bold text-rose-500 uppercase italic text-center">{nfcError}</p>
                           )}
 
-                          <div className="grid grid-cols-2 gap-3 pt-2">
+                          <div className="grid grid-cols-2 gap-3 pt-3 sticky bottom-0 bg-background/95 backdrop-blur-md pb-2 z-20 border-t border-border/40">
                             <Button 
                               variant="outline"
                               onClick={() => {
@@ -2068,14 +2083,14 @@ function CryptoBuyPageInner() {
                                   toast({ title: "Sensor NFC", description: "Sensor siap. Dekatkan kartu ke sensor NFC smartphone Anda." });
                                 }
                               }}
-                              className="h-14 rounded-2xl font-black uppercase italic text-[10px]"
+                              className="h-12 rounded-xl font-black uppercase italic text-[10px]"
                               disabled={isProcessing}
                             >
                               <Wifi className="w-4 h-4 mr-1 rotate-90" /> Cari Sensor
                             </Button>
                             <Button 
                               onClick={() => handleNfcPayment()}
-                              className="h-14 gold-gradient text-white rounded-2xl font-black uppercase italic shadow-xl text-[10px]"
+                              className="h-12 gold-gradient text-white rounded-xl font-black uppercase italic shadow-xl text-[10px]"
                               disabled={isProcessing}
                             >
                               {isProcessing ? <Loader2 className="animate-spin w-4 h-4" /> : "OTORISASI KARTU"}
