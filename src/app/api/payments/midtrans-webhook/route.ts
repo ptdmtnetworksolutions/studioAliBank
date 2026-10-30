@@ -28,9 +28,20 @@ async function getMidtransServerKey(): Promise<string> {
   return process.env.MIDTRANS_SERVER_KEY || '';
 }
 
+export async function GET(request: NextRequest) {
+  return NextResponse.json({ status: 'OK', message: 'Midtrans Webhook active.' }, { status: 200 });
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body: any = {};
+    try {
+      body = await request.json();
+    } catch (e) {
+      // Empty body test ping
+      return NextResponse.json({ status: 'OK', message: 'Test ping received.' }, { status: 200 });
+    }
+
     const {
       order_id,
       status_code,
@@ -40,10 +51,11 @@ export async function POST(request: NextRequest) {
       fraud_status,
       transaction_id,
       payment_type
-    } = body;
+    } = body || {};
 
-    if (!order_id || !status_code || !gross_amount || !signature_key) {
-      return NextResponse.json({ error: 'Parameter webhook tidak lengkap.' }, { status: 400 });
+    // Jika ini adalah test ping dari tombol "Tes URL Notifikasi" dashboard Midtrans
+    if (!order_id || !signature_key || String(order_id).toLowerCase().includes('test') || String(order_id).toLowerCase().includes('sample')) {
+      return NextResponse.json({ status: 'OK', message: 'Test notification received successfully.' }, { status: 200 });
     }
 
     const serverKey = await getMidtransServerKey();
