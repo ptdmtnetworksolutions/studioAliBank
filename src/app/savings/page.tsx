@@ -19,7 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useState, useMemo, useEffect } from "react";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { doc, increment, collection, serverTimestamp } from "firebase/firestore";
+import { proxyUpdateDoc, proxyAddDoc } from "@/lib/firestore-proxy-client";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { 
@@ -78,10 +79,10 @@ export default function SavingsPage() {
         ? { totalBalance: increment(-numAmount), savings: increment(numAmount) }
         : { totalBalance: increment(numAmount), savings: increment(-numAmount) };
 
-      await updateDoc(userDocRef, payload);
+      await proxyUpdateDoc(userDocRef, payload);
 
       // 1. LOG AUDIT GLOBAL (UNTUK MONITORING ADMIN)
-      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+      await proxyAddDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `SAVE-MOVE-${Date.now()}`,
         category: "Savings Portfolio",
         amountIdr: numAmount,
@@ -92,10 +93,11 @@ export default function SavingsPage() {
       });
 
       // 2. RIWAYAT TRANSAKSI PRIBADI
-      await addDoc(collection(db, "users", user.uid, "transactions"), {
+      await proxyAddDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
         description: direction === 'to_savings' ? "Alokasi Dana ke Tabungan" : "Pencairan Dana Tabungan",
         category: "Internal Transfer",
+        asset: "IDR",
         amount: numAmount,
         type: direction === 'to_savings' ? 'expense' : 'income',
         status: "success",
@@ -103,7 +105,7 @@ export default function SavingsPage() {
       });
 
       // 3. KIRIM NOTIFIKASI
-      await addDoc(collection(db, "users", user.uid, "notifications"), {
+      await proxyAddDoc(collection(db, "users", user.uid, "notifications"), {
         title: direction === 'to_savings' ? "Portofolio Tabungan Diperbarui" : "Pencairan Berhasil",
         message: direction === 'to_savings' 
           ? `Dana sebesar Rp ${numAmount.toLocaleString('id-ID')} telah dipindahkan ke Tabungan.`

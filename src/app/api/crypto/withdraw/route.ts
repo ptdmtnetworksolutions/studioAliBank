@@ -1,58 +1,232 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps, App } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
 import { ethers } from 'ethers';
 import { AliBankVaultABI } from '@/lib/abi/AliBankVault';
+import { firebaseConfig } from '@/firebase/config';
 
 export const dynamic = 'force-dynamic';
 
-function getAdminApp(): App {
-  if (getApps().length > 0) return getApps()[0];
-  return initializeApp({ projectId: 'darmedia-pos' });
-}
+const PROJECT_ID = firebaseConfig.projectId;
+const API_KEY = firebaseConfig.apiKey;
+const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
-// ABI for ERC-20 Transfer
 const ERC20_ABI = [
   'function transfer(address to, uint256 value) returns (bool)',
   'function balanceOf(address owner) view returns (uint256)',
   'function decimals() view returns (uint8)'
 ];
 
-/**
- * POST /api/crypto/withdraw
- * Process custodial crypto balance withdrawal to external address on-chain.
- * Signs and broadcasts the transaction from the central AliBank Hot Wallet / Vault.
- */
+const POLYGON_RPCS = [
+  'https://polygon-bor-rpc.publicnode.com',
+  'https://1rpc.io/matic',
+  'https://polygon.drpc.org',
+  'https://rpc.ankr.com/polygon',
+  'https://polygon-rpc.com',
+];
+
+function isJwtExpired(token: string): boolean {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    if (!payload.exp) return false;
+    return Date.now() >= (payload.exp - 60) * 1000;
+  } catch {
+    return true;
+  }
+}
+
+async function refreshFirebaseToken(refreshToken: string): Promise<string | null> {
+  try {
+    const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.id_token || null;
+  } catch {
+    return null;
+  }
+}
+
+async function verifyIdTokenViaRest(idToken: string): Promise<{ uid: string; email?: string } | null> {
+  try {
+    const res = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+        cache: 'no-store',
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const user = data?.users?.[0];
+    if (!user?.localId) return null;
+    return { uid: user.localId, email: user.email };
+  } catch {
+    return null;
+  }
+}
+
+function fromFirestoreValue(val: any): any {
+  if (!val || typeof val !== 'object') return val;
+  if ('nullValue' in val) return null;
+  if ('booleanValue' in val) return Boolean(val.booleanValue);
+  if ('integerValue' in val) return Number(val.integerValue);
+  if ('doubleValue' in val) return Number(val.doubleValue);
+  if ('stringValue' in val) return String(val.stringValue);
+  if ('timestampValue' in val) return val.timestampValue;
+  if ('mapValue' in val) {
+    const out: Record<string, any> = {};
+    const fields = val.mapValue?.fields || {};
+    for (const [k, v] of Object.entries(fields)) {
+      out[k] = fromFirestoreValue(v);
+    }
+    return out;
+  }
+  if ('arrayValue' in val) {
+    return (val.arrayValue?.values || []).map(fromFirestoreValue);
+  }
+  return null;
+}
+
+function toFirestoreValue(val: any): any {
+  if (val === null || val === undefined) return { nullValue: null };
+  if (typeof val === 'boolean') return { booleanValue: val };
+  if (typeof val === 'number') {
+    if (Number.isInteger(val)) return { integerValue: String(val) };
+    return { doubleValue: val };
+  }
+  if (typeof val === 'string') return { stringValue: val };
+  if (val instanceof Date) return { timestampValue: val.toISOString() };
+  if (Array.isArray(val)) return { arrayValue: { values: val.map(toFirestoreValue) } };
+  if (typeof val === 'object') {
+    const fields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(val)) {
+      if (v !== undefined) fields[k] = toFirestoreValue(v);
+    }
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(val) };
+}
+
+function parseRestDoc(docObj: any): Record<string, any> {
+  const nameParts = (docObj?.name || '').split('/');
+  const id = nameParts[nameParts.length - 1] || '';
+  const fields = docObj?.fields || {};
+  const data: Record<string, any> = { id };
+  for (const [k, v] of Object.entries(fields)) {
+    data[k] = fromFirestoreValue(v);
+  }
+  return data;
+}
+
+async function restGetDoc(docPath: string, token: string): Promise<Record<string, any> | null> {
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${FIRESTORE_BASE}/${docPath}`, {
+    method: 'GET',
+    headers,
+    cache: 'no-store',
+  });
+  if (!res.ok) return null;
+  const json = await res.json().catch(() => null);
+  return json ? parseRestDoc(json) : null;
+}
+
+async function restPatchDoc(docPath: string, payload: Record<string, any>, token: string): Promise<boolean> {
+  const fields: Record<string, any> = {};
+  const masks: string[] = [];
+  for (const [k, v] of Object.entries(payload)) {
+    if (v !== undefined) {
+      fields[k] = toFirestoreValue(v);
+      masks.push(`updateMask.fieldPaths=${encodeURIComponent(k)}`);
+    }
+  }
+  const queryStr = masks.length > 0 ? `?${masks.join('&')}` : '';
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${FIRESTORE_BASE}/${docPath}${queryStr}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ fields }),
+    cache: 'no-store',
+  });
+  return res.ok;
+}
+
+async function restCreateDoc(colPath: string, payload: Record<string, any>, token: string): Promise<string | null> {
+  const fields: Record<string, any> = {};
+  for (const [k, v] of Object.entries(payload)) {
+    if (v !== undefined) {
+      fields[k] = toFirestoreValue(v);
+    }
+  }
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${FIRESTORE_BASE}/${colPath}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ fields }),
+    cache: 'no-store',
+  });
+  if (!res.ok) return null;
+  const json = await res.json().catch(() => null);
+  const nameParts = (json?.name || '').split('/');
+  return nameParts[nameParts.length - 1] || null;
+}
+
+async function getWorkingPolygonProvider(customRpc?: string): Promise<ethers.JsonRpcProvider> {
+  const candidates = [
+    ...(customRpc ? [customRpc] : []),
+    ...POLYGON_RPCS,
+  ];
+  for (const url of candidates) {
+    try {
+      const provider = new ethers.JsonRpcProvider(url, 137, { staticNetwork: true });
+      const block = await Promise.race([
+        provider.getBlockNumber(),
+        new Promise<number>((_, reject) => setTimeout(() => reject(new Error('RPC timeout')), 4500)),
+      ]);
+      if (block > 0) return provider;
+    } catch {}
+  }
+  return new ethers.JsonRpcProvider(POLYGON_RPCS[0], 137, { staticNetwork: true });
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const adminApp = getAdminApp();
-    const auth = getAuth(adminApp);
-    const db = getFirestore(adminApp);
-
-    // --- 1. Verifikasi Token Otentikasi (Cegah IDOR / Akses Ilegal) ---
     const authHeader = request.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const cookieToken = (request.cookies.get('alibank_token')?.value || '').trim();
+    const refreshToken = (request.cookies.get('alibank_refresh')?.value || '').trim();
+
+    let idToken = bearerToken || cookieToken;
+    if ((!idToken || isJwtExpired(idToken)) && refreshToken) {
+      const refreshed = await refreshFirebaseToken(refreshToken);
+      if (refreshed) idToken = refreshed;
+    }
+
+    if (!idToken) {
       return NextResponse.json({ error: 'Akses ditolak. Token otentikasi diperlukan.' }, { status: 401 });
     }
 
-    const token = authHeader.substring(7);
-    let decodedToken;
-    try {
-      decodedToken = await auth.verifyIdToken(token);
-    } catch (authErr: any) {
+    const decodedToken = await verifyIdTokenViaRest(idToken);
+    if (!decodedToken) {
       return NextResponse.json({ error: 'Sesi kedaluwarsa atau tidak valid. Silakan login kembali.' }, { status: 401 });
     }
 
     const body = await request.json();
     const { userId, asset, amount, recipient } = body;
 
-    // --- 2. Proteksi IDOR: Pastikan pemanggil adalah pemilik sah akun ---
     if (!userId || decodedToken.uid !== userId) {
       return NextResponse.json({ error: 'Pelanggaran keamanan: Anda tidak diizinkan menarik dana dari akun lain.' }, { status: 403 });
     }
 
-    // 1. Validation
     if (!asset || !amount || !recipient) {
       return NextResponse.json({ error: 'Parameter tidak lengkap.' }, { status: 400 });
     }
@@ -66,209 +240,179 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Alamat dompet tujuan EVM tidak valid.' }, { status: 400 });
     }
 
-    const userRef = db.collection('users').doc(userId);
-    const apiKeysSnap = await db.collection('system').doc('api_keys').get();
+    const [userData, config] = await Promise.all([
+      restGetDoc(`users/${userId}`, idToken),
+      restGetDoc('system/api_keys', idToken),
+    ]);
 
-    if (!apiKeysSnap.exists) {
-      return NextResponse.json({ error: 'Konfigurasi Brankas API tidak ditemukan.' }, { status: 500 });
+    if (!userData) {
+      return NextResponse.json({ error: 'Akun nasabah tidak ditemukan.' }, { status: 404 });
     }
 
-    const config = apiKeysSnap.data()!;
-    let pkey = config.vaultPrivateKey;
+    const pkey = config?.vaultPrivateKey || process.env.ALIBANK_VAULT_PRIVATE_KEY;
     if (!pkey) {
-      return NextResponse.json({ error: 'Kunci privat Brankas belum dikonfigurasi.' }, { status: 500 });
+      return NextResponse.json({ error: 'Kunci privat Brankas belum dikonfigurasi di Brankas API Admin.' }, { status: 500 });
     }
     const privateKey = pkey.startsWith('0x') ? pkey : '0x' + pkey;
 
-    // 2. Perform database transaction to verify and deduct custodial balance
-    let userBalance = 0;
-    let userName = 'Nasabah AliBank';
+    const currentCryptoBalances: Record<string, number> = {
+      ...(userData.cryptoBalances || {}),
+    };
+    const userBalance = Number(currentCryptoBalances[asset] ?? 0);
+    const userName = userData.name || 'Nasabah AliBank';
 
-    await db.runTransaction(async (tx) => {
-      const userSnap = await tx.get(userRef);
-      if (!userSnap.exists) {
-        throw new Error('Akun nasabah tidak ditemukan.');
-      }
+    if (!['ETH', 'USDT', 'ALX', 'BTC'].includes(asset)) {
+      return NextResponse.json({ error: `Aset ${asset} tidak didukung.` }, { status: 400 });
+    }
 
-      const userData = userSnap.data()!;
-      userName = userData.name || 'Nasabah AliBank';
+    if (userBalance < numAmount) {
+      return NextResponse.json({ error: `Saldo ${asset} tidak cukup. Tersedia: ${userBalance}` }, { status: 400 });
+    }
 
-      if (asset === 'ETH') {
-        userBalance = userData.cryptoBalances?.ETH ?? 0;
-      } else if (asset === 'USDT') {
-        userBalance = userData.cryptoBalances?.USDT ?? 0;
-      } else if (asset === 'ALX') {
-        userBalance = userData.cryptoBalances?.ALX ?? 0;
-      } else if (asset === 'BTC') {
-        userBalance = userData.cryptoBalances?.BTC ?? 0;
-      } else {
-        throw new Error(`Aset ${asset} tidak didukung.`);
-      }
+    // Potong saldo terlebih dahulu
+    currentCryptoBalances[asset] = Number((userBalance - numAmount).toFixed(8));
+    const deducted = await restPatchDoc(
+      `users/${userId}`,
+      { cryptoBalances: currentCryptoBalances },
+      idToken
+    );
+    if (!deducted) {
+      return NextResponse.json({ error: 'Gagal memperbarui saldo kustodian.' }, { status: 500 });
+    }
 
-      if (userBalance < numAmount) {
-        throw new Error(`Saldo ${asset} tidak cukup. Tersedia: ${userBalance}`);
-      }
-
-      // Deduct custodial balance
-      tx.update(userRef, {
-        [`cryptoBalances.${asset}`]: FieldValue.increment(-numAmount)
-      });
-    });
-
-    // 3. Execute On-Chain Transfer using Ethers.js
     let txHash = '';
     let usedNetwork = '';
 
     try {
       if (asset === 'ALX') {
-        const rpcUrl = config.polygonRpcUrl || 'https://polygon-rpc.com';
-        const provider = new ethers.JsonRpcProvider(rpcUrl);
+        const provider = await getWorkingPolygonProvider(config?.polygonRpcUrl);
         const wallet = new ethers.Wallet(privateKey, provider);
-        const tokenAddress = config.alxContractAddress || '0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd';
-        
+        const tokenAddress = config?.alxContractAddress || '0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd';
         const contract = new ethers.Contract(tokenAddress, ERC20_ABI, wallet);
         const amountWei = ethers.parseEther(numAmount.toString());
 
-        // Broadcast transaction
         const txResponse = await contract.transfer(recipient, amountWei);
         txHash = txResponse.hash;
         usedNetwork = 'Polygon Mainnet';
-        
-        // Wait for 1 confirmation async (don't block API response too long)
         txResponse.wait(1).catch((e: any) => console.error('[ALX Tx Wait Error]:', e));
-
       } else if (asset === 'USDT') {
-        // USDT withdrawal over Polygon for cheap gas fees
-        const rpcUrl = config.polygonRpcUrl || 'https://polygon-rpc.com';
-        const provider = new ethers.JsonRpcProvider(rpcUrl);
+        const provider = await getWorkingPolygonProvider(config?.polygonRpcUrl);
         const wallet = new ethers.Wallet(privateKey, provider);
-        const tokenAddress = '0xc2132D05D31c914a87C6611C10748AEb04B58e8F'; // Polygon USDT
-        
+        const tokenAddress = '0xc2132D05D31c914a87C6611C10748AEb04B58e8F';
         const contract = new ethers.Contract(tokenAddress, ERC20_ABI, wallet);
-        // USDT has 6 decimals on Polygon/Ethereum
         const amountUnits = ethers.parseUnits(numAmount.toString(), 6);
 
         const txResponse = await contract.transfer(recipient, amountUnits);
         txHash = txResponse.hash;
         usedNetwork = 'Polygon Mainnet (USDT)';
-
         txResponse.wait(1).catch((e: any) => console.error('[USDT Tx Wait Error]:', e));
-
       } else if (asset === 'ETH') {
-        // ETH withdrawal from AliBankVault contract over Ethereum Mainnet
-        const rpcUrl = config.ethereumRpcUrl || 'https://ethereum-rpc.publicnode.com';
+        const rpcUrl = config?.ethereumRpcUrl || 'https://ethereum-rpc.publicnode.com';
         const provider = new ethers.JsonRpcProvider(rpcUrl);
         const wallet = new ethers.Wallet(privateKey, provider);
-        const contractAddress = config.vaultContractAddress || '0x56268032A3B3E64CFeF1916d591087CF8dF40945';
-        
-        // Initialize contract
+        const contractAddress = config?.vaultContractAddress || '0x56268032A3B3E64CFeF1916d591087CF8dF40945';
         const vaultContract = new ethers.Contract(contractAddress, AliBankVaultABI, wallet);
-        
-        // 1. Call withdraw() on the vault contract to transfer ETH to the admin wallet
-        console.log(`[ETH Withdraw] Calling AliBankVault.withdraw for ${numAmount} ETH...`);
+
         const vaultTx = await vaultContract.withdraw(ethers.parseEther(numAmount.toString()), {
-          gasLimit: 120000
+          gasLimit: 120000,
         });
         await vaultTx.wait(1);
         txHash = vaultTx.hash;
         usedNetwork = 'Ethereum Mainnet (AliBankVault)';
 
-        // 2. Forward the ETH from the admin wallet to the recipient
         if (recipient.toLowerCase() !== wallet.address.toLowerCase()) {
-          console.log(`[ETH Withdraw] Forwarding ${numAmount} ETH from admin wallet to ${recipient}...`);
           const forwardTx = await wallet.sendTransaction({
             to: recipient,
             value: ethers.parseEther(numAmount.toString()),
-            gasLimit: 21000
+            gasLimit: 21000,
           });
           await forwardTx.wait(1);
-          txHash = forwardTx.hash; // Use the final transfer hash
+          txHash = forwardTx.hash;
         }
-
       } else if (asset === 'BTC') {
-        // BTC is not EVM-native, simulate clearing queue but with real status update
         txHash = `BTC-CLR-${Date.now()}`;
         usedNetwork = 'Bitcoin Network (Simulated)';
       }
-
     } catch (onChainError: any) {
       console.error('[On-Chain Transaction Error]:', onChainError.message);
-      
-      // Rollback database balance if on-chain execution fails
-      await userRef.update({
-        [`cryptoBalances.${asset}`]: FieldValue.increment(numAmount)
-      });
+
+      // Rollback saldo jika pengiriman on-chain gagal
+      currentCryptoBalances[asset] = userBalance;
+      await restPatchDoc(`users/${userId}`, { cryptoBalances: currentCryptoBalances }, idToken);
 
       let friendlyErrorMessage = onChainError.message || String(onChainError);
       if (
-        friendlyErrorMessage.includes('transfer amount exceeds balance') || 
-        friendlyErrorMessage.includes('insufficient funds') || 
+        friendlyErrorMessage.includes('transfer amount exceeds balance') ||
+        friendlyErrorMessage.includes('insufficient funds') ||
         friendlyErrorMessage.includes('exceeds balance')
       ) {
         friendlyErrorMessage = `Saldo token ${asset} di Brankas Pusat (Vault) AliBank saat ini kosong/tidak mencukupi untuk memproses penarikan. Silakan hubungi Admin untuk melakukan isi ulang (funding) Brankas Pusat, atau gunakan koin ALX untuk melakukan pengujian transfer on-chain riil.`;
       }
 
-      return NextResponse.json({
-        error: `Gagal mengirim aset ke blockchain: ${friendlyErrorMessage}`
-      }, { status: 500 });
+      return NextResponse.json(
+        { error: `Gagal mengirim aset ke blockchain: ${friendlyErrorMessage}` },
+        { status: 500 }
+      );
     }
 
-    // 4. Log Transaction and notifications in Firestore
-    const now = new Date().toISOString();
+    const now = new Date();
+    const nowIso = now.toISOString();
     const displayAmount = `${numAmount} ${asset}`;
-    const batch = db.batch();
 
-    // User's transaction log
-    const userTxRef = db.collection('users').doc(userId).collection('transactions').doc();
-    batch.set(userTxRef, {
-      date: now,
-      description: `Penarikan ${asset} ke Wallet Eksternal`,
-      category: 'Crypto Withdrawal',
-      cryptoAmount: numAmount,
-      cryptoCurrency: asset,
-      recipient,
-      type: 'expense',
-      status: 'success',
-      txHash,
-      network: usedNetwork,
-      timestamp: FieldValue.serverTimestamp(),
-    });
-
-    // Global audit log
-    const auditTxRef = db.collection('system').doc('audit').collection('global_transactions').doc();
-    batch.set(auditTxRef, {
-      id: txHash,
-      category: 'Crypto Withdrawal',
-      asset,
-      amount: numAmount,
-      description: `Penarikan ${displayAmount} dari ${userName} ke ${recipient} (${usedNetwork})`,
-      status: 'success',
-      txHash,
-      senderId: userId,
-      recipient,
-      timestamp: FieldValue.serverTimestamp(),
-    });
-
-    // User notification
-    const userNotifRef = db.collection('users').doc(userId).collection('notifications').doc();
-    batch.set(userNotifRef, {
-      title: '📤 Penarikan Berhasil',
-      message: `${displayAmount} berhasil dikirim ke ${recipient.slice(0, 10)}... Hash: ${txHash.slice(0, 10)}...`,
-      type: 'success',
-      read: false,
-      createdAt: now,
-      timestamp: FieldValue.serverTimestamp(),
-    });
-
-    await batch.commit();
+    await Promise.all([
+      restCreateDoc(
+        `users/${userId}/transactions`,
+        {
+          date: nowIso,
+          description: `Penarikan ${asset} ke Wallet Eksternal`,
+          category: 'Crypto Withdrawal',
+          cryptoAmount: numAmount,
+          cryptoCurrency: asset,
+          recipient,
+          type: 'expense',
+          status: 'success',
+          txHash,
+          network: usedNetwork,
+          timestamp: now,
+        },
+        idToken
+      ),
+      restCreateDoc(
+        'system/audit/global_transactions',
+        {
+          id: txHash,
+          category: 'Crypto Withdrawal',
+          asset,
+          amount: numAmount,
+          description: `Penarikan ${displayAmount} dari ${userName} ke ${recipient} (${usedNetwork})`,
+          status: 'success',
+          txHash,
+          senderId: userId,
+          recipient,
+          timestamp: now,
+        },
+        idToken
+      ),
+      restCreateDoc(
+        `users/${userId}/notifications`,
+        {
+          title: '📤 Penarikan Berhasil',
+          message: `${displayAmount} berhasil dikirim ke ${recipient.slice(0, 10)}... Hash: ${txHash.slice(0, 10)}...`,
+          type: 'success',
+          read: false,
+          createdAt: nowIso,
+          timestamp: now,
+        },
+        idToken
+      ),
+    ]);
 
     return NextResponse.json({
       success: true,
       txHash,
       network: usedNetwork,
-      message: `${displayAmount} berhasil ditransfer secara on-chain.`
+      message: `${displayAmount} berhasil ditransfer secara on-chain.`,
     });
-
   } catch (err: any) {
     console.error('[Crypto Withdrawal Route Error]:', err.message);
     return NextResponse.json(

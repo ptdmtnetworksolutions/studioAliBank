@@ -141,20 +141,36 @@ export default function AssetsPage() {
     claimYield: claimStakingYield
   } = useVaultStaking(activeWalletAddress, user?.uid || null);
 
-  // Otomatis sinkronkan deposit on-chain dari external wallet
+  // Otomatis sinkronkan deposit on-chain dari dompet eksternal (MetaMask / Polygon)
   useEffect(() => {
-    if (!user?.uid || !activeWalletAddress || activeWalletAddress === '0xNoWalletInitialized') return;
-    
+    if (!user?.uid || (!userData?.walletAddress && !activeWalletAddress)) return;
+    let isCancelled = false;
+
     const syncDeposits = async () => {
       try {
-        await fetch(`/api/crypto/sync-deposits?userId=${user.uid}`);
+        const { getStoredAuthTokens, triggerFirestoreSync } = await import('@/lib/firestore-proxy-client');
+        const { idToken } = getStoredAuthTokens();
+        const res = await fetch(`/api/crypto/sync-deposits?userId=${user.uid}`, {
+          headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
+          cache: 'no-store',
+        });
+        if (!res.ok || isCancelled) return;
+        const data = await res.json().catch(() => null);
+        if (data?.newDepositsCount > 0) {
+          triggerFirestoreSync();
+        }
       } catch (e) {
         console.warn('Gagal sinkronisasi setoran otomatis:', e);
       }
     };
 
     syncDeposits();
-  }, [user?.uid, activeWalletAddress]);
+    const intervalId = setInterval(syncDeposits, 30000);
+    return () => {
+      isCancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [user?.uid, userData?.walletAddress, activeWalletAddress]);
 
   // Bangun daftar aset dari data Firestore user yang nyata
   const portfolioAssets = useMemo(() => {

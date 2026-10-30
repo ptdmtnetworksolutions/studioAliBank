@@ -11,7 +11,7 @@
  * - Lapor pengiriman
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -31,6 +31,8 @@ import {
   Sparkles,
   Globe,
   FileSearch,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
@@ -38,6 +40,7 @@ import { doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { VaultDepositModal } from "@/components/crypto/VaultDepositModal";
+import { getStoredAuthTokens, triggerFirestoreSync } from "@/lib/firestore-proxy-client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,12 +69,12 @@ const NETWORKS = [
   },
   {
     id: "ALX",
-    name: "Ali-Chain",
+    name: "Ali-Chain (ALX / USDT)",
     icon: Zap,
     color: "text-primary",
     bgColor: "bg-primary",
     network: "Polygon Network",
-    confirmTime: "~2m",
+    confirmTime: "~1-2m",
   },
 ];
 
@@ -83,8 +86,9 @@ export default function MobileReceivePage() {
 
   const [mounted, setMounted] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [selectedNetwork, setSelectedNetwork] = useState(NETWORKS[0]);
+  const [selectedNetwork, setSelectedNetwork] = useState(NETWORKS[2]);
   const [showDepositModal, setShowDepositModal] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -95,6 +99,58 @@ export default function MobileReceivePage() {
     [db, user]
   );
   const { data: userData } = useDoc(userDocRef);
+
+  const handleSyncOnChain = useCallback(async (silent = false) => {
+    if (!user?.uid) return;
+    if (!silent) setIsSyncing(true);
+    try {
+      const { idToken } = getStoredAuthTokens();
+      const res = await fetch(`/api/crypto/sync-deposits?userId=${user.uid}`, {
+        headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
+        cache: 'no-store',
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data) {
+        triggerFirestoreSync();
+        if (data.newDepositsCount > 0) {
+          const alxCredited = data.creditedAmounts?.ALX ? `${data.creditedAmounts.ALX} ALX ` : '';
+          const usdtCredited = data.creditedAmounts?.USDT ? `${data.creditedAmounts.USDT} USDT` : '';
+          toast({
+            title: "📥 Deposit On-Chain Masuk!",
+            description: `Berhasil mengkreditkan ${alxCredited}${usdtCredited} dari jaringan Polygon ke saldo AliBank Anda.`,
+          });
+        } else if (!silent) {
+          const onChainAlx = data.syncedOnChainBalances?.ALX ?? 0;
+          toast({
+            title: "Sinkronisasi Blockchain Selesai",
+            description: `Node Polygon terhubung (Blok #${data.syncedBlock || '-'}). Saldo on-chain terdeteksi: ${onChainAlx} ALX.`,
+          });
+        }
+      } else if (!silent) {
+        toast({
+          variant: "destructive",
+          title: "Gagal Sinkronisasi",
+          description: data?.error || "Gagal menghubungi node Polygon.",
+        });
+      }
+    } catch (e: any) {
+      if (!silent) {
+        toast({
+          variant: "destructive",
+          title: "Kesalahan Jaringan",
+          description: e?.message || "Tidak dapat memeriksa transaksi on-chain.",
+        });
+      }
+    } finally {
+      if (!silent) setIsSyncing(false);
+    }
+  }, [user?.uid, toast]);
+
+  useEffect(() => {
+    if (user?.uid && userData?.walletAddress) {
+      handleSyncOnChain(true);
+    }
+  }, [user?.uid, userData?.walletAddress, handleSyncOnChain]);
 
   // Alamat berdasarkan jaringan yang dipilih
   const displayAddress = useMemo(() => {
@@ -406,6 +462,27 @@ export default function MobileReceivePage() {
           </div>
         )}
 
+        {/* Sinkronisasi Otomatis On-Chain */}
+        <button
+          onClick={() => handleSyncOnChain(false)}
+          disabled={isSyncing}
+          className="w-full flex items-center justify-between gap-4 p-4 rounded-2xl bg-primary/10 border border-primary/20 hover:bg-primary/15 transition-all group disabled:opacity-60"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-md">
+              {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+            </div>
+            <div className="text-left">
+              <p className="text-xs font-black italic uppercase text-foreground">
+                {isSyncing ? "Memeriksa Blockchain Polygon..." : "Cek & Sinkronkan Deposit On-Chain"}
+              </p>
+              <p className="text-[9px] font-bold text-muted-foreground uppercase">
+                Deteksi otomatis ALX / USDT dari MetaMask tanpa antrean
+              </p>
+            </div>
+          </div>
+        </button>
+
         {/* Lapor Pengiriman */}
         <button
           onClick={() =>
@@ -418,10 +495,10 @@ export default function MobileReceivePage() {
           </div>
           <div className="text-left">
             <p className="text-sm font-black italic uppercase text-foreground">
-              Sudah Kirim Aset?
+              Input TXID / Lapor Manual
             </p>
             <p className="text-[9px] font-bold text-muted-foreground uppercase">
-              Lapor pengiriman agar saldo segera diproses
+              Tempel Hash Transaksi (TXID) untuk verifikasi langsung
             </p>
           </div>
         </button>

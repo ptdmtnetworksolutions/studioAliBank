@@ -18,18 +18,21 @@ import {
   CheckCircle2,
   FileSearch,
   ArrowDownToLine,
-  Sparkles
+  Sparkles,
+  RefreshCw,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
+import { getStoredAuthTokens, triggerFirestoreSync } from "@/lib/firestore-proxy-client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,7 +44,7 @@ import { VaultDepositModal } from "@/components/crypto/VaultDepositModal";
 const NETWORKS = [
   { id: 'BTC', name: 'Bitcoin', icon: Bitcoin, color: 'text-orange-500', network: 'Native Network', confirmTime: '10-60m' },
   { id: 'ETH', name: 'Ethereum', icon: Cpu, color: 'text-blue-500', network: 'ERC-20 / EVM', confirmTime: '1-3m' },
-  { id: 'ALX', name: 'Ali-Chain', icon: Zap, color: 'text-primary', network: 'Polygon Network', confirmTime: '~2m' }
+  { id: 'ALX', name: 'Ali-Chain (ALX / USDT)', icon: Zap, color: 'text-primary', network: 'Polygon Network', confirmTime: '~1-2m' }
 ];
 
 export default function CryptoReceivePage() {
@@ -50,14 +53,67 @@ export default function CryptoReceivePage() {
   const db = useFirestore();
   const { toast } = useToast();
   
-  const [selectedNetwork, setSelectedNetwork] = useState(NETWORKS[0]);
+  const [selectedNetwork, setSelectedNetwork] = useState(NETWORKS[2]);
   const [mounted, setMounted] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
+
+  const handleSyncOnChain = useCallback(async (silent = false) => {
+    if (!user?.uid) return;
+    if (!silent) setIsSyncing(true);
+    try {
+      const { idToken } = getStoredAuthTokens();
+      const res = await fetch(`/api/crypto/sync-deposits?userId=${user.uid}`, {
+        headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
+        cache: 'no-store',
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data) {
+        triggerFirestoreSync();
+        if (data.newDepositsCount > 0) {
+          const alxCredited = data.creditedAmounts?.ALX ? `${data.creditedAmounts.ALX} ALX ` : '';
+          const usdtCredited = data.creditedAmounts?.USDT ? `${data.creditedAmounts.USDT} USDT` : '';
+          toast({
+            title: "📥 Deposit On-Chain Masuk!",
+            description: `Berhasil mengkreditkan ${alxCredited}${usdtCredited} dari jaringan Polygon ke saldo AliBank Anda.`,
+          });
+        } else if (!silent) {
+          const onChainAlx = data.syncedOnChainBalances?.ALX ?? 0;
+          toast({
+            title: "Sinkronisasi Blockchain Selesai",
+            description: `Node Polygon terhubung (Blok #${data.syncedBlock || '-'}). Saldo on-chain terdeteksi: ${onChainAlx} ALX.`,
+          });
+        }
+      } else if (!silent) {
+        toast({
+          variant: "destructive",
+          title: "Gagal Sinkronisasi",
+          description: data?.error || "Gagal menghubungi node Polygon.",
+        });
+      }
+    } catch (e: any) {
+      if (!silent) {
+        toast({
+          variant: "destructive",
+          title: "Kesalahan Jaringan",
+          description: e?.message || "Tidak dapat memeriksa transaksi on-chain.",
+        });
+      }
+    } finally {
+      if (!silent) setIsSyncing(false);
+    }
+  }, [user?.uid, toast]);
+
+  useEffect(() => {
+    if (user?.uid && userData?.walletAddress) {
+      handleSyncOnChain(true);
+    }
+  }, [user?.uid, userData?.walletAddress, handleSyncOnChain]);
 
   const displayAddress = useMemo(() => {
     if (!userData) return "Sedang Menyiapkan Dompet...";
@@ -266,15 +322,23 @@ export default function CryptoReceivePage() {
                 <FileSearch className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-sm font-black italic uppercase">Sudah Kirim Aset?</h4>
-                <p className="text-[9px] font-bold text-muted-foreground uppercase">Kirim laporan agar saldo segera diproses.</p>
+                <h4 className="text-sm font-black italic uppercase">Sudah Kirim Aset dari MetaMask?</h4>
+                <p className="text-[9px] font-bold text-muted-foreground uppercase">Sinkronkan langsung dari jaringan Polygon atau kirim laporan TXID.</p>
               </div>
             </div>
+            <Button 
+              onClick={() => handleSyncOnChain(false)}
+              disabled={isSyncing}
+              className="w-full h-12 gold-gradient text-white rounded-xl font-black uppercase italic text-[10px] tracking-widest shadow-lg flex items-center justify-center gap-2"
+            >
+              {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              {isSyncing ? "MEMERIKSA BLOCKCHAIN POLYGON..." : "CEK & SINKRONKAN DEPOSIT ON-CHAIN OTOMATIS"}
+            </Button>
             <Button 
               onClick={() => router.push(`/crypto/confirm-deposit?asset=${selectedNetwork.id}`)}
               className="w-full h-12 bg-accent text-white rounded-xl font-black uppercase italic text-[10px] tracking-widest shadow-lg"
             >
-              LAPOR PENGIRIMAN SEKARANG
+              INPUT TXID / LAPOR PENGIRIMAN MANUAL
             </Button>
           </div>
         </section>

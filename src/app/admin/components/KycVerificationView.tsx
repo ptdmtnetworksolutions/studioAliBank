@@ -24,11 +24,10 @@ import {
 } from "lucide-react";
 import { 
   doc, 
-  updateDoc, 
-  addDoc, 
   collection, 
   serverTimestamp 
 } from "firebase/firestore";
+import { proxyUpdateDoc, proxyAddDoc } from "@/lib/firestore-proxy-client";
 import { useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -61,12 +60,12 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
     try {
       const userRef = doc(db, "users", user.id);
       
-      await updateDoc(userRef, {
+      await proxyUpdateDoc(userRef, {
         kycStatus: "verified",
         tier: "Premium Verified"
       });
 
-      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+      await proxyAddDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `KYC-APP-${Date.now()}`,
         category: "Verifikasi Identitas",
         description: `Super Admin menyetujui KYC untuk ${user.name}. Status akun: TERVERIFIKASI.`,
@@ -75,7 +74,7 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
         userEmail: user.email
       });
 
-      await addDoc(collection(db, "users", user.id, "notifications"), {
+      await proxyAddDoc(collection(db, "users", user.id, "notifications"), {
         title: "KYC Berhasil",
         message: "Selamat! Identitas Anda telah diverifikasi. Akses likuiditas penuh sekarang terbuka.",
         type: "success",
@@ -98,9 +97,9 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
     
     try {
       const userRef = doc(db, "users", user.id);
-      await updateDoc(userRef, { kycStatus: "rejected" });
+      await proxyUpdateDoc(userRef, { kycStatus: "rejected" });
 
-      await addDoc(collection(db, "users", user.id, "notifications"), {
+      await proxyAddDoc(collection(db, "users", user.id, "notifications"), {
         title: "KYC Ditolak",
         message: "Maaf, dokumen identitas Anda tidak terbaca atau tidak sesuai. Silakan kirim ulang KYC Anda.",
         type: "alert",

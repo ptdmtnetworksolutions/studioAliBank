@@ -1,51 +1,147 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
+import { firebaseConfig } from '@/firebase/config';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * POST /api/transfer
- * Atomic P2P asset transfer between AliBank users.
- *
- * Uses Firestore runTransaction to guarantee atomic debit+credit.
- * Supported assets: IDR, USDT, BTC, ETH, ALX
- *
- * Body: {
- *   senderId:    string  — Firebase Auth UID of sender
- *   recipientId: string  — Firebase Auth UID of recipient
- *   asset:       'IDR' | 'USDT' | 'BTC' | 'ETH' | 'ALX'
- *   amount:      number  — amount to transfer (in asset units)
- *   note?:       string  — optional note/memo
- * }
- */
+const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents`;
 
 const SUPPORTED_ASSETS = ['IDR', 'USDT', 'BTC', 'ETH', 'ALX'] as const;
 type Asset = typeof SUPPORTED_ASSETS[number];
 
 function getAdminApp(): App {
   if (getApps().length > 0) return getApps()[0];
-  return initializeApp({ projectId: 'darmedia-pos' });
+  return initializeApp({ projectId: firebaseConfig.projectId });
+}
+
+function fromFirestoreValue(val: any): any {
+  if (!val || typeof val !== 'object') return val;
+  if ('nullValue' in val) return null;
+  if ('booleanValue' in val) return Boolean(val.booleanValue);
+  if ('integerValue' in val) return Number(val.integerValue);
+  if ('doubleValue' in val) return Number(val.doubleValue);
+  if ('stringValue' in val) return String(val.stringValue);
+  if ('timestampValue' in val) return val.timestampValue;
+  if ('mapValue' in val) {
+    const out: Record<string, any> = {};
+    const fields = val.mapValue?.fields || {};
+    for (const [k, v] of Object.entries(fields)) {
+      out[k] = fromFirestoreValue(v);
+    }
+    return out;
+  }
+  if ('arrayValue' in val) {
+    return (val.arrayValue?.values || []).map(fromFirestoreValue);
+  }
+  return null;
+}
+
+function toFirestoreValue(val: any): any {
+  if (val === null || val === undefined) return { nullValue: null };
+  if (typeof val === 'boolean') return { booleanValue: val };
+  if (typeof val === 'number') {
+    if (Number.isInteger(val)) return { integerValue: String(val) };
+    return { doubleValue: val };
+  }
+  if (typeof val === 'string') return { stringValue: val };
+  if (val instanceof Date) return { timestampValue: val.toISOString() };
+  if (Array.isArray(val)) return { arrayValue: { values: val.map(toFirestoreValue) } };
+  if (typeof val === 'object') {
+    if (val.__sentinel === 'serverTimestamp') {
+      return { timestampValue: new Date().toISOString() };
+    }
+    const fields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(val)) {
+      if (v !== undefined) fields[k] = toFirestoreValue(v);
+    }
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(val) };
+}
+
+function parseDoc(docObj: any): Record<string, any> {
+  const fields = docObj?.fields || {};
+  const data: Record<string, any> = {};
+  for (const [k, v] of Object.entries(fields)) {
+    data[k] = fromFirestoreValue(v);
+  }
+  return data;
+}
+
+async function restGetDoc(docPath: string, token: string): Promise<Record<string, any> | null> {
+  const res = await fetch(`${FIRESTORE_BASE}/${docPath}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  });
+  if (!res.ok) return null;
+  const json = await res.json().catch(() => null);
+  return json ? parseDoc(json) : null;
+}
+
+async function restPatchDoc(docPath: string, payload: Record<string, any>, token: string): Promise<void> {
+  const fields: Record<string, any> = {};
+  const masks: string[] = [];
+  for (const [k, v] of Object.entries(payload)) {
+    if (v !== undefined) {
+      fields[k] = toFirestoreValue(v);
+      masks.push(`updateMask.fieldPaths=${encodeURIComponent(k)}`);
+    }
+  }
+  const queryStr = masks.length > 0 ? `?${masks.join('&')}` : '';
+  const res = await fetch(`${FIRESTORE_BASE}/${docPath}${queryStr}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ fields }),
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Gagal memperbarui dokumen ${docPath}`);
+  }
+}
+
+async function restCreateDoc(colPath: string, payload: Record<string, any>, token: string): Promise<void> {
+  const fields: Record<string, any> = {};
+  for (const [k, v] of Object.entries(payload)) {
+    if (v !== undefined) {
+      fields[k] = toFirestoreValue(v);
+    }
+  }
+  await fetch(`${FIRESTORE_BASE}/${colPath}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ fields }),
+    cache: 'no-store',
+  });
 }
 
 export async function POST(request: NextRequest) {
   try {
     const adminApp = getAdminApp();
     const auth = getAuth(adminApp);
-    const db = getFirestore(adminApp);
 
     // --- 1. Verifikasi Token Otentikasi (Cegah IDOR / Akses Ilegal) ---
     const authHeader = request.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7).trim() : '';
+    const cookieToken = request.cookies.get('alibank_token')?.value || '';
+    const token = bearerToken || cookieToken;
+
+    if (!token) {
       return NextResponse.json({ error: 'Akses ditolak. Token otentikasi diperlukan.' }, { status: 401 });
     }
 
-    const token = authHeader.substring(7);
     let decodedToken;
     try {
       decodedToken = await auth.verifyIdToken(token);
-    } catch (authErr: any) {
+    } catch {
       return NextResponse.json({ error: 'Sesi kedaluwarsa atau tidak valid. Silakan login kembali.' }, { status: 401 });
     }
 
@@ -72,142 +168,128 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Tidak bisa transfer ke diri sendiri.' }, { status: 400 });
     }
 
-    const senderRef = db.collection('users').doc(senderId);
-    const recipientRef = db.collection('users').doc(recipientId);
+    const [senderData, recipientData] = await Promise.all([
+      restGetDoc(`users/${senderId}`, token),
+      restGetDoc(`users/${recipientId}`, token),
+    ]);
 
-    let recipientName = 'Pengguna AliBank';
+    if (!senderData) throw new Error('Akun pengirim tidak ditemukan.');
+    if (!recipientData) throw new Error('Akun penerima tidak ditemukan.');
 
-    // --- Atomic Firestore Transaction ---
-    await db.runTransaction(async (tx) => {
-      const senderSnap = await tx.get(senderRef);
-      const recipientSnap = await tx.get(recipientRef);
+    const recipientName = recipientData.name || 'Pengguna AliBank';
 
-      if (!senderSnap.exists) throw new Error('Akun pengirim tidak ditemukan.');
-      if (!recipientSnap.exists) throw new Error('Akun penerima tidak ditemukan.');
+    // --- Balance check ---
+    const senderBalance =
+      asset === 'IDR'
+        ? Number(senderData.totalBalance ?? 0)
+        : Number(senderData.cryptoBalances?.[asset] ?? 0);
 
-      const senderData = senderSnap.data()!;
-      const recipientData = recipientSnap.data()!;
-      recipientName = recipientData.name || 'Pengguna AliBank';
+    if (senderBalance < numAmount) {
+      throw new Error(`Saldo ${asset} tidak cukup. Tersedia: ${senderBalance}`);
+    }
 
-      // --- Balance check ---
-      let senderBalance: number;
-      if (asset === 'IDR') {
-        senderBalance = senderData.totalBalance ?? 0;
-      } else {
-        senderBalance = senderData.cryptoBalances?.[asset] ?? 0;
-      }
+    // --- Debit sender / Credit recipient ---
+    if (asset === 'IDR') {
+      const nextSenderBal = senderBalance - numAmount;
+      const nextRecipientBal = Number(recipientData.totalBalance ?? 0) + numAmount;
+      await restPatchDoc(`users/${senderId}`, { totalBalance: nextSenderBal }, token);
+      await restPatchDoc(`users/${recipientId}`, { totalBalance: nextRecipientBal }, token);
+    } else {
+      const senderCrypto = { ...(senderData.cryptoBalances || {}) };
+      senderCrypto[asset] = Number(senderCrypto[asset] ?? 0) - numAmount;
 
-      if (senderBalance < numAmount) {
-        throw new Error(`Saldo ${asset} tidak cukup. Tersedia: ${senderBalance}`);
-      }
+      const recipientCrypto = { ...(recipientData.cryptoBalances || {}) };
+      recipientCrypto[asset] = Number(recipientCrypto[asset] ?? 0) + numAmount;
 
-      // --- Debit sender / Credit recipient ---
-      if (asset === 'IDR') {
-        tx.update(senderRef, { totalBalance: FieldValue.increment(-numAmount) });
-        tx.update(recipientRef, { totalBalance: FieldValue.increment(numAmount) });
-      } else {
-        tx.update(senderRef, { [`cryptoBalances.${asset}`]: FieldValue.increment(-numAmount) });
-        tx.update(recipientRef, { [`cryptoBalances.${asset}`]: FieldValue.increment(numAmount) });
-      }
-    });
+      await restPatchDoc(`users/${senderId}`, { cryptoBalances: senderCrypto }, token);
+      await restPatchDoc(`users/${recipientId}`, { cryptoBalances: recipientCrypto }, token);
+    }
 
     // --- Post-transaction: log transactions & notifications ---
     const txId = `XFER-${Date.now()}`;
-    const now = new Date().toISOString();
+    const now = new Date();
+    const nowIso = now.toISOString();
     const displayAmount = asset === 'IDR'
       ? `Rp${numAmount.toLocaleString('id-ID')}`
       : `${numAmount} ${asset}`;
 
-    const batch = db.batch();
-
     const isIdr = asset === 'IDR';
 
-    // Sender transaction log
-    const senderTxRef = db.collection('users').doc(senderId).collection('transactions').doc();
     const senderTxData: any = {
-      date: now,
+      date: nowIso,
       description: `Transfer ${asset} ke ${recipientName}`,
       category: 'Transfer',
       type: 'expense',
       status: 'success',
-      timestamp: FieldValue.serverTimestamp(),
+      timestamp: now,
       note: note || '',
       transferId: txId,
       counterpartyId: recipientId,
       counterpartyName: recipientName,
+      asset,
+      ...(isIdr ? { amount: numAmount } : { cryptoAmount: numAmount, cryptoCurrency: asset }),
     };
-    if (isIdr) {
-      senderTxData.amount = numAmount;
-      senderTxData.asset = 'IDR';
-    } else {
-      senderTxData.cryptoAmount = numAmount;
-      senderTxData.cryptoCurrency = asset;
-      senderTxData.asset = asset;
-    }
-    batch.set(senderTxRef, senderTxData);
 
-    // Recipient transaction log
-    const recipientTxRef = db.collection('users').doc(recipientId).collection('transactions').doc();
     const recipientTxData: any = {
-      date: now,
+      date: nowIso,
       description: `Menerima ${asset} dari ${senderName || 'Pengguna AliBank'}`,
       category: 'Transfer',
       type: 'income',
       status: 'success',
-      timestamp: FieldValue.serverTimestamp(),
+      timestamp: now,
       note: note || '',
       transferId: txId,
       counterpartyId: senderId,
       counterpartyName: senderName || 'Pengguna AliBank',
-    };
-    if (isIdr) {
-      recipientTxData.amount = numAmount;
-      recipientTxData.asset = 'IDR';
-    } else {
-      recipientTxData.cryptoAmount = numAmount;
-      recipientTxData.cryptoCurrency = asset;
-      recipientTxData.asset = asset;
-    }
-    batch.set(recipientTxRef, recipientTxData);
-
-    // Recipient notification
-    const recipientNotifRef = db.collection('users').doc(recipientId).collection('notifications').doc();
-    batch.set(recipientNotifRef, {
-      title: '💸 Dana Masuk',
-      message: `Anda menerima ${displayAmount} dari ${senderName || 'Pengguna AliBank'}.`,
-      type: 'success',
-      read: false,
-      createdAt: now,
-      timestamp: FieldValue.serverTimestamp(),
-    });
-
-    // Sender notification
-    const senderNotifRef = db.collection('users').doc(senderId).collection('notifications').doc();
-    batch.set(senderNotifRef, {
-      title: '✅ Transfer Berhasil',
-      message: `${displayAmount} berhasil dikirim ke ${recipientName}.`,
-      type: 'success',
-      read: false,
-      createdAt: now,
-      timestamp: FieldValue.serverTimestamp(),
-    });
-
-    // Global audit log
-    const auditRef = db.collection('system').doc('audit').collection('global_transactions').doc(txId);
-    batch.set(auditRef, {
-      id: txId,
-      category: 'P2P Transfer',
       asset,
-      amount: numAmount,
-      description: `Transfer ${displayAmount} dari ${senderName} (${senderId}) ke ${recipientName} (${recipientId})`,
-      status: 'success',
-      timestamp: FieldValue.serverTimestamp(),
-      senderId,
-      recipientId,
-      note: note || '',
-    });
+      ...(isIdr ? { amount: numAmount } : { cryptoAmount: numAmount, cryptoCurrency: asset }),
+    };
 
-    await batch.commit();
+    await Promise.all([
+      restCreateDoc(`users/${senderId}/transactions`, senderTxData, token),
+      restCreateDoc(`users/${recipientId}/transactions`, recipientTxData, token),
+      restCreateDoc(
+        `users/${recipientId}/notifications`,
+        {
+          title: '💸 Dana Masuk',
+          message: `Anda menerima ${displayAmount} dari ${senderName || 'Pengguna AliBank'}.`,
+          type: 'success',
+          read: false,
+          createdAt: nowIso,
+          timestamp: now,
+        },
+        token
+      ),
+      restCreateDoc(
+        `users/${senderId}/notifications`,
+        {
+          title: '✅ Transfer Berhasil',
+          message: `${displayAmount} berhasil dikirim ke ${recipientName}.`,
+          type: 'success',
+          read: false,
+          createdAt: nowIso,
+          timestamp: now,
+        },
+        token
+      ),
+      restCreateDoc(
+        `system/audit/global_transactions`,
+        {
+          id: txId,
+          category: 'P2P Transfer',
+          asset,
+          amount: numAmount,
+          amountIdr: isIdr ? numAmount : 0,
+          description: `Transfer ${displayAmount} dari ${senderName} (${senderId}) ke ${recipientName} (${recipientId})`,
+          status: 'success',
+          timestamp: now,
+          senderId,
+          recipientId,
+          note: note || '',
+        },
+        token
+      ),
+    ]);
 
     return NextResponse.json({
       success: true,

@@ -26,7 +26,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { doc, increment, collection, serverTimestamp } from "firebase/firestore";
+import { proxyUpdateDoc, proxyAddDoc } from "@/lib/firestore-proxy-client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -205,9 +206,9 @@ export default function ConvertPage() {
       if (toAsset === 'IDR') userUpdates.totalBalance = increment(convertedRaw);
       else userUpdates[`cryptoBalances.${toAsset}`] = increment(convertedRaw);
 
-      await updateDoc(userRef, userUpdates);
+      await proxyUpdateDoc(userRef, userUpdates);
 
-      await addDoc(collection(db, "users", user.uid, "transactions"), {
+      await proxyAddDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
         description: `Swap ${fromAsset} ke ${toAsset}`,
         category: "Trading",
@@ -215,6 +216,10 @@ export default function ConvertPage() {
         fromCurrency: fromAsset,
         toAmount: convertedRaw,
         toCurrency: toAsset,
+        asset: toAsset,
+        amount: toAsset === 'IDR' ? convertedRaw : (fromAsset === 'IDR' ? numAmount : 0),
+        cryptoAmount: toAsset !== 'IDR' ? convertedRaw : numAmount,
+        cryptoCurrency: toAsset !== 'IDR' ? toAsset : fromAsset,
         type: 'income',
         status: "success",
         timestamp: serverTimestamp()

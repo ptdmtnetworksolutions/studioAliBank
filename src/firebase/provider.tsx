@@ -114,10 +114,23 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       auth,
       (firebaseUser) => { 
         if (firebaseUser) {
+          const origGetIdToken = firebaseUser.getIdToken.bind(firebaseUser);
+          (firebaseUser as any).getIdToken = async (forceRefresh?: boolean) => {
+            try {
+              const tok = await origGetIdToken(forceRefresh);
+              if (tok) return tok;
+            } catch {}
+            try {
+              const latest = JSON.parse(localStorage.getItem('alibank_user') || '{}');
+              return latest.idToken || '';
+            } catch {
+              return '';
+            }
+          };
           setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
           // Sync latest Firebase Auth token to localStorage for server proxy
           firebaseUser.getIdToken().then((token) => {
-            if (typeof window !== 'undefined') {
+            if (typeof window !== 'undefined' && token) {
               import('@/lib/firestore-proxy-client').then(({ saveAlibankAuthSession, triggerFirestoreSync }) => {
                 saveAlibankAuthSession({
                   uid: firebaseUser.uid,

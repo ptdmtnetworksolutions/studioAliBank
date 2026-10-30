@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useEffect, useMemo } from "react";
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
-import { doc, collection, query, addDoc, updateDoc, increment, serverTimestamp } from "firebase/firestore";
+import { doc, collection, query, increment, serverTimestamp } from "firebase/firestore";
+import { proxyAddDoc, proxyUpdateDoc } from "@/lib/firestore-proxy-client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Tooltip,
@@ -91,7 +92,7 @@ export default function DepositsPage() {
       const maturity = new Date();
       maturity.setFullYear(maturity.getFullYear() + 1);
 
-      await addDoc(depositsColRef, {
+      await proxyAddDoc(depositsColRef, {
         type: product.name,
         amount: product.min,
         rate: product.rate,
@@ -100,18 +101,20 @@ export default function DepositsPage() {
         createdAt: new Date().toISOString()
       });
 
-      await updateDoc(userDocRef!, { totalBalance: increment(-product.min) });
+      await proxyUpdateDoc(userDocRef!, { totalBalance: increment(-product.min) });
 
-      await addDoc(txColRef, {
+      await proxyAddDoc(txColRef, {
         date: new Date().toISOString(),
         description: `Penempatan Deposito: ${product.name}`,
         category: "Investasi",
+        asset: "IDR",
         amount: product.min,
         type: "expense",
+        status: "success",
         timestamp: serverTimestamp()
       });
 
-      await addDoc(notifColRef, {
+      await proxyAddDoc(notifColRef, {
         title: "Penempatan Deposito Aktif",
         message: `Berhasil menempatkan Rp ${product.min.toLocaleString('id-ID')} pada ${product.name}.`,
         type: "success",

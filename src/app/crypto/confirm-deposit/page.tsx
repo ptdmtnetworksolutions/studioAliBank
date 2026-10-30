@@ -22,11 +22,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useUser, useDoc, useFirestore, useStorage, useMemoFirebase } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { doc, collection, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
+import { proxyAddDoc, getStoredAuthTokens, triggerFirestoreSync } from "@/lib/firestore-proxy-client";
 
 function ConfirmDepositContent() {
   const router = useRouter();
@@ -36,12 +37,13 @@ function ConfirmDepositContent() {
   const storage = useStorage();
   const { toast } = useToast();
   
-  const [asset, setAsset] = useState(searchParams.get('asset') || "BTC");
+  const [asset, setAsset] = useState(searchParams.get('asset') || "ALX");
   const [txid, setTxid] = useState("");
   const [amount, setAmount] = useState("");
   const [proofImage, setProofImage] = useState<File | null>(null);
   const [proofPreview, setProofPreview] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [autoVerified, setAutoVerified] = useState(false);
   const [step, setStep] = useState<'form' | 'success'>('form');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,28 +59,64 @@ function ConfirmDepositContent() {
   };
 
   const handleSubmit = async () => {
-    if (!user || !db || !storage || !txid || !amount || !proofImage) {
-      toast({ variant: "destructive", title: "Data Tidak Lengkap", description: "Pastikan TXID, Jumlah, dan Bukti Transfer sudah terisi." });
+    if (!user || !db || !txid.trim() || !amount) {
+      toast({ variant: "destructive", title: "Data Tidak Lengkap", description: "Pastikan TXID (Hash Transaksi) dan Jumlah sudah terisi." });
       return;
     }
 
     setIsProcessing(true);
     try {
-      // 1. Upload Bukti
-      const fileName = `deposit_${Date.now()}.jpg`;
-      const storageRef = ref(storage, `payment_proofs/${user.uid}/${fileName}`);
-      await uploadBytes(storageRef, proofImage);
-      const downloadUrl = await getDownloadURL(storageRef);
+      const cleanTxid = txid.trim();
 
-      // 2. Simpan Permintaan Topup (Tipe Kripto)
-      await addDoc(collection(db, "topup_requests"), {
+      // 0. Coba verifikasi & kreditkan otomatis di jaringan Polygon (khusus ALX / USDT atau hash 0x...)
+      if (cleanTxid.startsWith('0x') || asset === 'ALX' || asset === 'USDT') {
+        try {
+          const { idToken } = getStoredAuthTokens();
+          const syncRes = await fetch(
+            `/api/crypto/sync-deposits?userId=${user.uid}&txHash=${encodeURIComponent(cleanTxid)}`,
+            {
+              headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
+              cache: 'no-store',
+            }
+          );
+          const syncData = await syncRes.json().catch(() => null);
+          if (syncRes.ok && syncData && syncData.newDepositsCount > 0) {
+            triggerFirestoreSync();
+            setAutoVerified(true);
+            setStep('success');
+            toast({
+              title: "✅ Setoran Terverifikasi Otomatis!",
+              description: `Transaksi on-chain terdeteksi di Polygon Mainnet dan saldo ${asset} Anda telah langsung dikreditkan.`,
+            });
+            return;
+          }
+        } catch (syncErr) {
+          console.warn('Auto-sync fallback ke laporan manual:', syncErr);
+        }
+      }
+
+      // 1. Upload Bukti (Opsional)
+      let downloadUrl = "";
+      if (proofImage && storage) {
+        try {
+          const fileName = `deposit_${Date.now()}.jpg`;
+          const storageRef = ref(storage, `payment_proofs/${user.uid}/${fileName}`);
+          await uploadBytes(storageRef, proofImage);
+          downloadUrl = await getDownloadURL(storageRef);
+        } catch (upErr) {
+          console.warn('Upload bukti dilewati:', upErr);
+        }
+      }
+
+      // 2. Simpan Permintaan Topup (Tipe Kripto) via Proxy-aware helper
+      await proxyAddDoc(collection(db, "topup_requests"), {
         userId: user.uid,
         userName: userData?.name || "Nasabah AliBank",
         userEmail: user.email,
         amount: 0, // Not fiat
         asset: asset,
         estimatedAsset: parseFloat(amount),
-        txid: txid,
+        txid: cleanTxid,
         proofImage: downloadUrl,
         status: "pending",
         type: "crypto_deposit",
@@ -87,15 +125,15 @@ function ConfirmDepositContent() {
       });
 
       // 3. Catat ke Audit Global
-      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+      await proxyAddDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `DEPOSIT-${Date.now()}`,
         category: "External Inflow",
         gateway: "On-Chain Node",
         amountIdr: 0,
         cryptoAmount: parseFloat(amount),
         cryptoCurrency: asset,
-        txHash: txid,
-        description: `Pending on-chain deposit for ${userData?.name}. Hash: ${txid.slice(0,10)}...`,
+        txHash: cleanTxid,
+        description: `Pending on-chain deposit for ${userData?.name}. Hash: ${cleanTxid.slice(0,10)}...`,
         status: "pending_verification",
         timestamp: serverTimestamp(),
         userEmail: user.email
@@ -116,14 +154,24 @@ function ConfirmDepositContent() {
         <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mb-6">
           <CheckCircle2 className="w-10 h-10 text-green-600" />
         </div>
-        <h2 className="text-2xl font-black italic uppercase mb-2">Laporan Diterima</h2>
-        <p className="text-xs text-muted-foreground uppercase tracking-widest mb-8 italic">Data Anda sedang divalidasi oleh Node Keamanan.</p>
+        <h2 className="text-2xl font-black italic uppercase mb-2">
+          {autoVerified ? "Saldo Berhasil Masuk!" : "Laporan Diterima"}
+        </h2>
+        <p className="text-xs text-muted-foreground uppercase tracking-widest mb-8 italic">
+          {autoVerified
+            ? "Setoran Anda telah diverifikasi langsung dari Smart Contract Polygon Mainnet."
+            : "Data Anda sedang divalidasi oleh Node Keamanan."}
+        </p>
         <Card className="w-full max-w-sm liquid-glass border-none rounded-[2rem] p-8 space-y-4 mb-8 shadow-2xl">
-          <p className="text-[10px] font-black text-muted-foreground uppercase">Menunggu Konfirmasi Jaringan</p>
+          <p className="text-[10px] font-black text-muted-foreground uppercase">
+            {autoVerified ? "Terkonfirmasi On-Chain" : "Menunggu Konfirmasi Jaringan"}
+          </p>
           <p className="text-3xl font-black text-primary italic">{amount} {asset}</p>
           <div className="pt-4 border-t border-primary/5">
             <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-              Proses verifikasi biasanya memakan waktu 5-30 menit tergantung kepadatan jaringan blockchain.
+              {autoVerified
+                ? "Koin Anda telah masuk ke portofolio utama AliBank dan siap digunakan."
+                : "Proses verifikasi biasanya memakan waktu 5-30 menit tergantung kepadatan jaringan blockchain."}
             </p>
           </div>
         </Card>
@@ -216,12 +264,12 @@ function ConfirmDepositContent() {
 
           <Button 
             onClick={handleSubmit}
-            disabled={isProcessing || !txid || !amount || !proofImage}
+            disabled={isProcessing || !txid.trim() || !amount}
             className="w-full h-16 gold-gradient text-white rounded-[2rem] font-black italic uppercase shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95"
           >
             {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (
               <>
-                KIRIM LAPORAN SETORAN <Zap className="w-5 h-5 ml-2" />
+                VERIFIKASI & KREDITKAN SETORAN <Zap className="w-5 h-5 ml-2" />
               </>
             )}
           </Button>

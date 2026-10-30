@@ -114,20 +114,40 @@ function DashboardContent() {
     claimYield: claimStakingYield
   } = useVaultStaking(activeWalletAddress, user?.uid || null);
 
-  // Otomatis sinkronkan deposit on-chain dari external wallet
+  // Otomatis sinkronkan deposit on-chain dari dompet eksternal (MetaMask / Polygon)
   useEffect(() => {
-    if (!user?.uid || !activeWalletAddress || activeWalletAddress === '0xNoWalletInitialized') return;
-    
+    if (!user?.uid || (!userData?.walletAddress && !activeWalletAddress)) return;
+    let isCancelled = false;
+
     const syncDeposits = async () => {
       try {
-        await fetch(`/api/crypto/sync-deposits?userId=${user.uid}`);
+        const { getStoredAuthTokens, triggerFirestoreSync } = await import('@/lib/firestore-proxy-client');
+        const { idToken } = getStoredAuthTokens();
+        const res = await fetch(`/api/crypto/sync-deposits?userId=${user.uid}`, {
+          headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
+          cache: 'no-store',
+        });
+        if (!res.ok || isCancelled) return;
+        const data = await res.json().catch(() => null);
+        if (data?.newDepositsCount > 0) {
+          triggerFirestoreSync();
+          toast({
+            title: "📥 Deposit Kripto Masuk!",
+            description: `Setoran baru di jaringan Polygon berhasil dideteksi dan langsung ditambahkan ke saldo AliBank Anda.`,
+          });
+        }
       } catch (e) {
         console.warn('Gagal sinkronisasi setoran otomatis:', e);
       }
     };
 
     syncDeposits();
-  }, [user?.uid, activeWalletAddress]);
+    const intervalId = setInterval(syncDeposits, 30000);
+    return () => {
+      isCancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [user?.uid, userData?.walletAddress, activeWalletAddress, toast]);
 
   const txQuery = useMemoFirebase(() => (db && user ? query(collection(db, "users", user.uid, "transactions"), orderBy("timestamp", "desc"), limit(10)) : null), [db, user]);
   const { data: userTxs } = useCollection(txQuery);
@@ -314,10 +334,40 @@ function DashboardContent() {
   // Debt restriction checker
   const debtInfo = useMemo(() => {
     if (!userData || !userTxs) return { hasDebt: false, totalDebtValIdr: 0, illegalDebtIdr: 0, cryptoDebts: [] };
-    const isNeutralCategory = (cat: string) => ['Legalization', 'Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat);
-    
-    const idrInflow = userTxs.filter(t => t.type === 'income' && t.amount && (t.asset === 'IDR' || (!t.asset && !t.cryptoCurrency)) && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.amount || 0), 0);
-    const idrOutflow = userTxs.filter(t => t.type === 'expense' && t.amount && (t.asset === 'IDR' || (!t.asset && !t.cryptoCurrency)) && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.amount || 0), 0);
+    const isNeutralCategory = (cat: string) => ['Legalization', 'Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat || '');
+
+    let idrInflow = 0;
+    let idrOutflow = 0;
+
+    userTxs.forEach((t: any) => {
+      if (t.status === 'rejected' || isNeutralCategory(t.category)) return;
+      const desc = String(t.description || '');
+
+      // 1. Swap / Convert transactions
+      if (t.fromCurrency || t.toCurrency) {
+        if (t.toCurrency === 'IDR') idrInflow += Number(t.toAmount || t.amount || 0);
+        if (t.fromCurrency === 'IDR') idrOutflow += Number(t.fromAmount || t.amount || 0);
+        return;
+      }
+
+      // 2. Crypto Buy/Sell with IDR Wallet
+      if (t.cryptoCurrency && t.cryptoCurrency !== 'IDR') {
+        if (desc.includes('ke Saldo Dompet') || desc.startsWith('Jual ')) {
+          idrInflow += Number(t.amount || 0);
+        } else if (desc.includes('via Saldo Dompet')) {
+          idrOutflow += Number(t.amount || 0);
+        }
+        return;
+      }
+
+      // 3. Standard IDR transactions
+      if (t.asset === 'IDR' || (!t.asset && !t.cryptoCurrency)) {
+        const amt = Number(t.amount || t.amountIdr || 0);
+        if (t.type === 'income') idrInflow += amt;
+        else if (t.type === 'expense') idrOutflow += amt;
+      }
+    });
+
     const idrLedger = idrInflow - idrOutflow;
     const illegalDebtIdr = Math.max(0, (userData.totalBalance || 0) - idrLedger);
 
@@ -325,8 +375,31 @@ function DashboardContent() {
     const cryptoDebts: any[] = [];
     const assets = ["ALX", "BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "DOGE", "TRX", "DOT", "LINK", "MATIC", "LTC", "SHIB", "AVAX", "UNI", "ATOM", "XLM", "XMR", "NEAR", "ARB", "USDT"];
     assets.forEach(asset => {
-      const cryptoIn = userTxs.filter(t => t.type === 'income' && (t.cryptoCurrency === asset || t.asset === asset) && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.cryptoAmount || (t.asset === asset ? t.amount : 0) || t.toAmount || 0), 0);
-      const cryptoOut = userTxs.filter(t => t.type === 'expense' && (t.cryptoCurrency === asset || t.asset === asset) && !isNeutralCategory(t.category)).reduce((acc, t) => acc + (t.cryptoAmount || (t.asset === asset ? t.amount : 0) || t.fromAmount || 0), 0);
+      let cryptoIn = 0;
+      let cryptoOut = 0;
+
+      userTxs.forEach((t: any) => {
+        if (t.status === 'rejected' || isNeutralCategory(t.category)) return;
+        const desc = String(t.description || '');
+
+        if (t.fromCurrency || t.toCurrency) {
+          if (t.toCurrency === asset) cryptoIn += Number(t.toAmount || t.cryptoAmount || 0);
+          if (t.fromCurrency === asset) cryptoOut += Number(t.fromAmount || 0);
+          return;
+        }
+
+        if (t.cryptoCurrency === asset || t.asset === asset) {
+          const cAmt = Number(t.cryptoAmount || (t.asset === asset ? t.amount : 0) || 0);
+          if (desc.includes('ke Saldo Dompet') || desc.startsWith('Jual ')) {
+            cryptoOut += cAmt;
+          } else if (t.type === 'income') {
+            cryptoIn += cAmt;
+          } else if (t.type === 'expense') {
+            cryptoOut += cAmt;
+          }
+        }
+      });
+
       const cryptoLedger = cryptoIn - cryptoOut;
       const cryptoActual = userData.cryptoBalances?.[asset] || 0;
       const diff = Math.max(0, cryptoActual - cryptoLedger);

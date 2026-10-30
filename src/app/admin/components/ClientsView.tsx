@@ -61,12 +61,10 @@ import {
   orderBy, 
   limit, 
   doc, 
-  updateDoc, 
   increment, 
-  addDoc, 
-  serverTimestamp,
-  deleteDoc
+  serverTimestamp
 } from "firebase/firestore";
+import { proxyGetCollection, proxyUpdateDoc, proxyAddDoc, proxyDeleteDoc } from "@/lib/firestore-proxy-client";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
@@ -106,8 +104,13 @@ export function ClientsView({ allUsers }: any) {
           orderBy("timestamp", "desc"), 
           limit(200)
         );
-        const snapshot = await getDocs(q);
-        setUserTxs(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        const proxyRes = await proxyGetCollection<any>(q);
+        if (proxyRes.ok) {
+          setUserTxs(proxyRes.docs);
+        } else {
+          const snapshot = await getDocs(q);
+          setUserTxs(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        }
       } catch (e) {
         console.error("Audit fetch failed:", e);
       } finally { setLoadingSub(false); }
@@ -125,10 +128,10 @@ export function ClientsView({ allUsers }: any) {
     const key = type === 'idr' ? "totalBalance" : "cryptoBalances.ALX";
 
     // 1. Update Saldo Utama
-    await updateDoc(ref, { [key]: increment(val) });
+    await proxyUpdateDoc(ref, { [key]: increment(val) });
 
     // 2. KRITIS: Tambah ke Riwayat Transaksi Nasabah agar ter-audit sebagai Inflow/Outflow
-    await addDoc(collection(db, "users", selectedUser.id, "transactions"), {
+    await proxyAddDoc(collection(db, "users", selectedUser.id, "transactions"), {
       date: new Date().toISOString(),
       description: `Penyesuaian Manual oleh Admin (${op === 'add' ? 'Penambahan' : 'Pengurangan'})`,
       category: "Adjustment",
@@ -141,7 +144,7 @@ export function ClientsView({ allUsers }: any) {
     });
 
     // 3. Catat ke Audit Global
-    await addDoc(collection(db, "system", "audit", "global_transactions"), {
+    await proxyAddDoc(collection(db, "system", "audit", "global_transactions"), {
       id: `ADJ-${Date.now()}`,
       category: "Manual Adjustment",
       gateway: "Admin Terminal",
@@ -158,7 +161,7 @@ export function ClientsView({ allUsers }: any) {
 
   const handleDelete = async (uid: string) => {
     if (!confirm("BEKUKAN & HAPUS NASABAH? Tindakan ini permanen dan akan mematikan akses likuiditas nasabah.")) return;
-    await deleteDoc(doc(db!, "users", uid));
+    await proxyDeleteDoc(doc(db!, "users", uid));
     toast({ title: "Nasabah Dinonaktifkan" });
   };
 
@@ -169,12 +172,12 @@ export function ClientsView({ allUsers }: any) {
     try {
       const userRef = doc(db, "users", user.id);
       
-      await updateDoc(userRef, {
+      await proxyUpdateDoc(userRef, {
         kycStatus: "verified",
         tier: "Premium Verified"
       });
 
-      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+      await proxyAddDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `KYC-MAN-${Date.now()}`,
         category: "Verifikasi Identitas",
         description: `Super Admin menyetujui KYC secara manual untuk ${user.name}. Status akun: TERVERIFIKASI.`,
@@ -183,9 +186,9 @@ export function ClientsView({ allUsers }: any) {
         userEmail: user.email
       });
 
-      await addDoc(collection(db, "users", user.id, "notifications"), {
+      await proxyAddDoc(collection(db, "users", user.id, "notifications"), {
         title: "KYC Berhasil (Manual)",
-        message: "Selamat! Identitas Anda telah diverifikasi secara manual oleh Admin. Akses likp2p/order-historyuiditas penuh sekarang terbuka.",
+        message: "Selamat! Identitas Anda telah diverifikasi secara manual oleh Admin. Akses likuiditas penuh sekarang terbuka.",
         type: "success",
         read: false,
         createdAt: new Date().toISOString()
@@ -209,27 +212,28 @@ export function ClientsView({ allUsers }: any) {
     let outflow = 0;
 
     userTxs.forEach(t => {
-      if (isNeutralCategory(t.category)) return;
-      const isIncome = t.type === 'income';
-      const isExpense = t.type === 'expense';
-      
-      // Jika transaksi memiliki cryptoCurrency (misal beli via iPaymu),
-      // itu adalah transaksi kripto murni yang tidak merubah totalBalance (IDR) nasabah.
-      if (t.cryptoCurrency && t.cryptoCurrency !== 'IDR') {
+      if (t.status === 'rejected' || isNeutralCategory(t.category)) return;
+      const desc = String(t.description || '');
+
+      if (t.fromCurrency || t.toCurrency) {
+        if (t.toCurrency === 'IDR') inflow += Number(t.toAmount || t.amount || 0);
+        if (t.fromCurrency === 'IDR') outflow += Number(t.fromAmount || t.amount || 0);
         return;
       }
-      
-      if (t.asset) {
-        const amt = t.amount || 0;
-        if (t.asset === 'IDR') {
-          if (isIncome) inflow += amt;
-          else if (isExpense) outflow += amt;
+
+      if (t.cryptoCurrency && t.cryptoCurrency !== 'IDR') {
+        if (desc.includes('ke Saldo Dompet') || desc.startsWith('Jual ')) {
+          inflow += Number(t.amount || 0);
+        } else if (desc.includes('via Saldo Dompet')) {
+          outflow += Number(t.amount || 0);
         }
-      } else {
-        // Fallback untuk transaksi IDR fiat biasa (seperti Deposit, Withdraw, Adjustment)
-        const amt = t.amount || t.amountIdr || 0;
-        if (isIncome) inflow += amt;
-        else if (isExpense) outflow += amt;
+        return;
+      }
+
+      if (t.asset === 'IDR' || (!t.asset && !t.cryptoCurrency)) {
+        const amt = Number(t.amount || t.amountIdr || 0);
+        if (t.type === 'income') inflow += amt;
+        else if (t.type === 'expense') outflow += amt;
       }
     });
     

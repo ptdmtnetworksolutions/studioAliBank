@@ -96,7 +96,10 @@ export default function AliBankPayPage() {
 
         {/* Top Action Cards */}
         <section className="grid grid-cols-2 gap-4">
-          <Card className="bg-muted border-none p-5 rounded-2xl flex flex-col justify-between h-36 relative overflow-hidden group cursor-pointer hover:bg-muted/80 transition-colors shadow-sm">
+          <Card
+            onClick={() => router.push('/transfer')}
+            className="bg-muted border-none p-5 rounded-2xl flex flex-col justify-between h-36 relative overflow-hidden group cursor-pointer hover:bg-muted/80 transition-colors shadow-sm"
+          >
             <Badge className="absolute top-3 right-3 bg-transparent text-primary font-black text-[8px] uppercase p-0">Bonus</Badge>
             <p className="text-sm font-black leading-tight italic max-w-[80%]">Kirim kepada pengguna AliBank</p>
             <div className="self-end">
@@ -104,7 +107,10 @@ export default function AliBankPayPage() {
             </div>
           </Card>
 
-          <Card className="bg-muted border-none p-5 rounded-2xl flex items-center justify-between h-36 cursor-pointer hover:bg-muted/80 transition-colors shadow-sm">
+          <Card
+            onClick={() => router.push('/crypto/send')}
+            className="bg-muted border-none p-5 rounded-2xl flex items-center justify-between h-36 cursor-pointer hover:bg-muted/80 transition-colors shadow-sm"
+          >
             <p className="text-sm font-black leading-tight italic">Kirim On-Chain</p>
             <div className="w-8 h-8 rounded-full border border-border flex items-center justify-center">
               <ArrowUpRight className="w-4 h-4 text-foreground" />

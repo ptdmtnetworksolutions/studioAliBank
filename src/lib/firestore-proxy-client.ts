@@ -434,3 +434,141 @@ export function triggerFirestoreSync() {
     window.dispatchEvent(new Event('alibank-firestore-sync'));
   }
 }
+
+export function extractRefPath(pathOrRef: any): string {
+  if (!pathOrRef) return '';
+  if (typeof pathOrRef === 'string') return pathOrRef.replace(/^\/+|\/+$/g, '');
+  if (typeof pathOrRef.path === 'string') return pathOrRef.path.replace(/^\/+|\/+$/g, '');
+  if (pathOrRef._key?.path?.canonicalString) return pathOrRef._key.path.canonicalString();
+  if (pathOrRef._path?.canonicalString) return pathOrRef._path.canonicalString();
+  if (Array.isArray(pathOrRef._key?.path?.segments)) {
+    const segs = pathOrRef._key.path.segments;
+    const offset = pathOrRef._key.path.offset || 0;
+    const len = pathOrRef._key.path.len ?? segs.length;
+    return segs.slice(offset, offset + len).join('/');
+  }
+  return '';
+}
+
+export async function proxySetDoc(
+  pathOrRef: any,
+  data: Record<string, any>,
+  options?: { merge?: boolean }
+): Promise<any> {
+  const path = extractRefPath(pathOrRef);
+  if (!path) throw new Error('Invalid document reference or path for proxySetDoc');
+  const { idToken, refreshToken } = getStoredAuthTokens();
+  const res = await fetch('/api/firestore/proxy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      op: 'setDoc',
+      path,
+      data,
+      merge: Boolean(options?.merge),
+      idToken,
+      refreshToken,
+    }),
+    cache: 'no-store',
+  });
+  const json = await res.json().catch(() => ({}));
+  if (json?.newIdToken) {
+    updateStoredTokens(json.newIdToken, json.newRefreshToken);
+  }
+  if (!res.ok) {
+    throw new Error(json?.error || `Firestore setDoc failed (${res.status})`);
+  }
+  triggerFirestoreSync();
+  return json.data ? reviveFirestoreData(json.data) : null;
+}
+
+export async function proxyUpdateDoc(
+  pathOrRef: any,
+  data: Record<string, any>
+): Promise<any> {
+  const path = extractRefPath(pathOrRef);
+  if (!path) throw new Error('Invalid document reference or path for proxyUpdateDoc');
+  const { idToken, refreshToken } = getStoredAuthTokens();
+  const res = await fetch('/api/firestore/proxy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      op: 'updateDoc',
+      path,
+      data,
+      merge: true,
+      idToken,
+      refreshToken,
+    }),
+    cache: 'no-store',
+  });
+  const json = await res.json().catch(() => ({}));
+  if (json?.newIdToken) {
+    updateStoredTokens(json.newIdToken, json.newRefreshToken);
+  }
+  if (!res.ok) {
+    throw new Error(json?.error || `Firestore updateDoc failed (${res.status})`);
+  }
+  triggerFirestoreSync();
+  return json.data ? reviveFirestoreData(json.data) : null;
+}
+
+export async function proxyAddDoc(
+  colPathOrRef: any,
+  data: Record<string, any>
+): Promise<{ id: string; path: string; data: any }> {
+  const path = extractRefPath(colPathOrRef);
+  if (!path) throw new Error('Invalid collection reference or path for proxyAddDoc');
+  const { idToken, refreshToken } = getStoredAuthTokens();
+  const res = await fetch('/api/firestore/proxy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      op: 'addDoc',
+      path,
+      data,
+      idToken,
+      refreshToken,
+    }),
+    cache: 'no-store',
+  });
+  const json = await res.json().catch(() => ({}));
+  if (json?.newIdToken) {
+    updateStoredTokens(json.newIdToken, json.newRefreshToken);
+  }
+  if (!res.ok) {
+    throw new Error(json?.error || `Firestore addDoc failed (${res.status})`);
+  }
+  triggerFirestoreSync();
+  const id = json.id || '';
+  return {
+    id,
+    path: `${path}/${id}`,
+    data: json.data ? reviveFirestoreData(json.data) : null,
+  };
+}
+
+export async function proxyDeleteDoc(pathOrRef: any): Promise<void> {
+  const path = extractRefPath(pathOrRef);
+  if (!path) throw new Error('Invalid document reference or path for proxyDeleteDoc');
+  const { idToken, refreshToken } = getStoredAuthTokens();
+  const res = await fetch('/api/firestore/proxy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      op: 'deleteDoc',
+      path,
+      idToken,
+      refreshToken,
+    }),
+    cache: 'no-store',
+  });
+  const json = await res.json().catch(() => ({}));
+  if (json?.newIdToken) {
+    updateStoredTokens(json.newIdToken, json.newRefreshToken);
+  }
+  if (!res.ok) {
+    throw new Error(json?.error || `Firestore deleteDoc failed (${res.status})`);
+  }
+  triggerFirestoreSync();
+}

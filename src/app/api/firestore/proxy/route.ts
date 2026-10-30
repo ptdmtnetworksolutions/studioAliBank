@@ -431,13 +431,107 @@ export async function POST(request: NextRequest) {
 
     if (op === 'setDoc' || op === 'updateDoc') {
       const cleanPath = String(path || '').replace(/^\/+|\/+$/g, '');
+      if (!cleanPath) {
+        return NextResponse.json({ error: 'Invalid document path' }, { status: 400 });
+      }
       const payloadData = body.data || {};
       const merge = op === 'updateDoc' || body.merge === true;
+
+      const hasTransformValue = (val: any): boolean => {
+        if (!val || typeof val !== 'object') return false;
+        if (
+          val._methodName === 'increment' ||
+          val.__op === 'increment' ||
+          val._methodName === 'arrayUnion' ||
+          val._methodName === 'arrayRemove'
+        ) {
+          return true;
+        }
+        if (Array.isArray(val) || val instanceof Date || val.__type === 'timestamp') return false;
+        return Object.values(val).some(hasTransformValue);
+      };
+
+      const needsExistingDoc =
+        merge &&
+        Object.entries(payloadData).some(([k, v]) => k.includes('.') || hasTransformValue(v));
+
+      let existingData: Record<string, any> = {};
+      if (needsExistingDoc) {
+        const getRes = await fetchWithAuth(`${FIRESTORE_BASE}/${cleanPath}`, { method: 'GET' });
+        if (getRes.ok) {
+          const existingJson = await getRes.json().catch(() => ({}));
+          existingData = parseFirestoreDoc(existingJson);
+        }
+      }
+
+      const resolveTransform = (currentVal: any, incomingVal: any): any => {
+        if (!incomingVal || typeof incomingVal !== 'object') return incomingVal;
+        if (incomingVal._methodName === 'increment' || incomingVal.__op === 'increment') {
+          const delta = Number(incomingVal._operand ?? incomingVal.operand ?? 0);
+          const base = typeof currentVal === 'number' && !isNaN(currentVal) ? currentVal : Number(currentVal) || 0;
+          return base + delta;
+        }
+        if (incomingVal._methodName === 'serverTimestamp' || incomingVal.__sentinel === 'serverTimestamp') {
+          return new Date().toISOString();
+        }
+        if (incomingVal._methodName === 'arrayUnion' && Array.isArray(incomingVal._elements)) {
+          const arr = Array.isArray(currentVal) ? [...currentVal] : [];
+          for (const el of incomingVal._elements) {
+            if (!arr.includes(el)) arr.push(el);
+          }
+          return arr;
+        }
+        if (incomingVal._methodName === 'arrayRemove' && Array.isArray(incomingVal._elements)) {
+          const arr = Array.isArray(currentVal) ? [...currentVal] : [];
+          return arr.filter((item) => !incomingVal._elements.includes(item));
+        }
+        if (Array.isArray(incomingVal) || incomingVal instanceof Date || incomingVal.__type === 'timestamp') {
+          return incomingVal;
+        }
+        const baseObj = currentVal && typeof currentVal === 'object' && !Array.isArray(currentVal) ? { ...currentVal } : {};
+        const outObj: Record<string, any> = { ...baseObj };
+        for (const [subK, subV] of Object.entries(incomingVal)) {
+          outObj[subK] = resolveTransform(baseObj[subK], subV);
+        }
+        return outObj;
+      };
+
+      const resolvedPayload: Record<string, any> = {};
+      for (const [k, v] of Object.entries(payloadData)) {
+        if (v === undefined) continue;
+        if (k.includes('.')) {
+          const parts = k.split('.');
+          const topKey = parts[0];
+          if (!(topKey in resolvedPayload)) {
+            const existingTop = existingData[topKey];
+            resolvedPayload[topKey] =
+              existingTop && typeof existingTop === 'object' && !Array.isArray(existingTop)
+                ? JSON.parse(JSON.stringify(existingTop))
+                : {};
+          }
+          let cursor = resolvedPayload[topKey];
+          for (let i = 1; i < parts.length - 1; i++) {
+            const part = parts[i];
+            if (!cursor[part] || typeof cursor[part] !== 'object' || Array.isArray(cursor[part])) {
+              cursor[part] = {};
+            }
+            cursor = cursor[part];
+          }
+          const leafKey = parts[parts.length - 1];
+          cursor[leafKey] = resolveTransform(cursor[leafKey], v);
+        } else {
+          if (needsExistingDoc) {
+            resolvedPayload[k] = resolveTransform(existingData[k], v);
+          } else {
+            resolvedPayload[k] = v;
+          }
+        }
+      }
 
       const fields: Record<string, any> = {};
       const maskParams: string[] = [];
 
-      for (const [k, v] of Object.entries(payloadData)) {
+      for (const [k, v] of Object.entries(resolvedPayload)) {
         if (v !== undefined) {
           fields[k] = toFirestoreValue(v);
           maskParams.push(`updateMask.fieldPaths=${encodeURIComponent(k)}`);

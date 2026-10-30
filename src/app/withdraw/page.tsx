@@ -14,7 +14,10 @@ import {
   ShieldCheck,
   Wallet,
   AlertCircle,
-  Clock
+  Clock,
+  XCircle,
+  RotateCcw,
+  History
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +31,9 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { useState, useMemo, useEffect } from "react";
-import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { useUser, useDoc, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { doc, increment, collection, serverTimestamp, query, orderBy, limit, where } from "firebase/firestore";
+import { proxyUpdateDoc, proxyAddDoc } from "@/lib/firestore-proxy-client";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { 
@@ -39,14 +43,25 @@ import {
   TooltipTrigger 
 } from "@/components/ui/tooltip";
 
+const MIN_WITHDRAW_IDR = 50000;
+
 const availableBanks = [
   { id: "bca", name: "Bank Central Asia (BCA)" },
-  { id: "seabank", name: "SeaBank Indonesia" },
   { id: "mandiri", name: "Bank Mandiri" },
   { id: "bni", name: "Bank Negara Indonesia (BNI)" },
   { id: "bri", name: "Bank Rakyat Indonesia (BRI)" },
-  { id: "cimb", name: "CIMB Niaga" },
+  { id: "bsi", name: "Bank Syariah Indonesia (BSI)" },
+  { id: "seabank", name: "SeaBank Indonesia" },
   { id: "jago", name: "Bank Jago" },
+  { id: "cimb", name: "CIMB Niaga" },
+  { id: "permata", name: "Bank Permata" },
+  { id: "danamon", name: "Bank Danamon" },
+  { id: "btn", name: "Bank Tabungan Negara (BTN)" },
+  { id: "nobu", name: "Bank Nationalnobu (Nobu)" },
+  { id: "dana", name: "E-Wallet DANA" },
+  { id: "ovo", name: "E-Wallet OVO" },
+  { id: "gopay", name: "E-Wallet GoPay" },
+  { id: "shopeepay", name: "E-Wallet ShopeePay" },
 ];
 
 export default function WithdrawPage() {
@@ -60,6 +75,7 @@ export default function WithdrawPage() {
   const [accountNumber, setAccountNumber] = useState("");
   const [accountName, setAccountName] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [step, setStep] = useState<'form' | 'confirmation' | 'success'>('form');
 
   const [mounted, setMounted] = useState(false);
@@ -78,11 +94,69 @@ export default function WithdrawPage() {
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
+  const txQuery = useMemoFirebase(
+    () => (!db || !user) ? null : query(collection(db, "users", user.uid, "transactions"), orderBy("timestamp", "desc"), limit(30)),
+    [db, user]
+  );
+  const { data: recentTx } = useCollection(txQuery);
+
+  const withdrawReqQuery = useMemoFirebase(
+    () => (!db || !user) ? null : query(collection(db, "topup_requests"), where("userId", "==", user.uid)),
+    [db, user]
+  );
+  const { data: userClearingRequests } = useCollection(withdrawReqQuery);
+
+  const withdrawHistory = useMemo(() => {
+    if (!recentTx) return [];
+    return recentTx.filter(
+      (t: any) =>
+        t.category === "Withdraw" ||
+        (typeof t.description === "string" && t.description.startsWith("Withdraw:"))
+    ).slice(0, 6);
+  }, [recentTx]);
+
+  const selectedBankName = useMemo(() => {
+    return availableBanks.find((b) => b.id === targetBank)?.name || targetBank.toUpperCase();
+  }, [targetBank]);
+
+  const handleReviewWithdraw = () => {
+    const cleanAcc = accountNumber.replace(/\D/g, "");
+    const numAmount = parseFloat(amount);
+
+    if (!targetBank) {
+      toast({ variant: "destructive", title: "Pilih Bank Tujuan", description: "Silakan pilih bank atau e-wallet tujuan pencairan." });
+      return;
+    }
+    if (cleanAcc.length < 6) {
+      toast({ variant: "destructive", title: "Nomor Rekening Tidak Valid", description: "Masukkan nomor rekening atau nomor e-wallet yang valid (minimal 6 digit angka)." });
+      return;
+    }
+    if (accountName.trim().length < 2) {
+      toast({ variant: "destructive", title: "Nama Pemilik Rekening Wajib Diisi", description: "Masukkan nama lengkap sesuai buku tabungan atau akun tujuan." });
+      return;
+    }
+    if (isNaN(numAmount) || numAmount < MIN_WITHDRAW_IDR) {
+      toast({ variant: "destructive", title: "Nominal Minimum Rp 50.000", description: `Minimum penarikan tunai adalah Rp ${MIN_WITHDRAW_IDR.toLocaleString("id-ID")}.` });
+      return;
+    }
+    if (numAmount > (userData?.totalBalance || 0)) {
+      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: "Saldo IDR Anda tidak mencukupi untuk penarikan ini." });
+      return;
+    }
+
+    setAccountNumber(cleanAcc);
+    setStep("confirmation");
+  };
+
   const handleWithdraw = async () => {
     if (!user || !db || !userDocRef || !userData) return;
     
     const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) return;
+    const cleanAccountNumber = accountNumber.replace(/\D/g, "");
+    if (isNaN(numAmount) || numAmount < MIN_WITHDRAW_IDR) {
+      toast({ variant: "destructive", title: "Nominal Tidak Valid", description: `Minimum penarikan adalah Rp ${MIN_WITHDRAW_IDR.toLocaleString("id-ID")}.` });
+      return;
+    }
     
     if (numAmount > (userData.totalBalance || 0)) {
       toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: "Saldo IDR Anda tidak mencukupi untuk penarikan ini." });
@@ -92,52 +166,121 @@ export default function WithdrawPage() {
     setIsProcessing(true);
     try {
       // 1. Update Saldo User (Potong Saldo Langsung)
-      await updateDoc(userDocRef, {
+      await proxyUpdateDoc(userDocRef, {
         totalBalance: increment(-numAmount)
       });
 
-      // 2. LOG AUDIT GLOBAL (KEBUTUHAN MONITORING ADMIN)
-      await addDoc(collection(db, "system", "audit", "global_transactions"), {
-        id: `WD-REQ-${Date.now()}`,
-        category: "Withdraw",
-        amountIdr: numAmount,
-        description: `Withdraw Request: Rp ${numAmount.toLocaleString()} to ${targetBank.toUpperCase()} (${accountNumber}). Status: PENDING.`,
-        status: "pending_verification",
-        timestamp: serverTimestamp(),
-        userEmail: user.email
-      });
-
-      // 3. Catat Transaksi dengan status PENDING untuk Verifikasi Gateway
-      await addDoc(collection(db, "users", user.uid, "transactions"), {
+      // 2. Catat Transaksi dengan status PENDING untuk Verifikasi Gateway
+      const txDoc = await proxyAddDoc(collection(db, "users", user.uid, "transactions"), {
         date: new Date().toISOString(),
-        description: `Withdraw: ${targetBank.toUpperCase()} (${accountNumber})`,
+        description: `Withdraw: ${selectedBankName} (${cleanAccountNumber} a.n. ${accountName.trim()})`,
         category: "Withdraw",
+        asset: "IDR",
         amount: numAmount,
         type: "expense",
         status: "pending", 
         bankDetails: {
           bank: targetBank,
-          accountNumber,
-          accountName
+          bankName: selectedBankName,
+          accountNumber: cleanAccountNumber,
+          accountName: accountName.trim()
         },
         timestamp: serverTimestamp()
       });
 
-      // 4. Kirim Notifikasi
-      await addDoc(collection(db, "users", user.uid, "notifications"), {
+      // 3. Masukkan ke Antrean Pusat Kliring Admin (topup_requests dengan type: 'withdraw')
+      await proxyAddDoc(collection(db, "topup_requests"), {
+        type: "withdraw",
+        userId: user.uid,
+        userName: userData.name || user.displayName || user.email?.split("@")[0] || "Nasabah AliBank",
+        userEmail: user.email || "",
+        asset: "IDR",
+        amount: numAmount,
+        totalToTransfer: numAmount,
+        txDocId: txDoc.id,
+        bankDetails: {
+          bank: targetBank,
+          bankName: selectedBankName,
+          accountNumber: cleanAccountNumber,
+          accountName: accountName.trim()
+        },
+        status: "pending",
+        createdAt: serverTimestamp()
+      });
+
+      // 4. LOG AUDIT GLOBAL (KEBUTUHAN MONITORING ADMIN)
+      await proxyAddDoc(collection(db, "system", "audit", "global_transactions"), {
+        id: `WD-REQ-${Date.now()}`,
+        category: "Withdraw",
+        amountIdr: numAmount,
+        description: `Withdraw Request: Rp ${numAmount.toLocaleString('id-ID')} ke ${selectedBankName} (${cleanAccountNumber} a.n. ${accountName.trim()}). Status: PENDING.`,
+        status: "pending_verification",
+        timestamp: serverTimestamp(),
+        userEmail: user.email
+      });
+
+      // 5. Kirim Notifikasi
+      await proxyAddDoc(collection(db, "users", user.uid, "notifications"), {
         title: "Permintaan Penarikan Diterima",
-        message: `Penarikan Rp ${numAmount.toLocaleString('id-ID')} ke ${targetBank.toUpperCase()} sedang diverifikasi oleh AliBank Node.`,
+        message: `Penarikan Rp ${numAmount.toLocaleString('id-ID')} ke ${selectedBankName} (${cleanAccountNumber}) sedang diverifikasi oleh Pusat Kliring AliBank Node.`,
         type: "info",
         read: false,
         createdAt: new Date().toISOString()
       });
 
       setStep('success');
-      toast({ title: "Permintaan Dikirim", description: "Dana Anda sedang dalam proses verifikasi sistem gateway." });
+      toast({ title: "Permintaan Dikirim", description: "Dana Anda telah masuk ke antrean Pusat Kliring untuk segera dicairkan." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal", description: err.message });
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleCancelPendingWithdraw = async (tx: any) => {
+    if (!user || !db || !userDocRef || cancellingId) return;
+    if (tx.status !== "pending") return;
+
+    setCancellingId(tx.id);
+    try {
+      const refundAmount = Number(tx.amount) || 0;
+      if (refundAmount > 0) {
+        await proxyUpdateDoc(userDocRef, {
+          totalBalance: increment(refundAmount)
+        });
+      }
+
+      await proxyUpdateDoc(doc(db, "users", user.uid, "transactions", tx.id), {
+        status: "rejected",
+        category: "Adjustment",
+        description: `${tx.description} [DIBATALKAN & REFUND]`
+      });
+
+      const matchingReq = userClearingRequests?.find(
+        (r: any) => r.type === "withdraw" && r.status === "pending" && (r.txDocId === tx.id || Number(r.amount) === refundAmount)
+      );
+      if (matchingReq) {
+        await proxyUpdateDoc(doc(db, "topup_requests", matchingReq.id), {
+          status: "rejected"
+        });
+      }
+
+      await proxyAddDoc(collection(db, "users", user.uid, "notifications"), {
+        title: "Penarikan Dibatalkan & Saldo Dikembalikan",
+        message: `Permintaan penarikan Rp ${refundAmount.toLocaleString("id-ID")} telah dibatalkan dan dana dikembalikan utuh ke saldo utama Anda.`,
+        type: "info",
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
+      toast({
+        title: "Penarikan Dibatalkan",
+        description: `Dana Rp ${refundAmount.toLocaleString("id-ID")} telah dikembalikan ke saldo IDR Anda.`
+      });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Gagal Membatalkan", description: err.message });
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -223,11 +366,11 @@ export default function WithdrawPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Nomor Rekening</label>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Nomor Rekening / E-Wallet</label>
                             <Input 
                               placeholder="0000000000"
                               value={accountNumber}
-                              onChange={(e) => setAccountNumber(e.target.value)}
+                              onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
                               className="h-14 rounded-2xl liquid-glass border-none font-black italic"
                             />
                           </div>
@@ -264,9 +407,22 @@ export default function WithdrawPage() {
                               className="h-20 pl-16 text-3xl font-black italic rounded-3xl liquid-glass border-none focus:ring-primary/20"
                             />
                           </div>
-                          <div className="flex justify-between px-1">
-                            <p className="text-[9px] font-black text-muted-foreground uppercase">Saldo Tersedia: Rp {userData?.totalBalance?.toLocaleString() || "0"}</p>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {[50000, 100000, 250000, 500000, 1000000].map((preset) => (
+                              <button
+                                key={preset}
+                                type="button"
+                                onClick={() => setAmount(String(preset))}
+                                className="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-[9px] font-black uppercase tracking-wider transition-colors"
+                              >
+                                Rp {(preset / 1000).toLocaleString("id-ID")}rb
+                              </button>
+                            ))}
+                          </div>
+                          <div className="flex justify-between px-1 pt-1">
+                            <p className="text-[9px] font-black text-muted-foreground uppercase">Saldo Tersedia: Rp {userData?.totalBalance?.toLocaleString('id-ID') || "0"}</p>
                             <button 
+                              type="button"
                               onClick={() => setAmount(userData?.totalBalance?.toString() || "0")}
                               className="text-[9px] font-black text-primary uppercase hover:underline"
                             >
@@ -277,7 +433,7 @@ export default function WithdrawPage() {
                       </div>
 
                       <Button 
-                        onClick={() => setStep('confirmation')}
+                        onClick={handleReviewWithdraw}
                         disabled={!amount || !targetBank || !accountNumber || !accountName}
                         className="w-full h-16 gold-gradient text-white text-lg font-black italic uppercase rounded-3xl shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95"
                       >
@@ -294,7 +450,7 @@ export default function WithdrawPage() {
                       <div className="space-y-4 p-6 rounded-[2rem] bg-primary/5 border border-primary/10">
                         <div className="flex justify-between py-2 border-b border-primary/5">
                           <span className="text-[10px] font-black uppercase text-muted-foreground">Bank Tujuan</span>
-                          <span className="text-sm font-black text-accent">{targetBank.toUpperCase()}</span>
+                          <span className="text-sm font-black text-accent">{selectedBankName}</span>
                         </div>
                         <div className="flex justify-between py-2 border-b border-primary/5">
                           <span className="text-[10px] font-black uppercase text-muted-foreground">No. Rekening</span>
@@ -329,6 +485,55 @@ export default function WithdrawPage() {
                     </div>
                   )}
                 </Card>
+
+                {withdrawHistory.length > 0 && (
+                  <Card className="liquid-glass border-none rounded-[2.5rem] p-6 space-y-4 shadow-xl">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <History className="w-4 h-4 text-primary" />
+                        <h4 className="text-xs font-black uppercase italic tracking-wider text-accent">Riwayat & Status Penarikan</h4>
+                      </div>
+                      <Badge variant="outline" className="text-[8px] font-black uppercase border-primary/20 text-primary">
+                        Real-time Kliring
+                      </Badge>
+                    </div>
+                    <div className="space-y-3">
+                      {withdrawHistory.map((tx: any) => (
+                        <div key={tx.id} className="p-4 rounded-2xl bg-background/60 border border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="space-y-1">
+                            <p className="text-xs font-black italic uppercase text-foreground">{tx.description}</p>
+                            <p className="text-[10px] font-bold text-muted-foreground">
+                              {tx.date ? new Date(tx.date).toLocaleString("id-ID") : "Baru saja"}
+                            </p>
+                          </div>
+                          <div className="flex items-center justify-between sm:justify-end gap-3">
+                            <div className="text-right">
+                              <p className="text-sm font-black italic text-primary">Rp {(Number(tx.amount) || 0).toLocaleString("id-ID")}</p>
+                              {tx.status === "pending" ? (
+                                <Badge className="bg-amber-500/15 text-amber-500 border-none text-[8px] font-black uppercase">Menunggu Kliring</Badge>
+                              ) : tx.status === "rejected" ? (
+                                <Badge className="bg-rose-500/15 text-rose-500 border-none text-[8px] font-black uppercase">Dibatalkan / Refunded</Badge>
+                              ) : (
+                                <Badge className="bg-emerald-500/15 text-emerald-500 border-none text-[8px] font-black uppercase">Dicairkan</Badge>
+                              )}
+                            </div>
+                            {tx.status === "pending" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={cancellingId === tx.id}
+                                onClick={() => handleCancelPendingWithdraw(tx)}
+                                className="h-9 px-3 rounded-xl text-[9px] font-black uppercase border-rose-500/30 text-rose-500 hover:bg-rose-500/10"
+                              >
+                                {cancellingId === tx.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><RotateCcw className="w-3 h-3 mr-1" /> Batalkan</>}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
               </div>
 
               <div className="lg:col-span-4 space-y-6">
@@ -451,11 +656,11 @@ export default function WithdrawPage() {
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Nomor Rekening</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Nomor Rekening / E-Wallet</label>
                               <Input 
                                 placeholder="0000000000"
                                 value={accountNumber}
-                                onChange={(e) => setAccountNumber(e.target.value)}
+                                onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
                                 className="h-14 rounded-2xl bg-muted border-none font-black italic text-foreground"
                               />
                             </div>
@@ -492,9 +697,22 @@ export default function WithdrawPage() {
                                 className="h-20 pl-16 text-3xl font-black italic rounded-3xl bg-muted border-none text-foreground focus:ring-primary/20"
                               />
                             </div>
-                            <div className="flex justify-between px-1">
-                              <p className="text-[9px] font-black text-muted-foreground uppercase">Saldo Tersedia: Rp {userData?.totalBalance?.toLocaleString() || "0"}</p>
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              {[50000, 100000, 250000, 500000, 1000000].map((preset) => (
+                                <button
+                                  key={preset}
+                                  type="button"
+                                  onClick={() => setAmount(String(preset))}
+                                  className="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-[9px] font-black uppercase tracking-wider transition-colors"
+                                >
+                                  Rp {(preset / 1000).toLocaleString("id-ID")}rb
+                                </button>
+                              ))}
+                            </div>
+                            <div className="flex justify-between px-1 pt-1">
+                              <p className="text-[9px] font-black text-muted-foreground uppercase">Saldo Tersedia: Rp {userData?.totalBalance?.toLocaleString('id-ID') || "0"}</p>
                               <button 
+                                type="button"
                                 onClick={() => setAmount(userData?.totalBalance?.toString() || "0")}
                                 className="text-[9px] font-black text-primary uppercase hover:underline"
                               >
@@ -505,7 +723,7 @@ export default function WithdrawPage() {
                         </div>
 
                         <Button 
-                          onClick={() => setStep('confirmation')}
+                          onClick={handleReviewWithdraw}
                           disabled={!amount || !targetBank || !accountNumber || !accountName}
                           className="w-full h-16 gold-gradient text-white text-lg font-black italic uppercase rounded-3xl shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95 border-none"
                         >
@@ -522,7 +740,7 @@ export default function WithdrawPage() {
                         <div className="space-y-4 p-6 rounded-[2rem] bg-card border border-border">
                           <div className="flex justify-between py-2 border-b border-border">
                             <span className="text-[10px] font-black uppercase text-muted-foreground">Bank Tujuan</span>
-                            <span className="text-sm font-black text-foreground">{targetBank.toUpperCase()}</span>
+                            <span className="text-sm font-black text-foreground">{selectedBankName}</span>
                           </div>
                           <div className="flex justify-between py-2 border-b border-border">
                             <span className="text-[10px] font-black uppercase text-muted-foreground">No. Rekening</span>
@@ -557,6 +775,55 @@ export default function WithdrawPage() {
                       </div>
                     )}
                   </Card>
+
+                  {withdrawHistory.length > 0 && (
+                    <Card className="bg-card border border-border rounded-[2.5rem] p-8 space-y-5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <History className="w-5 h-5 text-primary" />
+                          <h4 className="text-sm font-black uppercase italic tracking-wider text-foreground">Riwayat & Status Penarikan Terakhir</h4>
+                        </div>
+                        <Badge variant="outline" className="text-[9px] font-black uppercase border-primary/20 text-primary">
+                          Real-time Kliring
+                        </Badge>
+                      </div>
+                      <div className="space-y-3">
+                        {withdrawHistory.map((tx: any) => (
+                          <div key={tx.id} className="p-4 rounded-2xl bg-muted/40 border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="space-y-1">
+                              <p className="text-xs font-black italic uppercase text-foreground">{tx.description}</p>
+                              <p className="text-[10px] font-bold text-muted-foreground">
+                                {tx.date ? new Date(tx.date).toLocaleString("id-ID") : "Baru saja"}
+                              </p>
+                            </div>
+                            <div className="flex items-center justify-between sm:justify-end gap-4">
+                              <div className="text-right">
+                                <p className="text-sm font-black italic text-primary">Rp {(Number(tx.amount) || 0).toLocaleString("id-ID")}</p>
+                                {tx.status === "pending" ? (
+                                  <Badge className="bg-amber-500/15 text-amber-500 border-none text-[8px] font-black uppercase mt-1">Menunggu Kliring Admin</Badge>
+                                ) : tx.status === "rejected" ? (
+                                  <Badge className="bg-rose-500/15 text-rose-500 border-none text-[8px] font-black uppercase mt-1">Dibatalkan / Dana Dikembalikan</Badge>
+                                ) : (
+                                  <Badge className="bg-emerald-500/15 text-emerald-500 border-none text-[8px] font-black uppercase mt-1">Berhasil Dicairkan</Badge>
+                                )}
+                              </div>
+                              {tx.status === "pending" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={cancellingId === tx.id}
+                                  onClick={() => handleCancelPendingWithdraw(tx)}
+                                  className="h-9 px-3 rounded-xl text-[9px] font-black uppercase border-rose-500/30 text-rose-500 hover:bg-rose-500/10"
+                                >
+                                  {cancellingId === tx.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><RotateCcw className="w-3 h-3 mr-1" /> Batalkan & Refund</>}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
                 </div>
 
                 <div className="lg:col-span-4 space-y-6">

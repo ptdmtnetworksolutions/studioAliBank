@@ -22,7 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp, getDocs, query, orderBy, limit, setDoc, updateDoc, increment } from "firebase/firestore";
+import { doc, collection, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
+import { proxyAddDoc, proxyUpdateDoc } from "@/lib/firestore-proxy-client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
@@ -53,17 +54,68 @@ export default function DebtRepaymentPage() {
   // LOGIKA DETEKSI HUTANG (Replikasi dari Home)
   const debtInfo = useMemo(() => {
     if (!userData || !userTxs) return { totalDebtValIdr: 0 };
+    const isNeutralCategory = (cat: string) => ['Legalization', 'Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat || '');
 
-    const idrInflow = userTxs.filter(t => t.type === 'income' && t.amount && (t.asset === 'IDR' || (!t.asset && !t.cryptoCurrency))).reduce((acc, t) => acc + (t.amount || 0), 0);
-    const idrOutflow = userTxs.filter(t => t.type === 'expense' && t.amount && (t.asset === 'IDR' || (!t.asset && !t.cryptoCurrency))).reduce((acc, t) => acc + (t.amount || 0), 0);
+    let idrInflow = 0;
+    let idrOutflow = 0;
+
+    userTxs.forEach((t: any) => {
+      if (t.status === 'rejected' || isNeutralCategory(t.category)) return;
+      const desc = String(t.description || '');
+
+      if (t.fromCurrency || t.toCurrency) {
+        if (t.toCurrency === 'IDR') idrInflow += Number(t.toAmount || t.amount || 0);
+        if (t.fromCurrency === 'IDR') idrOutflow += Number(t.fromAmount || t.amount || 0);
+        return;
+      }
+
+      if (t.cryptoCurrency && t.cryptoCurrency !== 'IDR') {
+        if (desc.includes('ke Saldo Dompet') || desc.startsWith('Jual ')) {
+          idrInflow += Number(t.amount || 0);
+        } else if (desc.includes('via Saldo Dompet')) {
+          idrOutflow += Number(t.amount || 0);
+        }
+        return;
+      }
+
+      if (t.asset === 'IDR' || (!t.asset && !t.cryptoCurrency)) {
+        const amt = Number(t.amount || t.amountIdr || 0);
+        if (t.type === 'income') idrInflow += amt;
+        else if (t.type === 'expense') idrOutflow += amt;
+      }
+    });
+
     const idrLedger = idrInflow - idrOutflow;
     const illegalDebtIdr = Math.max(0, (userData.totalBalance || 0) - idrLedger);
 
     const assets = ['ALX', 'BTC', 'ETH', 'USDT'];
     let totalCryptoDebtValIdr = 0;
     assets.forEach(asset => {
-      const cryptoIn = userTxs.filter(t => t.type === 'income' && (t.cryptoCurrency === asset || t.asset === asset)).reduce((acc, t) => acc + (t.cryptoAmount || (t.asset === asset ? t.amount : 0) || t.toAmount || 0), 0);
-      const cryptoOut = userTxs.filter(t => t.type === 'expense' && (t.cryptoCurrency === asset || t.asset === asset)).reduce((acc, t) => acc + (t.cryptoAmount || (t.asset === asset ? t.amount : 0) || t.fromAmount || 0), 0);
+      let cryptoIn = 0;
+      let cryptoOut = 0;
+
+      userTxs.forEach((t: any) => {
+        if (t.status === 'rejected' || isNeutralCategory(t.category)) return;
+        const desc = String(t.description || '');
+
+        if (t.fromCurrency || t.toCurrency) {
+          if (t.toCurrency === asset) cryptoIn += Number(t.toAmount || t.cryptoAmount || 0);
+          if (t.fromCurrency === asset) cryptoOut += Number(t.fromAmount || 0);
+          return;
+        }
+
+        if (t.cryptoCurrency === asset || t.asset === asset) {
+          const cAmt = Number(t.cryptoAmount || (t.asset === asset ? t.amount : 0) || 0);
+          if (desc.includes('ke Saldo Dompet') || desc.startsWith('Jual ')) {
+            cryptoOut += cAmt;
+          } else if (t.type === 'income') {
+            cryptoIn += cAmt;
+          } else if (t.type === 'expense') {
+            cryptoOut += cAmt;
+          }
+        }
+      });
+
       const diff = Math.max(0, (userData.cryptoBalances?.[asset] || 0) - (cryptoIn - cryptoOut));
       
       const dynamicAlxPriceUsdt = globalLiquidity?.lastAlxPriceUsdt || 12.24;
@@ -97,7 +149,7 @@ export default function DebtRepaymentPage() {
       const dueDate = new Date();
       dueDate.setMonth(dueDate.getMonth() + 1);
 
-      await addDoc(planRef, {
+      await proxyAddDoc(planRef, {
         totalPrincipal: debtInfo.totalDebtValIdr,
         remainingBalance: schedule.totalToRepay,
         interestRate: ANNUAL_INTEREST_RATE,
@@ -109,12 +161,12 @@ export default function DebtRepaymentPage() {
       });
 
       // 2. Beri Label Akun "Restructured"
-      await updateDoc(userDocRef, { 
+      await proxyUpdateDoc(userDocRef, { 
         tier: "Restructured (Legal)"
       });
 
       // 3. Log Audit
-      await addDoc(collection(db, "system", "audit", "global_transactions"), {
+      await proxyAddDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `DEBT-PLAN-${Date.now()}`,
         category: "Debt Restructuring",
         amountIdr: debtInfo.totalDebtValIdr,
