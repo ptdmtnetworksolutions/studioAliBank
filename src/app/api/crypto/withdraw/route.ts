@@ -125,17 +125,32 @@ function parseRestDoc(docObj: any): Record<string, any> {
   return data;
 }
 
-async function restGetDoc(docPath: string, token: string): Promise<Record<string, any> | null> {
+interface RestGetResult {
+  data: Record<string, any> | null;
+  status: number;
+  isQuotaExceeded: boolean;
+}
+
+async function restGetDoc(docPath: string, token: string): Promise<RestGetResult> {
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${FIRESTORE_BASE}/${docPath}`, {
-    method: 'GET',
-    headers,
-    cache: 'no-store',
-  });
-  if (!res.ok) return null;
-  const json = await res.json().catch(() => null);
-  return json ? parseRestDoc(json) : null;
+  try {
+    const res = await fetch(`${FIRESTORE_BASE}/${docPath}`, {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+    if (res.status === 429) {
+      return { data: null, status: 429, isQuotaExceeded: true };
+    }
+    if (!res.ok) {
+      return { data: null, status: res.status, isQuotaExceeded: false };
+    }
+    const json = await res.json().catch(() => null);
+    return { data: json ? parseRestDoc(json) : null, status: res.status, isQuotaExceeded: false };
+  } catch (err: any) {
+    return { data: null, status: 500, isQuotaExceeded: false };
+  }
 }
 
 async function restPatchDoc(docPath: string, payload: Record<string, any>, token: string): Promise<boolean> {
@@ -240,12 +255,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Alamat dompet tujuan EVM tidak valid.' }, { status: 400 });
     }
 
-    const [userData, config] = await Promise.all([
+    const [userRes, configRes] = await Promise.all([
       restGetDoc(`users/${userId}`, idToken),
       restGetDoc('system/api_keys', idToken),
     ]);
 
+    if (userRes.isQuotaExceeded || configRes.isQuotaExceeded) {
+      return NextResponse.json(
+        { error: 'Batas kuota harian database Google Cloud Firebase (Spark Plan) telah tercapai (50.000 reads/hari). Harap upgrade project ke paket Blaze di Firebase Console atau tunggu reset kuota harian sistem.' },
+        { status: 429 }
+      );
+    }
+
+    const userData = userRes.data;
+    const config = configRes.data;
+
     if (!userData) {
+      if (userRes.status === 403) {
+        return NextResponse.json({ error: 'Akses ditolak: Anda tidak memiliki izin untuk membaca data profil ini.' }, { status: 403 });
+      }
       return NextResponse.json({ error: 'Akun nasabah tidak ditemukan.' }, { status: 404 });
     }
 
