@@ -41,6 +41,7 @@ import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { VaultDepositModal } from "@/components/crypto/VaultDepositModal";
 import { getStoredAuthTokens, triggerFirestoreSync } from "@/lib/firestore-proxy-client";
+import { deriveMultiChainAddresses } from "@/lib/crypto/multi-chain-engine";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,24 +51,6 @@ import {
 
 const NETWORKS = [
   {
-    id: "BTC",
-    name: "Bitcoin",
-    icon: Bitcoin,
-    color: "text-orange-500",
-    bgColor: "bg-orange-500",
-    network: "Native Network",
-    confirmTime: "10-60m",
-  },
-  {
-    id: "ETH",
-    name: "Ethereum",
-    icon: Cpu,
-    color: "text-blue-500",
-    bgColor: "bg-blue-600",
-    network: "ERC-20 / EVM",
-    confirmTime: "1-3m",
-  },
-  {
     id: "ALX",
     name: "Ali-Chain (ALX / USDT)",
     icon: Zap,
@@ -75,6 +58,33 @@ const NETWORKS = [
     bgColor: "bg-primary",
     network: "Polygon Network",
     confirmTime: "~1-2m",
+  },
+  {
+    id: "BTC",
+    name: "Bitcoin (SegWit BIP-84)",
+    icon: Bitcoin,
+    color: "text-orange-500",
+    bgColor: "bg-orange-500",
+    network: "Bitcoin Native (bc1q...)",
+    confirmTime: "10-60m",
+  },
+  {
+    id: "SOL",
+    name: "Solana (SOL Native)",
+    icon: Sparkles,
+    color: "text-purple-500",
+    bgColor: "bg-purple-600",
+    network: "Solana Mainnet (SPL)",
+    confirmTime: "~400ms",
+  },
+  {
+    id: "ETH",
+    name: "Ethereum (ERC-20 / Vault)",
+    icon: Cpu,
+    color: "text-blue-500",
+    bgColor: "bg-blue-600",
+    network: "ERC-20 / EVM",
+    confirmTime: "1-3m",
   },
 ];
 
@@ -86,7 +96,7 @@ export default function MobileReceivePage() {
 
   const [mounted, setMounted] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [selectedNetwork, setSelectedNetwork] = useState(NETWORKS[2]);
+  const [selectedNetwork, setSelectedNetwork] = useState(NETWORKS[0]);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -154,11 +164,26 @@ export default function MobileReceivePage() {
 
   // Alamat berdasarkan jaringan yang dipilih
   const displayAddress = useMemo(() => {
-    if (!userData) return "Sedang Menyiapkan Dompet...";
-    if (selectedNetwork.id === "BTC")
-      return userData.btcAddress || "Alamat BTC belum diaktifkan.";
-    return userData.walletAddress || "Alamat EVM belum diaktifkan.";
-  }, [userData, selectedNetwork]);
+    if (!userData && !user) return "Sedang Menyiapkan Dompet...";
+
+    let multiChain: { evmAddress?: string; btcAddress?: string; solanaAddress?: string } = {};
+    const seed = userData?.privateKey || userData?.walletPrivateKey || user?.uid;
+    if (seed) {
+      try {
+        multiChain = deriveMultiChainAddresses(seed);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (selectedNetwork.id === "BTC") {
+      return userData?.btcAddress || multiChain.btcAddress || "Alamat BTC sedang disinkronkan...";
+    }
+    if (selectedNetwork.id === "SOL") {
+      return userData?.solanaAddress || multiChain.solanaAddress || "Alamat Solana sedang disinkronkan...";
+    }
+    return userData?.walletAddress || multiChain.evmAddress || "Alamat EVM sedang disinkronkan...";
+  }, [userData, user, selectedNetwork]);
 
   // QR code URL — encode alamat wallet langsung (standar kripto)
   const qrImageUrl = useMemo(() => {

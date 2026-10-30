@@ -29,7 +29,9 @@ import {
   Coins,
   Cpu,
   Bitcoin,
-  Gamepad2
+  Gamepad2,
+  CreditCard,
+  ChevronRight
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { doc, collection, query, where, orderBy, limit } from "firebase/firestore";
@@ -531,6 +533,26 @@ function MobileHomePageContent() {
         {/* CONDITIONAL MAIN CONTAINER TAB */}
         {activeTab === 'bursa' ? (
           <>
+            {/* TERMINAL EDC SOFTPOS / TAP KARTU CONTACTLESS */}
+            <div 
+              onClick={() => router.push('/crypto/buy?method=nfc')}
+              className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-primary/10 to-amber-500/5 border border-primary/20 flex items-center justify-between cursor-pointer hover:border-primary/40 transition-all shadow-sm"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl gold-gradient flex items-center justify-center text-white shadow-md">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-black uppercase italic tracking-tight text-foreground">Mesin EDC Mandiri (NFC SoftPOS)</p>
+                    <Badge className="bg-emerald-500/10 text-emerald-500 border-none text-[7px] font-black uppercase px-1.5 py-0">Siap Tap</Badge>
+                  </div>
+                  <p className="text-[8px] font-bold text-muted-foreground uppercase mt-0.5">Beli Kripto instan cukup Tap Kartu Debit/Kredit ke HP</p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
+            </div>
+
             {/* INTERACTIVE GAMES SECTION */}
             <section className="space-y-4">
               <h3 className="text-xs font-black uppercase italic text-muted-foreground tracking-widest">Game Populer</h3>

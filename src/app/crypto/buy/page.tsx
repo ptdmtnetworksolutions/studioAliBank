@@ -166,7 +166,7 @@ const PAYMENT_METHODS = [
   { id: 'midtrans', name: "Instan Kliring (Virtual Account/QRIS)", icon: Zap, desc: "BCA, Mandiri, BRI, BNI, QRIS" },
   { id: 'ipaymu', name: "Instan Kliring iPaymu", icon: Landmark, desc: "Virtual Account, QRIS, Retail Store" },
   { id: 'card', name: "Kartu Kredit/Debit Global", icon: CreditCard, desc: "Visa, Mastercard via PayPal" },
-  { id: 'nfc', name: "TAP NFC (Debit/E-Money)", icon: Wifi, desc: "Tapping Kartu Debit atau E-Money ke HP Anda (Settlement via PayPal)" },
+  { id: 'nfc', name: "TAP KARTU EDC (NFC SoftPOS)", icon: Wifi, desc: "Tap Kartu Debit/Kredit Contactless (BCA, Mandiri, BRI, Visa, Mastercard) langsung di mesin EDC Android" },
   { id: 'bank', name: "Transfer Bank Manual", icon: Building2, desc: "Verifikasi Manual (Kode Unik)" },
 ];
 
@@ -1030,7 +1030,13 @@ function CryptoBuyPageInner() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const status = params.get('status');
+      const method = params.get('method');
       
+      if (method === 'nfc') {
+        const nfcPayment = PAYMENT_METHODS.find(p => p.id === 'nfc');
+        if (nfcPayment) setSelectedPayment(nfcPayment);
+      }
+
       if (status === 'success') {
         toast({ 
           title: "Pembayaran iPaymu Sukses", 

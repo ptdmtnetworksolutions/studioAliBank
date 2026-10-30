@@ -20,9 +20,11 @@ import {
   ArrowDownToLine,
   Sparkles,
   RefreshCw,
-  Loader2
+  Loader2,
+  Coins
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { deriveMultiChainAddresses } from "@/lib/crypto/multi-chain-engine";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -42,9 +44,10 @@ import {
 import { VaultDepositModal } from "@/components/crypto/VaultDepositModal";
 
 const NETWORKS = [
-  { id: 'BTC', name: 'Bitcoin', icon: Bitcoin, color: 'text-orange-500', network: 'Native Network', confirmTime: '10-60m' },
-  { id: 'ETH', name: 'Ethereum', icon: Cpu, color: 'text-blue-500', network: 'ERC-20 / EVM', confirmTime: '1-3m' },
-  { id: 'ALX', name: 'Ali-Chain (ALX / USDT)', icon: Zap, color: 'text-primary', network: 'Polygon Network', confirmTime: '~1-2m' }
+  { id: 'ALX', name: 'Ali-Chain (ALX / USDT)', icon: Zap, color: 'text-primary', network: 'Polygon Network', confirmTime: '~1-2m' },
+  { id: 'BTC', name: 'Bitcoin (SegWit BIP-84)', icon: Bitcoin, color: 'text-orange-500', network: 'Bitcoin Native (bc1q...)', confirmTime: '10-60m' },
+  { id: 'SOL', name: 'Solana (SOL Native)', icon: Sparkles, color: 'text-purple-500', network: 'Solana Mainnet (SPL)', confirmTime: '~400ms' },
+  { id: 'ETH', name: 'Ethereum (ERC-20 / Vault)', icon: Cpu, color: 'text-blue-500', network: 'ERC-20 / EVM', confirmTime: '1-3m' }
 ];
 
 export default function CryptoReceivePage() {
@@ -53,7 +56,7 @@ export default function CryptoReceivePage() {
   const db = useFirestore();
   const { toast } = useToast();
   
-  const [selectedNetwork, setSelectedNetwork] = useState(NETWORKS[2]);
+  const [selectedNetwork, setSelectedNetwork] = useState(NETWORKS[0]);
   const [mounted, setMounted] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -116,10 +119,26 @@ export default function CryptoReceivePage() {
   }, [user?.uid, userData?.walletAddress, handleSyncOnChain]);
 
   const displayAddress = useMemo(() => {
-    if (!userData) return "Sedang Menyiapkan Dompet...";
-    if (selectedNetwork.id === 'BTC') return userData.btcAddress || "Alamat BTC belum diaktifkan.";
-    return userData.walletAddress || "Alamat EVM belum diaktifkan.";
-  }, [userData, selectedNetwork]);
+    if (!userData && !user) return "Sedang Menyiapkan Dompet...";
+
+    let multiChain: { evmAddress?: string; btcAddress?: string; solanaAddress?: string } = {};
+    const seed = userData?.privateKey || userData?.walletPrivateKey || user?.uid;
+    if (seed) {
+      try {
+        multiChain = deriveMultiChainAddresses(seed);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (selectedNetwork.id === 'BTC') {
+      return userData?.btcAddress || multiChain.btcAddress || "Alamat BTC sedang disinkronkan...";
+    }
+    if (selectedNetwork.id === 'SOL') {
+      return userData?.solanaAddress || multiChain.solanaAddress || "Alamat Solana sedang disinkronkan...";
+    }
+    return userData?.walletAddress || multiChain.evmAddress || "Alamat EVM sedang disinkronkan...";
+  }, [userData, user, selectedNetwork]);
 
   const copyAddress = () => {
     if (displayAddress.includes("Sedang")) return;

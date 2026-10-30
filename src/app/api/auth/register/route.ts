@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { firebaseConfig } from '@/firebase/config';
 import { ethers } from 'ethers';
+import { deriveMultiChainAddresses } from '@/lib/crypto/multi-chain-engine';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,10 +76,9 @@ export async function POST(request: NextRequest) {
       );
     } catch (_) {}
 
-    // 3. Web3 Wallet & Simulated BTC address
+    // 3. Web3 Multi-Chain Native Wallet (EVM, Bitcoin SegWit BIP-84, Solana)
     const internalWallet = ethers.Wallet.createRandom();
-    const mockBtcSuffix = Array.from({ length: 38 }, () => "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 36)]).join("");
-    const mockBtcAddress = `bc1q${mockBtcSuffix}`;
+    const multiChain = deriveMultiChainAddresses(internalWallet.privateKey);
     const accountNumber = '88' + Math.floor(1000000000 + Math.random() * 9000000000).toString();
 
     // 4. Simpan ke Firestore via REST API menggunakan idToken user
@@ -102,15 +102,17 @@ export async function POST(request: NextRequest) {
             savings: { integerValue: "0" },
             tier: { stringValue: 'Regular' },
             kycStatus: { stringValue: 'unverified' },
-            walletAddress: { stringValue: internalWallet.address },
-            btcAddress: { stringValue: mockBtcAddress },
+            walletAddress: { stringValue: multiChain.evmAddress },
+            btcAddress: { stringValue: multiChain.btcAddress },
+            solanaAddress: { stringValue: multiChain.solanaAddress },
             cryptoBalances: {
               mapValue: {
                 fields: {
                   BTC: { integerValue: "0" },
                   ETH: { integerValue: "0" },
                   USDT: { integerValue: "0" },
-                  ALX: { integerValue: "0" }
+                  ALX: { integerValue: "0" },
+                  SOL: { integerValue: "0" }
                 }
               }
             },

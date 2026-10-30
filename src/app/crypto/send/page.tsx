@@ -16,7 +16,8 @@ import {
   Key,
   Info,
   ArrowRightLeft,
-  Flame
+  Flame,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -38,7 +39,7 @@ export default function CryptoSendPage() {
   const db = useFirestore();
   const { toast } = useToast();
 
-  const [assetType, setAssetType] = useState<"ETH" | "BTC" | "USDT" | "ALX">("ETH");
+  const [assetType, setAssetType] = useState<"ETH" | "BTC" | "USDT" | "ALX" | "SOL">("ETH");
   const [sendMode, setSendMode] = useState<"custodial" | "self-custodial">("custodial");
   const [recipientAddress, setRecipientAddress] = useState("");
   const [amount, setAmount] = useState("");
@@ -243,7 +244,15 @@ export default function CryptoSendPage() {
               <p className="text-[8px] font-bold text-muted-foreground uppercase">TRANSACTION HASH:</p>
               <p className="text-[8px] font-black text-slate-800 dark:text-primary break-all font-mono mt-1 select-all">{txHash}</p>
               <a 
-                href={assetType === 'ALX' || assetType === 'USDT' ? `https://polygonscan.com/tx/${txHash}` : `https://etherscan.io/tx/${txHash}`} 
+                href={
+                  assetType === 'ALX' || assetType === 'USDT' 
+                    ? `https://polygonscan.com/tx/${txHash}` 
+                    : assetType === 'SOL'
+                    ? `https://solscan.io/tx/${txHash}`
+                    : assetType === 'BTC'
+                    ? `https://mempool.space/tx/${txHash}`
+                    : `https://etherscan.io/tx/${txHash}`
+                } 
                 target="_blank" 
                 rel="noreferrer"
                 className="text-[8px] font-black text-blue-500 uppercase underline mt-2 block"
@@ -284,18 +293,19 @@ export default function CryptoSendPage() {
           <div className="space-y-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Pilih Jaringan & Aset</label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-5 gap-1.5">
                 {[
-                  { id: 'ETH', icon: Cpu, color: 'text-blue-500', network: 'Ethereum' },
+                  { id: 'ALX', icon: Zap, color: 'text-yellow-500', network: 'Polygon' },
                   { id: 'BTC', icon: Bitcoin, color: 'text-orange-500', network: 'Bitcoin' },
+                  { id: 'SOL', icon: Sparkles, color: 'text-purple-500', network: 'Solana' },
                   { id: 'USDT', icon: ShieldCheck, color: 'text-green-500', network: 'Polygon' },
-                  { id: 'ALX', icon: Zap, color: 'text-yellow-500', network: 'Polygon' }
+                  { id: 'ETH', icon: Cpu, color: 'text-blue-500', network: 'Ethereum' },
                 ].map((asset) => (
                   <button 
                     key={asset.id}
                     onClick={() => setAssetType(asset.id as any)}
                     className={cn(
-                      "p-3 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all",
+                      "p-2.5 rounded-2xl border-2 flex flex-col items-center gap-1.5 transition-all",
                       assetType === asset.id 
                         ? "border-primary bg-primary/10 text-amber-600 dark:text-primary" 
                         : "border-slate-200 dark:border-white/5 bg-transparent hover:bg-muted/50"
