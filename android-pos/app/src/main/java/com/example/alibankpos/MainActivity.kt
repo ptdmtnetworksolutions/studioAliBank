@@ -18,6 +18,8 @@ import android.nfc.Tag
 import android.nfc.tech.IsoDep
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -50,7 +52,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -138,21 +142,48 @@ class MainActivity : FragmentActivity() {
         pendingGeoOrigin = null
     }
 
-    // --- Camera Permission (for KYC verification in WebView) ---
+    // --- Notification Permission (Android 13+ / API 33+) ---
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ -> }
+
+    // --- Camera & Audio Permissions (for KYC verification & WebRTC in WebView) ---
     private var pendingCameraPermissionRequest: PermissionRequest? = null
     private val cameraPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            pendingCameraPermissionRequest?.let { req ->
-                runOnUiThread {
-                    req.grant(req.resources)
-                }
-            }
-        } else {
-            pendingCameraPermissionRequest?.deny()
-        }
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val req = pendingCameraPermissionRequest
         pendingCameraPermissionRequest = null
+        if (req == null) return@registerForActivityResult
+
+        val grantedResources = mutableListOf<String>()
+        for (resource in req.resources) {
+            when (resource) {
+                PermissionRequest.RESOURCE_VIDEO_CAPTURE -> {
+                    val camGranted = permissions[Manifest.permission.CAMERA] == true ||
+                        ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                    if (camGranted) grantedResources.add(resource)
+                }
+                PermissionRequest.RESOURCE_AUDIO_CAPTURE -> {
+                    val micGranted = permissions[Manifest.permission.RECORD_AUDIO] == true ||
+                        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+                    if (micGranted) grantedResources.add(resource)
+                }
+                else -> grantedResources.add(resource)
+            }
+        }
+
+        runOnUiThread {
+            try {
+                if (grantedResources.isNotEmpty()) {
+                    req.grant(grantedResources.toTypedArray())
+                } else {
+                    req.deny()
+                }
+            } catch (_: Exception) {
+                try { req.deny() } catch (_: Exception) {}
+            }
+        }
     }
 
     // ======================================================================
@@ -176,6 +207,7 @@ class MainActivity : FragmentActivity() {
 
         try {
             createNotificationChannel()
+            requestNotificationPermissionIfNeeded()
         } catch (_: Exception) {}
 
         setContent {
@@ -184,7 +216,12 @@ class MainActivity : FragmentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .systemBarsPadding()
+                            .imePadding()
+                    ) {
                         // Main WebView hosting the Next.js web application
                         AppWebView()
 
@@ -209,6 +246,36 @@ class MainActivity : FragmentActivity() {
                 }
             }
         })
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val deepLinkUrl = extractDeepLinkUrl(intent)
+        if (deepLinkUrl != null) {
+            webView?.loadUrl(deepLinkUrl)
+        }
+    }
+
+    private fun extractDeepLinkUrl(intent: Intent?): String? {
+        val data = intent?.data ?: return null
+        val scheme = data.scheme?.lowercase() ?: return null
+        val host = data.host?.lowercase() ?: return null
+        if ((scheme == "https" || scheme == "http") && host == "alibank.tarroz.com") {
+            return data.toString()
+        }
+        return null
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                this, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
     }
 
     override fun onResume() {
@@ -253,7 +320,7 @@ class MainActivity : FragmentActivity() {
                     setLayerType(View.LAYER_TYPE_HARDWARE, null)
                     setBackgroundColor(android.graphics.Color.BLACK)
 
-                    // WebViewClient: lets web contents navigate naturally
+                    // WebViewClient: lets web contents navigate naturally and handles deep links
                     webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView?, url: String?) {
                             super.onPageFinished(view, url)
@@ -261,7 +328,51 @@ class MainActivity : FragmentActivity() {
                         }
 
                         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                            return false
+                            val uri = request?.url ?: return false
+                            val urlString = uri.toString()
+                            val scheme = uri.scheme?.lowercase() ?: return false
+
+                            if (scheme == "http" || scheme == "https") {
+                                return false
+                            }
+
+                            if (scheme == "intent") {
+                                try {
+                                    val intent = Intent.parseUri(urlString, Intent.URI_INTENT_SCHEME)
+                                    intent.addCategory(Intent.CATEGORY_BROWSABLE)
+                                    intent.component = null
+                                    intent.selector = null
+                                    if (intent.resolveActivity(packageManager) != null) {
+                                        startActivity(intent)
+                                        return true
+                                    }
+                                    val fallbackUrl = intent.getStringExtra("browser_fallback_url")
+                                    if (!fallbackUrl.isNullOrEmpty()) {
+                                        view?.loadUrl(fallbackUrl)
+                                        return true
+                                    }
+                                    val pkg = intent.`package`
+                                    if (!pkg.isNullOrEmpty()) {
+                                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pkg")))
+                                        return true
+                                    }
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Failed to open intent URI: ${e.message}")
+                                }
+                                return true
+                            }
+
+                            // Custom schemes: gopay://, shopeeid://, dana://, metamask://, wc://, tel:, mailto:, whatsapp://, etc.
+                            return try {
+                                val externalIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                startActivity(externalIntent)
+                                true
+                            } catch (e: Exception) {
+                                Log.w(TAG, "No app installed to handle scheme $scheme: ${e.message}")
+                                true
+                            }
                         }
 
                         override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
@@ -298,17 +409,29 @@ class MainActivity : FragmentActivity() {
                         }
 
                         override fun onPermissionRequest(request: PermissionRequest?) {
-                            val resources = request?.resources ?: emptyArray()
-                            val needsCamera = resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)
-                            if (needsCamera && ContextCompat.checkSelfPermission(
-                                    this@MainActivity, Manifest.permission.CAMERA
-                                ) != PackageManager.PERMISSION_GRANTED
+                            if (request == null) return
+                            val resources = request.resources ?: emptyArray()
+                            val missingPermissions = mutableListOf<String>()
+
+                            if (resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE) &&
+                                ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
                             ) {
+                                missingPermissions.add(Manifest.permission.CAMERA)
+                            }
+                            if (resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE) &&
+                                ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                missingPermissions.add(Manifest.permission.RECORD_AUDIO)
+                            }
+
+                            if (missingPermissions.isNotEmpty()) {
                                 pendingCameraPermissionRequest = request
-                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                cameraPermissionLauncher.launch(missingPermissions.toTypedArray())
                             } else {
                                 runOnUiThread {
-                                    request?.grant(resources)
+                                    try {
+                                        request.grant(resources)
+                                    } catch (_: Exception) {}
                                 }
                             }
                         }
@@ -354,7 +477,7 @@ class MainActivity : FragmentActivity() {
                         // Append app identifier so Next.js server knows it's the official app
                         val defaultUa = userAgentString ?: ""
                         if (!defaultUa.contains("AliBank-Android")) {
-                            userAgentString = "$defaultUa AliBank-Android/2.1"
+                            userAgentString = "$defaultUa AliBank-Android/2.2"
                         }
                     }
 
@@ -371,8 +494,9 @@ class MainActivity : FragmentActivity() {
                     // Register native bridge
                     addJavascriptInterface(AndroidNfcBridge(), "AndroidBridge")
 
-                    // Load URL
-                    loadUrl(HOME_URL)
+                    // Load initial URL (supports deep links from intent)
+                    val initialUrl = extractDeepLinkUrl(this@MainActivity.intent) ?: HOME_URL
+                    loadUrl(initialUrl)
 
                     this@MainActivity.webView = this
                 }
@@ -571,13 +695,21 @@ class MainActivity : FragmentActivity() {
             bin6.startsWith("589388") || bin6.startsWith("601988") || clean.startsWith("4890") -> "Nobu Bank (SoftPOS Mitra)" to "DEBIT"
 
             // BSI
-            bin6.startsWith("432204") || bin6.startsWith("606388") || bin4 == "6063" -> "BSI" to "DEBIT"
-            bin6.startsWith("425944") || bin6.startsWith("410887") || bin6.startsWith("521082") -> "BSI" to "KREDIT"
+            bin6.startsWith("432204") || bin6.startsWith("521082") || bin6.startsWith("606388") || bin4 == "6063" -> "BSI" to "DEBIT"
+            bin6.startsWith("425944") || bin6.startsWith("410887") -> "BSI" to "KREDIT"
 
             else -> "Bank Partner" to (if (network == "VISA" && clean.startsWith("40")) "DEBIT" else "KREDIT")
         }
 
         return Triple(bank, type, network)
+    }
+
+    private fun escapeJsString(input: String): String {
+        return input
+            .replace("\\", "\\\\")
+            .replace("'", "\\'")
+            .replace("\n", " ")
+            .replace("\r", " ")
     }
 
     private fun handleNfcTag(tag: Tag) {
@@ -604,12 +736,12 @@ class MainActivity : FragmentActivity() {
                 val (bankName, cardType, cardNetwork) = detectCardBankAndType(number)
                 Toast.makeText(this, "Kartu $bankName ($cardType $cardNetwork) Terbaca!", Toast.LENGTH_SHORT).show()
 
-                val safeNumber = number.replace("'", "\\'")
-                val safeExpiry = expiry.replace("'", "\\'")
-                val safeName = name.replace("'", "\\'")
-                val safeBank = bankName.replace("'", "\\'")
-                val safeType = cardType.replace("'", "\\'")
-                val safeNetwork = cardNetwork.replace("'", "\\'")
+                val safeNumber = escapeJsString(number)
+                val safeExpiry = escapeJsString(expiry)
+                val safeName = escapeJsString(name)
+                val safeBank = escapeJsString(bankName)
+                val safeType = escapeJsString(cardType)
+                val safeNetwork = escapeJsString(cardNetwork)
 
                 webView?.evaluateJavascript(
                     "javascript:if(window.onAndroidNfcRead) window.onAndroidNfcRead('$safeNumber', '$safeExpiry', '123', '$safeName', '$safeBank', '$safeType', '$safeNetwork');" +
@@ -863,6 +995,11 @@ class MainActivity : FragmentActivity() {
         try {
             val toneG = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
             toneG.startTone(ToneGenerator.TONE_PROP_BEEP, 180)
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    toneG.release()
+                } catch (_: Exception) {}
+            }, 250)
         } catch (_: Exception) {}
     }
 
@@ -937,6 +1074,16 @@ class MainActivity : FragmentActivity() {
 
     fun showNotification(title: String, message: String) {
         try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val granted = ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+                if (!granted) {
+                    runOnUiThread { requestNotificationPermissionIfNeeded() }
+                    return
+                }
+            }
+
             val intent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
@@ -955,7 +1102,7 @@ class MainActivity : FragmentActivity() {
                 .setDefaults(NotificationCompat.DEFAULT_ALL)
 
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            notificationManager?.notify(System.currentTimeMillis().toInt(), builder.build())
+            notificationManager?.notify((System.currentTimeMillis() and 0x7FFFFFFF).toInt(), builder.build())
         } catch (e: Exception) {
             Log.w(TAG, "showNotification error: ${e.message}")
         }
@@ -987,8 +1134,8 @@ class MainActivity : FragmentActivity() {
                     val name = if (nameIndex >= 0) cursor.getString(nameIndex) ?: "" else ""
                     val number = if (numberIndex >= 0) cursor.getString(numberIndex) ?: "" else ""
 
-                    val safeName = name.replace("'", "\\'").replace("\\", "\\\\")
-                    val safeNumber = number.replace("'", "\\'").replace("\\", "\\\\")
+                    val safeName = escapeJsString(name)
+                    val safeNumber = escapeJsString(number)
 
                     runOnUiThread {
                         webView?.evaluateJavascript(

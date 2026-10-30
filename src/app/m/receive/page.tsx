@@ -119,7 +119,15 @@ export default function MobileReceivePage() {
 
   const handleCopy = (text: string, fieldName: string) => {
     if (!text || text.includes("Sedang") || text.includes("belum")) return;
-    navigator.clipboard.writeText(text);
+    const bridge = typeof window !== "undefined" ? (window as any).AndroidBridge : null;
+    if (bridge?.copyToClipboard) {
+      try {
+        bridge.copyToClipboard(text);
+      } catch {}
+    }
+    try {
+      navigator.clipboard?.writeText(text);
+    } catch {}
     setCopiedField(fieldName);
     toast({
       title: "Berhasil Disalin",
@@ -132,6 +140,13 @@ export default function MobileReceivePage() {
     const shareText = `Kirim ${selectedNetwork.name} ke dompet AliBank saya:\nNama: ${
       userData?.name || "Pengguna AliBank"
     }\nAlamat: ${displayAddress}`;
+    const bridge = typeof window !== "undefined" ? (window as any).AndroidBridge : null;
+    if (bridge?.shareText) {
+      try {
+        bridge.shareText(shareText);
+        return;
+      } catch {}
+    }
     if (navigator.share) {
       try {
         await navigator.share({ title: "AliBank — Terima Aset", text: shareText });

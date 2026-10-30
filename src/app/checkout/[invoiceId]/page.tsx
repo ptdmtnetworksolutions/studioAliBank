@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { detectCardBin } from "@/lib/bin-detector";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { 
   doc, 
@@ -274,22 +275,28 @@ export default function CheckoutPage() {
   // Register Android WebView Bridge callbacks untuk NFC POS
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      (window as any).onAndroidNfcRead = (number: string, expiry: string, cvv: string, holder: string) => {
+      const handleNfcRead = (
+        number: string,
+        expiry: string,
+        cvv: string,
+        holder: string,
+        nativeBank?: string,
+        nativeType?: string,
+        nativeNetwork?: string
+      ) => {
         setPosState('verifying');
-        const clean = number.replace(/\s+/g, '');
+        const clean = (number || '').replace(/\s+/g, '');
         const masked = clean.length >= 8 
           ? `${clean.slice(0, 4)} **** **** ${clean.slice(-4)}`
           : '**** **** **** ****';
-        
-        const brand = clean.startsWith('4') ? 'VISA CONTACTLESS' 
-                    : (clean.startsWith('5') || clean.startsWith('2')) ? 'MASTERCARD CONTACTLESS' 
-                    : clean.startsWith('6') ? 'GPN DEBIT INDONESIA' 
-                    : 'CONTACTLESS EMV';
-        
-        const bank = clean.startsWith('4') ? 'BANK CENTRAL ASIA (BCA)'
-                   : clean.startsWith('5') ? 'BANK MANDIRI'
-                   : clean.startsWith('6') ? 'BANK RAKYAT INDONESIA (BRI)'
-                   : 'ISSUER BANK';
+
+        const binInfo = detectCardBin(clean);
+        const bank = (nativeBank && nativeBank !== 'Bank Partner')
+          ? nativeBank
+          : binInfo.bank.name || binInfo.bank.shortName;
+        const typeLabel = nativeType || binInfo.cardType;
+        const networkLabel = nativeNetwork || binInfo.network;
+        const brand = `${networkLabel} ${typeLabel}`.trim();
 
         setTimeout(() => {
           setFoundCustomer({
@@ -303,9 +310,12 @@ export default function CheckoutPage() {
         }, 500);
       };
 
+      (window as any).onAndroidNfcRead = handleNfcRead;
+      (window as any).onNfcCardTapped = handleNfcRead;
+
       (window as any).setNfcStatus = (status: string) => {
         if (status === 'scanning') setPosState('scanning');
-        else if (status === 'idle') setPosState('idle');
+        else if (status === 'idle' || status === 'failed') setPosState('idle');
       };
 
       (window as any).setNfcError = (err: string | null) => {
@@ -316,6 +326,7 @@ export default function CheckoutPage() {
     return () => {
       if (typeof window !== 'undefined') {
         (window as any).onAndroidNfcRead = undefined;
+        (window as any).onNfcCardTapped = undefined;
         (window as any).setNfcStatus = undefined;
         (window as any).setNfcError = undefined;
       }

@@ -363,7 +363,15 @@ function MobileHomePageContent() {
 
   const copyAddress = () => {
     if (userData?.walletAddress) {
-      navigator.clipboard.writeText(userData.walletAddress);
+      const bridge = typeof window !== 'undefined' ? (window as any).AndroidBridge : null;
+      if (bridge?.copyToClipboard) {
+        try {
+          bridge.copyToClipboard(userData.walletAddress);
+        } catch {}
+      }
+      try {
+        navigator.clipboard?.writeText(userData.walletAddress);
+      } catch {}
       toast({ title: "Alamat Disalin", description: "Alamat dompet telah disalin." });
     }
   };
