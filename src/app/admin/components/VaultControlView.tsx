@@ -32,6 +32,7 @@ import { doc } from "firebase/firestore";
 import { ethers, JsonRpcProvider, formatEther } from "ethers";
 import { cn } from "@/lib/utils";
 import { AliBankVaultABI } from "@/lib/abi/AliBankVault";
+import { IDR_RATE_FALLBACK } from "@/lib/currency";
 
 export function VaultControlView({ auditLogs }: any) {
   const { user } = useUser();
@@ -46,6 +47,27 @@ export function VaultControlView({ auditLogs }: any) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
   const [nodeError, setNodeError] = useState<string | null>(null);
+  const [ethUsd, setEthUsd] = useState<number>(2420);
+  const [idrPerUsd, setIdrPerUsd] = useState<number>(IDR_RATE_FALLBACK);
+
+  // Harga ETH & kurs IDR live untuk estimasi nilai kontrak (tidak lagi hard-code $2000 x 17.690)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const symbols = ["ETHUSDT", "USDTIDRT"];
+        const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}&t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!Array.isArray(data) || cancelled) return;
+        const eth = parseFloat(data.find((d: any) => d.symbol === 'ETHUSDT')?.lastPrice);
+        const rate = parseFloat(data.find((d: any) => d.symbol === 'USDTIDRT')?.lastPrice);
+        if (eth > 0) setEthUsd(eth);
+        if (rate > 10000) setIdrPerUsd(rate);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "api_keys") : null), [db]);
   const { data: config } = useDoc(apiKeysRef);
@@ -186,7 +208,7 @@ export function VaultControlView({ auditLogs }: any) {
               <h3 className="text-5xl font-black italic tracking-tighter text-blue-400">
                 {parseFloat(onChainEth).toFixed(6)} <span className="text-xl text-white/30">ETH</span>
               </h3>
-              <p className="text-[10px] font-bold text-white/20 mt-2">≈ Rp {(parseFloat(onChainEth) * 17690 * 2000).toLocaleString()} (Nilai Kontrak)</p>
+              <p className="text-[10px] font-bold text-white/20 mt-2">≈ Rp {Math.round(parseFloat(onChainEth) * ethUsd * idrPerUsd).toLocaleString('id-ID')} (Nilai Kontrak @ ${ethUsd.toLocaleString('en-US', { maximumFractionDigits: 2 })})</p>
             </div>
 
             <div className="space-y-4">

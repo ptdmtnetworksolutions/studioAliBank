@@ -32,7 +32,7 @@ export async function GET() {
       const rate = data?.rates?.IDR;
       if (rate && typeof rate === 'number' && rate > 10000) {
         return NextResponse.json(
-          { rate, source: 'open.er-api.com', timestamp: Date.now() },
+          { rate, rates: data.rates, source: 'open.er-api.com', timestamp: Date.now() },
           { headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200' } }
         );
       }
@@ -47,7 +47,7 @@ export async function GET() {
   const timeout2 = setTimeout(() => controller2.abort(), 4000);
 
   try {
-    const res2 = await fetch('https://api.frankfurter.app/latest?from=USD&to=IDR', {
+    const res2 = await fetch('https://api.frankfurter.app/latest?from=USD', {
       signal: controller2.signal,
       next: { revalidate: 3600 },
       headers: { 'Accept': 'application/json' }
@@ -59,7 +59,7 @@ export async function GET() {
       const rate = data?.rates?.IDR;
       if (rate && typeof rate === 'number' && rate > 10000) {
         return NextResponse.json(
-          { rate, source: 'frankfurter.app', timestamp: Date.now() },
+          { rate, rates: data.rates, source: 'frankfurter.app', timestamp: Date.now() },
           { headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200' } }
         );
       }

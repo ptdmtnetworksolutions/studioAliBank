@@ -1,6 +1,7 @@
 
 "use client";
 
+import { IDR_RATE_FALLBACK } from "@/lib/currency";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
 import { 
@@ -122,7 +123,7 @@ export default function DebtRepaymentPage() {
       const diff = Math.max(0, (userData.cryptoBalances?.[asset] || 0) - (cryptoIn - cryptoOut));
       
       const dynamicAlxPriceUsdt = globalLiquidity?.lastAlxPriceUsdt || 12.24;
-      const dynamicAlxPriceIdr = Math.round(dynamicAlxPriceUsdt * 15850);
+      const dynamicAlxPriceIdr = Math.round(dynamicAlxPriceUsdt * IDR_RATE_FALLBACK);
       const priceMap: any = { ALX: dynamicAlxPriceIdr, BTC: 1100000000, ETH: 35000000, USDT: 17690 };
       totalCryptoDebtValIdr += diff * (priceMap[asset] || 0);
     });

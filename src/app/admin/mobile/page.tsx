@@ -7,6 +7,7 @@
  * Otorisasi: alidzulfikar075@gmail.com / IJOuQpjEOMgvlYfzvQ1yfp976Oa2
  */
 
+import { ALX_PRICE_USD_FALLBACK, IDR_RATE_FALLBACK } from "@/lib/currency";
 import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { 
@@ -98,7 +99,7 @@ const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
 const ALX_CONTRACT = process.env.NEXT_PUBLIC_ALX_ADDRESS || "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
 const GLOBAL_RPC = process.env.NEXT_PUBLIC_POLYGON_RPC || "https://rpc.ankr.com/polygon";
-const ALX_PRICE_IDR = 194004;
+const ALX_PRICE_IDR = Math.round(ALX_PRICE_USD_FALLBACK * IDR_RATE_FALLBACK);
 
 export default function AdminMobilePage() {
   return (

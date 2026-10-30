@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { useState, useMemo, useEffect } from "react";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
+import { ALX_PRICE_USD_FALLBACK, IDR_RATE_FALLBACK } from "@/lib/currency";
 import { LogoIcon } from "@/components/ui/logo";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
@@ -91,12 +92,12 @@ const ASSET_CONFIG: Record<string, {
   }
 };
 
-// Harga pasar estimasi untuk kalkulasi nilai IDR
-const PRICE_IDR: Record<string, number> = {
-  BTC: 1_600_000_000,
-  ETH: 55_000_000,
-  USDT: 16_500,
-  ALX: 12_240_000,
+// Harga fallback (USD) bila ticker live belum termuat. Nilai IDR dihitung dinamis: harga USD x kurs IDR/USD live.
+const FALLBACK_PRICE_USD: Record<string, number> = {
+  BTC: 66450,
+  ETH: 2420,
+  USDT: 1,
+  ALX: ALX_PRICE_USD_FALLBACK,
 };
 
 export default function AssetsPage() {
@@ -109,6 +110,47 @@ export default function AssetsPage() {
   
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
+
+  const [priceUsd, setPriceUsd] = useState<Record<string, number>>(FALLBACK_PRICE_USD);
+  const [idrPerUsd, setIdrPerUsd] = useState<number>(IDR_RATE_FALLBACK);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPrices = async () => {
+      try {
+        const symbols = ["BTCUSDT", "ETHUSDT", "USDTIDRT"];
+        const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}&t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!Array.isArray(data) || cancelled) return;
+        const btc = parseFloat(data.find((d: any) => d.symbol === 'BTCUSDT')?.lastPrice);
+        const eth = parseFloat(data.find((d: any) => d.symbol === 'ETHUSDT')?.lastPrice);
+        const rate = parseFloat(data.find((d: any) => d.symbol === 'USDTIDRT')?.lastPrice);
+        setPriceUsd(prev => ({
+          ...prev,
+          ...(btc > 0 ? { BTC: btc } : {}),
+          ...(eth > 0 ? { ETH: eth } : {}),
+        }));
+        if (rate > 10000) setIdrPerUsd(rate);
+      } catch {}
+    };
+    loadPrices();
+    const id = setInterval(loadPrices, 30000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  const liquidityDocRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
+  const { data: globalLiquidity } = useDoc(liquidityDocRef);
+
+  const PRICE_IDR = useMemo<Record<string, number>>(() => {
+    const alx = Number(globalLiquidity?.lastAlxPriceUsdt) > 0 ? Number(globalLiquidity?.lastAlxPriceUsdt) : priceUsd.ALX;
+    return {
+      BTC: priceUsd.BTC * idrPerUsd,
+      ETH: priceUsd.ETH * idrPerUsd,
+      USDT: idrPerUsd,
+      ALX: alx * idrPerUsd,
+    };
+  }, [priceUsd, idrPerUsd, globalLiquidity?.lastAlxPriceUsdt]);
 
   useEffect(() => {
     setMounted(true);
@@ -186,7 +228,7 @@ export default function AssetsPage() {
       })
       .filter(a => a.amount > 0) // Hanya tampilkan yang punya saldo
       .sort((a, b) => b.valueIdr - a.valueIdr); // Urut berdasarkan nilai terbesar
-  }, [userData]);
+  }, [userData, PRICE_IDR]);
 
   // Total nilai portofolio kripto custodial dalam IDR
   const totalCryptoValueIdr = useMemo(() => 
@@ -196,7 +238,7 @@ export default function AssetsPage() {
   // Nilai tabungan vault on-chain dalam IDR
   const vaultValueIdr = useMemo(() => 
     (vaultBalanceEth ?? 0) * (PRICE_IDR.ETH ?? 0),
-  [vaultBalanceEth]);
+  [vaultBalanceEth, PRICE_IDR]);
 
   // Total saldo IDR fiat
   const totalIdrBalance = userData?.totalBalance ?? 0;

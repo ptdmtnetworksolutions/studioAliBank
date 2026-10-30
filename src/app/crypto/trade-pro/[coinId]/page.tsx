@@ -57,17 +57,19 @@ import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
+import { ALX_PRICE_USD_FALLBACK, IDR_RATE_FALLBACK } from "@/lib/currency";
 
-const ALX_PRICE_USD = 12.24;
-const USDT_IDR_RATE = 17690;
-const ALX_PRICE_IDR = ALX_PRICE_USD * USDT_IDR_RATE; // Rp 194,004
+const ALX_PRICE_USD = ALX_PRICE_USD_FALLBACK;
+const USDT_IDR_RATE = IDR_RATE_FALLBACK;
+const ALX_PRICE_IDR = ALX_PRICE_USD * USDT_IDR_RATE; // fallback ~ Rp 216.526
 
-const ASSET_PRICES: Record<string, number> = {
+// Harga fallback (IDR) hanya dipakai bila ticker live belum termuat; harga live diambil saat halaman dibuka.
+const DEFAULT_ASSET_PRICES: Record<string, number> = {
   IDR: 1,
   ALX: ALX_PRICE_IDR,
-  USDT: 17690,
-  ETH: 1987.12 * 17690,
-  BTC: 66262.29 * 17690
+  USDT: USDT_IDR_RATE,
+  ETH: 2420 * USDT_IDR_RATE,
+  BTC: 66450 * USDT_IDR_RATE
 };
 
 export default function TradeProPage() {
@@ -94,6 +96,48 @@ export default function TradeProPage() {
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
   const { data: userData } = useDoc(userDocRef);
+
+  const liquidityDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "system", "liquidity"), [db, user]);
+  const { data: globalLiquidity } = useDoc(liquidityDocRef);
+
+  // Harga aset live (IDR per 1 unit). Disimpan di ref agar snapshot saat order dibuka selalu memakai harga terbaru.
+  const assetPricesRef = useRef<Record<string, number>>({ ...DEFAULT_ASSET_PRICES });
+  // Snapshot order: stake & harga dikunci saat order dibuka sehingga tidak berubah jika UI diubah selama countdown.
+  const tradeSnapshotRef = useRef<{ amount: number; currency: string; valueIdr: number; alxPriceIdr: number; prediction: 'high' | 'low' } | null>(null);
+
+  useEffect(() => {
+    const alxUsd = Number(globalLiquidity?.lastAlxPriceUsdt);
+    const rate = assetPricesRef.current.USDT;
+    if (alxUsd > 0 && rate > 0) assetPricesRef.current.ALX = alxUsd * rate;
+  }, [globalLiquidity?.lastAlxPriceUsdt]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPrices = async () => {
+      try {
+        const symbols = ["BTCUSDT", "ETHUSDT", "USDTIDRT"];
+        const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}&t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!Array.isArray(data) || cancelled) return;
+        const btc = parseFloat(data.find((d: any) => d.symbol === 'BTCUSDT')?.lastPrice);
+        const eth = parseFloat(data.find((d: any) => d.symbol === 'ETHUSDT')?.lastPrice);
+        const rate = parseFloat(data.find((d: any) => d.symbol === 'USDTIDRT')?.lastPrice);
+        const idrPerUsd = rate > 10000 ? rate : assetPricesRef.current.USDT;
+        const alxUsd = Number(globalLiquidity?.lastAlxPriceUsdt) > 0 ? Number(globalLiquidity?.lastAlxPriceUsdt) : ALX_PRICE_USD;
+        assetPricesRef.current = {
+          IDR: 1,
+          USDT: idrPerUsd,
+          ALX: alxUsd * idrPerUsd,
+          BTC: (btc > 0 ? btc : 66450) * idrPerUsd,
+          ETH: (eth > 0 ? eth : 2420) * idrPerUsd,
+        };
+      } catch {}
+    };
+    loadPrices();
+    const id = setInterval(loadPrices, 20000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [globalLiquidity?.lastAlxPriceUsdt]);
 
   const visibleCandles = useMemo(() => {
     return candles.slice(-zoomLevel);
@@ -175,7 +219,15 @@ export default function TradeProPage() {
     updateDoc(userDocRef, { [balanceKey]: increment(-amount) });
 
     const liquidityRef = doc(db, "system", "liquidity");
-    const amountInIdr = amount * ASSET_PRICES[stakeCurrency];
+    const stakePriceIdr = assetPricesRef.current[stakeCurrency] ?? DEFAULT_ASSET_PRICES[stakeCurrency];
+    const amountInIdr = amount * stakePriceIdr;
+    tradeSnapshotRef.current = {
+      amount,
+      currency: stakeCurrency,
+      valueIdr: amountInIdr,
+      alxPriceIdr: assetPricesRef.current.ALX ?? ALX_PRICE_IDR,
+      prediction: type,
+    };
     updateDoc(liquidityRef, { 
       totalFiatInjected: increment(amountInIdr),
       tradeXGrossVolumeIdr: increment(amountInIdr) 
@@ -189,11 +241,16 @@ export default function TradeProPage() {
   };
 
   const finishTrade = async () => {
-    if (!entryPrice || !userDocRef || !user || !db) return;
-    const isWin = prediction === 'high' ? price > entryPrice : price < entryPrice;
+    const snap = tradeSnapshotRef.current;
+    if (!entryPrice || !userDocRef || !user || !db || !snap) return;
+    tradeSnapshotRef.current = null;
+    const isWin = snap.prediction === 'high' ? price > entryPrice : price < entryPrice;
     
-    const amountInIdr = amount * ASSET_PRICES[stakeCurrency];
-    const rewardInAlx = isWin ? (amountInIdr * 1.9) / ALX_PRICE_IDR : 0;
+    // Semua nominal memakai snapshot saat order dibuka (bukan state UI saat ini)
+    const stakeAmount = snap.amount;
+    const stakeCur = snap.currency;
+    const amountInIdr = snap.valueIdr;
+    const rewardInAlx = isWin ? (amountInIdr * 1.9) / snap.alxPriceIdr : 0;
 
     const globalAuditRef = collection(db, "system", "audit", "global_transactions");
 
@@ -226,8 +283,8 @@ export default function TradeProPage() {
         id: `TRADEX-CAPTURE-${Date.now()}`,
         category: "Trade-X Capture",
         amountIdr: amountInIdr,
-        cryptoAmount: stakeCurrency !== 'IDR' ? amount : 0,
-        cryptoCurrency: stakeCurrency,
+        cryptoAmount: stakeCur !== 'IDR' ? stakeAmount : 0,
+        cryptoCurrency: stakeCur,
         status: "success",
         timestamp: serverTimestamp(),
         description: `Bank Profit: Trade-X Loss capture from ${userData?.name}.`,
@@ -237,10 +294,10 @@ export default function TradeProPage() {
 
     addDoc(collection(db, "users", user.uid, "transactions"), {
       date: new Date().toISOString(),
-      description: `Trade-X: ${prediction?.toUpperCase()} ${symbol} (Stake ${stakeCurrency})`,
+      description: `Trade-X: ${snap.prediction.toUpperCase()} ${symbol} (Stake ${stakeCur})`,
       category: "Trade-X",
-      stakeAmount: amount,
-      stakeCurrency: stakeCurrency,
+      stakeAmount: stakeAmount,
+      stakeCurrency: stakeCur,
       rewardAlx: rewardInAlx,
       status: isWin ? "WIN" : "LOSS",
       type: "expense",

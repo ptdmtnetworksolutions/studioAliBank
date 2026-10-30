@@ -103,6 +103,24 @@ export async function POST(request: NextRequest) {
     const { userId, userEmail, cryptoAmount, cryptoCurrency, amountIdr, usdValue } = pendingData;
     const userRef = db.collection('users').doc(userId);
 
+    // ANTI KREDIT-GANDA: klien (finalizeTransaction) sudah mengkreditkan saldo via audit `BUY-<transaction_id>`
+    // saat Snap onSuccess. Jika ledger sudah memuatnya, jangan kreditkan lagi lewat webhook.
+    if (transaction_id) {
+      const dupSnap = await db.collection('system').doc('audit').collection('global_transactions')
+        .where('id', 'in', [`BUY-${transaction_id}`, `MIDTRANS-${transaction_id}`])
+        .get();
+      if (!dupSnap.empty) {
+        await pendingDocRef.update({
+          status: 'success',
+          transactionId: transaction_id,
+          paymentType: payment_type || '',
+          completedAt: new Date().toISOString(),
+          note: 'Sudah dikreditkan oleh klien; webhook hanya menandai selesai.'
+        });
+        return NextResponse.json({ message: 'Order sudah dikreditkan sebelumnya (duplikat diabaikan).' });
+      }
+    }
+
     await db.runTransaction(async (transaction) => {
       // 1. Tambah saldo koin crypto pengguna
       const cryptoField = `cryptoBalances.${cryptoCurrency}`;

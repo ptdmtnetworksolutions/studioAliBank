@@ -51,7 +51,7 @@ import { ResponsiveContainer, AreaChart, Area, YAxis } from "recharts";
 
 const MARKUP = 1.02;
 const INITIAL_COINS = [
-  { symbol: "ALX", price: 12.24, baseIdr: 194004, change: 1.14, isUp: true, isNative: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 12.24 + Math.sin(i / 2) * 0.05 })) },
+  { symbol: "ALX", price: 12.24, baseIdr: 216526, change: 1.14, isUp: true, isNative: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 12.24 + Math.sin(i / 2) * 0.05 })) },
   { symbol: "BTC", price: 66450.00, baseIdr: 1053232500, change: -0.45, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 66450.00 - Math.cos(i) * 300 })) },
   { symbol: "ETH", price: 2420.00, baseIdr: 38357000, change: 3.73, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 2420.00 + Math.sin(i) * 40 })) },
   { symbol: "BNB", price: 575.20, baseIdr: 9116920, change: -1.20, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 575.20 - Math.sin(i) * 8 })) },

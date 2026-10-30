@@ -1,6 +1,7 @@
 
 "use client";
 
+import { IDR_RATE_FALLBACK } from "@/lib/currency";
 import { useRouter } from "next/navigation";
 import { 
   ArrowLeft, 
@@ -75,7 +76,7 @@ export default function CashDeliveryPage() {
   );
   const { data: userData } = useDoc(userDocRef);
 
-  const [usdToIdrRate, setUsdToIdrRate] = useState<number>(16850);
+  const [usdToIdrRate, setUsdToIdrRate] = useState<number>(IDR_RATE_FALLBACK);
   const [showBanner, setShowBanner] = useState(true);
   const [activeChannel, setActiveChannel] = useState<string>('bca');
   
@@ -125,7 +126,8 @@ export default function CashDeliveryPage() {
     setMenerimaModified(true);
     const idrVal = parseFloat(idrStr.replace(',', '.')) || 0;
     if (idrVal > 0) {
-      setAmountBayar((idrVal / usdToIdrRate).toFixed(4));
+      // Dibulatkan ke ATAS agar USDT yang dipotong tidak pernah kurang dari nilai Rupiah yang diterima
+      setAmountBayar((Math.ceil((idrVal / usdToIdrRate) * 10000 - 1e-9) / 10000).toFixed(4));
       setBayarModified(true);
     } else {
       setAmountBayar("0");
@@ -138,7 +140,8 @@ export default function CashDeliveryPage() {
     setBayarModified(true);
     const usdtVal = parseFloat(usdtStr) || 0;
     if (usdtVal > 0) {
-      setAmountMenerima(Math.round(usdtVal * usdToIdrRate).toString());
+      // Dibulatkan ke BAWAH agar Rupiah yang diterima tidak pernah melebihi nilai USDT yang dibayar
+      setAmountMenerima(Math.floor(usdtVal * usdToIdrRate + 1e-9).toString());
       setMenerimaModified(true);
     } else {
       setAmountMenerima("0");

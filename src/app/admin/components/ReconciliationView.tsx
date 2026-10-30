@@ -65,6 +65,48 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
   const [latestRun, setLatestRun] = useState<any>(null);
   const [autoSuspend, setAutoSuspend] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({
+    ALX: 216526,
+    USDT: 17690,
+    ETH: 45000000,
+    BTC: 1350000000,
+    IDR: 1
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchLivePrices = async () => {
+      try {
+        const [tickerRes, forexRes] = await Promise.all([
+          fetch('/api/market/ticker?symbols=["BTCUSDT","ETHUSDT","USDTIDRT"]', { cache: 'no-store' }),
+          fetch('/api/forex/rate', { cache: 'no-store' })
+        ]);
+        let idrRate = 17690;
+        if (forexRes.ok) {
+          const fx = await forexRes.json().catch(() => null);
+          if (fx?.rate > 10000) idrRate = fx.rate;
+        }
+        if (tickerRes.ok) {
+          const tickers = await tickerRes.json().catch(() => []);
+          if (Array.isArray(tickers) && !cancelled) {
+            const btcUsd = parseFloat(tickers.find((d: any) => d.symbol === 'BTCUSDT')?.lastPrice) || 90000;
+            const ethUsd = parseFloat(tickers.find((d: any) => d.symbol === 'ETHUSDT')?.lastPrice) || 2800;
+            const usdtIdr = parseFloat(tickers.find((d: any) => d.symbol === 'USDTIDRT')?.lastPrice) || idrRate;
+            setLivePrices({
+              ALX: 12.24 * usdtIdr,
+              USDT: usdtIdr,
+              ETH: ethUsd * usdtIdr,
+              BTC: btcUsd * usdtIdr,
+              IDR: 1
+            });
+          }
+        }
+      } catch {}
+    };
+    fetchLivePrices();
+    const interval = setInterval(fetchLivePrices, 60000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
 
   const getAdminToken = useCallback(async (): Promise<string> => {
     try {
@@ -268,14 +310,8 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
     );
   }, [latestRun, searchTerm]);
 
-  // Asset price reference for IDR estimations
-  const priceMap: Record<string, number> = {
-    ALX: 194000,
-    USDT: 17690,
-    ETH: 35000000,
-    BTC: 1100000000,
-    IDR: 1
-  };
+  // Asset price reference for IDR estimations (live market prices)
+  const priceMap: Record<string, number> = livePrices;
 
   function openUserLedger(userItem: any) {
     if (typeof window !== "undefined") {

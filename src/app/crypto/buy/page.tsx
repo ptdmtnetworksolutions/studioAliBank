@@ -52,6 +52,7 @@ import { detectCardBin, CardBinResult } from "@/lib/bin-detector";
 import { BankCardBadge } from "@/components/cards/bank-card-badge";
 import { EdcSalesDraft } from "@/components/cards/edc-sales-draft";
 import { SoftPosTransactionReceipt } from "@/lib/softpos-acquirer";
+import { MARKUP, fiatToIdrRate, floorCrypto, ceilCrypto, formatCryptoAmount } from "@/lib/currency";
 
 function PaymentIcon({ icon: Icon, className = "w-5 h-5" }: { icon: any; className?: string }) {
   const Comp = Icon || Zap;
@@ -139,7 +140,7 @@ import {
   DialogDescription 
 } from "@/components/ui/dialog";
 import { useUser, useDoc, useFirestore, useMemoFirebase, useStorage } from "@/firebase";
-import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, increment, addDoc, collection, serverTimestamp, getDocs, query, where } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from "@/hooks/use-toast";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -218,6 +219,7 @@ function CryptoBuyPageInner() {
 
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS[0]);
   const [dynamicUsdtRate, setDynamicUsdtRate] = useState(17690);
+  const [fiatPerUsdRates, setFiatPerUsdRates] = useState<Record<string, number> | null>(null);
   const [isRateLoading, setIsRateLoading] = useState(true);
   const [lastSync, setLastSync] = useState<string>("");
   
@@ -315,7 +317,9 @@ function CryptoBuyPageInner() {
         if (Array.isArray(data)) {
           const usdtIdrData = data.find((d: any) => d.symbol === 'USDTIDRT');
           if (usdtIdrData) {
-            setDynamicUsdtRate(parseFloat(usdtIdrData.lastPrice));
+            const parsedRate = parseFloat(usdtIdrData.lastPrice);
+            // Sanity check: kurs IDR/USDT harus > 10.000 (bukan harga stablecoin ~1)
+            if (parsedRate > 10000) setDynamicUsdtRate(parsedRate);
           }
           
           setCoinsList(prev => {
@@ -361,6 +365,16 @@ function CryptoBuyPageInner() {
   }, [fetchRealTimeRate]);
 
   useEffect(() => {
+    // Kurs semua mata uang terhadap USD (untuk konversi nominal non-IDR yang akurat)
+    fetch('/api/forex/rate')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.rates && typeof d.rates === 'object') setFiatPerUsdRates(d.rates);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (mounted && !userLoading && !user) {
       const hasCookie = typeof document !== 'undefined' && document.cookie.includes('alibank_session=1');
       const hasStored = typeof window !== 'undefined' && !!localStorage.getItem('alibank_user');
@@ -371,18 +385,10 @@ function CryptoBuyPageInner() {
   }, [mounted, user, userLoading, router]);
 
   const getRateToIdr = useCallback((code: string) => {
-    if (code === 'IDR') return 1;
-    if (code === 'USD') return dynamicUsdtRate;
-    const rates: Record<string, number> = {
-      'EUR': dynamicUsdtRate * 1.08,
-      'GBP': dynamicUsdtRate * 1.26,
-      'SGD': dynamicUsdtRate * 0.74,
-      'AUD': dynamicUsdtRate * 0.65,
-      'JPY': dynamicUsdtRate * 0.0066,
-      'MYR': dynamicUsdtRate * 0.21,
-    };
-    return rates[code] || dynamicUsdtRate;
-  }, [dynamicUsdtRate]);
+    // Kurs riil dari /api/forex/rate (semua mata uang). Mata uang tanpa kurs -> 0 (transaksi diblokir),
+    // TIDAK BOLEH lagi dianggap setara USD seperti sebelumnya.
+    return fiatToIdrRate(code, dynamicUsdtRate, fiatPerUsdRates);
+  }, [dynamicUsdtRate, fiatPerUsdRates]);
 
   const totalAmountIdr = useMemo(() => {
     const cleanAmount = amount.replace(',', '.');
@@ -392,23 +398,25 @@ function CryptoBuyPageInner() {
     return Math.floor(baseAmountIdr);
   }, [amount, selectedCurrency, getRateToIdr]);
 
-  const estimatedCrypto = useMemo(() => {
-    const cleanAmount = amount.replace(',', '.');
-    const num = parseFloat(cleanAmount);
-    if (isNaN(num) || num <= 0) return "0";
-    const amountInIdr = num * getRateToIdr(selectedCurrency.code);
-    const amountInUsd = amountInIdr / dynamicUsdtRate;
-    const priceWithMarkup = selectedAsset.priceUsd * (selectedAsset.isNative ? 1 : 1.02);
-    return (amountInUsd / priceWithMarkup).toFixed(selectedAsset.symbol === 'BTC' ? 8 : 4);
-  }, [amount, selectedAsset, selectedCurrency, getRateToIdr, dynamicUsdtRate]);
+  // Jumlah kripto presisi 8 desimal.
+  // BELI : harga + markup 2% (nasabah menerima lebih sedikit)  -> dibulatkan ke BAWAH
+  // JUAL : harga - markup 2% (nasabah menerima lebih sedikit IDR / menjual lebih banyak koin) -> dibulatkan ke ATAS
+  const cryptoQuote = useMemo(() => {
+    if (totalAmountIdr <= 0) return 0;
+    const amountInUsd = totalAmountIdr / dynamicUsdtRate;
+    const spread = selectedAsset.isNative ? 1 : MARKUP;
+    if (activeTab === 'jual') {
+      return ceilCrypto(amountInUsd / (selectedAsset.priceUsd / spread));
+    }
+    return floorCrypto(amountInUsd / (selectedAsset.priceUsd * spread));
+  }, [totalAmountIdr, dynamicUsdtRate, selectedAsset, activeTab]);
+
+  const estimatedCrypto = useMemo(() => formatCryptoAmount(cryptoQuote), [cryptoQuote]);
 
   const usdValue = useMemo(() => {
-    const cleanAmount = amount.replace(',', '.');
-    const num = parseFloat(cleanAmount);
-    if (isNaN(num)) return "0.00";
-    const amountInIdr = num * getRateToIdr(selectedCurrency.code);
-    return (amountInIdr / dynamicUsdtRate).toFixed(2);
-  }, [amount, selectedCurrency, getRateToIdr, dynamicUsdtRate]);
+    if (totalAmountIdr <= 0) return "0.00";
+    return (totalAmountIdr / dynamicUsdtRate).toFixed(2);
+  }, [totalAmountIdr, dynamicUsdtRate]);
 
   // Register Native WebView JavaScript Bridge callbacks
   useEffect(() => {
@@ -470,13 +478,40 @@ function CryptoBuyPageInner() {
     if (!user || !db || !userDocRef || !userData) return;
     setIsProcessing(true);
     
-    const cryptoAmount = parseFloat(estimatedCrypto);
+    const cryptoAmount = cryptoQuote;
     const fiatAmountIdr = totalAmountIdr;
     const isSoftPos = !!paymentDetails.receipt || selectedPayment?.id === 'nfc';
     const receipt = paymentDetails.receipt || softPosReceipt;
     const cardBin = paymentDetails.cardBin || detectedCardBin;
 
+    if (!(cryptoAmount > 0) || !(fiatAmountIdr > 0)) {
+      toast({ variant: "destructive", title: "Nominal Tidak Valid", description: "Kurs mata uang belum tersedia atau nominal terlalu kecil. Coba mata uang/nominal lain." });
+      setIsProcessing(false);
+      return;
+    }
+
     try {
+      // Pencegah kredit ganda: webhook Midtrans mungkin sudah mengkreditkan order ini
+      if (activeTab !== 'jual' && paymentDetails.gateway === 'Midtrans Snap' && paymentDetails.id) {
+        try {
+          const dupSnap = await getDocs(query(
+            collection(db, "system", "audit", "global_transactions"),
+            where("id", "==", `MIDTRANS-${paymentDetails.id}`)
+          ));
+          if (!dupSnap.empty) {
+            toast({ title: "Pembayaran Sudah Dikreditkan", description: "Saldo Anda sudah ditambahkan otomatis oleh sistem kliring Midtrans." });
+            if (!keepDialogOpen) {
+              setIsCheckoutDialogOpen(false);
+              setStep('success');
+            }
+            setIsProcessing(false);
+            return;
+          }
+        } catch {
+          // Klien mungkin tidak berhak membaca audit global; lanjutkan proses normal.
+        }
+      }
+
       const userUpdates: any = {};
       
       if (activeTab === 'jual') {
@@ -1305,7 +1340,7 @@ function CryptoBuyPageInner() {
             </div>
 
             <div className="pb-10 space-y-6">
-              <Button disabled={amount === "0" || isProcessing} onClick={() => setIsCheckoutDialogOpen(true)} className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest">
+              <Button disabled={amount === "0" || totalAmountIdr <= 0 || cryptoQuote <= 0 || isProcessing} onClick={() => setIsCheckoutDialogOpen(true)} className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest">
                 {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : 'LANJUTKAN'}
               </Button>
               <div className="grid grid-cols-3 gap-y-1">
@@ -1482,7 +1517,7 @@ function CryptoBuyPageInner() {
                       <div className="flex gap-6 items-end">
                         <div className="flex-1">
                           <Button 
-                            disabled={amount === "0" || isProcessing} 
+                            disabled={amount === "0" || totalAmountIdr <= 0 || cryptoQuote <= 0 || isProcessing} 
                             onClick={() => setIsCheckoutDialogOpen(true)} 
                             className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest transition-transform active:scale-[0.98]"
                           >

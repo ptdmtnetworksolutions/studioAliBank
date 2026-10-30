@@ -1,6 +1,7 @@
 
 "use client";
 
+import { ALX_PRICE_USD_FALLBACK, IDR_RATE_FALLBACK } from "@/lib/currency";
 import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,7 +52,7 @@ import Image from "next/image";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { proxyGetCollection } from "@/lib/firestore-proxy-client";
 
-const ALX_PRICE_IDR = 194004;
+const ALX_PRICE_IDR = Math.round(ALX_PRICE_USD_FALLBACK * IDR_RATE_FALLBACK);
 
 export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
   const db = useFirestore();
@@ -159,8 +160,10 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
   const ledgerStats = useMemo(() => {
     if (!selectedUser) return { totalIn: 0, totalOut: 0, illegalDebtIdr: 0, totalCryptoDebtValIdr: 0, cryptoDebtBreakdown: [], pendingDebt: 0, totalTotalDebt: 0 };
     
+    const userEmailClean = String(selectedUser.email || '').toLowerCase();
     const isOwnerAccount =
-      String(selectedUser.email || '').toLowerCase() === 'alidzulfikar075@gmail.com' ||
+      userEmailClean === 'alidzulfikar075@gmail.com' ||
+      userEmailClean === 'aldzulfikar075@gmail.com' ||
       selectedUser.id === 'IJOuQpjEOMgvlYfzvQ1yfp976Oa2' ||
       selectedUser.role === 'admin';
 
@@ -178,12 +181,15 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
       const cat = String(t.category || '');
       const desc = String(t.description || '');
 
-      if (['Legalization', 'Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat)) {
+      if (['Legalization', 'Adjustment', 'Manual Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat)) {
         hasLegalization = true;
         return;
       }
       if (cat === 'Security Lock') return;
-      if (cat === 'Deposit' && desc.includes('Setoran Disetujui')) {
+      if (
+        (cat === 'Deposit' || cat === 'TopUp' || cat === 'Kliring Manual' || cat === 'Kliring On-Chain') &&
+        (desc.includes('Setoran') || desc.includes('Deposit') || desc.includes('Terverifikasi') || desc.includes('Disetujui'))
+      ) {
         hasDepositApprovedTx = true;
       }
 

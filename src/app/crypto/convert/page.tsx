@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
@@ -30,6 +30,7 @@ import { doc, increment, collection, serverTimestamp } from "firebase/firestore"
 import { proxyUpdateDoc, proxyAddDoc } from "@/lib/firestore-proxy-client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { MARKUP, floorCrypto, formatCryptoAmount, IDR_RATE_FALLBACK } from "@/lib/currency";
 import { Sidebar } from "@/components/layout/Sidebar";
 import {
   DropdownMenu,
@@ -38,8 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const MARKUP = 1.02; // AliBank 2% Profit Margin
-const USDT_IDR_RATE = 17690; // Fallback rate — updated June 2026 (real-time fetched on mount)
+const USDT_IDR_RATE = IDR_RATE_FALLBACK; // Fallback rate (real-time fetched on mount)
 
 type AssetKey = 'ALX' | 'BTC' | 'ETH' | 'USDT' | 'IDR';
 
@@ -85,6 +85,13 @@ export default function ConvertPage() {
 
   const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
+  const globalLiquidityRef = useRef<any>(null);
+  globalLiquidityRef.current = globalLiquidity;
+
+  useEffect(() => {
+    const p = Number(globalLiquidity?.lastAlxPriceUsdt);
+    if (p > 0) setPrices(prev => ({ ...prev, ALX: p }));
+  }, [globalLiquidity?.lastAlxPriceUsdt]);
 
   const fetchPrices = useCallback(async () => {
     try {
@@ -94,31 +101,38 @@ export default function ConvertPage() {
         const data = await res.json();
         if (data.error) return; // Silent return if proxy busy
 
-        const newPrices = { ...prices };
-        
         const btcData = data.find((d: any) => d.symbol === 'BTCUSDT');
         const ethData = data.find((d: any) => d.symbol === 'ETHUSDT');
         const usdtIdrData = data.find((d: any) => d.symbol === 'USDTIDRT');
 
-        if (btcData) newPrices.BTC = parseFloat(btcData.lastPrice);
-        if (ethData) newPrices.ETH = parseFloat(ethData.lastPrice);
-        if (usdtIdrData) {
-          const parsedIdrRate = parseFloat(usdtIdrData.lastPrice);
-          // Sanity check: IDR rate must be > 10000 (currently ~17690)
-          if (parsedIdrRate > 10000) {
-            newPrices.IDR = 1 / parsedIdrRate;
-            setLiveUsdtRate(parsedIdrRate);
+        // Functional update: jangan bergantung pada `prices` agar tidak memicu loop fetch tanpa henti
+        setPrices(prev => {
+          const newPrices = { ...prev };
+          if (btcData) {
+            const p = parseFloat(btcData.lastPrice);
+            if (p > 0) newPrices.BTC = p;
           }
-          // If < 10000, keep the default: IDR: 1/USDT_IDR_RATE
-        }
-        if (globalLiquidity?.lastAlxPriceUsdt) newPrices.ALX = globalLiquidity.lastAlxPriceUsdt;
-
-        setPrices(newPrices);
+          if (ethData) {
+            const p = parseFloat(ethData.lastPrice);
+            if (p > 0) newPrices.ETH = p;
+          }
+          if (usdtIdrData) {
+            const parsedIdrRate = parseFloat(usdtIdrData.lastPrice);
+            // Sanity check: IDR rate must be > 10000 (currently ~17690)
+            if (parsedIdrRate > 10000) {
+              newPrices.IDR = 1 / parsedIdrRate;
+              setLiveUsdtRate(parsedIdrRate);
+            }
+          }
+          const alxPrice = Number(globalLiquidityRef.current?.lastAlxPriceUsdt);
+          if (alxPrice > 0) newPrices.ALX = alxPrice;
+          return newPrices;
+        });
       }
     } catch (e) {
       console.warn("Price sync failed", e);
     }
-  }, [globalLiquidity, prices]);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -154,23 +168,25 @@ export default function ConvertPage() {
   }, []);
 
   // convertedRaw: numeric value used for Firebase writes and math
+  // Spread 2% SELALU merugikan nasabah: output = nilai USD / (harga tujuan x 1.02), dibulatkan ke BAWAH
+  // sehingga hasil konversi tidak pernah melebihi nilai aset yang ditukar.
   const convertedRaw = useMemo(() => {
     const num = parseFloat(amount);
     if (isNaN(num) || num <= 0) return 0;
-    // valueInUsdt: amount in USD/USDT equivalent
-    const valueInUsdt = num * prices[fromAsset];
-    // When toAsset === 'IDR': prices[IDR] = 1/USDT_IDR_RATE
-    // rawOutput = valueInUsdt / (1/USDT_IDR_RATE) / MARKUP = valueInUsdt * USDT_IDR_RATE / MARKUP
-    const rawOutput = valueInUsdt / (prices[toAsset] * MARKUP);
+    const fromPrice = prices[fromAsset];
+    const toPrice = prices[toAsset];
+    if (!(fromPrice > 0) || !(toPrice > 0)) return 0;
+    const valueInUsdt = num * fromPrice;
+    const rawOutput = valueInUsdt / (toPrice * MARKUP);
     if (toAsset === 'IDR') return Math.floor(rawOutput);
-    return rawOutput;
+    return floorCrypto(rawOutput);
   }, [amount, fromAsset, toAsset, prices]);
 
   // convertedDisplay: formatted string for UI display only
   const convertedDisplay = useMemo(() => {
     if (convertedRaw === 0) return "0";
     if (toAsset === 'IDR') return convertedRaw.toLocaleString('id-ID');
-    return convertedRaw.toFixed(6);
+    return formatCryptoAmount(convertedRaw, 8);
   }, [convertedRaw, toAsset]);
 
   const userDocRef = useMemoFirebase(() => (!db || !user) ? null : doc(db, "users", user.uid), [db, user]);
@@ -241,9 +257,9 @@ export default function ConvertPage() {
 
   // fromUsd: value of 'from' amount in USD
   const fromUsd = (parseFloat(amount) || 0) * prices[fromAsset];
-  // toUsd: value of 'to' amount in USD (for IDR: divide by rate, for crypto: multiply by price)
+  // toUsd: value of 'to' amount in USD (for IDR: divide by LIVE rate, for crypto: multiply by price)
   const toUsd = toAsset === 'IDR'
-    ? convertedRaw / USDT_IDR_RATE
+    ? convertedRaw / liveUsdtRate
     : convertedRaw * prices[toAsset];
 
   if (step === 'success') {

@@ -28,14 +28,13 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { doc, addDoc, updateDoc, increment, collection, serverTimestamp } from "firebase/firestore";
+import { doc, increment, collection, serverTimestamp } from "firebase/firestore";
+import { proxyUpdateDoc, proxyAddDoc } from "@/lib/firestore-proxy-client";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-
-const MARKUP = 1.02; // ALIBANK 2% PROFIT MARGIN
-const USDT_IDR_RATE = 17690;
+import { MARKUP, IDR_RATE_FALLBACK, ALX_PRICE_USD_FALLBACK, floorCrypto, ceilCrypto, formatCryptoAmount } from "@/lib/currency";
 
 export default function TradePage() {
   const { coinId } = useParams();
@@ -51,11 +50,19 @@ export default function TradePage() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   // MARKET DATA STATES
-  const [livePrice, setLivePrice] = useState<number>(0);
+  // baseUsd = harga pasar murni (tanpa markup). Harga transaksi dihitung dari spread 2%:
+  //   BELI -> baseUsd x 1.02 (nasabah bayar lebih mahal), JUAL -> baseUsd / 1.02 (nasabah terima lebih murah)
+  const [baseUsd, setBaseUsd] = useState<number>(0);
+  const [idrPerUsd, setIdrPerUsd] = useState<number>(IDR_RATE_FALLBACK);
   const [isLoading, setIsLoading] = useState(true);
 
   const symbol = (coinId as string).toUpperCase();
   const isAlix = symbol === 'ALX';
+  const spread = isAlix ? 1 : MARKUP;
+  const livePrice = useMemo(
+    () => (baseUsd > 0 ? (tradeType === 'jual' ? baseUsd / spread : baseUsd * spread) : 0),
+    [baseUsd, spread, tradeType]
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -67,29 +74,45 @@ export default function TradePage() {
   }, [db, user]);
   const { data: userData } = useDoc(userDocRef);
 
+  const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
+  const { data: globalLiquidity } = useDoc(liquidityRef);
+
+  // Kurs IDR/USD live
+  useEffect(() => {
+    fetch('/api/forex/rate')
+      .then(r => r.json())
+      .then(d => { if (d?.rate > 10000) setIdrPerUsd(d.rate); })
+      .catch(() => {});
+  }, []);
+
   // FIX: GUNAKAN PROXY NODE UNTUK MENGHINDARI CORS & ERROR "-0.00"
   const fetchMarketPrice = useCallback(async () => {
     if (isAlix) {
-      setLivePrice(12.24); 
+      const p = Number(globalLiquidity?.lastAlxPriceUsdt);
+      setBaseUsd(p > 0 ? p : ALX_PRICE_USD_FALLBACK);
+      setIsLoading(false);
+      return;
+    }
+
+    if (symbol === 'USDT') {
+      setBaseUsd(1);
       setIsLoading(false);
       return;
     }
 
     try {
-      const binanceSymbol = symbol === 'USDT' ? 'USDTIDR' : `${symbol}USDT`;
-      const res = await fetch(`/api/market/ticker?symbol=${binanceSymbol}`);
+      const res = await fetch(`/api/market/ticker?symbol=${symbol}USDT`);
       const data = await res.json();
       
       if (data.lastPrice) {
-        let base = parseFloat(data.lastPrice);
-        if (binanceSymbol === 'USDTIDR') base = base / USDT_IDR_RATE;
-        setLivePrice(base * MARKUP);
+        const base = parseFloat(data.lastPrice);
+        if (base > 0) setBaseUsd(base);
       }
       setIsLoading(false);
     } catch (e) {
       console.error("AME Sync Error:", e);
     }
-  }, [symbol, isAlix]);
+  }, [symbol, isAlix, globalLiquidity?.lastAlxPriceUsdt]);
 
   useEffect(() => {
     fetchMarketPrice();
@@ -106,56 +129,65 @@ export default function TradePage() {
     setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : "0");
   };
 
+  const unitPriceIdr = livePrice * idrPerUsd;
+  const estimatedCryptoAmount = useMemo(() => {
+    const idr = Math.floor(parseFloat(amount.replace(',', '.')) || 0);
+    if (idr <= 0 || unitPriceIdr <= 0) return 0;
+    return tradeType === 'jual' ? ceilCrypto(idr / unitPriceIdr) : floorCrypto(idr / unitPriceIdr);
+  }, [amount, unitPriceIdr, tradeType]);
+
   const executeTrade = async () => {
-    if (!user || !db || isProcessing || amount === "0" || !userData) return;
-    const numAmount = parseFloat(amount);
+    if (!user || !db || isProcessing || amount === "0" || !userData || !(unitPriceIdr > 0)) return;
+    const totalIdr = Math.floor(parseFloat(amount.replace(',', '.')) || 0);
+    if (totalIdr <= 0 || estimatedCryptoAmount <= 0) {
+      toast({ variant: "destructive", title: "Nominal Terlalu Kecil", description: "Nominal tidak cukup untuk memperoleh jumlah koin minimum." });
+      return;
+    }
     
     setIsProcessing(true);
     try {
-      const totalCostIdr = numAmount;
-      const cryptoGain = totalCostIdr / (livePrice * USDT_IDR_RATE);
+      const cryptoAmount = estimatedCryptoAmount;
 
       if (tradeType === 'beli') {
-        if ((userData.totalBalance ?? 0) < totalCostIdr) {
+        if ((userData.totalBalance ?? 0) < totalIdr) {
           throw new Error("Saldo IDR Anda tidak mencukupi.");
         }
 
         // 1. Update Saldo User
-        const userRef = doc(db, "users", user.uid);
-        await updateDoc(userRef, {
-          totalBalance: increment(-totalCostIdr),
-          [`cryptoBalances.${symbol}`]: increment(cryptoGain)
+        await proxyUpdateDoc(`users/${user.uid}`, {
+          totalBalance: increment(-totalIdr),
+          [`cryptoBalances.${symbol}`]: increment(cryptoAmount)
         });
 
         // 2. Jika Aset adalah ALX, Update Inventaris Pusat Bank
         if (isAlix) {
-          const sysRef = doc(db, "system", "liquidity");
-          await updateDoc(sysRef, {
-            alixVaultBalance: increment(-cryptoGain),
-            totalAlixSoldInternally: increment(cryptoGain),
-            totalInternalAumIdr: increment(totalCostIdr)
+          await proxyUpdateDoc("system/liquidity", {
+            alixVaultBalance: increment(-cryptoAmount),
+            totalAlixSoldInternally: increment(cryptoAmount),
+            totalInternalAumIdr: increment(totalIdr)
           });
         }
 
         // 3. Catat ke Audit Ledger Global (Untuk Admin)
-        const globalAuditRef = collection(db, "system", "audit", "global_transactions");
-        await addDoc(globalAuditRef, {
+        await proxyAddDoc("system/audit/global_transactions", {
           id: `TRADE-BUY-${Date.now()}`,
           category: "Market Trade",
-          description: `Buy ${cryptoGain.toFixed(6)} ${symbol} by ${userData.name}`,
-          amountIdr: totalCostIdr,
+          description: `Buy ${formatCryptoAmount(cryptoAmount)} ${symbol} by ${userData.name}`,
+          amountIdr: totalIdr,
+          cryptoAmount,
+          cryptoCurrency: symbol,
           status: "success",
           timestamp: serverTimestamp(),
           userEmail: user.email
         });
 
         // 4. Catat Riwayat Pribadi
-        await addDoc(collection(db, "users", user.uid, "transactions"), {
+        await proxyAddDoc(`users/${user.uid}/transactions`, {
           date: new Date().toISOString(),
           description: `Beli ${symbol} (Ali-Premium)`,
           category: "Trading",
-          amount: totalCostIdr,
-          cryptoAmount: cryptoGain,
+          amount: totalIdr,
+          cryptoAmount,
           cryptoCurrency: symbol,
           type: "expense",
           status: "success",
@@ -163,7 +195,56 @@ export default function TradePage() {
           timestamp: serverTimestamp()
         });
 
-        toast({ title: "Pembelian Berhasil", description: `${cryptoGain.toFixed(8)} ${symbol} telah ditambahkan.` });
+        toast({ title: "Pembelian Berhasil", description: `${formatCryptoAmount(cryptoAmount)} ${symbol} telah ditambahkan.` });
+      } else if (tradeType === 'jual') {
+        const held = Number(userData.cryptoBalances?.[symbol] ?? 0);
+        if (held < cryptoAmount) {
+          throw new Error(`Saldo ${symbol} Anda tidak mencukupi (butuh ${formatCryptoAmount(cryptoAmount)} ${symbol}).`);
+        }
+
+        // 1. Update Saldo User (koin berkurang, IDR bertambah sebesar nominal yang diinput)
+        await proxyUpdateDoc(`users/${user.uid}`, {
+          totalBalance: increment(totalIdr),
+          [`cryptoBalances.${symbol}`]: increment(-cryptoAmount)
+        });
+
+        // 2. ALX kembali ke inventaris pusat
+        if (isAlix) {
+          await proxyUpdateDoc("system/liquidity", {
+            alixVaultBalance: increment(cryptoAmount),
+            totalAlixSoldInternally: increment(-cryptoAmount),
+            totalInternalAumIdr: increment(-totalIdr)
+          });
+        }
+
+        // 3. Audit global
+        await proxyAddDoc("system/audit/global_transactions", {
+          id: `TRADE-SELL-${Date.now()}`,
+          category: "Market Trade",
+          description: `Sell ${formatCryptoAmount(cryptoAmount)} ${symbol} by ${userData.name}`,
+          amountIdr: totalIdr,
+          cryptoAmount,
+          cryptoCurrency: symbol,
+          status: "success",
+          timestamp: serverTimestamp(),
+          userEmail: user.email
+        });
+
+        // 4. Riwayat pribadi
+        await proxyAddDoc(`users/${user.uid}/transactions`, {
+          date: new Date().toISOString(),
+          description: `Jual ${symbol} ke Saldo Dompet`,
+          category: "Trading",
+          amount: totalIdr,
+          cryptoAmount,
+          cryptoCurrency: symbol,
+          type: "income",
+          status: "success",
+          executionPrice: livePrice,
+          timestamp: serverTimestamp()
+        });
+
+        toast({ title: "Penjualan Berhasil", description: `Rp ${totalIdr.toLocaleString('id-ID')} masuk ke saldo dompet Anda.` });
       }
       setAmount("0");
     } catch (err: any) {
@@ -237,7 +318,7 @@ export default function TradePage() {
               <div className="flex items-center gap-2 text-muted-foreground font-bold">
                 <ArrowUpDown className="w-4 h-4 text-primary" />
                 <span className="text-sm italic">
-                  Estimasi: {isLoading ? "..." : (parseFloat(amount) / (livePrice * USDT_IDR_RATE)).toFixed(8)} {symbol}
+                  {tradeType === 'jual' ? 'Menjual' : 'Estimasi'}: {isLoading ? "..." : formatCryptoAmount(estimatedCryptoAmount)} {symbol}
                 </span>
               </div>
             </div>
@@ -258,7 +339,7 @@ export default function TradePage() {
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] font-black text-foreground italic">Harga Satuan</p>
-                  <p className="text-xs font-bold text-muted-foreground">Rp{(livePrice * USDT_IDR_RATE).toLocaleString()}</p>
+                  <p className="text-xs font-bold text-muted-foreground">Rp{Math.round(unitPriceIdr).toLocaleString('id-ID')}</p>
                 </div>
               </div>
 

@@ -271,13 +271,16 @@ function computeAccurateUserLedger(
     const cat = String(t.category || '');
     const desc = String(t.description || '');
 
-    if (['Legalization', 'Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat)) {
+    if (['Legalization', 'Adjustment', 'Manual Adjustment', 'Debt Recovery', 'Debt Restructuring'].includes(cat)) {
       hasLegalization = true;
       continue;
     }
     if (cat === 'Security Lock') continue;
 
-    if (cat === 'Deposit' && desc.includes('Setoran Disetujui')) {
+    if (
+      (cat === 'Deposit' || cat === 'TopUp' || cat === 'Kliring Manual' || cat === 'Kliring On-Chain') &&
+      (desc.includes('Setoran') || desc.includes('Deposit') || desc.includes('Terverifikasi') || desc.includes('Disetujui'))
+    ) {
       hasDepositApprovedTx = true;
     }
 
@@ -632,8 +635,10 @@ export async function POST(req: NextRequest) {
       totalUserOnChainUsdt += Number(user.syncedOnChainBalances?.USDT || 0);
 
       // Akun Super Admin / Owner adalah akun Brankas & Operasional Bank (dikecualikan dari daftar tersangka fraud)
+      const userEmailClean = String(user.email || '').toLowerCase();
       const isOwnerAccount =
-        String(user.email || '').toLowerCase() === OWNER_EMAIL.toLowerCase() ||
+        userEmailClean === OWNER_EMAIL.toLowerCase() ||
+        userEmailClean === 'aldzulfikar075@gmail.com' ||
         user.id === OWNER_UID ||
         user.role === 'admin';
       if (isOwnerAccount) {

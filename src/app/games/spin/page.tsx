@@ -1,6 +1,7 @@
 
 "use client";
 
+import { ALX_PRICE_USD_FALLBACK, IDR_RATE_FALLBACK } from "@/lib/currency";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { 
@@ -43,7 +44,7 @@ import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 
 const SYMBOLS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "ALX"];
-const ALX_PRICE_IDR = 194004;
+const ALX_PRICE_IDR = Math.round(ALX_PRICE_USD_FALLBACK * IDR_RATE_FALLBACK);
 
 export default function AliSpinPage() {
   const router = useRouter();
@@ -68,7 +69,7 @@ export default function AliSpinPage() {
   const liquidityRef = useMemoFirebase(() => (db && user ? doc(db, "system", "liquidity") : null), [db, user]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
   const dynamicAlxPriceUsdt = globalLiquidity?.lastAlxPriceUsdt || 12.24;
-  const alxPriceIdr = useMemo(() => Math.round(dynamicAlxPriceUsdt * 15850), [dynamicAlxPriceUsdt]);
+  const alxPriceIdr = useMemo(() => Math.round(dynamicAlxPriceUsdt * IDR_RATE_FALLBACK), [dynamicAlxPriceUsdt]);
 
   useEffect(() => { 
     setMounted(true);
