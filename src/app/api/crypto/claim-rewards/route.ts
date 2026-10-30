@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
     ]);
 
     if (!userData) {
-      return NextResponse.json({ error: 'Pengguna tidak ditemukan di database.' }, { status: 404 });
+      return NextResponse.json({ error: 'Verifikasi akun nasabah belum dapat diselesaikan saat ini. Silakan muat ulang atau coba beberapa saat lagi.' }, { status: 404 });
     }
 
     const walletAddress =
@@ -305,7 +305,7 @@ export async function POST(request: NextRequest) {
     // 6. Dapatkan Kunci Privat Admin untuk Minting di Polygon
     const rawKey = await fetchVaultPrivateKey(config);
     if (!rawKey || rawKey === 'YOUR_KEY') {
-      return NextResponse.json({ error: 'Kunci privat administratif admin belum dikonfigurasi secara lengkap oleh bank.' }, { status: 500 });
+      return NextResponse.json({ error: 'Layanan pencairan imbal hasil sedang dalam optimalisasi pengamanan sistem. Silakan coba kembali dalam beberapa saat.' }, { status: 500 });
     }
     const privateKey = rawKey.startsWith('0x') ? rawKey : '0x' + rawKey;
 

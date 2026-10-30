@@ -213,7 +213,11 @@ export default function CryptoSendPage() {
         toast({ title: "Penarikan Berhasil", description: `${assetType} berhasil ditransfer secara on-chain.` });
       }
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Gagal Eksekusi", description: err.message });
+      toast({ 
+        variant: "destructive", 
+        title: "Transaksi Belum Berhasil", 
+        description: err.message || "Layanan transfer Ali-Bridge sedang mengalami antrean validasi jaringan. Silakan coba kembali dalam beberapa saat." 
+      });
     } finally {
       setIsProcessing(false);
     }

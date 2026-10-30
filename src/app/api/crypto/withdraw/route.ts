@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
 
     if (userRes.isQuotaExceeded || configRes.isQuotaExceeded) {
       return NextResponse.json(
-        { error: 'Batas kuota harian database Google Cloud Firebase (Spark Plan) telah tercapai (50.000 reads/hari). Harap upgrade project ke paket Blaze di Firebase Console atau tunggu reset kuota harian sistem.' },
+        { error: 'Layanan transfer Ali-Bridge saat ini sedang mengalami antrean validasi jaringan yang sangat padat. Sistem pengamanan AliBank sedang menyinkronkan node transaksi. Mohon menunggu beberapa saat dan coba kembali.' },
         { status: 429 }
       );
     }
@@ -272,27 +272,27 @@ export async function POST(request: NextRequest) {
 
     if (!userData) {
       if (userRes.status === 403) {
-        return NextResponse.json({ error: 'Akses ditolak: Anda tidak memiliki izin untuk membaca data profil ini.' }, { status: 403 });
+        return NextResponse.json({ error: 'Otorisasi sesi Anda tidak valid untuk mengakses layanan transfer ini. Silakan masuk kembali.' }, { status: 403 });
       }
-      return NextResponse.json({ error: 'Akun nasabah tidak ditemukan.' }, { status: 404 });
+      return NextResponse.json({ error: 'Verifikasi akun nasabah belum dapat diselesaikan oleh node kliring saat ini. Mohon coba beberapa saat lagi.' }, { status: 404 });
     }
 
     if (userData.isSuspended) {
       return NextResponse.json(
-        { error: userData.securityLockReason || 'Akun Anda sedang dibekukan oleh sistem keamanan AliBank (Rekonsiliasi / Fraud Audit). Penarikan aset tidak dapat dilakukan.' },
+        { error: userData.securityLockReason || 'Akun Anda sedang dibekukan oleh sistem pengamanan AliBank. Penarikan aset sementara tidak dapat dilakukan.' },
         { status: 403 }
       );
     }
     if (userData.tier === 'Suspended (Debt)') {
       return NextResponse.json(
-        { error: 'Akun Anda memiliki kewajiban penyelesaian tagihan. Silakan selesaikan kewajiban sebelum melakukan penarikan.' },
+        { error: 'Akun Anda memiliki kewajiban penyelesaian tagihan administrasi. Silakan selesaikan kewajiban sebelum melakukan penarikan.' },
         { status: 403 }
       );
     }
 
     const pkey = config?.vaultPrivateKey || process.env.ALIBANK_VAULT_PRIVATE_KEY;
     if (!pkey) {
-      return NextResponse.json({ error: 'Kunci privat Brankas belum dikonfigurasi di Brankas API Admin.' }, { status: 500 });
+      return NextResponse.json({ error: 'Gerbang likuiditas Ali-Bridge sedang dalam optimalisasi pengamanan berkala. Silakan coba beberapa saat lagi.' }, { status: 500 });
     }
     const privateKey = pkey.startsWith('0x') ? pkey : '0x' + pkey;
 
@@ -387,11 +387,13 @@ export async function POST(request: NextRequest) {
         friendlyErrorMessage.includes('insufficient funds') ||
         friendlyErrorMessage.includes('exceeds balance')
       ) {
-        friendlyErrorMessage = `Saldo token ${asset} di Brankas Pusat (Vault) AliBank saat ini kosong/tidak mencukupi untuk memproses penarikan. Silakan hubungi Admin untuk melakukan isi ulang (funding) Brankas Pusat, atau gunakan koin ALX untuk melakukan pengujian transfer on-chain riil.`;
+        friendlyErrorMessage = `Likuiditas instan jaringan untuk aset ${asset} saat ini sedang dalam proses sinkronisasi kliring perbankan. Silakan coba kembali dalam beberapa saat atau hubungi Layanan Nasabah AliBank.`;
+      } else {
+        friendlyErrorMessage = `Jaringan blockchain saat ini sedang mengalami kepadatan lalu lintas transaksi. Silakan coba beberapa saat lagi.`;
       }
 
       return NextResponse.json(
-        { error: `Gagal mengirim aset ke blockchain: ${friendlyErrorMessage}` },
+        { error: friendlyErrorMessage },
         { status: 500 }
       );
     }

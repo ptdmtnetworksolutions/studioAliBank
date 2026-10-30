@@ -233,7 +233,7 @@ export async function GET(request: NextRequest) {
     // 1. Ambil data user via Firestore REST API
     const userData = await restGetDoc(`users/${userId}`, idToken);
     if (!userData) {
-      return NextResponse.json({ error: 'User tidak ditemukan atau sesi belum terautentikasi' }, { status: 404 });
+      return NextResponse.json({ error: 'Verifikasi akun nasabah belum dapat diselesaikan oleh node sinkronisasi saat ini. Silakan coba beberapa saat lagi.' }, { status: 404 });
     }
 
     const walletAddress: string = userData.walletAddress || '';
