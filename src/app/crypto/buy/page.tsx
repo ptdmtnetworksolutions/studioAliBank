@@ -52,7 +52,7 @@ import { detectCardBin, CardBinResult } from "@/lib/bin-detector";
 import { BankCardBadge } from "@/components/cards/bank-card-badge";
 import { EdcSalesDraft } from "@/components/cards/edc-sales-draft";
 import { SoftPosTransactionReceipt } from "@/lib/softpos-acquirer";
-import { MARKUP, fiatToIdrRate, floorCrypto, ceilCrypto, formatCryptoAmount } from "@/lib/currency";
+import { MARKUP, fiatToIdrRate, floorCrypto, ceilCrypto, formatCryptoAmount, IDR_RATE_FALLBACK } from "@/lib/currency";
 
 function PaymentIcon({ icon: Icon, className = "w-5 h-5" }: { icon: any; className?: string }) {
   const Comp = Icon || Zap;
@@ -218,7 +218,7 @@ function CryptoBuyPageInner() {
   }, [coinsList, selectedAssetSymbol]);
 
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS[0]);
-  const [dynamicUsdtRate, setDynamicUsdtRate] = useState(17690);
+  const [dynamicUsdtRate, setDynamicUsdtRate] = useState(IDR_RATE_FALLBACK);
   const [fiatPerUsdRates, setFiatPerUsdRates] = useState<Record<string, number> | null>(null);
   const [isRateLoading, setIsRateLoading] = useState(true);
   const [lastSync, setLastSync] = useState<string>("");
@@ -365,11 +365,15 @@ function CryptoBuyPageInner() {
   }, [fetchRealTimeRate]);
 
   useEffect(() => {
-    // Kurs semua mata uang terhadap USD (untuk konversi nominal non-IDR yang akurat)
+    // Kurs live Forex USD/IDR dan semua mata uang terhadap USD (akurasi sinkron pasar global)
     fetch('/api/forex/rate')
       .then((r) => r.json())
       .then((d) => {
         if (d?.rates && typeof d.rates === 'object') setFiatPerUsdRates(d.rates);
+        if (d?.rate && typeof d.rate === 'number' && d.rate > 10000) {
+          setDynamicUsdtRate(d.rate);
+          setLastSync(new Date().toLocaleTimeString());
+        }
       })
       .catch(() => {});
   }, []);

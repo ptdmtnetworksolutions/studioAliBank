@@ -7,9 +7,9 @@
  * via the /api/forex/rate endpoint.
  *
  * Update this value periodically to match the current market rate.
- * Current rate as of June 2026: 1 USD ≈ Rp17,690
+ * Current rate as of October 2026: 1 USD ≈ Rp18,157 (Morningstar / open.er-api)
  */
-export const IDR_RATE_FALLBACK = 17690;
+export const IDR_RATE_FALLBACK = 18157;
 
 /** AliBank platform markup (2%) applied to crypto prices */
 export const MARKUP = 1.02;
