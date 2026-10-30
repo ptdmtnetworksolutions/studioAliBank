@@ -49,29 +49,36 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Gagal mendaftar. Silakan coba lagi.');
       }
 
-      // 2. Sinkronkan sesi di sisi client jika lingkungan browser mengizinkan
+      // 2. Simpan sesi user & token terlebih dahulu
+      if (typeof window !== 'undefined') {
+        const { saveAlibankAuthSession } = await import('@/lib/firestore-proxy-client');
+        saveAlibankAuthSession({
+          uid: data.uid,
+          email: formData.email.trim().toLowerCase(),
+          displayName: formData.name.trim(),
+          idToken: data.idToken || '',
+          refreshToken: data.refreshToken || '',
+          loggedInAt: Date.now(),
+        });
+      }
+
+      // 3. Sinkronkan sesi di sisi client jika lingkungan browser mengizinkan
       if (auth) {
         try {
-          await signInWithEmailAndPassword(auth, formData.email.trim().toLowerCase(), formData.password);
-        } catch (syncErr: any) {
-          console.warn('Sinkronisasi sesi client direct gagal:', syncErr?.code || syncErr);
+          const { setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence } = await import('firebase/auth');
           try {
-            const { setPersistence, browserSessionPersistence, inMemoryPersistence } = await import('firebase/auth');
+            await setPersistence(auth, browserLocalPersistence);
+          } catch {
             try {
               await setPersistence(auth, browserSessionPersistence);
             } catch {
               await setPersistence(auth, inMemoryPersistence);
             }
-            await signInWithEmailAndPassword(auth, formData.email.trim().toLowerCase(), formData.password);
-          } catch (retryErr) {
-            console.warn('Sinkronisasi sesi client in-memory dilewati:', retryErr);
           }
+          await signInWithEmailAndPassword(auth, formData.email.trim().toLowerCase(), formData.password);
+        } catch (syncErr: any) {
+          console.warn('Sinkronisasi sesi client direct dilewati (menggunakan sesi server):', syncErr?.code || syncErr);
         }
-      }
-
-      // 3. Pastikan cookie sesi tersimpan untuk Edge Middleware
-      if (typeof document !== 'undefined') {
-        document.cookie = "alibank_session=1; path=/; max-age=2592000; SameSite=Lax";
       }
 
       toast({

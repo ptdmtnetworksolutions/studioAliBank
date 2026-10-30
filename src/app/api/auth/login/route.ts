@@ -70,14 +70,38 @@ export async function POST(request: NextRequest) {
       message: 'Login berhasil.',
     });
 
+    const isProd = process.env.NODE_ENV === 'production';
+
     response.cookies.set({
       name: 'alibank_session',
       value: '1',
       path: '/',
       maxAge: 2592000,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProd,
     });
+
+    if (data.idToken) {
+      response.cookies.set({
+        name: 'alibank_token',
+        value: data.idToken,
+        path: '/',
+        maxAge: 2592000,
+        sameSite: 'lax',
+        secure: isProd,
+      });
+    }
+
+    if (data.refreshToken) {
+      response.cookies.set({
+        name: 'alibank_refresh',
+        value: data.refreshToken,
+        path: '/',
+        maxAge: 2592000,
+        sameSite: 'lax',
+        secure: isProd,
+      });
+    }
 
     return response;
   } catch (err: any) {

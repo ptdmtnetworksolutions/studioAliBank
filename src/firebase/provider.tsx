@@ -82,55 +82,63 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     setUserAuthState({ user: null, isUserLoading: true, userError: null }); 
 
+    const buildFallbackUser = () => {
+      try {
+        if (typeof window !== 'undefined') {
+          const savedUserStr = localStorage.getItem('alibank_user');
+          if (savedUserStr) {
+            const savedUser = JSON.parse(savedUserStr);
+            if (savedUser?.uid && savedUser?.email) {
+              return {
+                uid: savedUser.uid,
+                email: savedUser.email,
+                displayName: savedUser.displayName || savedUser.email.split('@')[0],
+                getIdToken: async () => {
+                  try {
+                    const latest = JSON.parse(localStorage.getItem('alibank_user') || '{}');
+                    return latest.idToken || savedUser.idToken || '';
+                  } catch {
+                    return savedUser.idToken || '';
+                  }
+                },
+                getIdTokenResult: async () => ({ token: savedUser.idToken || '' }),
+              };
+            }
+          }
+        }
+      } catch (_) {}
+      return null;
+    };
+
     const unsubscribe = onAuthStateChanged(
       auth,
       (firebaseUser) => { 
         if (firebaseUser) {
           setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
+          // Sync latest Firebase Auth token to localStorage for server proxy
+          firebaseUser.getIdToken().then((token) => {
+            if (typeof window !== 'undefined') {
+              import('@/lib/firestore-proxy-client').then(({ saveAlibankAuthSession, triggerFirestoreSync }) => {
+                saveAlibankAuthSession({
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email || '',
+                  displayName: firebaseUser.displayName || '',
+                  idToken: token,
+                  refreshToken: firebaseUser.refreshToken || '',
+                });
+                triggerFirestoreSync();
+              }).catch(() => {});
+            }
+          }).catch(() => {});
         } else {
           // Fallback akun terotentikasi dari server-side API login (untuk Tor Browser / pembatasan client-auth)
-          let fallbackUser: any = null;
-          try {
-            if (typeof window !== 'undefined') {
-              const savedUserStr = localStorage.getItem('alibank_user');
-              if (savedUserStr) {
-                const savedUser = JSON.parse(savedUserStr);
-                if (savedUser?.uid && savedUser?.email) {
-                  fallbackUser = {
-                    uid: savedUser.uid,
-                    email: savedUser.email,
-                    displayName: savedUser.displayName || savedUser.email.split('@')[0],
-                    getIdToken: async () => savedUser.idToken || "",
-                    getIdTokenResult: async () => ({ token: savedUser.idToken || "" }),
-                  };
-                }
-              }
-            }
-          } catch (_) {}
-
+          const fallbackUser: any = buildFallbackUser();
           setUserAuthState({ user: fallbackUser, isUserLoading: false, userError: null });
         }
       },
       (error) => { 
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
-        let fallbackUser: any = null;
-        try {
-          if (typeof window !== 'undefined') {
-            const savedUserStr = localStorage.getItem('alibank_user');
-            if (savedUserStr) {
-              const savedUser = JSON.parse(savedUserStr);
-              if (savedUser?.uid && savedUser?.email) {
-                fallbackUser = {
-                  uid: savedUser.uid,
-                  email: savedUser.email,
-                  displayName: savedUser.displayName || savedUser.email.split('@')[0],
-                  getIdToken: async () => savedUser.idToken || "",
-                  getIdTokenResult: async () => ({ token: savedUser.idToken || "" }),
-                };
-              }
-            }
-          }
-        } catch (_) {}
+        const fallbackUser: any = buildFallbackUser();
         setUserAuthState({ user: fallbackUser, isUserLoading: false, userError: fallbackUser ? null : error });
       }
     );

@@ -277,11 +277,11 @@ export default function ProfilePage() {
   };
 
   const handleLogout = async () => {
-    if (!auth) return;
     try {
-      await signOut(auth);
-      if (typeof document !== 'undefined') {
-        document.cookie = "alibank_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+      const { clearAlibankAuthSession } = await import('@/lib/firestore-proxy-client');
+      clearAlibankAuthSession();
+      if (auth) {
+        await signOut(auth).catch(() => {});
       }
       router.replace('/login');
       toast({ title: "Berhasil Keluar", description: "Anda telah keluar dari akun AliBank." });

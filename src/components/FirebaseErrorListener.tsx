@@ -29,9 +29,9 @@ export function FirebaseErrorListener() {
     };
   }, []);
 
-  // On re-render, if an error exists in state, throw it.
+  // Log warning instead of crashing the React tree on transient client auth sync delays
   if (error) {
-    throw error;
+    console.warn('[FirebaseErrorListener] Handled permission notice:', error.message);
   }
 
   // This component renders nothing.

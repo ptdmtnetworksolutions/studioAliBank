@@ -3,12 +3,26 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { initializeFirestore, getFirestore } from 'firebase/firestore';
+import {
+  getAuth,
+  initializeAuth,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence,
+  Auth,
+} from 'firebase/auth';
+import { initializeFirestore, getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { syncFirebaseAuthLocalStorage } from '@/lib/firestore-proxy-client';
+
+let cachedAuth: Auth | null = null;
+let cachedFirestore: Firestore | null = null;
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION SIGNATURE
 export function initializeFirebase() {
+  if (typeof window !== 'undefined') {
+    syncFirebaseAuthLocalStorage();
+  }
   if (!getApps().length) {
     const firebaseApp = initializeApp(firebaseConfig);
     return getSdks(firebaseApp);
@@ -17,16 +31,34 @@ export function initializeFirebase() {
 }
 
 export function getSdks(firebaseApp: FirebaseApp) {
-  // Inisialisasi Firestore dengan experimentalForceLongPolling untuk mencegah
-  // masalah konektivitas di lingkungan proxy seperti Firebase Studio.
-  const firestore = initializeFirestore(firebaseApp, {
-    experimentalForceLongPolling: true,
-  });
+  if (!cachedFirestore) {
+    try {
+      cachedFirestore = initializeFirestore(firebaseApp, {
+        experimentalForceLongPolling: true,
+      });
+    } catch {
+      cachedFirestore = getFirestore(firebaseApp);
+    }
+  }
+
+  if (!cachedAuth) {
+    try {
+      cachedAuth = initializeAuth(firebaseApp, {
+        persistence: [
+          browserLocalPersistence,
+          browserSessionPersistence,
+          inMemoryPersistence,
+        ],
+      });
+    } catch {
+      cachedAuth = getAuth(firebaseApp);
+    }
+  }
 
   return {
     firebaseApp,
-    auth: getAuth(firebaseApp),
-    firestore,
+    auth: cachedAuth,
+    firestore: cachedFirestore,
     storage: getStorage(firebaseApp)
   };
 }

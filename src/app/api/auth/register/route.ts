@@ -130,14 +130,38 @@ export async function POST(request: NextRequest) {
       message: 'Pendaftaran akun AliBank berhasil.',
     });
 
+    const isProd = process.env.NODE_ENV === 'production';
+
     response.cookies.set({
       name: 'alibank_session',
       value: '1',
       path: '/',
       maxAge: 2592000,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProd,
     });
+
+    if (idToken) {
+      response.cookies.set({
+        name: 'alibank_token',
+        value: idToken,
+        path: '/',
+        maxAge: 2592000,
+        sameSite: 'lax',
+        secure: isProd,
+      });
+    }
+
+    if (signUpData.refreshToken) {
+      response.cookies.set({
+        name: 'alibank_refresh',
+        value: signUpData.refreshToken,
+        path: '/',
+        maxAge: 2592000,
+        sameSite: 'lax',
+        secure: isProd,
+      });
+    }
 
     return response;
   } catch (err: any) {

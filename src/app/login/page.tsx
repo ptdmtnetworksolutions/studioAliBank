@@ -47,39 +47,36 @@ export default function LoginPage() {
         throw new Error(data.error || 'Email atau kata sandi salah. Silakan coba lagi.');
       }
 
-      // 2. Sinkronkan sesi Firebase Auth di client jika lingkungan browser mengizinkan
+      // 2. Simpan sesi user, token, dan Firebase Auth localStorage untuk Edge Middleware & Client Provider
+      if (typeof window !== 'undefined') {
+        const { saveAlibankAuthSession } = await import('@/lib/firestore-proxy-client');
+        saveAlibankAuthSession({
+          uid: data.uid,
+          email: data.email || targetEmail,
+          displayName: data.displayName || '',
+          idToken: data.idToken || '',
+          refreshToken: data.refreshToken || '',
+          loggedInAt: Date.now(),
+        });
+      }
+
+      // 3. Sinkronkan sesi Firebase Auth di client jika lingkungan browser mengizinkan
       if (auth) {
         try {
-          await signInWithEmailAndPassword(auth, targetEmail, password);
-        } catch (clientErr: any) {
-          console.warn('Client direct auth attempt 1 failed:', clientErr?.code || clientErr);
-          // Fallback untuk browser dengan IndexedDB terbatas (Tor / Private Browsing)
+          const { setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence } = await import('firebase/auth');
           try {
-            const { setPersistence, browserSessionPersistence, inMemoryPersistence } = await import('firebase/auth');
+            await setPersistence(auth, browserLocalPersistence);
+          } catch {
             try {
               await setPersistence(auth, browserSessionPersistence);
             } catch {
               await setPersistence(auth, inMemoryPersistence);
             }
-            await signInWithEmailAndPassword(auth, targetEmail, password);
-          } catch (retryErr) {
-            console.warn('Client auth in-memory sync skipped:', retryErr);
           }
+          await signInWithEmailAndPassword(auth, targetEmail, password);
+        } catch (clientErr: any) {
+          console.warn('Client direct auth sync skipped (using server token session):', clientErr?.code || clientErr);
         }
-      }
-
-      // 3. Simpan sesi user dan cookie untuk Edge Middleware & Client Provider
-      if (typeof window !== 'undefined') {
-        document.cookie = "alibank_session=1; path=/; max-age=2592000; SameSite=Lax";
-        try {
-          localStorage.setItem('alibank_user', JSON.stringify({
-            uid: data.uid,
-            email: data.email || targetEmail,
-            displayName: data.displayName || '',
-            idToken: data.idToken || '',
-            loggedInAt: Date.now()
-          }));
-        } catch (_) {}
       }
 
       toast({

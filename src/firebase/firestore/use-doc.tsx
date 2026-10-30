@@ -1,6 +1,6 @@
 'use client';
     
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   DocumentReference,
   onSnapshot,
@@ -8,8 +8,7 @@ import {
   FirestoreError,
   DocumentSnapshot,
 } from 'firebase/firestore';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { proxyGetDoc } from '@/lib/firestore-proxy-client';
 
 /** Utility type to add an 'id' field to a given type T. */
 type WithId<T> = T & { id: string };
@@ -25,18 +24,8 @@ export interface UseDocResult<T> {
 }
 
 /**
- * React hook to subscribe to a single Firestore document in real-time.
- * Handles nullable references.
- * 
- * IMPORTANT! YOU MUST MEMOIZE the inputted memoizedTargetRefOrQuery or BAD THINGS WILL HAPPEN
- * use useMemo to memoize it per React guidence.  Also make sure that it's dependencies are stable
- * references
- *
- *
- * @template T Optional type for document data. Defaults to any.
- * @param {DocumentReference<DocumentData> | null | undefined} docRef -
- * The Firestore DocumentReference. Waits if null/undefined.
- * @returns {UseDocResult<T>} Object with data, isLoading, error.
+ * React hook to subscribe to a single Firestore document in real-time,
+ * with automatic server-side proxy fallback for Tor Browser / restricted environments.
  */
 export function useDoc<T = any>(
   memoizedDocRef: DocumentReference<DocumentData> | null | undefined,
@@ -46,48 +35,93 @@ export function useDoc<T = any>(
   const [data, setData] = useState<StateDataType>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
+  const hasDataRef = useRef<boolean>(false);
+  const snapshotActiveRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!memoizedDocRef) {
       setData(null);
       setIsLoading(false);
       setError(null);
+      hasDataRef.current = false;
+      snapshotActiveRef.current = false;
       return;
     }
 
+    let cancelled = false;
+    const docPath = memoizedDocRef.path;
     setIsLoading(true);
     setError(null);
-    // Optional: setData(null); // Clear previous data instantly
+    snapshotActiveRef.current = false;
+
+    const fetchFromProxy = async () => {
+      if (cancelled) return;
+      const res = await proxyGetDoc<T>(docPath);
+      if (cancelled) return;
+      if (res.ok) {
+        if (res.exists && res.data) {
+          hasDataRef.current = true;
+          setData(res.data);
+        } else if (!hasDataRef.current) {
+          setData(null);
+        }
+        setError(null);
+        setIsLoading(false);
+      }
+    };
+
+    // Immediate proxy fetch for instant loading in Tor / production
+    fetchFromProxy();
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
       (snapshot: DocumentSnapshot<DocumentData>) => {
+        if (cancelled) return;
+        snapshotActiveRef.current = true;
         if (snapshot.exists()) {
+          hasDataRef.current = true;
           setData({ ...(snapshot.data() as T), id: snapshot.id });
         } else {
-          // Document does not exist
+          hasDataRef.current = false;
           setData(null);
         }
-        setError(null); // Clear any previous error on successful snapshot (even if doc doesn't exist)
+        setError(null);
         setIsLoading(false);
       },
-      (error: FirestoreError) => {
-        const contextualError = new FirestorePermissionError({
-          operation: 'get',
-          path: memoizedDocRef.path,
-        })
-
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
-
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+      (_err: FirestoreError) => {
+        if (cancelled) return;
+        // Do not wipe data or crash UI when client WebChannel is blocked by Tor;
+        // rely on the server-side proxy instead.
+        fetchFromProxy();
+        setIsLoading(false);
       }
     );
 
-    return () => unsubscribe();
-  }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
+    const pollInterval = setInterval(() => {
+      if (!snapshotActiveRef.current) {
+        fetchFromProxy();
+      }
+    }, 6000);
+
+    const handleSyncEvent = () => {
+      fetchFromProxy();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleSyncEvent);
+      window.addEventListener('alibank-firestore-sync', handleSyncEvent);
+    }
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+      clearInterval(pollInterval);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleSyncEvent);
+        window.removeEventListener('alibank-firestore-sync', handleSyncEvent);
+      }
+    };
+  }, [memoizedDocRef]);
 
   return { data, isLoading, error };
 }

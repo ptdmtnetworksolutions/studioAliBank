@@ -50,16 +50,20 @@ export function useVaultStaking(walletAddress: string | null, userId: string | n
       const db = getFirestore(app);
       const userDocRef = doc(db, 'users', userId);
 
-      const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data.lastClaimedTimestamp) {
-            setLastClaimedTimestamp(Number(data.lastClaimedTimestamp));
-          } else {
-            setLastClaimedTimestamp(0);
+      const unsubscribe = onSnapshot(
+        userDocRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.lastClaimedTimestamp) {
+              setLastClaimedTimestamp(Number(data.lastClaimedTimestamp));
+            } else {
+              setLastClaimedTimestamp(0);
+            }
           }
-        }
-      });
+        },
+        () => {}
+      );
       return () => unsubscribe();
     } catch (e) {
       console.error("Gagal men-subscribe data user dari Firestore:", e);

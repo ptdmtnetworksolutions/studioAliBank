@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Query,
   onSnapshot,
@@ -9,8 +9,7 @@ import {
   QuerySnapshot,
   CollectionReference,
 } from 'firebase/firestore';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { proxyGetCollection } from '@/lib/firestore-proxy-client';
 
 export type WithId<T> = T & { id: string };
 
@@ -54,6 +53,14 @@ function safeExtractPath(
       return canonicalPath;
     }
 
+    if (Array.isArray((internalQuery as any)?.path?.segments)) {
+      const segs = (internalQuery as any).path.segments;
+      const offset = (internalQuery as any).path.offset || 0;
+      const len = (internalQuery as any).path.len ?? segs.length;
+      const joined = segs.slice(offset, offset + len).join('/');
+      if (joined.length > 0) return joined;
+    }
+
     const directPath = (ref as any)?.path;
     if (typeof directPath === 'string' && directPath.length > 0) {
       return directPath;
@@ -85,12 +92,14 @@ export function useCollection<T = any>(
   const [data, setData] = useState<ResultItemType[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
+  const snapshotActiveRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
       setError(null);
+      snapshotActiveRef.current = false;
       return;
     }
 
@@ -100,16 +109,34 @@ export function useCollection<T = any>(
       setData(null);
       setIsLoading(false);
       setError(null);
+      snapshotActiveRef.current = false;
       return;
     }
 
-    const path = rawPath;
+    let cancelled = false;
     setIsLoading(true);
     setError(null);
+    snapshotActiveRef.current = false;
+
+    const fetchFromProxy = async () => {
+      if (cancelled) return;
+      const res = await proxyGetCollection<T>(memoizedTargetRefOrQuery);
+      if (cancelled) return;
+      if (res.ok) {
+        setData(res.docs);
+        setError(null);
+        setIsLoading(false);
+      }
+    };
+
+    // Immediate proxy fetch for instant loading in Tor / production
+    fetchFromProxy();
 
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
+        if (cancelled) return;
+        snapshotActiveRef.current = true;
         const results: ResultItemType[] = snapshot.docs.map(doc => ({
           ...(doc.data() as T),
           id: doc.id,
@@ -118,19 +145,38 @@ export function useCollection<T = any>(
         setError(null);
         setIsLoading(false);
       },
-      (err: FirestoreError) => {
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path,
-        });
-        setError(contextualError);
-        setData(null);
+      (_err: FirestoreError) => {
+        if (cancelled) return;
+        // Rely on server-side proxy when client WebChannel is blocked by Tor
+        fetchFromProxy();
         setIsLoading(false);
-        errorEmitter.emit('permission-error', contextualError);
       }
     );
 
-    return () => unsubscribe();
+    const pollInterval = setInterval(() => {
+      if (!snapshotActiveRef.current) {
+        fetchFromProxy();
+      }
+    }, 6000);
+
+    const handleSyncEvent = () => {
+      fetchFromProxy();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleSyncEvent);
+      window.addEventListener('alibank-firestore-sync', handleSyncEvent);
+    }
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+      clearInterval(pollInterval);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleSyncEvent);
+        window.removeEventListener('alibank-firestore-sync', handleSyncEvent);
+      }
+    };
   }, [memoizedTargetRefOrQuery]);
 
   return { data, isLoading, error };
