@@ -242,12 +242,14 @@ export default function WithdrawPage() {
           accountName: accountName.trim()
         },
         status: "pending",
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        timestamp: serverTimestamp()
       });
 
       // 4. LOG AUDIT GLOBAL (KEBUTUHAN MONITORING ADMIN)
       await proxyAddDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `WD-REQ-${Date.now()}`,
+        txDocId: txDoc.id,
         category: "Withdraw",
         amountIdr: numAmount,
         description: `Withdraw Request: Rp ${numAmount.toLocaleString('id-ID')} ke ${selectedBankName} (${cleanAccountNumber} a.n. ${accountName.trim()}). Status: PENDING.`,

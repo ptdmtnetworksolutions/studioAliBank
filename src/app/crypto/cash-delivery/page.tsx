@@ -334,10 +334,12 @@ export default function CashDeliveryPage() {
         },
         status: "pending",
         createdAt: serverTimestamp(),
+        timestamp: serverTimestamp(),
       });
 
       await proxyAddDoc(collection(db, "system", "audit", "global_transactions"), {
         id: `CD-REQ-${Date.now()}`,
+        txDocId: txDoc.id,
         category: "Cash Delivery",
         amountIdr: Math.round(currentMenerima),
         cryptoAmount: currentBayar,

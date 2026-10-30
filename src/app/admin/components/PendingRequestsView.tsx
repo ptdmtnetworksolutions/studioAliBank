@@ -252,7 +252,7 @@ export function PendingRequestsView({ topupRequests }: any) {
     }
   };
 
-  const pendingAll = topupRequests?.filter((r: any) => r.status === 'pending') || [];
+  const pendingAll = (topupRequests || []).filter((r: any) => String(r.status || 'pending').toLowerCase() === 'pending');
   const pendingWithdrawCount = pendingAll.filter((r: any) => isWithdrawReq(r)).length;
   const pendingDepositCount = pendingAll.length - pendingWithdrawCount;
 

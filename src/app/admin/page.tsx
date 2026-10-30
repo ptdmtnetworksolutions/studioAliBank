@@ -97,7 +97,12 @@ function AdminContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // DATA FETCHING STRATEGY V3.5 - RECONCILIATION MODE
-  const isPrivileged = user && (user.email === OWNER_EMAIL || user.uid === OWNER_UID);
+  const userEmailClean = String(user?.email || '').toLowerCase();
+  const isPrivileged = user && (
+    userEmailClean === OWNER_EMAIL.toLowerCase() ||
+    userEmailClean === 'aldzulfikar075@gmail.com' ||
+    user.uid === OWNER_UID
+  );
 
   const liquidityRef = useMemoFirebase(() => (db && isPrivileged ? doc(db, "system", "liquidity") : null), [db, isPrivileged]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
@@ -119,19 +124,44 @@ function AdminContent() {
   const apiKeysRef = useMemoFirebase(() => (db && isPrivileged ? doc(db, "system", "api_keys") : null), [db, isPrivileged]);
   const { data: storedKeys } = useDoc(apiKeysRef);
 
-  const topupQuery = useMemoFirebase(() => (db && isPrivileged ? query(collection(db, "topup_requests"), orderBy("timestamp", "desc"), limit(50)) : null), [db, isPrivileged]);
-  const { data: topupRequests } = useCollection(topupQuery);
+  // Ambil seluruh tiket antrean tanpa klausa orderBy agar dokumen dengan field createdAt tetap termuat sempurna
+  const topupQuery = useMemoFirebase(() => (db && isPrivileged ? query(collection(db, "topup_requests"), limit(100)) : null), [db, isPrivileged]);
+  const { data: rawTopupRequests } = useCollection(topupQuery);
+
+  const topupRequests = useMemo(() => {
+    if (!rawTopupRequests) return [];
+    return [...rawTopupRequests].sort((a: any, b: any) => {
+      const parseTime = (item: any) => {
+        if (item.timestamp?.seconds) return item.timestamp.seconds;
+        if (typeof item.timestamp === 'string') return new Date(item.timestamp).getTime() / 1000;
+        if (item.createdAt?.seconds) return item.createdAt.seconds;
+        if (typeof item.createdAt === 'string') return new Date(item.createdAt).getTime() / 1000;
+        return 0;
+      };
+      return parseTime(b) - parseTime(a);
+    });
+  }, [rawTopupRequests]);
 
   // MERGE DATA UNTUK AUDIT TOTAL
   const combinedAuditLogs = useMemo(() => {
     const global = (auditLogs || []).map(l => ({ ...l, source: 'official' }));
-    const clientSide = (userTransactions || []).map(l => ({ 
-      ...l, 
-      source: 'client',
-      category: l.category || 'User Activity',
-      amountIdr: l.amount || l.amountIdr || 0,
-      description: l.description || 'Transaksi Sisi Nasabah'
-    }));
+
+    const globalTxDocIds = new Set(global.map(l => l.txDocId).filter(Boolean));
+    const clientSide = (userTransactions || []).map(l => {
+      const isMatched = globalTxDocIds.has(l.id) || global.some(g => 
+        g.category === l.category && 
+        Math.abs((g.amountIdr || g.amount || 0) - (l.amount || l.amountIdr || 0)) < 1 &&
+        Math.abs((g.timestamp?.seconds || 0) - (l.timestamp?.seconds || 0)) < 120
+      );
+
+      return { 
+        ...l, 
+        source: isMatched ? 'official' : (l.source || 'client'),
+        category: l.category || 'User Activity',
+        amountIdr: l.amount || l.amountIdr || 0,
+        description: l.description || 'Transaksi Sisi Nasabah'
+      };
+    });
 
     // Hindari duplikasi jika ID sama
     const seenIds = new Set(global.map(l => l.id));

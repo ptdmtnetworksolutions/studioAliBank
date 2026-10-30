@@ -51,6 +51,13 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
   const [selectedLog, setSelectedLog] = useState<any>(null);
   const itemsPerPage = 15;
 
+  const LEGIT_CATEGORIES = useMemo(() => new Set([
+    'Withdraw', 'Trading', 'TopUp', 'Transfer', 'P2P Transfer', 'Game', 'Investasi', 
+    'Savings Portfolio', 'Crypto Deposit', 'External Settlement', 'Kliring Penarikan', 
+    'Kliring Manual', 'Kliring On-Chain', 'SoftPOS EDC Contactless', 'Market Execution', 
+    'Market Trade', 'Trade-X', 'Trade-X Win', 'Ali-Spin Win', 'Game Win', 'Futures', 'Futures Settlement'
+  ]), []);
+
   // ANALITIK FORENSIK GLOBAL: Deteksi Ketidaksesuaian Saldo Lintas Seluruh Node
   const forensicStats = useMemo(() => {
     if (!auditLogs) return { anomalies: [], totalValue: 0, riskyCount: 0 };
@@ -62,18 +69,17 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
       const amt = log.amountIdr || 0;
       totalValue += amt;
       
-      const isLarge = amt > 10000000;
+      const isLarge = amt > 50000000;
       const isManual = log.category === "Manual Adjustment" || log.category === "Adjustment";
-      const isClientSource = log.source === 'client';
+      const isUnknownCategory = log.source === 'client' && !LEGIT_CATEGORIES.has(log.category);
       
-      if (isLarge || isManual || isClientSource) riskyCount++;
+      if (isLarge || isManual || isUnknownCategory) riskyCount++;
       
-      // Anomali jika sumber hanya dari client (kemungkinan besar injeksi ilegal)
-      return isClientSource || (isManual && amt > 50000000);
+      return isUnknownCategory || (isManual && amt > 10000000);
     });
 
     return { anomalies, totalValue, riskyCount };
-  }, [auditLogs]);
+  }, [auditLogs, LEGIT_CATEGORIES]);
 
   const filteredLogs = useMemo(() => {
     if (!auditLogs) return [];
@@ -84,7 +90,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
     if (activeFilter === 'anomaly') {
       logs = forensicStats.anomalies;
     } else if (activeFilter === 'risky') {
-      logs = auditLogs.filter((l: any) => (l.amountIdr || 0) > 10000000 || l.category === "Manual Adjustment" || l.source === 'client');
+      logs = auditLogs.filter((l: any) => (l.amountIdr || 0) > 50000000 || l.category === "Manual Adjustment");
     }
 
     if (!searchTerm) return logs;
@@ -207,7 +213,8 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                 const amount = log.amountIdr || 0;
                 const isManual = log.category === "Manual Adjustment" || log.category === "Adjustment";
                 const isClientOnly = log.source === 'client';
-                const isAnomaly = isClientOnly || (isManual && amount > 10000000);
+                const isUnknown = isClientOnly && !LEGIT_CATEGORIES.has(log.category);
+                const isAnomaly = isUnknown || (isManual && amount > 10000000);
                 
                 return (
                   <tr 
@@ -223,11 +230,11 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                         <div className="flex items-center gap-2">
                           <Badge className={cn(
                             "border-none text-[8px] font-black h-5 uppercase px-2",
-                            isManual ? "bg-amber-100 text-amber-600" : isClientOnly ? "bg-rose-100 text-rose-600" : "bg-muted text-foreground"
+                            isAnomaly ? "bg-rose-100 text-rose-600" : isManual ? "bg-amber-100 text-amber-600" : "bg-muted text-foreground"
                           )}>
                             {log.category}
                           </Badge>
-                          {isClientOnly && <Badge className="bg-rose-600 text-white border-none text-[7px] font-black h-4 px-1.5 uppercase">UNVERIFIED</Badge>}
+                          {isAnomaly && <Badge className="bg-rose-600 text-white border-none text-[7px] font-black h-4 px-1.5 uppercase">UNVERIFIED</Badge>}
                         </div>
                         <p className="text-[10px] font-bold text-muted-foreground font-mono italic">
                           {log.timestamp?.toDate?.().toLocaleString('id-ID') || log.date || '---'}
@@ -240,10 +247,12 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                           "p-2 rounded-lg bg-muted",
                           isAnomaly ? "text-rose-500" : "text-primary"
                         )}>
-                          {isClientOnly ? <ShieldAlert className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
+                          {isAnomaly ? <ShieldAlert className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
                         </div>
                         <div>
-                          <p className="text-[11px] font-black uppercase italic text-foreground">{log.gateway || (isClientOnly ? "Client-Side Injection" : "Sistem Node")}</p>
+                          <p className="text-[11px] font-black uppercase italic text-foreground">
+                            {log.gateway || (isClientOnly ? "Aplikasi Nasabah (Mobile/Web)" : "Sistem Node")}
+                          </p>
                           <p className="text-[8px] font-bold text-muted-foreground uppercase max-w-[200px] truncate">{log.description}</p>
                         </div>
                       </div>
@@ -264,6 +273,11 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                         <div className="flex items-center gap-2 text-rose-600 animate-pulse">
                           <Skull className="w-4 h-4" />
                           <span className="text-[10px] font-black uppercase italic">Ilegal / Anomali</span>
+                        </div>
+                      ) : isClientOnly ? (
+                        <div className="flex items-center gap-2 text-primary">
+                          <ShieldCheck className="w-4 h-4" />
+                          <span className="text-[10px] font-black uppercase italic">Aplikasi Sah</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 text-green-600">
@@ -323,7 +337,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
               </div>
               <div className="text-right">
                 <p className="text-[9px] font-black uppercase text-muted-foreground mb-1">Integritas Data</p>
-                {selectedLog?.source === 'client' ? (
+                {selectedLog?.source === 'client' && !LEGIT_CATEGORIES.has(selectedLog?.category) ? (
                    <Badge className="bg-rose-600 text-white font-black text-[9px] px-3 h-6 uppercase italic animate-pulse">PHANTOM DATA</Badge>
                 ) : (
                    <Badge className="bg-green-500 text-white font-black text-[9px] px-3 h-6 uppercase italic">VERIFIED CORE</Badge>
@@ -359,7 +373,7 @@ export function AuditLogsView({ auditLogs, allUsers }: any) {
                </div>
             </div>
 
-            {selectedLog?.source === 'client' && (
+            {selectedLog?.source === 'client' && !LEGIT_CATEGORIES.has(selectedLog?.category) && (
               <div className="p-4 rounded-xl bg-rose-600/10 border border-rose-600/20 flex gap-3">
                  <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0" />
                  <p className="text-[9px] font-black text-rose-600 leading-relaxed italic uppercase">
