@@ -52,6 +52,14 @@ export function PendingRequestsView({ topupRequests }: any) {
 
   const handleApprove = async (req: any) => {
     if (!db || isProcessing) return;
+    if (req.status !== 'pending') {
+      toast({
+        variant: "destructive",
+        title: "Permintaan Sudah Diproses",
+        description: "Permintaan ini sudah tidak dalam status pending (mungkin telah diproses atau dibatalkan nasabah).",
+      });
+      return;
+    }
     setIsProcessing(req.id);
     
     try {
@@ -69,6 +77,15 @@ export function PendingRequestsView({ topupRequests }: any) {
           try {
             await proxyUpdateDoc(doc(db, "users", req.userId, "transactions", req.txDocId), {
               status: "success"
+            });
+          } catch {}
+        }
+
+        // Sinkronisasi kas / likuiditas IDR bank pusat saat dana keluar
+        if (withdrawIdr > 0) {
+          try {
+            await proxyUpdateDoc("system/liquidity", {
+              totalFiatInjected: increment(-withdrawIdr)
             });
           } catch {}
         }
@@ -163,6 +180,14 @@ export function PendingRequestsView({ topupRequests }: any) {
   const handleReject = async (req: any) => {
     if (!db || isProcessing) return;
     const isWd = isWithdrawReq(req);
+    if (req.status !== 'pending') {
+      toast({
+        variant: "destructive",
+        title: "Permintaan Sudah Diproses",
+        description: "Permintaan ini sudah tidak dalam status pending.",
+      });
+      return;
+    }
     const confirmMsg = isWd
       ? `Tolak penarikan ini dan kembalikan (refund) saldo ke akun ${req.userName}?`
       : `Tolak permintaan setoran dari ${req.userName}?`;
@@ -188,7 +213,8 @@ export function PendingRequestsView({ topupRequests }: any) {
           try {
             await proxyUpdateDoc(doc(db, "users", req.userId, "transactions", req.txDocId), {
               status: "rejected",
-              category: "Adjustment"
+              category: "Withdraw",
+              description: `Penarikan Ditolak Kliring (Dana Direfund)`
             });
           } catch {}
         }

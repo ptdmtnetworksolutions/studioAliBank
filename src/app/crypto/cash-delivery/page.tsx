@@ -207,6 +207,31 @@ export default function CashDeliveryPage() {
   const isButtonActive = currentMenerima >= minIdr && currentBayar >= minUsdt;
 
   const handleOpenQuote = () => {
+    if (userData?.isSuspended) {
+      toast({
+        variant: "destructive",
+        title: "Akun Ditangguhkan",
+        description: userData.securityLockReason || "Akun Anda sedang dibekukan oleh sistem keamanan AliBank.",
+      });
+      return;
+    }
+    if (userData?.tier === "Suspended (Debt)") {
+      toast({
+        variant: "destructive",
+        title: "Kewajiban Belum Diselesaikan",
+        description: "Akun Anda memiliki kewajiban penyelesaian tagihan. Silakan selesaikan restrukturisasi sebelum melakukan penukaran.",
+      });
+      return;
+    }
+    if (userData?.kycStatus !== 'verified') {
+      toast({
+        variant: "destructive",
+        title: "Verifikasi Identitas (KYC) Diperlukan",
+        description: "Demi kepatuhan regulasi, pengiriman tunai mewajibkan akun terverifikasi KYC.",
+      });
+      return;
+    }
+
     if (!isButtonActive) return;
     if (!activeChannel) {
       setActiveChannel('bca');
@@ -227,7 +252,18 @@ export default function CashDeliveryPage() {
   };
 
   const handleConfirmCashDelivery = async () => {
+    if (isSubmitting) return;
     if (!user || !db || !userDocRef) return;
+
+    if (userData?.isSuspended) {
+      toast({
+        variant: "destructive",
+        title: "Akun Ditangguhkan",
+        description: userData.securityLockReason || "Akun Anda sedang dibekukan oleh sistem keamanan AliBank.",
+      });
+      return;
+    }
+
     const cleanAcc = accountNumber.replace(/\D/g, "");
     if (cleanAcc.length < 6) {
       toast({

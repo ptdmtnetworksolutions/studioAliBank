@@ -17,7 +17,9 @@ import {
   Clock,
   XCircle,
   RotateCcw,
-  History
+  History,
+  Lock,
+  ShieldAlert
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +34,7 @@ import {
 } from "@/components/ui/select";
 import { useState, useMemo, useEffect } from "react";
 import { useUser, useDoc, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, increment, collection, serverTimestamp, query, orderBy, limit, where } from "firebase/firestore";
+import { doc, increment, collection, serverTimestamp, query, orderBy, limit, where, getDoc } from "firebase/firestore";
 import { proxyUpdateDoc, proxyAddDoc } from "@/lib/firestore-proxy-client";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
@@ -120,6 +122,31 @@ export default function WithdrawPage() {
   }, [targetBank]);
 
   const handleReviewWithdraw = () => {
+    if (userData?.isSuspended) {
+      toast({
+        variant: "destructive",
+        title: "Akun Ditangguhkan",
+        description: userData.securityLockReason || "Akun Anda sedang dibekukan oleh sistem keamanan AliBank. Penarikan dana tidak dapat dilakukan.",
+      });
+      return;
+    }
+    if (userData?.tier === "Suspended (Debt)") {
+      toast({
+        variant: "destructive",
+        title: "Kewajiban Belum Diselesaikan",
+        description: "Akun Anda memiliki kewajiban penyelesaian tagihan. Silakan selesaikan restrukturisasi sebelum melakukan penarikan.",
+      });
+      return;
+    }
+    if (userData?.kycStatus !== 'verified') {
+      toast({
+        variant: "destructive",
+        title: "Verifikasi Identitas (KYC) Diperlukan",
+        description: "Demi kepatuhan regulasi perbankan, penarikan dana mewajibkan akun terverifikasi KYC. Silakan verifikasi identitas Anda di menu Pengaturan.",
+      });
+      return;
+    }
+
     const cleanAcc = accountNumber.replace(/\D/g, "");
     const numAmount = parseFloat(amount);
 
@@ -149,8 +176,18 @@ export default function WithdrawPage() {
   };
 
   const handleWithdraw = async () => {
+    if (isProcessing) return;
     if (!user || !db || !userDocRef || !userData) return;
-    
+
+    if (userData.isSuspended) {
+      toast({
+        variant: "destructive",
+        title: "Akun Ditangguhkan",
+        description: userData.securityLockReason || "Akun Anda sedang dibekukan oleh sistem keamanan AliBank.",
+      });
+      return;
+    }
+
     const numAmount = parseFloat(amount);
     const cleanAccountNumber = accountNumber.replace(/\D/g, "");
     if (isNaN(numAmount) || numAmount < MIN_WITHDRAW_IDR) {
@@ -239,31 +276,53 @@ export default function WithdrawPage() {
 
   const handleCancelPendingWithdraw = async (tx: any) => {
     if (!user || !db || !userDocRef || cancellingId) return;
-    if (tx.status !== "pending") return;
 
     setCancellingId(tx.id);
     try {
-      const refundAmount = Number(tx.amount) || 0;
+      // 1. Verifikasi langsung ke server Firestore agar kebal race condition
+      const txRef = doc(db, "users", user.uid, "transactions", tx.id);
+      const txSnap = await getDoc(txRef);
+      if (!txSnap.exists()) {
+        throw new Error("Data transaksi tidak ditemukan.");
+      }
+      const freshTx = txSnap.data();
+      if (freshTx.status !== "pending") {
+        throw new Error(
+          freshTx.status === "success" || freshTx.status === "approved"
+            ? "Permintaan penarikan ini sudah dicairkan oleh admin dan tidak dapat dibatalkan."
+            : "Permintaan penarikan ini sudah tidak dalam status pending."
+        );
+      }
+
+      // 2. Batalkan tiket kliring di topup_requests
+      const matchingReq = userClearingRequests?.find(
+        (r: any) => r.type === "withdraw" && (r.txDocId === tx.id || (r.status === "pending" && Number(r.amount) === Number(tx.amount)))
+      );
+      if (matchingReq) {
+        const reqRef = doc(db, "topup_requests", matchingReq.id);
+        const reqSnap = await getDoc(reqRef);
+        if (reqSnap.exists() && reqSnap.data().status !== "pending") {
+          throw new Error("Permintaan penarikan ini sudah diproses oleh Pusat Kliring.");
+        }
+        await proxyUpdateDoc(reqRef, {
+          status: "rejected",
+          rejectedReason: "Dibatalkan oleh nasabah."
+        });
+      }
+
+      const refundAmount = Number(freshTx.amount || tx.amount) || 0;
       if (refundAmount > 0) {
         await proxyUpdateDoc(userDocRef, {
           totalBalance: increment(refundAmount)
         });
       }
 
-      await proxyUpdateDoc(doc(db, "users", user.uid, "transactions", tx.id), {
+      // 3. Update status mutasi transaksi tetap kategori 'Withdraw' (hindari kategori 'Adjustment')
+      await proxyUpdateDoc(txRef, {
         status: "rejected",
-        category: "Adjustment",
-        description: `${tx.description} [DIBATALKAN & REFUND]`
+        category: "Withdraw",
+        description: `${freshTx.description || tx.description} [DIBATALKAN NASABAH]`
       });
-
-      const matchingReq = userClearingRequests?.find(
-        (r: any) => r.type === "withdraw" && r.status === "pending" && (r.txDocId === tx.id || Number(r.amount) === refundAmount)
-      );
-      if (matchingReq) {
-        await proxyUpdateDoc(doc(db, "topup_requests", matchingReq.id), {
-          status: "rejected"
-        });
-      }
 
       await proxyAddDoc(collection(db, "users", user.uid, "notifications"), {
         title: "Penarikan Dibatalkan & Saldo Dikembalikan",
@@ -339,6 +398,39 @@ export default function WithdrawPage() {
                 <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-8 shadow-2xl">
                   {step === 'form' ? (
                     <>
+                      {userData?.isSuspended && (
+                        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3">
+                          <Lock className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-black uppercase text-rose-500 tracking-tight">Akun Dibekukan Sementara</p>
+                            <p className="text-[10px] text-muted-foreground font-bold mt-0.5">
+                              {userData.securityLockReason || "Akun Anda sedang ditangguhkan oleh sistem keamanan AliBank (Audit Forensik / Rekonsiliasi). Penarikan dana dibekukan."}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {!userData?.isSuspended && userData?.kycStatus !== 'verified' && (
+                        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-xs font-black uppercase text-amber-500 tracking-tight">Verifikasi KYC Diperlukan</p>
+                              <p className="text-[10px] text-muted-foreground font-bold mt-0.5">
+                                Sesuai regulasi perbankan, penarikan dana mewajibkan verifikasi identitas (KTP).
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => router.push('/settings/kyc')}
+                            className="h-8 px-3 rounded-xl gold-gradient text-white text-[9px] font-black uppercase italic shrink-0"
+                          >
+                            Verifikasi
+                          </Button>
+                        </div>
+                      )}
+
                       <div className="space-y-6">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
@@ -629,6 +721,39 @@ export default function WithdrawPage() {
                   <Card className="bg-card border border-border rounded-[2.5rem] p-8 space-y-8 shadow-sm">
                     {step === 'form' ? (
                       <>
+                        {userData?.isSuspended && (
+                          <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3">
+                            <Lock className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-xs font-black uppercase text-rose-500 tracking-tight">Akun Dibekukan Sementara</p>
+                              <p className="text-[10px] text-muted-foreground font-bold mt-0.5">
+                                {userData.securityLockReason || "Akun Anda sedang ditangguhkan oleh sistem keamanan AliBank (Audit Forensik / Rekonsiliasi). Penarikan dana dibekukan."}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {!userData?.isSuspended && userData?.kycStatus !== 'verified' && (
+                          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                              <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-xs font-black uppercase text-amber-500 tracking-tight">Verifikasi KYC Diperlukan</p>
+                                <p className="text-[10px] text-muted-foreground font-bold mt-0.5">
+                                  Sesuai regulasi perbankan, penarikan dana mewajibkan verifikasi identitas (KTP).
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => router.push('/settings/kyc')}
+                              className="h-8 px-3 rounded-xl gold-gradient text-white text-[9px] font-black uppercase italic shrink-0"
+                            >
+                              Verifikasi
+                            </Button>
+                          </div>
+                        )}
+
                         <div className="space-y-6">
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">

@@ -249,6 +249,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Akun nasabah tidak ditemukan.' }, { status: 404 });
     }
 
+    if (userData.isSuspended) {
+      return NextResponse.json(
+        { error: userData.securityLockReason || 'Akun Anda sedang dibekukan oleh sistem keamanan AliBank (Rekonsiliasi / Fraud Audit). Penarikan aset tidak dapat dilakukan.' },
+        { status: 403 }
+      );
+    }
+    if (userData.tier === 'Suspended (Debt)') {
+      return NextResponse.json(
+        { error: 'Akun Anda memiliki kewajiban penyelesaian tagihan. Silakan selesaikan kewajiban sebelum melakukan penarikan.' },
+        { status: 403 }
+      );
+    }
+
     const pkey = config?.vaultPrivateKey || process.env.ALIBANK_VAULT_PRIVATE_KEY;
     if (!pkey) {
       return NextResponse.json({ error: 'Kunci privat Brankas belum dikonfigurasi di Brankas API Admin.' }, { status: 500 });
