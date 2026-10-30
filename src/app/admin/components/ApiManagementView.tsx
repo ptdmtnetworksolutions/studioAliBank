@@ -46,6 +46,7 @@ export function ApiManagementView({ storedKeys }: any) {
     midtransMerchantId: "",
     midtransClientKey: "",
     midtransServerKey: "",
+    midtransSandbox: true,
     ipaymuVa: "",
     ipaymuApiKey: "",
     ipaymuSandbox: false,
@@ -70,6 +71,7 @@ export function ApiManagementView({ storedKeys }: any) {
         midtransMerchantId: storedKeys.midtransMerchantId || "" ,
         midtransClientKey: storedKeys.midtransClientKey || "",
         midtransServerKey: storedKeys.midtransServerKey || "",
+        midtransSandbox: storedKeys.midtransSandbox ?? true,
         ipaymuVa: storedKeys.ipaymuVa || "",
         ipaymuApiKey: storedKeys.ipaymuApiKey || "",
         ipaymuSandbox: storedKeys.ipaymuSandbox ?? false,
@@ -96,6 +98,7 @@ export function ApiManagementView({ storedKeys }: any) {
       infuraGasApiUrl: keys.infuraGasApiUrl,
       paypalClientId: keys.paypalClientId,
       midtransClientKey: keys.midtransClientKey,
+      midtransSandbox: keys.midtransSandbox,
       ipaymuVa: keys.ipaymuVa,
       ipaymuSandbox: keys.ipaymuSandbox,
       polygonRpcUrl: keys.polygonRpcUrl,
@@ -270,6 +273,25 @@ export function ApiManagementView({ storedKeys }: any) {
               <KeyField label="Midtrans Client Key" icon={Key} value={keys.midtransClientKey} placeholder="Mid-client-..." onChange={(v:any) => setKeys({...keys, midtransClientKey: v})} show={showKeys['mt_c']} onToggle={() => toggleShow('mt_c')} />
               <div className="md:col-span-2">
                 <KeyField label="Midtrans Server Key (Sensitif)" icon={Lock} value={keys.midtransServerKey} placeholder="Mid-server-..." onChange={(v:any) => setKeys({...keys, midtransServerKey: v})} show={showKeys['mt_s']} onToggle={() => toggleShow('mt_s')} description="Server Key digunakan untuk otentikasi aman antar server. Jangan pernah bagikan." />
+              </div>
+              <div className="md:col-span-2 flex flex-col space-y-3">
+                <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Midtrans Environment Mode</label>
+                <div className="flex bg-muted/50 p-1 rounded-xl w-full max-w-[300px] border border-border/10">
+                  <button
+                    type="button"
+                    onClick={() => setKeys({...keys, midtransSandbox: false})}
+                    className={`flex-1 py-2 text-[10px] font-black uppercase italic rounded-lg transition-all ${!keys.midtransSandbox ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Production
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setKeys({...keys, midtransSandbox: true})}
+                    className={`flex-1 py-2 text-[10px] font-black uppercase italic rounded-lg transition-all ${keys.midtransSandbox ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Sandbox
+                  </button>
+                </div>
               </div>
             </div>
           </section>

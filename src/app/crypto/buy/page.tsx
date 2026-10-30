@@ -661,7 +661,8 @@ function CryptoBuyPageInner() {
       return;
     }
 
-    if (!systemKeys?.midtransClientKey) {
+    const activeClientKey = systemKeys?.midtransClientKey || "Mid-client-wVGuw8PG4EoyNsuG";
+    if (!activeClientKey) {
       toast({ variant: "destructive", title: "Konfigurasi Error", description: "Gateway Midtrans belum aktif di Vault. Hubungi admin." });
       return;
     }
@@ -669,18 +670,50 @@ function CryptoBuyPageInner() {
     setIsProcessing(true);
     try {
       const orderId = `ALIBANK-BUY-${Date.now()}`;
-      const res = await createMidtransSnapTokenAction(
-        orderId,
-        totalAmountIdr,
-        userData?.name || user.email || "User",
-        user.email || ""
-      );
+      let snapToken = "";
 
-      if (!res.token) {
+      try {
+        const clientRes = await fetch('/api/payments/midtrans-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId,
+            amount: totalAmountIdr,
+            customerName: userData?.name || user.email || "User",
+            customerEmail: user.email || "",
+            userId: user.uid,
+            cryptoAmount: parseFloat(estimatedCrypto),
+            cryptoCurrency: selectedAsset.symbol,
+            usdValue: usdValue
+          })
+        });
+        const clientData = await clientRes.json();
+        if (clientRes.ok && clientData.token) {
+          snapToken = clientData.token;
+        }
+      } catch (e) {
+        console.warn('[Midtrans] Client direct fetch fallback:', e);
+      }
+
+      if (!snapToken) {
+        const res = await createMidtransSnapTokenAction(
+          orderId,
+          totalAmountIdr,
+          userData?.name || user.email || "User",
+          user.email || "",
+          user.uid,
+          parseFloat(estimatedCrypto),
+          selectedAsset.symbol,
+          usdValue
+        );
+        snapToken = res.token;
+      }
+
+      if (!snapToken) {
         throw new Error('Token pembayaran tidak diterima dari Midtrans.');
       }
 
-      window.snap.pay(res.token, {
+      window.snap.pay(snapToken, {
         onSuccess: (result: any) => {
           setIsProcessing(false);
           finalizeTransaction({ id: result.transaction_id, gateway: "Midtrans Snap" });
@@ -1160,14 +1193,13 @@ function CryptoBuyPageInner() {
           }}
         />
       )}
-      {typeof systemKeys?.midtransClientKey === 'string' && systemKeys.midtransClientKey.trim() !== '' && (
-        <Script 
-          src={systemKeys.midtransClientKey.startsWith('SB-') 
-            ? "https://app.sandbox.midtrans.com/snap/snap.js" 
-            : "https://app.midtrans.com/snap/snap.js"}
-          data-client-key={systemKeys.midtransClientKey}
-        />
-      )}
+      <Script 
+        key="midtrans-snap-sdk"
+        src={(systemKeys?.midtransSandbox !== false) 
+          ? "https://app.sandbox.midtrans.com/snap/snap.js" 
+          : "https://app.midtrans.com/snap/snap.js"}
+        data-client-key={systemKeys?.midtransClientKey || "Mid-client-wVGuw8PG4EoyNsuG"}
+      />
       
       {isMobile ? (
         <div className="flex flex-col flex-1 overflow-hidden">

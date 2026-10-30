@@ -67,6 +67,7 @@ function APIKeysContent() {
     midtransMerchantId: "",
     midtransClientKey: "",
     midtransServerKey: "",
+    midtransSandbox: true,
     ipaymuVa: "",
     ipaymuApiKey: "",
     ipaymuSandbox: false,
@@ -94,6 +95,7 @@ function APIKeysContent() {
         midtransMerchantId: storedKeys.midtransMerchantId || "",
         midtransClientKey: storedKeys.midtransClientKey || "",
         midtransServerKey: storedKeys.midtransServerKey || "",
+        midtransSandbox: storedKeys.midtransSandbox ?? true,
         ipaymuVa: storedKeys.ipaymuVa || "",
         ipaymuApiKey: storedKeys.ipaymuApiKey || "",
         ipaymuSandbox: storedKeys.ipaymuSandbox ?? false,
@@ -129,6 +131,7 @@ function APIKeysContent() {
       infuraGasApiUrl: keys.infuraGasApiUrl,
       paypalClientId: keys.paypalClientId,
       midtransClientKey: keys.midtransClientKey,
+      midtransSandbox: keys.midtransSandbox,
       ipaymuVa: keys.ipaymuVa,
       ipaymuSandbox: keys.ipaymuSandbox,
       polygonRpcUrl: keys.polygonRpcUrl,
@@ -354,6 +357,25 @@ function APIKeysContent() {
                       show={showKeys['mt_server']}
                       onToggle={() => toggleShow('mt_server')}
                     />
+                  </div>
+                  <div className="md:col-span-2 flex flex-col space-y-3">
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Midtrans Environment Mode</label>
+                    <div className="flex bg-white/5 p-1 rounded-2xl w-full max-w-[300px] border border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => setKeys({...keys, midtransSandbox: false})}
+                        className={`flex-1 py-2 text-[10px] font-black uppercase italic rounded-xl transition-all ${!keys.midtransSandbox ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-white"}`}
+                      >
+                        Production
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setKeys({...keys, midtransSandbox: true})}
+                        className={`flex-1 py-2 text-[10px] font-black uppercase italic rounded-xl transition-all ${keys.midtransSandbox ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-white"}`}
+                      >
+                        Sandbox
+                      </button>
+                    </div>
                   </div>
                 </div>
               </section>

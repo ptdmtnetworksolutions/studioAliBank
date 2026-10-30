@@ -19,38 +19,55 @@ function getAdminApp(): App {
   return initializeApp({ projectId: 'darmedia-pos' });
 }
 
-async function getMidtransServerKey(): Promise<string> {
+async function getMidtransConfig(): Promise<{ serverKey: string; isSandbox: boolean }> {
   // Priority 1: Environment variable
   if (process.env.MIDTRANS_SERVER_KEY) {
-    return process.env.MIDTRANS_SERVER_KEY;
+    const isSandbox = process.env.MIDTRANS_IS_PRODUCTION !== 'true' || process.env.MIDTRANS_IS_SANDBOX === 'true';
+    return { serverKey: process.env.MIDTRANS_SERVER_KEY, isSandbox };
   }
 
-  // Priority 2: Firebase Admin SDK (auto on GCP, needs GOOGLE_APPLICATION_CREDENTIALS locally)
+  // Priority 2: Firebase Admin SDK (Firestore system/api_keys)
   try {
     const adminApp = getAdminApp();
     const adminDb = getFirestore(adminApp);
     const snap = await adminDb.doc('system/api_keys').get();
     if (snap.exists) {
-      const key = snap.data()?.midtransServerKey;
-      if (key) return key;
+      const data = snap.data();
+      const key = data?.midtransServerKey;
+      if (key) {
+        const isSandbox = data?.midtransSandbox !== false;
+        return { serverKey: key, isSandbox };
+      }
     }
   } catch (e: any) {
     console.warn('[Midtrans Route] Admin SDK unavailable:', e?.code || e?.message?.slice(0, 80));
   }
 
-  return '';
+  return { 
+    serverKey: process.env.MIDTRANS_SERVER_KEY || '', 
+    isSandbox: true 
+  };
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orderId, amount, customerName, customerEmail } = body;
+    const { 
+      orderId, 
+      amount, 
+      customerName, 
+      customerEmail,
+      userId,
+      cryptoAmount,
+      cryptoCurrency,
+      usdValue
+    } = body;
 
     if (!orderId || !amount || !customerName) {
       return NextResponse.json({ error: 'Parameter tidak lengkap.' }, { status: 400 });
     }
 
-    const serverKey = await getMidtransServerKey();
+    const { serverKey, isSandbox } = await getMidtransConfig();
     if (!serverKey) {
       return NextResponse.json(
         { error: 'Midtrans Server Key belum dikonfigurasi. Isi di Admin → API Management.' },
@@ -58,10 +75,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isProduction = !serverKey.startsWith('SB-');
-    const baseUrl = isProduction
-      ? 'https://app.midtrans.com/snap/v1/transactions'
-      : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
+    const baseUrl = isSandbox
+      ? 'https://app.sandbox.midtrans.com/snap/v1/transactions'
+      : 'https://app.midtrans.com/snap/v1/transactions';
 
     const authHeader = Buffer.from(`${serverKey}:`).toString('base64');
 
@@ -87,6 +103,28 @@ export async function POST(request: NextRequest) {
       const errMsg = data.error_messages?.[0] || data.message || `Midtrans error (${response.status})`;
       console.error('[Midtrans Route] API error:', errMsg);
       return NextResponse.json({ error: errMsg }, { status: response.status });
+    }
+
+    if (userId) {
+      try {
+        const adminApp = getAdminApp();
+        const adminDb = getFirestore(adminApp);
+        await adminDb.collection('midtrans_pending_transactions').doc(orderId).set({
+          orderId,
+          amountIdr: amount,
+          customerName,
+          customerEmail: customerEmail || '',
+          userId,
+          cryptoAmount: cryptoAmount || 0,
+          cryptoCurrency: cryptoCurrency || 'ALX',
+          usdValue: usdValue || '0',
+          status: 'pending',
+          token: data.token,
+          createdAt: new Date().toISOString()
+        });
+      } catch (err: any) {
+        console.warn('[Midtrans Route] Failed saving pending doc:', err?.message);
+      }
     }
 
     return NextResponse.json({

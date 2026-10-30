@@ -11,14 +11,18 @@ export async function createMidtransSnapTokenAction(
   orderId: string,
   amount: number,
   customerName: string,
-  customerEmail: string
+  customerEmail: string,
+  userId?: string,
+  cryptoAmount?: number,
+  cryptoCurrency?: string,
+  usdValue?: string
 ) {
   // Determine the base URL for the internal API call
   // In production (Firebase App Hosting), NEXTAUTH_URL or NEXT_PUBLIC_APP_URL can be set.
   // For internal server-to-server calls, use localhost in dev and the internal host in prod.
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL
-    || process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`
-    || 'http://localhost:9005';
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')
+    || (process.env.NODE_ENV === 'production' ? 'https://alibank.tarroz.com' : 'http://localhost:3000');
 
   try {
     const response = await fetch(`${baseUrl}/api/payments/midtrans-token`, {
@@ -26,7 +30,16 @@ export async function createMidtransSnapTokenAction(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ orderId, amount, customerName, customerEmail }),
+      body: JSON.stringify({ 
+        orderId, 
+        amount, 
+        customerName, 
+        customerEmail,
+        userId,
+        cryptoAmount,
+        cryptoCurrency,
+        usdValue
+      }),
       cache: 'no-store'
     });
 
