@@ -21,8 +21,13 @@ import {
   Coins,
   Building2,
   ArrowDownToLine,
-  Copy
+  Copy,
+  AlertTriangle,
+  ShieldAlert,
+  FileText,
+  Check
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   doc, 
   increment, 
@@ -41,14 +46,82 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
+const WITHDRAW_REASONS = [
+  {
+    key: "kyc",
+    title: "Kepatuhan KYC & Identitas (AML / APU-PPT)",
+    desc: "Akun belum menyelesaikan verifikasi identitas (KYC Level 1). Sesuai regulasi perbankan & AML/APU-PPT, penarikan dana tunai ke rekening bank eksternal mewajibkan identitas e-KTP terverifikasi."
+  },
+  {
+    key: "settlement",
+    title: "Underlying Aset Belum Final / Settlement Kliring (T+1)",
+    desc: "Aset kripto atau dana setoran belum selesai melalui masa kliring settlement sistem (Holding Period T+1) atau konfirmasi on-chain belum final."
+  },
+  {
+    key: "mismatch",
+    title: "Ketidaksesuaian Alur Transaksi / Saldo Belum Dikonversi ke IDR",
+    desc: "Pengajuan penarikan dana IDR mendahului konfirmasi settlement dana di sistem, atau aset yang masuk ditukarkan ke aset kripto lain (BTC) bukan ke saldo IDR."
+  },
+  {
+    key: "bank_name",
+    title: "Nama Pemilik Rekening Bank Tujuan Berbeda",
+    desc: "Nama pemilik pada rekening bank tujuan tidak cocok dengan data identitas pemilik akun AliBank."
+  },
+  {
+    key: "custom",
+    title: "Alasan Kustom / Khusus Lainnya",
+    desc: "Tuliskan alasan penolakan secara spesifik yang akan dikirimkan langsung ke notifikasi nasabah."
+  }
+];
+
+const DEPOSIT_REASONS = [
+  {
+    key: "invalid_proof",
+    title: "Bukti Transfer Tidak Terverifikasi / Tidak Valid",
+    desc: "Bukti transfer tidak dapat diverifikasi keasliannya atau tidak memuat referensi bank yang sah."
+  },
+  {
+    key: "amount_mismatch",
+    title: "Nominal Transfer Tidak Sesuai Tiket Setoran",
+    desc: "Nominal transfer yang dikirim tidak cocok dengan tiket setoran yang diajukan di sistem."
+  },
+  {
+    key: "fund_not_received",
+    title: "Dana Belum Masuk ke Rekening Penampung AliBank",
+    desc: "Dana belum efektif masuk / mengendap di rekening giro operasional AliBank."
+  },
+  {
+    key: "custom",
+    title: "Alasan Kustom / Khusus Lainnya",
+    desc: "Tuliskan alasan penolakan setoran secara spesifik."
+  }
+];
+
 export function PendingRequestsView({ topupRequests }: any) {
   const db = useFirestore();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'deposit' | 'withdraw'>('all');
+  const [rejectModalReq, setRejectModalReq] = useState<any | null>(null);
+  const [selectedReasonKey, setSelectedReasonKey] = useState<string>("kyc");
+  const [customReasonText, setCustomReasonText] = useState<string>("");
 
   const isWithdrawReq = (req: any) => req?.type === 'withdraw' || req?.type === 'cash_delivery';
+
+  const openRejectDialog = (req: any) => {
+    if (req.status !== 'pending') {
+      toast({
+        variant: "destructive",
+        title: "Permintaan Sudah Diproses",
+        description: "Permintaan ini sudah tidak dalam status pending.",
+      });
+      return;
+    }
+    setRejectModalReq(req);
+    setSelectedReasonKey(isWithdrawReq(req) ? "kyc" : "invalid_proof");
+    setCustomReasonText("");
+  };
 
   const handleApprove = async (req: any) => {
     if (!db || isProcessing) return;
@@ -177,27 +250,35 @@ export function PendingRequestsView({ topupRequests }: any) {
     }
   };
 
-  const handleReject = async (req: any) => {
-    if (!db || isProcessing) return;
+  const executeReject = async () => {
+    if (!rejectModalReq || !db || isProcessing) return;
+    const req = rejectModalReq;
     const isWd = isWithdrawReq(req);
-    if (req.status !== 'pending') {
-      toast({
-        variant: "destructive",
-        title: "Permintaan Sudah Diproses",
-        description: "Permintaan ini sudah tidak dalam status pending.",
-      });
-      return;
+
+    let finalReason = "";
+    if (isWd) {
+      if (selectedReasonKey === 'custom') {
+        finalReason = customReasonText.trim() || "Penarikan tidak memenuhi syarat kepatuhan sistem.";
+      } else {
+        const found = WITHDRAW_REASONS.find(r => r.key === selectedReasonKey);
+        finalReason = found ? `${found.title}: ${found.desc}` : "Penarikan tidak memenuhi syarat kepatuhan sistem.";
+      }
+    } else {
+      if (selectedReasonKey === 'custom') {
+        finalReason = customReasonText.trim() || "Permintaan setoran tidak dapat diproses.";
+      } else {
+        const found = DEPOSIT_REASONS.find(r => r.key === selectedReasonKey);
+        finalReason = found ? `${found.title}: ${found.desc}` : "Permintaan setoran tidak dapat diproses.";
+      }
     }
-    const confirmMsg = isWd
-      ? `Tolak penarikan ini dan kembalikan (refund) saldo ke akun ${req.userName}?`
-      : `Tolak permintaan setoran dari ${req.userName}?`;
-    if (!confirm(confirmMsg)) return;
 
     setIsProcessing(req.id);
     try {
       if (isWd) {
         const userRef = doc(db, "users", req.userId);
         const withdrawIdr = Number(req.amount || req.totalToTransfer || 0);
+        const bankLabel = req.bankDetails?.bankName || req.bankDetails?.bank?.toUpperCase() || req.bankName || "Bank Tujuan";
+        const accNum = req.bankDetails?.accountNumber || req.accountNumber || "-";
 
         if (req.cryptoAsset && Number(req.cryptoAmount) > 0) {
           await proxyUpdateDoc(userRef, {
@@ -214,18 +295,21 @@ export function PendingRequestsView({ topupRequests }: any) {
             await proxyUpdateDoc(doc(db, "users", req.userId, "transactions", req.txDocId), {
               status: "rejected",
               category: "Withdraw",
-              description: `Penarikan Ditolak Kliring (Dana Direfund)`
+              description: `Penarikan Ditolak: ${finalReason} (Dana Direfund)`
             });
           } catch {}
         }
 
+        const notifMessage = req.cryptoAsset && Number(req.cryptoAmount) > 0
+          ? `Permintaan pengiriman tunai ${req.cryptoAmount} ${req.cryptoAsset} tidak dapat disetujui kliring. Alasan: "${finalReason}". Seluruh saldo telah dikembalikan utuh ke dompet aset Anda.`
+          : `Permintaan penarikan Rp ${withdrawIdr.toLocaleString("id-ID")} ke ${bankLabel} (${accNum}) tidak dapat disetujui kliring. Alasan: "${finalReason}". Seluruh saldo telah dikembalikan utuh ke saldo utama AliBank Anda.`;
+
         await proxyAddDoc(collection(db, "users", req.userId, "notifications"), {
-          title: "Penarikan Ditolak & Dana Dikembalikan",
-          message: req.cryptoAsset && Number(req.cryptoAmount) > 0
-            ? `Permintaan pengiriman tunai ditolak oleh kliring. Saldo ${req.cryptoAmount} ${req.cryptoAsset} telah dikembalikan utuh ke dompet Anda.`
-            : `Permintaan penarikan Rp ${withdrawIdr.toLocaleString("id-ID")} ditolak oleh kliring dan dana telah dikembalikan utuh ke saldo utama Anda.`,
+          title: "Penarikan Ditolak & Saldo Direfund",
+          message: notifMessage,
           type: "error",
           read: false,
+          rejectionReason: finalReason,
           createdAt: new Date().toISOString()
         });
 
@@ -233,18 +317,35 @@ export function PendingRequestsView({ topupRequests }: any) {
           id: `WD-REJ-${Date.now()}`,
           category: "Refund Penarikan",
           amountIdr: withdrawIdr,
-          description: `Admin menolak penarikan ${req.userName} dan mengembalikan dana Rp ${withdrawIdr.toLocaleString("id-ID")}.`,
+          description: `Admin menolak penarikan ${req.userName} [Alasan: ${finalReason}]. Saldo Rp ${withdrawIdr.toLocaleString("id-ID")} direfund.`,
           status: "dibatalkan",
           timestamp: serverTimestamp(),
-          userEmail: req.userEmail
+          userEmail: req.userEmail,
+          rejectionReason: finalReason
+        });
+      } else {
+        await proxyAddDoc(collection(db, "users", req.userId, "notifications"), {
+          title: "Setoran Ditolak",
+          message: `Permintaan setoran Anda ditolak oleh kliring. Alasan: "${finalReason}".`,
+          type: "error",
+          read: false,
+          rejectionReason: finalReason,
+          createdAt: new Date().toISOString()
         });
       }
 
-      await proxyUpdateDoc(doc(db, "topup_requests", req.id), { status: "rejected" });
+      await proxyUpdateDoc(doc(db, "topup_requests", req.id), { 
+        status: "rejected",
+        rejectionReason: finalReason,
+        rejectedAt: serverTimestamp()
+      });
+
       toast({
         title: isWd ? "Penarikan Ditolak & Dana Direfund" : "Permintaan Ditolak",
-        description: isWd ? `Saldo telah dikembalikan ke akun ${req.userName}.` : undefined
+        description: `Saldo telah dikembalikan ke akun ${req.userName} dan alasan penolakan telah dikirimkan.`
       });
+
+      setRejectModalReq(null);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal Menolak Permintaan", description: err.message });
     } finally {
@@ -408,7 +509,7 @@ export function PendingRequestsView({ topupRequests }: any) {
                       variant="ghost"
                       disabled={isProcessing === req.id}
                       className="h-12 px-4 rounded-xl hover:bg-rose-500/10 text-rose-500 font-black uppercase text-[10px]"
-                      onClick={() => handleReject(req)}
+                      onClick={() => openRejectDialog(req)}
                     >
                       <XCircle className="w-4 h-4 mr-1.5" />
                       {isWd ? "Tolak & Refund" : "Tolak"}
@@ -446,6 +547,160 @@ export function PendingRequestsView({ topupRequests }: any) {
         <DialogContent className="max-w-xl p-0 bg-transparent border-none">
           <DialogHeader className="sr-only"><DialogTitle>Bukti Pembayaran</DialogTitle></DialogHeader>
           <img src={selectedImage || ""} alt="Full Proof" className="w-full h-full rounded-[2rem] shadow-2xl" />
+        </DialogContent>
+      </Dialog>
+
+      {/* REJECTION REASON MODAL DIALOG */}
+      <Dialog open={!!rejectModalReq} onOpenChange={(open) => !open && !isProcessing && setRejectModalReq(null)}>
+        <DialogContent className="max-w-xl bg-card border border-border/60 text-card-foreground rounded-3xl p-6 sm:p-7 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+          <DialogHeader className="space-y-2 pb-2 border-b border-border/40 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-500">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-black tracking-tight italic uppercase">
+                  {rejectModalReq && isWithdrawReq(rejectModalReq) ? "Konfirmasi Tolak & Refund Penarikan" : "Konfirmasi Tolak Permintaan"}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Pilih alasan penolakan resmi perbankan agar nasabah memahami penyebab penolakan di notifikasi mereka.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {rejectModalReq && (
+            <div className="space-y-4 py-3 overflow-y-auto pr-1 flex-1 no-scrollbar">
+              {/* Summary card */}
+              <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 space-y-2">
+                <div className="flex justify-between items-start text-xs">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">Nasabah</span>
+                    <span className="font-black italic text-foreground">{rejectModalReq.userName || "Nasabah"}</span>
+                    <span className="text-muted-foreground block text-[11px]">{rejectModalReq.userEmail}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">Nominal</span>
+                    <span className="text-sm font-black italic text-rose-400">
+                      {isWithdrawReq(rejectModalReq) 
+                        ? (rejectModalReq.cryptoAsset && Number(rejectModalReq.cryptoAmount) > 0 
+                            ? `${rejectModalReq.cryptoAmount} ${rejectModalReq.cryptoAsset}`
+                            : `Rp ${Number(rejectModalReq.amount || rejectModalReq.totalToTransfer || 0).toLocaleString("id-ID")}`)
+                        : `Rp ${Number(rejectModalReq.amount || 0).toLocaleString("id-ID")}`}
+                    </span>
+                  </div>
+                </div>
+
+                {isWithdrawReq(rejectModalReq) && (
+                  <div className="pt-2 border-t border-border/40 flex items-center gap-2 text-[11px]">
+                    <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-muted-foreground">Tujuan:</span>
+                    <span className="font-bold text-foreground">
+                      {rejectModalReq.bankDetails?.bankName || rejectModalReq.bankName || "Bank"} - {rejectModalReq.bankDetails?.accountNumber || rejectModalReq.accountNumber || "-"}
+                    </span>
+                    <span className="text-muted-foreground">
+                      a.n. {rejectModalReq.bankDetails?.accountName || rejectModalReq.userName || "-"}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Reasons options list */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <FileText className="w-3 h-3 text-rose-500" />
+                  Pilih Alasan Penolakan:
+                </label>
+
+                <div className="space-y-2">
+                  {(isWithdrawReq(rejectModalReq) ? WITHDRAW_REASONS : DEPOSIT_REASONS).map((reason) => {
+                    const isSelected = selectedReasonKey === reason.key;
+                    return (
+                      <div
+                        key={reason.key}
+                        onClick={() => setSelectedReasonKey(reason.key)}
+                        className={cn(
+                          "p-3 rounded-xl border text-left cursor-pointer transition-all flex items-start gap-3",
+                          isSelected
+                            ? "bg-rose-500/10 border-rose-500/50 shadow-sm"
+                            : "bg-muted/20 border-border/50 hover:bg-muted/40"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-colors",
+                          isSelected ? "border-rose-500 bg-rose-500 text-white" : "border-muted-foreground/40"
+                        )}>
+                          {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={cn("text-xs font-black uppercase tracking-tight", isSelected ? "text-rose-400" : "text-foreground")}>
+                            {reason.title}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                            {reason.desc}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {selectedReasonKey === "custom" && (
+                  <div className="pt-2 space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                      Tulis Alasan Kustom:
+                    </label>
+                    <Textarea
+                      value={customReasonText}
+                      onChange={(e) => setCustomReasonText(e.target.value)}
+                      placeholder="Contoh: Saldo penarikan tidak sesuai dengan riwayat transaksi..."
+                      className="text-xs bg-muted/40 border-border rounded-xl resize-none min-h-[70px]"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {isWithdrawReq(rejectModalReq) && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-black">Proteksi Saldo Otomatis:</span> Dengan menolak penarikan, dana sebesar{" "}
+                    <strong>
+                      {rejectModalReq.cryptoAsset && Number(rejectModalReq.cryptoAmount) > 0 
+                        ? `${rejectModalReq.cryptoAmount} ${rejectModalReq.cryptoAsset}`
+                        : `Rp ${Number(rejectModalReq.amount || rejectModalReq.totalToTransfer || 0).toLocaleString("id-ID")}`}
+                    </strong>{" "}
+                    akan langsung dikembalikan utuh (refund) ke saldo akun nasabah.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="pt-3 border-t border-border/40 flex justify-end items-center gap-2 shrink-0">
+            <Button
+              variant="ghost"
+              disabled={!!isProcessing}
+              onClick={() => setRejectModalReq(null)}
+              className="h-10 px-4 rounded-xl text-xs font-bold uppercase"
+            >
+              Batal
+            </Button>
+            <Button
+              disabled={!!isProcessing || (selectedReasonKey === 'custom' && !customReasonText.trim())}
+              onClick={executeReject}
+              className="h-10 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center gap-2"
+            >
+              {isProcessing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <XCircle className="w-4 h-4" />
+                  {rejectModalReq && isWithdrawReq(rejectModalReq) ? "Konfirmasi Tolak & Refund" : "Konfirmasi Tolak"}
+                </>
+              )}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
