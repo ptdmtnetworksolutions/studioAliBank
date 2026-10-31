@@ -299,8 +299,7 @@ export function detectCardBin(cardNumber: string): CardBinResult {
 
   // --- BANK NOBU (Mitra SoftPOS Acquirer Resmi) ---
   else if (
-    bin6.startsWith('589388') || bin6.startsWith('601988') || bin6.startsWith('936008') ||
-    cleanPan.startsWith('4890') // AliBank SoftPOS Virtual EMV PAN range
+    bin6.startsWith('589388') || bin6.startsWith('601988') || bin6.startsWith('936008')
   ) {
     bank = SUPPORTED_BANKS.nobu;
     cardType = 'DEBIT';

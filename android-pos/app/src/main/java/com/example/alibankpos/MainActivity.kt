@@ -696,7 +696,7 @@ class MainActivity : FragmentActivity() {
             bin6.startsWith("405651") || bin6.startsWith("422144") || bin6.startsWith("517643") -> "BNI" to "KREDIT"
 
             // Nobu Bank (Mitra SoftPOS Resmi)
-            bin6.startsWith("589388") || bin6.startsWith("601988") || clean.startsWith("4890") -> "Nobu Bank (SoftPOS Mitra)" to "DEBIT"
+            bin6.startsWith("589388") || bin6.startsWith("601988") || bin6.startsWith("936008") -> "Nobu Bank (SoftPOS Mitra)" to "DEBIT"
 
             // Bank Syariah Indonesia (BSI)
             bin6.startsWith("404305") || bin4 == "4043" || bin6.startsWith("432204") ||
@@ -782,18 +782,17 @@ class MainActivity : FragmentActivity() {
         val hex = if (uid.isNotEmpty()) bytesToHex(uid).uppercase() else "ALX${System.currentTimeMillis() % 1000000}"
         val hash = Math.abs(hex.hashCode().toLong())
 
-        val hasIsoDep = tag.techList.any { it.contains("IsoDep") }
-        val isMifareClassicOnly = !hasIsoDep && tag.techList.any { it.contains("MifareClassic") || it.contains("MifareUltralight") }
+        val isMifare = tag.techList.any { it.contains("Mifare") }
 
-        // Hanya tag yang murni Mifare Classic tanpa IsoDep yang dianggap e-money prabayar offline
+        // Jika tag memiliki modul Mifare (Classic/DESFire/Ultralight), tandai sebagai Mandiri e-Money
         val panNumber: String
         val holder: String
-        if (isMifareClassicOnly) {
+        if (isMifare) {
             panNumber = "6032" + String.format("%012d", hash).take(12)
             holder = "MANDIRI E-MONEY (UID $hex)"
         } else {
-            // Kartu perbankan contactless (EMV IsoDep atau NFC-A umum)
-            panNumber = "4890" + String.format("%012d", hash).take(12)
+            // Kartu perbankan contactless universal (Visa / Mastercard)
+            panNumber = "4000" + String.format("%012d", hash).take(12)
             holder = "CONTACTLESS CARD (UID $hex)"
         }
         val expiry = "2030-12"
@@ -928,6 +927,21 @@ class MainActivity : FragmentActivity() {
                         }
                     }
                 }
+            }
+
+            // Cek apakah kartu merupakan MIFARE DESFire (seperti Mandiri e-Money)
+            val isDesfire = try {
+                val desfireCmd = byteArrayOf(0x6A.toByte())
+                val desfireRes = isoDep.transceive(desfireCmd)
+                desfireRes != null && desfireRes.isNotEmpty() && (desfireRes.last() == 0x00.toByte() || desfireRes.last() == 0xAF.toByte())
+            } catch (_: Exception) { false }
+
+            if (isDesfire) {
+                val uid = tag.id ?: byteArrayOf()
+                val hex = if (uid.isNotEmpty()) bytesToHex(uid).uppercase() else "ALX"
+                val hash = Math.abs(hex.hashCode().toLong())
+                val panNumber = "6032" + String.format("%012d", hash).take(12)
+                return "$panNumber|2030-12|MANDIRI E-MONEY (UID $hex)"
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error reading EMV card: ${e.message}")
