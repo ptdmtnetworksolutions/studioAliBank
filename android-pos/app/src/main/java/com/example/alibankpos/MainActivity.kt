@@ -671,11 +671,15 @@ class MainActivity : FragmentActivity() {
         }
 
         val (bank, type) = when {
-            // BCA
-            bin6.startsWith("537941") || bin6.startsWith("526422") || bin6.startsWith("526423") ||
-            bin6.startsWith("519893") || bin6.startsWith("601900") || bin4 == "6019" -> "BCA" to "DEBIT"
+            // BCA (Bank Central Asia) - Mastercard, GPN, Visa, Flazz
+            bin6.startsWith("5379") || bin6.startsWith("5307") || bin6.startsWith("5260") ||
+            bin6.startsWith("513458") || bin6.startsWith("526422") || bin6.startsWith("526423") ||
+            bin6.startsWith("519893") || bin6.startsWith("537176") || bin6.startsWith("530795") ||
+            bin6.startsWith("526051") || bin6.startsWith("537900") || bin6.startsWith("537941") ||
+            bin6.startsWith("6019") || bin4 == "6019" || bin4 == "6018" -> "BCA" to "DEBIT"
             bin6.startsWith("455632") || bin6.startsWith("455633") || bin6.startsWith("472640") ||
             bin6.startsWith("412513") || bin6.startsWith("541070") -> "BCA" to "KREDIT"
+            bin6.startsWith("601301") -> "BCA (Flazz Contactless)" to "E-MONEY PRABAYAR"
 
             // Mandiri
             bin6.startsWith("409755") || bin6.startsWith("413718") || bin6.startsWith("425945") ||
@@ -778,17 +782,21 @@ class MainActivity : FragmentActivity() {
         val hex = if (uid.isNotEmpty()) bytesToHex(uid).uppercase() else "ALX${System.currentTimeMillis() % 1000000}"
         val hash = Math.abs(hex.hashCode().toLong())
 
-        // Deteksi apakah tag adalah kartu Mifare / E-Money Mandiri / Kartu Prabayar non-EMV
-        val isMifareOrNfcA = tag.techList.any { it.contains("Mifare") || it.contains("NfcA") }
+        val hasIsoDep = tag.techList.any { it.contains("IsoDep") }
+        val isMifareClassicOnly = !hasIsoDep && tag.techList.any { it.contains("MifareClassic") || it.contains("MifareUltralight") }
 
-        val panNumber = if (isMifareOrNfcA) {
-            // Mandiri e-Money IIN prefix resmi 6032
-            "6032" + String.format("%012d", hash).take(12)
+        // Hanya tag yang murni Mifare Classic tanpa IsoDep yang dianggap e-money prabayar offline
+        val panNumber: String
+        val holder: String
+        if (isMifareClassicOnly) {
+            panNumber = "6032" + String.format("%012d", hash).take(12)
+            holder = "MANDIRI E-MONEY (UID $hex)"
         } else {
-            "4890" + String.format("%012d", hash).take(12)
+            // Kartu perbankan contactless (EMV IsoDep atau NFC-A umum)
+            panNumber = "4890" + String.format("%012d", hash).take(12)
+            holder = "CONTACTLESS CARD (UID $hex)"
         }
         val expiry = "2030-12"
-        val holder = if (isMifareOrNfcA) "MANDIRI E-MONEY (UID $hex)" else "CONTACTLESS CARD (UID $hex)"
         return "$panNumber|$expiry|$holder"
     }
 
@@ -798,39 +806,56 @@ class MainActivity : FragmentActivity() {
             isoDep.connect()
             isoDep.timeout = 5000
 
-            // 1. Select PPSE
+            // 1. Select PPSE (Proximity Payment System Environment)
             val selectPpse = byteArrayOf(
                 0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x0E.toByte(),
                 0x32.toByte(), 0x50.toByte(), 0x41.toByte(), 0x59.toByte(), 0x2E.toByte(),
                 0x53.toByte(), 0x59.toByte(), 0x53.toByte(), 0x2E.toByte(), 0x44.toByte(),
                 0x44.toByte(), 0x43.toByte(), 0x30.toByte(), 0x31.toByte(), 0x00.toByte()
             )
-            try { isoDep.transceive(selectPpse) } catch (_: Exception) {}
-
-            // Daftar AID untuk dicoba secara berurutan:
-            val aids = listOf(
-                // Visa Credit/Debit
-                byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x03.toByte(), 0x10.toByte(), 0x10.toByte()),
-                // Visa Electron
-                byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x03.toByte(), 0x20.toByte(), 0x10.toByte()),
-                // Mastercard Credit/Debit
-                byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x04.toByte(), 0x10.toByte(), 0x10.toByte()),
-                // Maestro Debit
-                byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x04.toByte(), 0x30.toByte(), 0x60.toByte()),
-                // GPN Debit Indonesia (NSICCS)
-                byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x06.toByte(), 0x02.toByte(), 0x10.toByte(), 0x10.toByte()),
-                // GPN Debit BCA/Mandiri (ASPI)
-                byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x06.toByte(), 0x02.toByte(), 0x01.toByte(), 0x01.toByte()),
-                // JCB
-                byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x65.toByte(), 0x10.toByte(), 0x10.toByte())
-            )
-
             var aidSelected = false
-            for (aid in aids) {
-                val res = try { isoDep.transceive(aid) } catch (_: Exception) { null }
-                if (res != null && isSuccess(res)) {
-                    aidSelected = true
-                    break
+            val ppseRes = try { isoDep.transceive(selectPpse) } catch (_: Exception) { null }
+            if (ppseRes != null && isSuccess(ppseRes)) {
+                // Ekstrak AID dari respons PPSE (Tag 0x4F)
+                val ppseAid = findTagValue(ppseRes, 0x4F)
+                if (ppseAid != null && ppseAid.size in 5..16) {
+                    val selectCmd = byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), ppseAid.size.toByte()) + ppseAid
+                    val selRes = try { isoDep.transceive(selectCmd) } catch (_: Exception) { null }
+                    if (selRes != null && isSuccess(selRes)) {
+                        aidSelected = true
+                    }
+                }
+            }
+
+            // Daftar AID cadangan jika PPSE tidak mengembalikan direktori lengkap:
+            if (!aidSelected) {
+                val aids = listOf(
+                    // Mastercard Credit/Debit (BCA, Mandiri, BRI, BNI)
+                    byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x04.toByte(), 0x10.toByte(), 0x10.toByte()),
+                    // Visa Credit/Debit (BSI, BCA, Mandiri, BNI)
+                    byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x03.toByte(), 0x10.toByte(), 0x10.toByte()),
+                    // Visa Electron
+                    byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x03.toByte(), 0x20.toByte(), 0x10.toByte()),
+                    // Maestro Debit
+                    byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x04.toByte(), 0x30.toByte(), 0x60.toByte()),
+                    // GPN Debit Indonesia (NSICCS)
+                    byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x06.toByte(), 0x02.toByte(), 0x10.toByte(), 0x10.toByte()),
+                    // GPN Debit BCA/Mandiri (ASPI)
+                    byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x06.toByte(), 0x02.toByte(), 0x01.toByte(), 0x01.toByte()),
+                    // BCA Proprietary Debit AID
+                    byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x06.toByte(), 0x02.toByte(), 0x00.toByte(), 0x01.toByte()),
+                    // BCA Flazz AID
+                    byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xD3.toByte(), 0x60.toByte(), 0x00.toByte(), 0x00.toByte(), 0x01.toByte(), 0x00.toByte(), 0x00.toByte()),
+                    // JCB
+                    byteArrayOf(0x00.toByte(), 0xA4.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0xA0.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x65.toByte(), 0x10.toByte(), 0x10.toByte())
+                )
+
+                for (aid in aids) {
+                    val res = try { isoDep.transceive(aid) } catch (_: Exception) { null }
+                    if (res != null && isSuccess(res)) {
+                        aidSelected = true
+                        break
+                    }
                 }
             }
 

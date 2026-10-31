@@ -197,15 +197,25 @@ export function detectCardBin(cardNumber: string): CardBinResult {
 
   // --- BCA (Bank Central Asia) ---
   if (
-    bin6.startsWith('537941') || bin6.startsWith('526422') || bin6.startsWith('526423') ||
-    bin6.startsWith('519893') || bin6.startsWith('537176') ||
-    bin6.startsWith('601900') || bin6.startsWith('601901') || bin6.startsWith('601902') || bin6.startsWith('601903') ||
-    bin4 === '6019'
+    // BCA Mastercard Debit (Blue, Gold, Platinum, Solitaire, Xpresi)
+    bin6.startsWith('5379') || bin6.startsWith('5307') || bin6.startsWith('5260') ||
+    bin6.startsWith('513458') || bin6.startsWith('526422') || bin6.startsWith('526423') ||
+    bin6.startsWith('519893') || bin6.startsWith('537176') || bin6.startsWith('530795') ||
+    bin6.startsWith('526051') || bin6.startsWith('537900') || bin6.startsWith('537941') ||
+    // BCA GPN Debit
+    bin6.startsWith('601900') || bin6.startsWith('601901') || bin6.startsWith('601902') || 
+    bin6.startsWith('601903') || bin6.startsWith('6019') || bin4 === '6019' || bin4 === '6018'
   ) {
     bank = SUPPORTED_BANKS.bca;
     cardType = 'DEBIT';
     isIndonesian = true;
-    cardLevel = bin6.includes('5264') ? 'Platinum' : 'Gold';
+    cardLevel = (bin6.startsWith('5260') || bin6.includes('5264') || bin6.startsWith('513458'))
+      ? 'Paspor BCA Platinum / Solitaire' 
+      : (bin6.startsWith('5307') || bin6.startsWith('530795'))
+      ? 'Paspor BCA Gold' 
+      : bin4 === '6019' 
+      ? 'BCA Debit GPN' 
+      : 'Paspor BCA Blue / Xpresi';
   } else if (
     bin6.startsWith('455632') || bin6.startsWith('455633') || bin6.startsWith('472640') ||
     bin6.startsWith('472641') || bin6.startsWith('412513') || bin6.startsWith('541070') ||
@@ -215,7 +225,9 @@ export function detectCardBin(cardNumber: string): CardBinResult {
     cardType = 'KREDIT';
     isIndonesian = true;
     cardLevel = 'BCA Card Black / Platinum';
-  } else if (bin4 === '6013' && (cleanPan.includes('FLAZZ') || bin6.startsWith('601301'))) {
+  } else if (
+    bin6.startsWith('601301') || (bin4 === '6013' && (cleanPan.includes('FLAZZ') || cleanPan.startsWith('601301')))
+  ) {
     bank = SUPPORTED_BANKS.bca;
     cardType = 'PREPAID / E-MONEY';
     isIndonesian = true;
