@@ -163,6 +163,7 @@ declare global {
 }
 
 const PAYMENT_METHODS = [
+  { id: 'doku', name: "DOKU Checkout (BSI, BCA, QRIS, Kartu)", icon: ShieldCheck, desc: "Virtual Account BSI, BCA, Mandiri, BRI, QRIS, Direct Debit, Kartu Kredit/Debit" },
   { id: 'midtrans', name: "Instan Kliring (Virtual Account/QRIS)", icon: Zap, desc: "BCA, Mandiri, BRI, BNI, QRIS" },
   { id: 'ipaymu', name: "Instan Kliring iPaymu", icon: Landmark, desc: "Virtual Account, QRIS, Retail Store" },
   { id: 'card', name: "Kartu Kredit/Debit Global", icon: CreditCard, desc: "Visa, Mastercard via PayPal" },
@@ -814,6 +815,43 @@ function CryptoBuyPageInner() {
       window.location.href = res.redirectUrl;
     } catch (err: any) {
       toast({ variant: "destructive", title: "iPaymu Error", description: err.message });
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDokuPayment = async () => {
+    if (!user || !db) {
+      toast({ variant: "destructive", title: "Sesi Tidak Valid", description: "Silakan login ulang." });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const orderId = `DOKU-ALX-${Date.now()}`;
+      const res = await fetch('/api/payments/doku-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          amount: totalAmountIdr,
+          customerName: userData?.name || user.email?.split('@')[0] || "Nasabah AliBank",
+          customerEmail: user.email || "customer@alibank.id",
+          userId: user.uid,
+          cryptoAmount: parseFloat(estimatedCrypto),
+          cryptoCurrency: selectedAsset.symbol,
+          usdValue: usdValue
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.paymentUrl) {
+        throw new Error(data.error || 'Gagal membuat sesi pembayaran DOKU.');
+      }
+
+      toast({ title: "Mengarahkan ke DOKU", description: "Membuka halaman pembayaran resmi DOKU Checkout..." });
+      window.location.href = data.paymentUrl;
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "DOKU Checkout Error", description: err.message });
       setIsProcessing(false);
     }
   };
@@ -1750,6 +1788,14 @@ function CryptoBuyPageInner() {
                     </>
                   )}
                 </div>
+              ) : selectedPayment?.id === 'doku' ? (
+                <Button 
+                  onClick={handleDokuPayment} 
+                  disabled={isProcessing}
+                  className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl flex items-center justify-center gap-3"
+                >
+                  {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : <><ShieldCheck className="w-5 h-5" /> BAYAR DENGAN DOKU CHECKOUT</>}
+                </Button>
               ) : selectedPayment?.id === 'midtrans' ? (
                 <Button 
                   onClick={handleMidtransPayment} 

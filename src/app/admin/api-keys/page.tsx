@@ -68,6 +68,11 @@ function APIKeysContent() {
     midtransClientKey: "",
     midtransServerKey: "",
     midtransSandbox: true,
+    dokuClientId: "BRN-0209-1775738330323",
+    dokuSecretKey: "SK-TT8V3jWaiU8DhL0wC4Sy",
+    dokuApiKey: "doku_key_e64fc572ccdd4bcf8fe787d331172b95",
+    dokuPublicKey: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlr1lH9rPOP5Vux/Qe6DTQDtz56Odg8FeIwoOciwB04UqD5OSz5Ft4K2y6fgSWArlLhUFftySlwuaKhi5oXsbjf3qApvBHHGEOws2P7tawGiGcOAVlNpSi32k4uEykASIWAlSQ1mjnSBMPS4gfMoeC9rGNAp8AoqhLYXt99Y2+czVdtiw4dX54gLQmcks0EChl+P5KtlIv7jSvasSuF0v/vyFDt7nNMGJmWYEAdqyZZGbbMdBKn4KeU6UiZGRGoCM/Ge3Fx4ZTKrIZ8KsZH+RRhNxjG+4Rw48rC0T/DfUw5AjX/wSxofSrcP9jHhlIhowXmhqyhvpVcHlqUIJqzeY8wIDAQAB\n-----END PUBLIC KEY-----",
+    dokuIsProduction: true,
     ipaymuVa: "",
     ipaymuApiKey: "",
     ipaymuSandbox: false,
@@ -96,6 +101,11 @@ function APIKeysContent() {
         midtransClientKey: storedKeys.midtransClientKey || "",
         midtransServerKey: storedKeys.midtransServerKey || "",
         midtransSandbox: storedKeys.midtransSandbox ?? true,
+        dokuClientId: storedKeys.dokuClientId || "BRN-0209-1775738330323",
+        dokuSecretKey: storedKeys.dokuSecretKey || "SK-TT8V3jWaiU8DhL0wC4Sy",
+        dokuApiKey: storedKeys.dokuApiKey || "doku_key_e64fc572ccdd4bcf8fe787d331172b95",
+        dokuPublicKey: storedKeys.dokuPublicKey || "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlr1lH9rPOP5Vux/Qe6DTQDtz56Odg8FeIwoOciwB04UqD5OSz5Ft4K2y6fgSWArlLhUFftySlwuaKhi5oXsbjf3qApvBHHGEOws2P7tawGiGcOAVlNpSi32k4uEykASIWAlSQ1mjnSBMPS4gfMoeC9rGNAp8AoqhLYXt99Y2+czVdtiw4dX54gLQmcks0EChl+P5KtlIv7jSvasSuF0v/vyFDt7nNMGJmWYEAdqyZZGbbMdBKn4KeU6UiZGRGoCM/Ge3Fx4ZTKrIZ8KsZH+RRhNxjG+4Rw48rC0T/DfUw5AjX/wSxofSrcP9jHhlIhowXmhqyhvpVcHlqUIJqzeY8wIDAQAB\n-----END PUBLIC KEY-----",
+        dokuIsProduction: storedKeys.dokuIsProduction ?? true,
         ipaymuVa: storedKeys.ipaymuVa || "",
         ipaymuApiKey: storedKeys.ipaymuApiKey || "",
         ipaymuSandbox: storedKeys.ipaymuSandbox ?? false,
@@ -372,6 +382,77 @@ function APIKeysContent() {
                         type="button"
                         onClick={() => setKeys({...keys, midtransSandbox: true})}
                         className={`flex-1 py-2 text-[10px] font-black uppercase italic rounded-xl transition-all ${keys.midtransSandbox ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-white"}`}
+                      >
+                        Sandbox
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <div className="h-px bg-white/5 w-full" />
+
+              <section className="space-y-8">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-black italic uppercase tracking-tight flex items-center gap-3">
+                    <ShieldCheck className="w-5 h-5 text-primary" /> DOKU Payment Gateway (PJP Kategori 1)
+                  </h3>
+                  <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black italic uppercase px-2 h-5">BSI / VA / QRIS / Kartu</Badge>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <KeyField 
+                    label="Client ID (Merchant)" 
+                    icon={Building2} 
+                    value={keys.dokuClientId} 
+                    placeholder="BRN-0209-..."
+                    onChange={(v: any) => setKeys({...keys, dokuClientId: v})}
+                    show={true}
+                  />
+                  <KeyField 
+                    label="API Key" 
+                    icon={Key} 
+                    value={keys.dokuApiKey} 
+                    placeholder="doku_key_..."
+                    onChange={(v: any) => setKeys({...keys, dokuApiKey: v})}
+                    show={showKeys['doku_api_key']}
+                    onToggle={() => toggleShow('doku_api_key')}
+                  />
+                  <div className="md:col-span-2">
+                    <KeyField 
+                      label="Active Secret Key (Sensitive)" 
+                      icon={Lock} 
+                      value={keys.dokuSecretKey} 
+                      placeholder="SK-..."
+                      onChange={(v: any) => setKeys({...keys, dokuSecretKey: v})}
+                      show={showKeys['doku_secret']}
+                      onToggle={() => toggleShow('doku_secret')}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2 mb-2 block">DOKU Public Key (RSA 2048)</label>
+                    <textarea 
+                      value={keys.dokuPublicKey}
+                      onChange={(e) => setKeys({...keys, dokuPublicKey: e.target.value})}
+                      rows={4}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 font-mono text-[10px] text-muted-foreground focus:outline-none focus:border-primary/50"
+                      placeholder="-----BEGIN PUBLIC KEY-----..."
+                    />
+                  </div>
+                  <div className="md:col-span-2 flex flex-col space-y-3">
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">DOKU Environment Mode</label>
+                    <div className="flex bg-white/5 p-1 rounded-2xl w-full max-w-[300px] border border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => setKeys({...keys, dokuIsProduction: true})}
+                        className={`flex-1 py-2 text-[10px] font-black uppercase italic rounded-xl transition-all ${keys.dokuIsProduction ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-white"}`}
+                      >
+                        Production
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setKeys({...keys, dokuIsProduction: false})}
+                        className={`flex-1 py-2 text-[10px] font-black uppercase italic rounded-xl transition-all ${!keys.dokuIsProduction ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-white"}`}
                       >
                         Sandbox
                       </button>
