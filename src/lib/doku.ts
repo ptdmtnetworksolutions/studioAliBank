@@ -20,9 +20,9 @@ export interface DokuConfig {
 }
 
 export const DOKU_CONFIG_DEFAULT: DokuConfig = {
-  clientId: process.env.DOKU_CLIENT_ID || 'BRN-0209-1775738330323',
-  secretKey: process.env.DOKU_SECRET_KEY || 'SK-TT8V3jWaiU8DhL0wC4Sy',
-  apiKey: process.env.DOKU_API_KEY || 'doku_key_e64fc572ccdd4bcf8fe787d331172b95',
+  clientId: process.env.DOKU_CLIENT_ID || '',
+  secretKey: process.env.DOKU_SECRET_KEY || '',
+  apiKey: process.env.DOKU_API_KEY || '',
   isProduction: process.env.DOKU_IS_PRODUCTION !== 'false'
 };
 
@@ -219,3 +219,4 @@ export async function createDokuCheckout(
     };
   }
 }
+
