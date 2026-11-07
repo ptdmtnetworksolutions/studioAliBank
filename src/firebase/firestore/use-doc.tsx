@@ -8,7 +8,11 @@ import {
   FirestoreError,
   DocumentSnapshot,
 } from 'firebase/firestore';
-import { proxyGetDoc } from '@/lib/firestore-proxy-client';
+import {
+  proxyGetDoc,
+  setCachedClientDoc,
+  getCachedClientDoc,
+} from '@/lib/firestore-proxy-client';
 
 /** Utility type to add an 'id' field to a given type T. */
 type WithId<T> = T & { id: string };
@@ -80,10 +84,19 @@ export function useDoc<T = any>(
         snapshotActiveRef.current = true;
         if (snapshot.exists()) {
           hasDataRef.current = true;
-          setData({ ...(snapshot.data() as T), id: snapshot.id });
+          const snapData = { ...(snapshot.data() as T), id: snapshot.id };
+          setCachedClientDoc(docPath, snapData, false);
+          const merged = getCachedClientDoc(docPath) || snapData;
+          setData(merged);
         } else {
-          hasDataRef.current = false;
-          setData(null);
+          const cached = getCachedClientDoc(docPath);
+          if (cached) {
+            hasDataRef.current = true;
+            setData(cached);
+          } else {
+            hasDataRef.current = false;
+            setData(null);
+          }
         }
         setError(null);
         setIsLoading(false);
@@ -101,9 +114,14 @@ export function useDoc<T = any>(
       if (!snapshotActiveRef.current) {
         fetchFromProxy();
       }
-    }, 6000);
+    }, 60000);
 
     const handleSyncEvent = () => {
+      const cached = getCachedClientDoc(docPath);
+      if (cached) {
+        hasDataRef.current = true;
+        setData({ ...cached });
+      }
       fetchFromProxy();
     };
 

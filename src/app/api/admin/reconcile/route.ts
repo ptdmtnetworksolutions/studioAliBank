@@ -642,6 +642,13 @@ export async function POST(req: NextRequest) {
         user.id === OWNER_UID ||
         user.role === 'admin';
       if (isOwnerAccount) {
+        if (user.isSuspended) {
+          await restPatchDoc(
+            `users/${user.id}`,
+            { isSuspended: false, securityLockReason: null },
+            idToken
+          ).catch(() => {});
+        }
         continue;
       }
 

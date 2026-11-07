@@ -157,7 +157,7 @@ export function useCollection<T = any>(
       if (!snapshotActiveRef.current) {
         fetchFromProxy();
       }
-    }, 6000);
+    }, 60000);
 
     const handleSyncEvent = () => {
       fetchFromProxy();

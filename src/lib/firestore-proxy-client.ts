@@ -214,6 +214,26 @@ export function reviveFirestoreData(val: any): any {
   return out;
 }
 
+const clientDocCache = new Map<string, { data: any; updatedAt: number; fromLocalWrite?: boolean }>();
+
+export function setCachedClientDoc(path: string, data: any, fromLocalWrite = false) {
+  const clean = String(path || '').replace(/^\/+|\/+$/g, '');
+  if (!clean || !data || typeof data !== 'object') return;
+  const existing = clientDocCache.get(clean);
+  if (!fromLocalWrite && existing?.fromLocalWrite && Date.now() - existing.updatedAt < 10 * 60 * 1000) {
+    // Keep local write changes on top of older snapshot data
+    const merged = { ...data, ...existing.data };
+    clientDocCache.set(clean, { data: merged, updatedAt: existing.updatedAt, fromLocalWrite: true });
+    return;
+  }
+  clientDocCache.set(clean, { data, updatedAt: Date.now(), fromLocalWrite });
+}
+
+export function getCachedClientDoc(path: string): any | null {
+  const clean = String(path || '').replace(/^\/+|\/+$/g, '');
+  return clientDocCache.get(clean)?.data || null;
+}
+
 export async function proxyGetDoc<T = any>(path: string): Promise<{
   ok: boolean;
   exists: boolean;
@@ -222,13 +242,14 @@ export async function proxyGetDoc<T = any>(path: string): Promise<{
   status: number;
 }> {
   try {
+    const cleanPath = String(path || '').replace(/^\/+|\/+$/g, '');
     const { idToken, refreshToken } = getStoredAuthTokens();
     const res = await fetch('/api/firestore/proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         op: 'getDoc',
-        path,
+        path: cleanPath,
         idToken,
         refreshToken,
       }),
@@ -249,15 +270,43 @@ export async function proxyGetDoc<T = any>(path: string): Promise<{
     }
 
     if (!res.ok) {
+      const cached = getCachedClientDoc(cleanPath);
+      if (cached) {
+        return {
+          ok: true,
+          exists: true,
+          id: cached.id || cleanPath.split('/').pop() || '',
+          data: cached,
+          status: 200,
+        };
+      }
       return { ok: false, exists: false, id: '', data: null, status: res.status };
     }
 
+    if (json.quotaFallback && !json.exists) {
+      const cached = getCachedClientDoc(cleanPath);
+      if (cached) {
+        return {
+          ok: true,
+          exists: true,
+          id: cached.id || cleanPath.split('/').pop() || '',
+          data: cached,
+          status: 200,
+        };
+      }
+      return { ok: false, exists: false, id: '', data: null, status: 429 };
+    }
+
     const revived = json.exists && json.data ? reviveFirestoreData(json.data) : null;
+    const finalData = revived ? { ...revived, id: json.id || revived.id } : null;
+    if (finalData) {
+      setCachedClientDoc(cleanPath, finalData, Boolean(json.fallbackLocal));
+    }
     return {
       ok: true,
       exists: Boolean(json.exists),
-      id: json.id || path.split('/').pop() || '',
-      data: revived ? { ...revived, id: json.id || revived.id } : null,
+      id: json.id || cleanPath.split('/').pop() || '',
+      data: finalData,
       status: 200,
     };
   } catch (e) {
@@ -458,6 +507,7 @@ export async function proxySetDoc(
   const path = extractRefPath(pathOrRef);
   if (!path) throw new Error('Invalid document reference or path for proxySetDoc');
   const { idToken, refreshToken } = getStoredAuthTokens();
+  const baseData = getCachedClientDoc(path);
   const res = await fetch('/api/firestore/proxy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -465,6 +515,7 @@ export async function proxySetDoc(
       op: 'setDoc',
       path,
       data,
+      baseData,
       merge: Boolean(options?.merge),
       idToken,
       refreshToken,
@@ -478,8 +529,12 @@ export async function proxySetDoc(
   if (!res.ok) {
     throw new Error(json?.error || `Firestore setDoc failed (${res.status})`);
   }
+  const revived = json.data ? reviveFirestoreData(json.data) : null;
+  if (revived) {
+    setCachedClientDoc(path, revived, true);
+  }
   triggerFirestoreSync();
-  return json.data ? reviveFirestoreData(json.data) : null;
+  return revived;
 }
 
 export async function proxyUpdateDoc(
@@ -489,6 +544,7 @@ export async function proxyUpdateDoc(
   const path = extractRefPath(pathOrRef);
   if (!path) throw new Error('Invalid document reference or path for proxyUpdateDoc');
   const { idToken, refreshToken } = getStoredAuthTokens();
+  const baseData = getCachedClientDoc(path);
   const res = await fetch('/api/firestore/proxy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -496,6 +552,7 @@ export async function proxyUpdateDoc(
       op: 'updateDoc',
       path,
       data,
+      baseData,
       merge: true,
       idToken,
       refreshToken,
@@ -509,8 +566,12 @@ export async function proxyUpdateDoc(
   if (!res.ok) {
     throw new Error(json?.error || `Firestore updateDoc failed (${res.status})`);
   }
+  const revived = json.data ? reviveFirestoreData(json.data) : null;
+  if (revived) {
+    setCachedClientDoc(path, revived, true);
+  }
   triggerFirestoreSync();
-  return json.data ? reviveFirestoreData(json.data) : null;
+  return revived;
 }
 
 export async function proxyAddDoc(

@@ -1314,92 +1314,136 @@ function CryptoBuyPageInner() {
                 ))}
               </div>
 
-              <div className="flex flex-col items-center justify-center space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className={cn("text-6xl font-black tracking-tighter italic", amount === "0" ? "text-muted-foreground/20" : "text-foreground")}>{amount}</span>
-                  <div className="flex items-center gap-1 cursor-pointer bg-muted/50 px-3 py-1.5 rounded-xl border border-border" onClick={() => setIsCurrencySheetOpen(true)}>
-                    <span className="text-sm font-black uppercase tracking-tighter">{selectedCurrency.code}</span>
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              {activeTab === 'beli' ? (
+                <Card className="rounded-[2rem] bg-card border border-primary/20 p-6 shadow-xl space-y-5 my-2">
+                  <div className="flex items-center justify-between">
+                    <Badge className="bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[8px] font-black uppercase px-2.5 py-1 italic tracking-wider">
+                      KALIBRASI NODE KLIRING PJP • BI-SNAP V3
+                    </Badge>
+                    <ShieldCheck className="w-5 h-5 text-primary shrink-0" />
                   </div>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground font-bold italic">
-                  <ArrowUpDown className="w-3.5 h-3.5 text-primary" />
-                  <span className="text-xs">{estimatedCrypto} {selectedAsset.symbol}</span>
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" onClick={() => setIsAssetSheetOpen(true)}>
-                  <div className="flex items-center gap-4">
-                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center overflow-hidden shrink-0", selectedAsset.isNative ? "gold-gradient text-white p-2" : "bg-muted relative p-1 shadow-sm")}>
-                      {selectedAsset.isNative ? (
-                        <LogoIcon className="w-full h-full text-white" />
-                      ) : (
-                        <>
-                          <img 
-                            src={`https://assets.coincap.io/assets/icons/${selectedAsset.symbol.toLowerCase()}@2x.png`} 
-                            className="object-cover w-full h-full rounded-full" 
-                            alt={selectedAsset.symbol} 
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                              const fallback = (e.target as HTMLImageElement).nextElementSibling;
-                              if (fallback) fallback.classList.remove('hidden');
-                            }}
-                          />
-                          <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-full font-black text-xs text-slate-400">
-                            {selectedAsset.symbol[0]}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    <div><p className="text-xs font-black italic">{activeTab === 'jual' ? 'Jual' : 'Beli'}</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-600 text-[7px] font-black h-4 px-1.5 border-none uppercase">Live Node</Badge></div></div>
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-black italic uppercase tracking-tight text-foreground leading-snug">
+                      Optimalisasi Jaringan Kliring & Likuiditas Pembayaran
+                    </h3>
+                    <p className="text-[11px] font-semibold text-muted-foreground leading-relaxed">
+                      Fasilitas akuisisi aset digital melalui gerbang pembayaran fiat terpadu (Virtual Account, QRIS Nasional, Kartu Kredit/Debit, serta Terminal SoftPOS) saat ini sedang dalam tahap penyelarasan enkripsi buku besar dan kalibrasi likuiditas berkala bersama mitra Penyelenggara Jasa Pembayaran (PJP Kategori 1).
+                    </p>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
-                </div>
-                
-                <div 
-                  className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" 
-                  onClick={() => {
-                    if (activeTab !== 'jual') {
-                      setIsPaymentSheetOpen(true);
-                    }
-                  }}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 shadow-sm text-primary">
-                      {activeTab === 'jual' ? (
-                        <Landmark className="w-5 h-5" />
-                      ) : (
-                        <PaymentIcon icon={activePayment?.icon} className="w-5 h-5" />
-                      )}
+
+                  <div className="p-4 rounded-2xl bg-primary/5 border border-primary/15 space-y-1.5">
+                    <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase italic">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>Jaminan Keamanan Kustodian 24/7</span>
                     </div>
-                    <div>
-                      <p className="text-xs font-black italic">
-                        {activeTab === 'jual' ? "Penerima" : "Metode pembayaran"}
-                      </p>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase">
-                        {activeTab === 'jual' ? "Saldo Dompet AliBank (Instan)" : activePayment.name}
-                      </p>
+                    <p className="text-[10px] font-bold text-muted-foreground leading-relaxed">
+                      Seluruh portofolio aset digital dan saldo nasabah di dalam Brankas Kustodian AliBank tetap terlindungi sepenuhnya. Layanan <strong className="text-foreground">Konversi Aset Instan (Swap)</strong>, <strong className="text-foreground">Penjualan ke Saldo Dompet</strong>, serta <strong className="text-foreground">Pengiriman On-Chain (Ali-Bridge)</strong> tetap beroperasi normal.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5 pt-2">
+                    <Button
+                      onClick={() => router.push('/crypto/convert')}
+                      className="w-full h-13 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-lg text-xs tracking-wider flex items-center justify-center gap-2"
+                    >
+                      <ArrowRightLeft className="w-4 h-4" />
+                      Gunakan Konversi Instan (Swap Aset)
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setActiveTab('jual')}
+                      className="w-full h-11 rounded-xl font-black italic uppercase text-[11px] border-border"
+                    >
+                      Beralih ke Penjualan Aset
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => router.push('/')}
+                      className="w-full h-10 rounded-xl font-black italic uppercase text-[10px] text-muted-foreground"
+                    >
+                      Kembali ke Beranda Utama
+                    </Button>
+                  </div>
+                </Card>
+              ) : (
+                <>
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className={cn("text-6xl font-black tracking-tighter italic", amount === "0" ? "text-muted-foreground/20" : "text-foreground")}>{amount}</span>
+                      <div className="flex items-center gap-1 cursor-pointer bg-muted/50 px-3 py-1.5 rounded-xl border border-border" onClick={() => setIsCurrencySheetOpen(true)}>
+                        <span className="text-sm font-black uppercase tracking-tighter">{selectedCurrency.code}</span>
+                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground font-bold italic">
+                      <ArrowUpDown className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-xs">{estimatedCrypto} {selectedAsset.symbol}</span>
                     </div>
                   </div>
-                  {activeTab !== 'jual' && <ChevronRight className="w-4 h-4 text-muted-foreground/30" />}
-                </div>
-              </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer" onClick={() => setIsAssetSheetOpen(true)}>
+                      <div className="flex items-center gap-4">
+                        <div className={cn("w-10 h-10 rounded-full flex items-center justify-center overflow-hidden shrink-0", selectedAsset.isNative ? "gold-gradient text-white p-2" : "bg-muted relative p-1 shadow-sm")}>
+                          {selectedAsset.isNative ? (
+                            <LogoIcon className="w-full h-full text-white" />
+                          ) : (
+                            <>
+                              <img 
+                                src={`https://assets.coincap.io/assets/icons/${selectedAsset.symbol.toLowerCase()}@2x.png`} 
+                                className="object-cover w-full h-full rounded-full" 
+                                alt={selectedAsset.symbol} 
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                  if (fallback) fallback.classList.remove('hidden');
+                                }}
+                              />
+                              <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-full font-black text-xs text-slate-400">
+                                {selectedAsset.symbol[0]}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        <div><p className="text-xs font-black italic">Jual</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-600 text-[7px] font-black h-4 px-1.5 border-none uppercase">Live Node</Badge></div></div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border border-border/50">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 shadow-sm text-primary">
+                          <Landmark className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black italic">Penerima</p>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase">
+                            Saldo Dompet AliBank (Instan)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
-            <div className="pb-10 space-y-6">
-              <Button disabled={amount === "0" || totalAmountIdr <= 0 || cryptoQuote <= 0 || isProcessing} onClick={() => setIsCheckoutDialogOpen(true)} className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest">
-                {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : 'LANJUTKAN'}
-              </Button>
-              <div className="grid grid-cols-3 gap-y-1">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                  <button key={n} onClick={() => handleKeyPress(n.toString())} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">{n}</button>
-                ))}
-                <button onClick={() => setAmount(prev => prev.includes(',') ? prev : prev + ',')} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">,</button>
-                <button onClick={() => handleKeyPress("0")} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">0</button>
-                <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-3 transition-colors" title="Hapus Karakter" aria-label="Hapus Karakter"><Delete className="w-7 h-7" /></button>
+            {activeTab !== 'beli' && (
+              <div className="pb-10 space-y-6">
+                <Button disabled={amount === "0" || totalAmountIdr <= 0 || cryptoQuote <= 0 || isProcessing} onClick={() => setIsCheckoutDialogOpen(true)} className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest">
+                  {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : 'LANJUTKAN'}
+                </Button>
+                <div className="grid grid-cols-3 gap-y-1">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                    <button key={n} onClick={() => handleKeyPress(n.toString())} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">{n}</button>
+                  ))}
+                  <button onClick={() => setAmount(prev => prev.includes(',') ? prev : prev + ',')} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">,</button>
+                  <button onClick={() => handleKeyPress("0")} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">0</button>
+                  <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-3 transition-colors" title="Hapus Karakter" aria-label="Hapus Karakter"><Delete className="w-7 h-7" /></button>
+                </div>
               </div>
-            </div>
+            )}
           </main>
         </div>
       ) : (
@@ -1453,135 +1497,175 @@ function CryptoBuyPageInner() {
                       ))}
                     </div>
 
-                    {/* Numeric Input & Selectors */}
-                    <div className="space-y-6">
-                      <div className="flex flex-col space-y-2">
-                        <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest pl-1">Jumlah Transaksi</label>
-                        <div className="flex items-center justify-between bg-muted/30 p-6 rounded-2xl border border-border/50">
-                          <input 
-                            type="text" 
-                            id="amount-input-desktop"
-                            placeholder="0"
-                            title="Jumlah Transaksi"
-                            aria-label="Jumlah Transaksi"
-                            value={amount}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (/^\d*([.,]\d*)?$/.test(val)) {
-                                setAmount(val);
-                              }
-                            }}
-                            className="bg-transparent border-none text-5xl font-black tracking-tighter italic text-foreground focus:outline-none focus:ring-0 w-full"
-                          />
-                          <button 
-                            onClick={() => setIsCurrencySheetOpen(true)}
-                            className="flex items-center gap-2 bg-card hover:bg-muted/80 px-4 py-2.5 rounded-xl border border-border shrink-0 shadow-sm transition-all"
+                    {activeTab === 'beli' ? (
+                      <div className="rounded-[2rem] bg-muted/20 border border-primary/20 p-8 space-y-6">
+                        <div className="flex items-center justify-between">
+                          <Badge className="bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[9px] font-black uppercase px-3 py-1 italic tracking-wider">
+                            KALIBRASI NODE KLIRING PJP • BI-SNAP V3
+                          </Badge>
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                            <ShieldCheck className="w-5 h-5" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground">
+                            Optimalisasi Jaringan Kliring & Likuiditas Pembayaran Terpadu
+                          </h3>
+                          <p className="text-xs font-semibold text-muted-foreground leading-relaxed">
+                            Fasilitas akuisisi aset digital melalui gerbang pembayaran fiat terpadu (Virtual Account Perbankan, QRIS Nasional, Kartu Kredit/Debit Global, serta Terminal SoftPOS) saat ini sedang dalam proses penyelarasan enkripsi buku besar dan kalibrasi likuiditas berkala bersama mitra Penyelenggara Jasa Pembayaran (PJP Kategori 1).
+                          </p>
+                        </div>
+
+                        <div className="p-5 rounded-2xl bg-primary/5 border border-primary/15 space-y-2">
+                          <div className="flex items-center gap-2 text-primary font-black text-xs uppercase italic">
+                            <CheckCircle2 className="w-4 h-4 shrink-0" />
+                            <span>Jaminan Keamanan Kustodian & Operasional 24/7</span>
+                          </div>
+                          <p className="text-[11px] font-bold text-muted-foreground leading-relaxed">
+                            Seluruh portofolio aset digital dan saldo nasabah di dalam Brankas Kustodian AliBank tetap terlindungi sepenuhnya dengan standar pengamanan kriptografi berlapis. Selama periode penyelarasan berlangsung, fasilitas <strong className="text-foreground">Konversi Aset Instan (Swap)</strong>, <strong className="text-foreground">Penjualan Aset ke Saldo Dompet</strong>, serta <strong className="text-foreground">Pengiriman On-Chain (Ali-Bridge)</strong> tetap beroperasi penuh 24/7.
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                          <Button
+                            onClick={() => router.push('/crypto/convert')}
+                            className="h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-lg text-xs tracking-wider flex items-center justify-center gap-2"
                           >
-                            <span className="text-sm font-black uppercase tracking-tighter">{selectedCurrency.code}</span>
-                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                          </button>
+                            <ArrowRightLeft className="w-4 h-4" />
+                            Gunakan Konversi Instan (Swap)
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setActiveTab('jual')}
+                            className="h-14 rounded-2xl font-black italic uppercase text-xs border-border hover:bg-muted"
+                          >
+                            Beralih ke Penjualan Aset
+                          </Button>
                         </div>
                       </div>
-
-                      {/* Estimate conversion view */}
-                      <div className="flex items-center justify-between px-2 text-xs font-bold text-muted-foreground italic">
-                        <span>Estimasi Konversi Kripto:</span>
-                        <div className="flex items-center gap-1 text-primary">
-                          <ArrowUpDown className="w-3.5 h-3.5" />
-                          <span>{estimatedCrypto} {selectedAsset.symbol}</span>
-                        </div>
-                      </div>
-
-                      {/* Select Asset & Payment/Receiver */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div 
-                          onClick={() => setIsAssetSheetOpen(true)}
-                          className="flex items-center justify-between p-5 bg-muted/20 hover:bg-muted/40 rounded-2xl border border-border/50 cursor-pointer transition-all hover:border-primary/30"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className={cn("w-10 h-10 rounded-full flex items-center justify-center overflow-hidden shrink-0", selectedAsset.isNative ? "gold-gradient text-white p-2" : "bg-muted relative p-1 shadow-inner")}>
-                              {selectedAsset.isNative ? (
-                                <LogoIcon className="text-white w-full h-full" />
-                              ) : (
-                                <>
-                                  <img 
-                                    src={`https://assets.coincap.io/assets/icons/${selectedAsset.symbol.toLowerCase()}@2x.png`} 
-                                    className="object-cover w-full h-full rounded-full" 
-                                    alt={selectedAsset.symbol} 
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).style.display = 'none';
-                                      const fallback = (e.target as HTMLImageElement).nextElementSibling;
-                                      if (fallback) fallback.classList.remove('hidden');
-                                    }}
-                                  />
-                                  <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-full font-black text-xs text-slate-400">
-                                    {selectedAsset.symbol[0]}
-                                  </div>
-                                </>
-                              )}
+                    ) : (
+                      <>
+                        {/* Numeric Input & Selectors */}
+                        <div className="space-y-6">
+                          <div className="flex flex-col space-y-2">
+                            <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest pl-1">Jumlah Transaksi</label>
+                            <div className="flex items-center justify-between bg-muted/30 p-6 rounded-2xl border border-border/50">
+                              <input 
+                                type="text" 
+                                id="amount-input-desktop"
+                                placeholder="0"
+                                title="Jumlah Transaksi"
+                                aria-label="Jumlah Transaksi"
+                                value={amount}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (/^\d*([.,]\d*)?$/.test(val)) {
+                                    setAmount(val);
+                                  }
+                                }}
+                                className="bg-transparent border-none text-5xl font-black tracking-tighter italic text-foreground focus:outline-none focus:ring-0 w-full"
+                              />
+                              <button 
+                                onClick={() => setIsCurrencySheetOpen(true)}
+                                className="flex items-center gap-2 bg-card hover:bg-muted/80 px-4 py-2.5 rounded-xl border border-border shrink-0 shadow-sm transition-all"
+                              >
+                                <span className="text-sm font-black uppercase tracking-tighter">{selectedCurrency.code}</span>
+                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                              </button>
                             </div>
-                            <div className="text-left">
-                              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-1">{activeTab === 'jual' ? 'Koin Dijual' : 'Aset Dibeli'}</p>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-black text-foreground uppercase leading-none">{selectedAsset.symbol}</span>
-                                <Badge className="bg-green-500/10 text-green-600 text-[6px] font-black h-3.5 px-1 border-none uppercase">Live Node</Badge>
+                          </div>
+
+                          {/* Estimate conversion view */}
+                          <div className="flex items-center justify-between px-2 text-xs font-bold text-muted-foreground italic">
+                            <span>Estimasi Konversi Kripto:</span>
+                            <div className="flex items-center gap-1 text-primary">
+                              <ArrowUpDown className="w-3.5 h-3.5" />
+                              <span>{estimatedCrypto} {selectedAsset.symbol}</span>
+                            </div>
+                          </div>
+
+                          {/* Select Asset & Payment/Receiver */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div 
+                              onClick={() => setIsAssetSheetOpen(true)}
+                              className="flex items-center justify-between p-5 bg-muted/20 hover:bg-muted/40 rounded-2xl border border-border/50 cursor-pointer transition-all hover:border-primary/30"
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className={cn("w-10 h-10 rounded-full flex items-center justify-center overflow-hidden shrink-0", selectedAsset.isNative ? "gold-gradient text-white p-2" : "bg-muted relative p-1 shadow-inner")}>
+                                  {selectedAsset.isNative ? (
+                                    <LogoIcon className="text-white w-full h-full" />
+                                  ) : (
+                                    <>
+                                      <img 
+                                        src={`https://assets.coincap.io/assets/icons/${selectedAsset.symbol.toLowerCase()}@2x.png`} 
+                                        className="object-cover w-full h-full rounded-full" 
+                                        alt={selectedAsset.symbol} 
+                                        onError={(e) => {
+                                          (e.target as HTMLImageElement).style.display = 'none';
+                                          const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                          if (fallback) fallback.classList.remove('hidden');
+                                        }}
+                                      />
+                                      <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-full font-black text-xs text-slate-400">
+                                        {selectedAsset.symbol[0]}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                                <div className="text-left">
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-1">Koin Dijual</p>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-black text-foreground uppercase leading-none">{selectedAsset.symbol}</span>
+                                    <Badge className="bg-green-500/10 text-green-600 text-[6px] font-black h-3.5 px-1 border-none uppercase">Live Node</Badge>
+                                  </div>
+                                </div>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
+                            </div>
+
+                            <div className="flex items-center justify-between p-5 bg-muted/20 rounded-2xl border border-border/50 opacity-80">
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center p-2.5 shadow-sm text-primary">
+                                  <Landmark className="w-5 h-5" />
+                                </div>
+                                <div className="text-left">
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-1">
+                                    Penerima Hasil
+                                  </p>
+                                  <p className="text-xs font-black text-foreground truncate max-w-[150px]">
+                                    Saldo Dompet (Instan)
+                                  </p>
+                                </div>
                               </div>
                             </div>
                           </div>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
                         </div>
 
-                        <div 
-                          onClick={() => { if (activeTab !== 'jual') setIsPaymentSheetOpen(true); }}
-                          className={cn(
-                            "flex items-center justify-between p-5 bg-muted/20 rounded-2xl border border-border/50 transition-all",
-                            activeTab !== 'jual' ? "hover:bg-muted/40 cursor-pointer hover:border-primary/30" : "opacity-80"
-                          )}
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center p-2.5 shadow-sm text-primary">
-                              {activeTab === 'jual' ? (
-                                <Landmark className="w-5 h-5" />
-                              ) : (
-                                <PaymentIcon icon={activePayment?.icon} className="w-5 h-5" />
-                              )}
+                        {/* Keypad for Mouse Click Entry & Submit Button */}
+                        <div className="space-y-6 pt-4 border-t border-border/50">
+                          <div className="flex gap-6 items-end">
+                            <div className="flex-1">
+                              <Button 
+                                disabled={amount === "0" || totalAmountIdr <= 0 || cryptoQuote <= 0 || isProcessing} 
+                                onClick={() => setIsCheckoutDialogOpen(true)} 
+                                className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest transition-transform active:scale-[0.98]"
+                              >
+                                {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : 'LANJUTKAN TRANSAKSI'}
+                              </Button>
                             </div>
-                            <div className="text-left">
-                              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-1">
-                                {activeTab === 'jual' ? "Penerima Hasil" : "Metode Pembayaran"}
-                              </p>
-                              <p className="text-xs font-black text-foreground truncate max-w-[150px]">
-                                {activeTab === 'jual' ? "Saldo Dompet (Instan)" : activePayment.name}
-                              </p>
+                            <div className="w-48 bg-muted/20 border border-border/50 rounded-2xl p-2.5 grid grid-cols-3 gap-1 shrink-0">
+                              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                                <button key={n} type="button" onClick={() => handleKeyPress(n.toString())} className="text-base font-black italic hover:bg-muted active:bg-muted/80 py-1.5 rounded-lg transition-colors">{n}</button>
+                              ))}
+                              <button type="button" onClick={() => setAmount(prev => prev.includes(',') ? prev : prev + ',')} className="text-base font-black italic hover:bg-muted py-1.5 rounded-lg transition-colors">,</button>
+                              <button type="button" onClick={() => handleKeyPress("0")} className="text-base font-black italic hover:bg-muted py-1.5 rounded-lg transition-colors">0</button>
+                              <button type="button" onClick={handleDelete} className="flex items-center justify-center hover:bg-muted py-1.5 rounded-lg transition-colors text-rose-500" title="Hapus Karakter" aria-label="Hapus Karakter"><Delete className="w-4 h-4" /></button>
                             </div>
                           </div>
-                          {activeTab !== 'jual' && <ChevronRight className="w-4 h-4 text-muted-foreground/30" />}
                         </div>
-                      </div>
-                    </div>
-
-                    {/* Keypad for Mouse Click Entry & Submit Button */}
-                    <div className="space-y-6 pt-4 border-t border-border/50">
-                      <div className="flex gap-6 items-end">
-                        <div className="flex-1">
-                          <Button 
-                            disabled={amount === "0" || totalAmountIdr <= 0 || cryptoQuote <= 0 || isProcessing} 
-                            onClick={() => setIsCheckoutDialogOpen(true)} 
-                            className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest transition-transform active:scale-[0.98]"
-                          >
-                            {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : 'LANJUTKAN TRANSAKSI'}
-                          </Button>
-                        </div>
-                        <div className="w-48 bg-muted/20 border border-border/50 rounded-2xl p-2.5 grid grid-cols-3 gap-1 shrink-0">
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                            <button key={n} type="button" onClick={() => handleKeyPress(n.toString())} className="text-base font-black italic hover:bg-muted active:bg-muted/80 py-1.5 rounded-lg transition-colors">{n}</button>
-                          ))}
-                          <button type="button" onClick={() => setAmount(prev => prev.includes(',') ? prev : prev + ',')} className="text-base font-black italic hover:bg-muted py-1.5 rounded-lg transition-colors">,</button>
-                          <button type="button" onClick={() => handleKeyPress("0")} className="text-base font-black italic hover:bg-muted py-1.5 rounded-lg transition-colors">0</button>
-                          <button type="button" onClick={handleDelete} className="flex items-center justify-center hover:bg-muted py-1.5 rounded-lg transition-colors text-rose-500" title="Hapus Karakter" aria-label="Hapus Karakter"><Delete className="w-4 h-4" /></button>
-                        </div>
-                      </div>
-                    </div>
+                      </>
+                    )}
                   </Card>
                 </div>
 

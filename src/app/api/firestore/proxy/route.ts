@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { firebaseConfig } from '@/firebase/config';
+import {
+  getLocalDoc,
+  setLocalDoc,
+  deleteLocalDoc,
+  applyLocalDocUpdate,
+  addLocalCollectionDoc,
+  queryLocalCollection,
+} from '@/lib/local-firestore-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -240,6 +248,19 @@ export async function POST(request: NextRequest) {
       return res;
     };
 
+    if (op === 'syncLocal') {
+      const cleanPath = String(path || '').replace(/^\/+|\/+$/g, '');
+      if (!cleanPath || !body.data || typeof body.data !== 'object') {
+        return NextResponse.json({ error: 'Invalid syncLocal payload' }, { status: 400 });
+      }
+      const existingLocal = getLocalDoc(cleanPath);
+      // Merge client snapshot under any newer local server updates
+      const merged = existingLocal.exists && existingLocal.data
+        ? setLocalDoc(cleanPath, { ...body.data, ...existingLocal.data }, true)
+        : setLocalDoc(cleanPath, body.data, true);
+      return NextResponse.json({ ok: true, data: merged });
+    }
+
     if (op === 'getDoc') {
       const cleanPath = String(path || '').replace(/^\/+|\/+$/g, '');
       if (!cleanPath) {
@@ -255,6 +276,19 @@ export async function POST(request: NextRequest) {
       }
 
       if (res.status === 404) {
+        const localEntry = getLocalDoc(cleanPath);
+        if (localEntry.exists && localEntry.data) {
+          const response = NextResponse.json({
+            exists: true,
+            id: localEntry.id,
+            data: localEntry.data,
+            fallbackLocal: true,
+            newIdToken,
+            newRefreshToken,
+          });
+          attachTokenCookies(response, newIdToken, newRefreshToken);
+          return response;
+        }
         const response = NextResponse.json({
           exists: false,
           id: cleanPath.split('/').pop() || '',
@@ -267,6 +301,31 @@ export async function POST(request: NextRequest) {
       }
 
       if (!res.ok) {
+        const localEntry = getLocalDoc(cleanPath);
+        if (localEntry.exists && localEntry.data) {
+          const response = NextResponse.json({
+            exists: true,
+            id: localEntry.id,
+            data: localEntry.data,
+            fallbackLocal: true,
+            newIdToken,
+            newRefreshToken,
+          });
+          attachTokenCookies(response, newIdToken, newRefreshToken);
+          return response;
+        }
+        if (res.status === 429 || res.status >= 500) {
+          const response = NextResponse.json({
+            exists: false,
+            id: cleanPath.split('/').pop() || '',
+            data: null,
+            quotaFallback: true,
+            newIdToken,
+            newRefreshToken,
+          });
+          attachTokenCookies(response, newIdToken, newRefreshToken);
+          return response;
+        }
         const errData = await res.json().catch(() => ({}));
         return NextResponse.json(
           { error: errData?.error?.message || `Firestore GET failed (${res.status})`, status: res.status },
@@ -276,10 +335,16 @@ export async function POST(request: NextRequest) {
 
       const docJson = await res.json();
       const parsed = parseFirestoreDoc(docJson);
+      const localEntry = getLocalDoc(cleanPath);
+      const finalData =
+        localEntry.exists && localEntry.updatedAt > Date.now() - 10 * 60 * 1000 && localEntry.data
+          ? setLocalDoc(cleanPath, { ...parsed, ...localEntry.data }, true)
+          : setLocalDoc(cleanPath, parsed, true);
+
       const response = NextResponse.json({
         exists: true,
-        id: parsed.id,
-        data: parsed,
+        id: finalData.id || parsed.id,
+        data: finalData,
         newIdToken,
         newRefreshToken,
       });
@@ -376,6 +441,24 @@ export async function POST(request: NextRequest) {
       }
 
       if (!res.ok) {
+        const cleanColPath = path ? String(path).replace(/^\/+|\/+$/g, '') : null;
+        const localDocs = queryLocalCollection(
+          cleanColPath,
+          collectionGroup ? String(collectionGroup) : null,
+          filters,
+          orders,
+          limitCount
+        );
+        if (localDocs.length > 0 || res.status === 429 || res.status >= 500) {
+          const response = NextResponse.json({
+            docs: localDocs,
+            fallbackLocal: true,
+            newIdToken,
+            newRefreshToken,
+          });
+          attachTokenCookies(response, newIdToken, newRefreshToken);
+          return response;
+        }
         const errData = await res.json().catch(() => ({}));
         return NextResponse.json(
           { error: errData?.error?.message || `Firestore Query failed (${res.status})`, status: res.status },
@@ -385,10 +468,32 @@ export async function POST(request: NextRequest) {
 
       const rows = await res.json();
       let docs: Record<string, any>[] = [];
+      const cleanColPath = path ? String(path).replace(/^\/+|\/+$/g, '') : null;
       if (Array.isArray(rows)) {
         for (const row of rows) {
           if (row?.document) {
-            docs.push(parseFirestoreDoc(row.document));
+            const parsedDoc = parseFirestoreDoc(row.document);
+            docs.push(parsedDoc);
+            if (cleanColPath && parsedDoc.id) {
+              setLocalDoc(`${cleanColPath}/${parsedDoc.id}`, parsedDoc, true);
+            }
+          }
+        }
+      }
+
+      // Merge any locally created docs that are not yet in remote docs
+      if (cleanColPath || collectionGroup) {
+        const localDocs = queryLocalCollection(
+          cleanColPath,
+          collectionGroup ? String(collectionGroup) : null,
+          filters,
+          orders,
+          null
+        );
+        const existingIds = new Set(docs.map((d) => d.id));
+        for (const ld of localDocs) {
+          if (ld.id && !existingIds.has(ld.id)) {
+            docs.unshift(ld);
           }
         }
       }
@@ -455,12 +560,23 @@ export async function POST(request: NextRequest) {
         merge &&
         Object.entries(payloadData).some(([k, v]) => k.includes('.') || hasTransformValue(v));
 
-      let existingData: Record<string, any> = {};
+      const localExisting = getLocalDoc(cleanPath);
+      let existingData: Record<string, any> = {
+        ...(body.baseData && typeof body.baseData === 'object' ? body.baseData : {}),
+        ...(localExisting.exists && localExisting.data ? localExisting.data : {}),
+      };
+
       if (needsExistingDoc) {
         const getRes = await fetchWithAuth(`${FIRESTORE_BASE}/${cleanPath}`, { method: 'GET' });
         if (getRes.ok) {
           const existingJson = await getRes.json().catch(() => ({}));
-          existingData = parseFirestoreDoc(existingJson);
+          const remoteParsed = parseFirestoreDoc(existingJson);
+          existingData = {
+            ...remoteParsed,
+            ...(localExisting.exists && localExisting.updatedAt > Date.now() - 10 * 60 * 1000 && localExisting.data
+              ? localExisting.data
+              : {}),
+          };
         }
       }
 
@@ -528,6 +644,9 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Always apply to local store first so state is immediately consistent even if Firestore quota is exceeded
+      const localUpdated = applyLocalDocUpdate(cleanPath, payloadData, existingData, merge);
+
       const fields: Record<string, any> = {};
       const maskParams: string[] = [];
 
@@ -546,6 +665,17 @@ export async function POST(request: NextRequest) {
       });
 
       if (!res.ok) {
+        if (res.status === 429 || res.status >= 500) {
+          const response = NextResponse.json({
+            success: true,
+            data: localUpdated,
+            fallbackLocal: true,
+            newIdToken,
+            newRefreshToken,
+          });
+          attachTokenCookies(response, newIdToken, newRefreshToken);
+          return response;
+        }
         const errData = await res.json().catch(() => ({}));
         return NextResponse.json(
           { error: errData?.error?.message || `Firestore PATCH failed (${res.status})`, status: res.status },
@@ -554,9 +684,11 @@ export async function POST(request: NextRequest) {
       }
 
       const docJson = await res.json();
+      const parsed = parseFirestoreDoc(docJson);
+      setLocalDoc(cleanPath, parsed, true);
       const response = NextResponse.json({
         success: true,
-        data: parseFirestoreDoc(docJson),
+        data: parsed,
         newIdToken,
         newRefreshToken,
       });
@@ -581,6 +713,19 @@ export async function POST(request: NextRequest) {
       });
 
       if (!res.ok) {
+        if (res.status === 429 || res.status >= 500) {
+          const localAdded = addLocalCollectionDoc(cleanPath, payloadData);
+          const response = NextResponse.json({
+            success: true,
+            id: localAdded.id,
+            data: localAdded.data,
+            fallbackLocal: true,
+            newIdToken,
+            newRefreshToken,
+          });
+          attachTokenCookies(response, newIdToken, newRefreshToken);
+          return response;
+        }
         const errData = await res.json().catch(() => ({}));
         return NextResponse.json(
           { error: errData?.error?.message || `Firestore POST failed (${res.status})`, status: res.status },
@@ -590,6 +735,9 @@ export async function POST(request: NextRequest) {
 
       const docJson = await res.json();
       const parsed = parseFirestoreDoc(docJson);
+      if (parsed.id) {
+        setLocalDoc(`${cleanPath}/${parsed.id}`, parsed, true);
+      }
       const response = NextResponse.json({
         success: true,
         id: parsed.id,
@@ -603,10 +751,11 @@ export async function POST(request: NextRequest) {
 
     if (op === 'deleteDoc') {
       const cleanPath = String(path || '').replace(/^\/+|\/+$/g, '');
+      deleteLocalDoc(cleanPath);
       const url = `${FIRESTORE_BASE}/${cleanPath}`;
       const res = await fetchWithAuth(url, { method: 'DELETE' });
 
-      if (!res.ok) {
+      if (!res.ok && res.status !== 429 && res.status < 500) {
         const errData = await res.json().catch(() => ({}));
         return NextResponse.json(
           { error: errData?.error?.message || `Firestore DELETE failed (${res.status})`, status: res.status },
