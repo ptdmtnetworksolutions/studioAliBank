@@ -51,8 +51,12 @@ export default function TorRequiredPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined" && !window.location.search.includes("simulate_block=1")) {
+      router.replace("/");
+      return;
+    }
     fetchStatus();
-  }, []);
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between p-4 sm:p-8 font-sans selection:bg-amber-500/30 relative overflow-hidden">
