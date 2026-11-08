@@ -58,6 +58,7 @@ export function BottomNav() {
     "/about",
     "/learn",
     "/ecosystem",
+    "/network",
     "/overview",
     "/login",
     "/register",

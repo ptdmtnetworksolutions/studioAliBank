@@ -295,7 +295,7 @@ export async function proxyGetDoc<T = any>(path: string): Promise<{
     }
 
     if (res.status === 401 && !json?.newIdToken) {
-      const publicPaths = ['/login', '/register', '/about', '/learn', '/ecosystem'];
+      const publicPaths = ['/login', '/register', '/about', '/learn', '/ecosystem', '/network'];
       const isPublicPath = typeof window !== 'undefined' && (
         window.location.pathname === '/' ||
         publicPaths.some(p => window.location.pathname.startsWith(p))

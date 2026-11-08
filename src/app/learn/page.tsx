@@ -184,7 +184,7 @@ export default function LearnPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [lang, setLang] = useState<"en" | "id">("en");
-  const [activeMegaMenu, setActiveMegaMenu] = useState<"learn" | "ecosystem" | null>(null);
+  const [activeMegaMenu, setActiveMegaMenu] = useState<"learn" | "ecosystem" | "network" | null>(null);
   const [copiedContract, setCopiedContract] = useState<string | null>(null);
 
   const ALX_POLYGON_CONTRACT = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
@@ -611,9 +611,23 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                 <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#F4B728] z-50 pointer-events-none" />
               )}
             </div>
-            <NextLink href="/#network" className="hover:text-black transition-colors">
-              {lang === "en" ? "NETWORK" : "JARINGAN"}
-            </NextLink>
+            {/* NETWORK with Mega Menu Trigger */}
+            <div className="relative h-full flex items-center">
+              <button
+                onClick={() => setActiveMegaMenu(activeMegaMenu === "network" ? null : "network")}
+                className={cn(
+                  "relative h-full flex items-center text-[11px] font-bold tracking-[0.18em] transition-colors uppercase",
+                  activeMegaMenu === "network"
+                    ? "text-[#111111]"
+                    : "text-[#444444] hover:text-[#111111]"
+                )}
+              >
+                <span>{lang === "en" ? "NETWORK" : "JARINGAN"}</span>
+              </button>
+              {activeMegaMenu === "network" && (
+                <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#F4B728] z-50 pointer-events-none" />
+              )}
+            </div>
             <NextLink href="/#features" className="hover:text-black transition-colors">
               {lang === "en" ? "FEATURES" : "FITUR"}
             </NextLink>
@@ -1043,6 +1057,161 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                         className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
                       >
                         {lang === "en" ? "See all →" : "Lihat semua →"}
+                      </NextLink>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+        {/* =========================================================================
+            1.C MEGA MENU: NETWORK (Exact Zcash screenshot structure)
+            ========================================================================= */}
+        {activeMegaMenu === "network" && (
+          <>
+            <div
+              onClick={() => setActiveMegaMenu(null)}
+              className="fixed inset-0 top-20 z-40 bg-black/5 backdrop-blur-[1px]"
+            />
+            <div className="absolute top-20 left-0 w-full bg-white border-b border-[#DFDAD0] shadow-xl z-50 animate-in fade-in duration-150">
+              <div className="max-w-[1280px] mx-auto px-6 py-10 pb-12 grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12 text-left">
+                {/* Col 1: Overview */}
+                <div className="space-y-3 pr-4 border-r border-[#ECE7DE]">
+                  <h3 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "NETWORK" : "JARINGAN"}
+                  </h3>
+                  <p className="text-xs text-[#666666] font-light leading-relaxed">
+                    {lang === "en"
+                      ? "AliBank protocol network information, real-time ledger statistics, multi-chain settlement rails, reserve backing and governance."
+                      : "Informasi jaringan protokol AliBank, statistik buku besar real-time, jalur penyelesaian multi-chain, cadangan aset riil, dan tata kelola."}
+                  </p>
+                  <div className="pt-2">
+                    <NextLink
+                      href="/network"
+                      onClick={() => setActiveMegaMenu(null)}
+                      className="text-[11px] font-bold tracking-wider text-[#F4B728] hover:underline"
+                    >
+                      {lang === "en" ? "Explore Network Hub →" : "Buka Hub Jaringan →"}
+                    </NextLink>
+                  </div>
+                </div>
+
+                {/* Col 2: NETWORK INFO */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "NETWORK INFO" : "INFO JARINGAN"}
+                  </h4>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <NextLink
+                        href="/network"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        {lang === "en" ? "Network Statistics" : "Statistik Jaringan"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/network#governance-section"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        {lang === "en" ? "Funding & Governance" : "Pendanaan & Tata Kelola"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/network#aip-section"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        {lang === "en" ? "AIPs (Improvement Proposals)" : "AIP (Proposal Pembaruan)"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/network"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
+                      >
+                        {lang === "en" ? "See all →" : "Lihat semua →"}
+                      </NextLink>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Col 3: ON-CHAIN RAILS */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "ON-CHAIN RAILS" : "JALUR ON-CHAIN"}
+                  </h4>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <a
+                        href={`https://polygonscan.com/token/${ALX_POLYGON_CONTRACT}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-black flex items-center gap-1.5 transition-colors"
+                      >
+                        <span>Polygon ALX Token</span>
+                        <ExternalLink className="w-3 h-3 text-[#999999]" />
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href={`https://etherscan.io/address/${ETH_VAULT_CONTRACT}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-black flex items-center gap-1.5 transition-colors"
+                      >
+                        <span>Ethereum Liquidity Vault</span>
+                        <ExternalLink className="w-3 h-3 text-[#999999]" />
+                      </a>
+                    </li>
+                    <li>
+                      <span className="text-[#888888]">Bitcoin Native SegWit (BIP-84)</span>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=networks"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
+                      >
+                        {lang === "en" ? "Inspect all contracts →" : "Audit seluruh kontrak →"}
+                      </NextLink>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Col 4: SURVEILLANCE & AML */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#E11D48] animate-pulse" />
+                    <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#E11D48]">
+                      {lang === "en" ? "SURVEILLANCE & AML" : "PENGAWASAN & AML"}
+                    </h4>
+                  </div>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <NextLink href="/learn?category=aml" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "Zero-Tolerance AML Mandate" : "Mandat Nol Toleransi AML"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/learn?category=aml" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "Real-Time Discrepancy Engine" : "Mesin Deteksi Saldo Hantu"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/learn?category=aml" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "Sanctions & Account Freezes" : "Sanksi & Pembekuan Otomatis"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/learn?category=aml" onClick={() => setActiveMegaMenu(null)} className="text-[11px] font-bold text-[#E11D48] hover:underline pt-1 block">
+                        {lang === "en" ? "Learn AML Engine →" : "Pelajari Mesin AML →"}
                       </NextLink>
                     </li>
                   </ul>
