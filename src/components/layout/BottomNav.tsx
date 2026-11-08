@@ -72,7 +72,8 @@ export function BottomNav() {
   ];
 
   const shouldHide = excludedPaths.some(path => pathname?.startsWith(path));
-  if (shouldHide) return null;
+  const isExplicitLanding = pathname === "/" && searchParams?.get('view') === 'landing';
+  if (shouldHide || isExplicitLanding) return null;
 
   const bursaItems: NavItem[] = [
     { name: "Beranda", href: "/?tab=bursa", icon: Home, isLogo: true },

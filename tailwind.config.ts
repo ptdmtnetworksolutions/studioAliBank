@@ -13,7 +13,9 @@ export default {
       fontFamily: {
         body: ['Inter', 'sans-serif'],
         headline: ['Inter', 'sans-serif'],
-        code: ['monospace'],
+        serif: ['Newsreader', 'Playfair Display', 'Georgia', 'Cambria', 'Times New Roman', 'serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+        code: ['JetBrains Mono', 'monospace'],
       },
       colors: {
         background: 'hsl(var(--background))',
