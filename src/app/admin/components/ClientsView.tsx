@@ -87,6 +87,57 @@ export function ClientsView({ allUsers }: any) {
   
   const [auditDetailView, setAuditDetailType] = useState<'none' | 'inflow' | 'outflow' | 'discrepancy'>('none');
 
+  const formatIdrInput = (raw: string): string => {
+    if (!raw) return "";
+    let cleaned = raw.replace(/[^0-9.,]/g, "");
+    if (!cleaned) return "";
+
+    // Jika user paste format desimal titik tanpa titik ribuan (misal "7258509.86")
+    if (!cleaned.includes(",") && /^\d{4,}\.\d{1,2}$/.test(cleaned)) {
+      cleaned = cleaned.replace(".", ",");
+    }
+
+    const hasComma = cleaned.includes(",");
+    const [intRaw, ...decParts] = cleaned.split(",");
+    const intDigits = intRaw.replace(/\./g, "").replace(/^0+(?=\d)/, "");
+    const formattedInt = intDigits ? Number(intDigits).toLocaleString("id-ID") : (hasComma ? "0" : "");
+
+    if (hasComma) {
+      const decDigits = decParts.join("").replace(/\./g, "").slice(0, 4);
+      return `${formattedInt},${decDigits}`;
+    }
+    return formattedInt;
+  };
+
+  const parseIdrInput = (formatted: string): number => {
+    if (!formatted) return NaN;
+    const normalized = formatted
+      .replace(/[^0-9.,]/g, "")
+      .replace(/\./g, "")
+      .replace(",", ".");
+    return parseFloat(normalized);
+  };
+
+  const formatAlxInput = (raw: string): string => {
+    if (!raw) return "";
+    return raw.replace(/[^0-9.,]/g, "");
+  };
+
+  const parseAlxInput = (raw: string): number => {
+    if (!raw) return NaN;
+    const cleaned = raw.replace(/[^0-9.,]/g, "").replace(",", ".");
+    return parseFloat(cleaned);
+  };
+
+  useEffect(() => {
+    if (selectedUser?.id && Array.isArray(allUsers)) {
+      const updated = allUsers.find((u: any) => u.id === selectedUser.id);
+      if (updated) {
+        setSelectedUser(updated);
+      }
+    }
+  }, [allUsers, selectedUser?.id]);
+
   const filteredUsers = allUsers?.filter((u: any) => 
     u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
     u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -120,8 +171,8 @@ export function ClientsView({ allUsers }: any) {
 
   const handleAdjust = async (type: 'idr' | 'alx', op: 'add' | 'sub') => {
     if (!db || !selectedUser) return;
-    const amt = parseFloat(type === 'idr' ? balanceAdjustment : alxAdjustment);
-    if (isNaN(amt)) return;
+    const amt = type === 'idr' ? parseIdrInput(balanceAdjustment) : parseAlxInput(alxAdjustment);
+    if (isNaN(amt) || amt <= 0) return;
 
     const ref = doc(db, "users", selectedUser.id);
     const val = op === 'add' ? amt : -amt;
@@ -130,8 +181,24 @@ export function ClientsView({ allUsers }: any) {
     // 1. Update Saldo Utama
     await proxyUpdateDoc(ref, { [key]: increment(val) });
 
+    // Update state lokal modal secara instan agar angka langsung sinkron
+    setSelectedUser((prev: any) => {
+      if (!prev) return prev;
+      if (type === 'idr') {
+        const nextBal = Number(((prev.totalBalance || 0) + val).toFixed(2));
+        return { ...prev, totalBalance: nextBal };
+      } else {
+        const prevAlx = prev.cryptoBalances?.ALX || 0;
+        const nextAlx = Number((prevAlx + val).toFixed(8));
+        return {
+          ...prev,
+          cryptoBalances: { ...(prev.cryptoBalances || {}), ALX: nextAlx },
+        };
+      }
+    });
+
     // 2. KRITIS: Tambah ke Riwayat Transaksi Nasabah agar ter-audit sebagai Inflow/Outflow
-    await proxyAddDoc(collection(db, "users", selectedUser.id, "transactions"), {
+    const newTx = {
       date: new Date().toISOString(),
       description: `Penyesuaian Manual oleh Admin (${op === 'add' ? 'Penambahan' : 'Pengurangan'})`,
       category: "Adjustment",
@@ -141,7 +208,9 @@ export function ClientsView({ allUsers }: any) {
       type: op === 'add' ? 'income' : 'expense',
       status: "success",
       timestamp: serverTimestamp()
-    });
+    };
+    const addedTx = await proxyAddDoc(collection(db, "users", selectedUser.id, "transactions"), newTx);
+    setUserTxs((prev) => [{ id: addedTx.id, ...newTx }, ...prev]);
 
     // 3. Catat ke Audit Global
     await proxyAddDoc(collection(db, "system", "audit", "global_transactions"), {
@@ -149,7 +218,7 @@ export function ClientsView({ allUsers }: any) {
       category: "Manual Adjustment",
       gateway: "Admin Terminal",
       amountIdr: type === 'idr' ? val : 0,
-      description: `Penyesuaian manual ${amt} ${type.toUpperCase()} oleh Admin untuk ${selectedUser.name}`,
+      description: `Penyesuaian manual ${amt.toLocaleString('id-ID')} ${type.toUpperCase()} oleh Admin untuk ${selectedUser.name}`,
       timestamp: serverTimestamp(),
       status: "berhasil",
       userEmail: selectedUser.email
@@ -579,12 +648,28 @@ export function ClientsView({ allUsers }: any) {
                     <div className="p-8 rounded-[2.5rem] bg-muted/50 border border-border flex flex-col gap-6 shadow-inner">
                       <div>
                         <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Saldo Saat Ini</p>
-                        <p className="text-3xl font-black italic tracking-tighter">Rp {selectedUser?.totalBalance?.toLocaleString()}</p>
+                        <p
+                          onClick={() => setBalanceAdjustment(formatIdrInput((selectedUser?.totalBalance || 0).toLocaleString('id-ID')))}
+                          title="Klik untuk menyalin nominal ke kolom input"
+                          className="text-3xl font-black italic tracking-tighter cursor-pointer hover:text-primary transition-colors"
+                        >
+                          Rp {(selectedUser?.totalBalance || 0).toLocaleString('id-ID')}
+                        </p>
                       </div>
                       <div className="flex gap-3">
-                        <Input placeholder="Input Jumlah..." type="number" value={balanceAdjustment} onChange={(e) => setBalanceAdjustment(e.target.value)} className="h-14 bg-background border-none rounded-2xl text-base font-black italic focus:ring-2 focus:ring-primary/20" />
-                        <button onClick={() => handleAdjust('idr', 'add')} className="w-14 h-14 rounded-2xl bg-green-600 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"><Plus className="w-6 h-6" /></button>
-                        <button onClick={() => handleAdjust('idr', 'sub')} className="w-14 h-14 rounded-2xl bg-rose-600 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"><Minus className="w-6 h-6" /></button>
+                        <div className="relative flex-1">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black italic text-muted-foreground select-none">Rp</span>
+                          <Input
+                            placeholder="Input Jumlah (cth: 7.258.509,86)..."
+                            type="text"
+                            inputMode="decimal"
+                            value={balanceAdjustment}
+                            onChange={(e) => setBalanceAdjustment(formatIdrInput(e.target.value))}
+                            className="h-14 pl-11 bg-background border-none rounded-2xl text-base font-black italic focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+                        <button onClick={() => handleAdjust('idr', 'add')} className="w-14 h-14 rounded-2xl bg-green-600 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform shrink-0"><Plus className="w-6 h-6" /></button>
+                        <button onClick={() => handleAdjust('idr', 'sub')} className="w-14 h-14 rounded-2xl bg-rose-600 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform shrink-0"><Minus className="w-6 h-6" /></button>
                       </div>
                     </div>
                   </div>
@@ -593,12 +678,25 @@ export function ClientsView({ allUsers }: any) {
                     <div className="p-8 rounded-[2.5rem] bg-muted/50 border border-border flex flex-col gap-6 shadow-inner">
                       <div>
                         <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Saldo ALX</p>
-                        <p className="text-3xl font-black italic tracking-tighter text-primary">{selectedUser?.cryptoBalances?.ALX?.toFixed(4)} ALX</p>
+                        <p
+                          onClick={() => setAlxAdjustment((selectedUser?.cryptoBalances?.ALX || 0).toFixed(4))}
+                          title="Klik untuk menyalin nominal ALX ke kolom input"
+                          className="text-3xl font-black italic tracking-tighter text-primary cursor-pointer hover:opacity-80 transition-opacity"
+                        >
+                          {(selectedUser?.cryptoBalances?.ALX || 0).toFixed(4)} ALX
+                        </p>
                       </div>
                       <div className="flex gap-3">
-                        <Input placeholder="Input ALX..." type="number" value={alxAdjustment} onChange={(e) => setAlxAdjustment(e.target.value)} className="h-14 bg-background border-none rounded-2xl text-base font-black italic focus:ring-2 focus:ring-primary/20" />
-                        <button onClick={() => handleAdjust('alx', 'add')} className="w-14 h-14 rounded-2xl gold-gradient text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"><Plus className="w-6 h-6" /></button>
-                        <button onClick={() => handleAdjust('alx', 'sub')} className="w-14 h-14 rounded-2xl bg-slate-800 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"><Minus className="w-3 h-3" /></button>
+                        <Input
+                          placeholder="Input ALX..."
+                          type="text"
+                          inputMode="decimal"
+                          value={alxAdjustment}
+                          onChange={(e) => setAlxAdjustment(formatAlxInput(e.target.value))}
+                          className="h-14 bg-background border-none rounded-2xl text-base font-black italic focus:ring-2 focus:ring-primary/20"
+                        />
+                        <button onClick={() => handleAdjust('alx', 'add')} className="w-14 h-14 rounded-2xl gold-gradient text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform shrink-0"><Plus className="w-6 h-6" /></button>
+                        <button onClick={() => handleAdjust('alx', 'sub')} className="w-14 h-14 rounded-2xl bg-slate-800 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform shrink-0"><Minus className="w-3 h-3" /></button>
                       </div>
                     </div>
                   </div>
