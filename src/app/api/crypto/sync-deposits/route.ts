@@ -1,8 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { firebaseConfig } from '@/firebase/config';
+import {
+  getLocalDoc,
+  setLocalDoc,
+  addLocalCollectionDoc,
+  queryLocalCollection,
+} from '@/lib/local-firestore-store';
 
 export const dynamic = 'force-dynamic';
+
+// In-memory lock untuk mencegah race condition / double-credit saat sinkronisasi berjalan bersamaan
+const activeSyncLocks = new Set<string>();
+
+// Alamat Brankas Pusat & Kontrak Vault yang tidak boleh di-auto-credit sebagai deposit personal nasabah biasa
+const CENTRAL_VAULT_WALLETS = new Set([
+  '0xc7d06ca4a4b00b19ffa1a4efcb3cb3e12c24d777',
+  '0x56268032a3b3e64cfef1916d591087cf8df40945',
+]);
 
 const PROJECT_ID = firebaseConfig.projectId;
 const API_KEY = firebaseConfig.apiKey;
@@ -109,85 +124,123 @@ function parseRestDoc(docObj: any): Record<string, any> {
 }
 
 async function restGetDoc(docPath: string, token: string): Promise<Record<string, any> | null> {
+  const local = getLocalDoc(docPath);
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${FIRESTORE_BASE}/${docPath}`, {
-    method: 'GET',
-    headers,
-    cache: 'no-store',
-  });
-  if (!res.ok) return null;
-  const json = await res.json().catch(() => null);
-  return json ? parseRestDoc(json) : null;
+  try {
+    const res = await fetch(`${FIRESTORE_BASE}/${docPath}`, {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+    if (!res.ok) return local.exists ? local.data : null;
+    const json = await res.json().catch(() => null);
+    const remote = json ? parseRestDoc(json) : null;
+    if (!remote) return local.exists ? local.data : null;
+    if (local.exists && local.updatedAt > Date.now() - 15 * 60 * 1000) {
+      return { ...remote, ...local.data };
+    }
+    setLocalDoc(docPath, remote, true);
+    return remote;
+  } catch {
+    return local.exists ? local.data : null;
+  }
 }
 
 async function restPatchDoc(docPath: string, payload: Record<string, any>, token: string): Promise<boolean> {
-  const fields: Record<string, any> = {};
-  const masks: string[] = [];
-  for (const [k, v] of Object.entries(payload)) {
-    if (v !== undefined) {
-      fields[k] = toFirestoreValue(v);
-      masks.push(`updateMask.fieldPaths=${encodeURIComponent(k)}`);
+  setLocalDoc(docPath, payload, true);
+  try {
+    const fields: Record<string, any> = {};
+    const masks: string[] = [];
+    for (const [k, v] of Object.entries(payload)) {
+      if (v !== undefined) {
+        fields[k] = toFirestoreValue(v);
+        masks.push(`updateMask.fieldPaths=${encodeURIComponent(k)}`);
+      }
     }
-  }
-  const queryStr = masks.length > 0 ? `?${masks.join('&')}` : '';
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${FIRESTORE_BASE}/${docPath}${queryStr}`, {
-    method: 'PATCH',
-    headers,
-    body: JSON.stringify({ fields }),
-    cache: 'no-store',
-  });
-  return res.ok;
+    const queryStr = masks.length > 0 ? `?${masks.join('&')}` : '';
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    await fetch(`${FIRESTORE_BASE}/${docPath}${queryStr}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ fields }),
+      cache: 'no-store',
+    });
+  } catch {}
+  return true;
 }
 
 async function restCreateDoc(colPath: string, payload: Record<string, any>, token: string): Promise<string | null> {
-  const fields: Record<string, any> = {};
-  for (const [k, v] of Object.entries(payload)) {
-    if (v !== undefined) {
-      fields[k] = toFirestoreValue(v);
+  try {
+    const fields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(payload)) {
+      if (v !== undefined) {
+        fields[k] = toFirestoreValue(v);
+      }
     }
-  }
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${FIRESTORE_BASE}/${colPath}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ fields }),
-    cache: 'no-store',
-  });
-  if (!res.ok) return null;
-  const json = await res.json().catch(() => null);
-  const nameParts = (json?.name || '').split('/');
-  return nameParts[nameParts.length - 1] || null;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${FIRESTORE_BASE}/${colPath}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ fields }),
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const json = await res.json().catch(() => null);
+      const nameParts = (json?.name || '').split('/');
+      const docId = nameParts[nameParts.length - 1] || null;
+      if (docId) {
+        setLocalDoc(`${colPath}/${docId}`, { ...payload, id: docId }, true);
+        return docId;
+      }
+    }
+  } catch {}
+  const created = addLocalCollectionDoc(colPath, payload);
+  return created.id;
 }
 
 async function restGetUserTransactions(userId: string, token: string): Promise<Array<Record<string, any>>> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${FIRESTORE_BASE}/users/${userId}:runQuery`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      structuredQuery: {
-        from: [{ collectionId: 'transactions' }],
-        limit: 300,
-      },
-    }),
-    cache: 'no-store',
-  });
-  if (!res.ok) return [];
-  const rows = await res.json().catch(() => []);
-  const out: Array<Record<string, any>> = [];
-  if (Array.isArray(rows)) {
-    for (const row of rows) {
-      if (row?.document) {
-        out.push(parseRestDoc(row.document));
+  const colPath = `users/${userId}/transactions`;
+  const localTxs = queryLocalCollection(colPath, null, [], [], 300);
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${FIRESTORE_BASE}/users/${userId}:runQuery`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: 'transactions' }],
+          limit: 300,
+        },
+      }),
+      cache: 'no-store',
+    });
+    if (!res.ok) return localTxs;
+    const rows = await res.json().catch(() => []);
+    const out: Array<Record<string, any>> = [];
+    if (Array.isArray(rows)) {
+      for (const row of rows) {
+        if (row?.document) {
+          const parsed = parseRestDoc(row.document);
+          setLocalDoc(`${colPath}/${parsed.id}`, parsed, true);
+          out.push(parsed);
+        }
       }
     }
+    if (out.length === 0) return localTxs;
+    const seenIds = new Set(out.map((d) => d.id));
+    for (const lDoc of localTxs) {
+      if (lDoc.id && !seenIds.has(lDoc.id)) {
+        out.push(lDoc);
+      }
+    }
+    return out;
+  } catch {
+    return localTxs;
   }
-  return out;
 }
 
 async function getWorkingPolygonProvider(customRpc?: string): Promise<ethers.JsonRpcProvider> {
@@ -209,15 +262,24 @@ async function getWorkingPolygonProvider(customRpc?: string): Promise<ethers.Jso
 }
 
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get('userId');
+  const specificTxHash = (searchParams.get('txHash') || '').trim();
+
+  if (!userId) {
+    return NextResponse.json({ error: 'Parameter userId diperlukan' }, { status: 400 });
+  }
+
+  if (activeSyncLocks.has(userId)) {
+    return NextResponse.json({
+      success: true,
+      message: 'Sinkronisasi untuk akun ini sedang berlangsung.',
+      newDepositsCount: 0,
+    });
+  }
+
+  activeSyncLocks.add(userId);
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-    const specificTxHash = (searchParams.get('txHash') || '').trim();
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Parameter userId diperlukan' }, { status: 400 });
-    }
-
     const authHeader = request.headers.get('Authorization');
     const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
     const queryToken = (searchParams.get('idToken') || '').trim();
@@ -230,7 +292,7 @@ export async function GET(request: NextRequest) {
       if (refreshed) idToken = refreshed;
     }
 
-    // 1. Ambil data user via Firestore REST API
+    // 1. Ambil data user via Firestore REST API (+ fallback local store)
     const userData = await restGetDoc(`users/${userId}`, idToken);
     if (!userData) {
       return NextResponse.json({ error: 'Verifikasi akun nasabah belum dapat diselesaikan oleh node sinkronisasi saat ini. Silakan coba beberapa saat lagi.' }, { status: 404 });
@@ -250,6 +312,15 @@ export async function GET(request: NextRequest) {
     const walletAddress: string = userData.walletAddress || '';
     if (!walletAddress || walletAddress === '0xNoWalletInitialized' || !walletAddress.startsWith('0x')) {
       return NextResponse.json({ success: true, message: 'User belum memiliki wallet EVM aktif', newDepositsCount: 0 });
+    }
+
+    if (CENTRAL_VAULT_WALLETS.has(walletAddress.toLowerCase())) {
+      return NextResponse.json({
+        success: true,
+        walletAddress,
+        message: 'Alamat Brankas Pusat dikecualikan dari auto-credit nasabah reguler.',
+        newDepositsCount: 0,
+      });
     }
 
     // 2. Dapatkan konfigurasi RPC (jika ada) & pilih provider Polygon yang responsif
@@ -451,9 +522,15 @@ export async function GET(request: NextRequest) {
       try {
         const rawBal = await contract.balanceOf(walletAddress);
         const onChainBalance = parseFloat(ethers.formatUnits(rawBal, token.decimals));
+        const prevSyncedBal = Number(userData.syncedOnChainBalances?.[token.symbol] || 0);
+        const currentHolding = Number(currentCryptoBalances[token.symbol] || 0);
         syncedOnChainBalances[token.symbol] = onChainBalance;
 
-        const alreadyCredited = Number(creditedOnChainBySymbol[token.symbol] || 0);
+        const alreadyCredited = Math.max(
+          Number(creditedOnChainBySymbol[token.symbol] || 0),
+          prevSyncedBal,
+          currentHolding
+        );
         const uncreditedDiff = Number((onChainBalance - alreadyCredited).toFixed(6));
 
         if (uncreditedDiff > 0.000001) {
@@ -510,5 +587,7 @@ export async function GET(request: NextRequest) {
       { error: err?.message || 'Gagal menyinkronkan setoran on-chain' },
       { status: 500 }
     );
+  } finally {
+    activeSyncLocks.delete(userId);
   }
 }

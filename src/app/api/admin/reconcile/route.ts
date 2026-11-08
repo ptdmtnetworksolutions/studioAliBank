@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { firebaseConfig } from '@/firebase/config';
-import { getLocalDoc, queryLocalCollection } from '@/lib/local-firestore-store';
+import {
+  getLocalDoc,
+  queryLocalCollection,
+  setLocalDoc,
+  addLocalCollectionDoc,
+} from '@/lib/local-firestore-store';
 import { AliBankVaultABI } from '@/lib/abi/AliBankVault';
 
 export const dynamic = 'force-dynamic';
@@ -146,61 +151,84 @@ function parseRestDoc(docObj: any): Record<string, any> {
 }
 
 async function restGetDoc(docPath: string, token: string): Promise<Record<string, any> | null> {
+  const local = getLocalDoc(docPath);
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${FIRESTORE_BASE}/${docPath}`, {
-    method: 'GET',
-    headers,
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    const local = getLocalDoc(docPath);
+  try {
+    const res = await fetch(`${FIRESTORE_BASE}/${docPath}`, {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      return local.exists ? local.data : null;
+    }
+    const json = await res.json().catch(() => null);
+    const remote = json ? parseRestDoc(json) : null;
+    if (!remote) return local.exists ? local.data : null;
+    if (local.exists && local.updatedAt > Date.now() - 15 * 60 * 1000) {
+      return { ...remote, ...local.data };
+    }
+    setLocalDoc(docPath, remote, true);
+    return remote;
+  } catch {
     return local.exists ? local.data : null;
   }
-  const json = await res.json().catch(() => null);
-  return json ? parseRestDoc(json) : null;
 }
 
 async function restPatchDoc(docPath: string, payload: Record<string, any>, token: string): Promise<boolean> {
-  const fields: Record<string, any> = {};
-  const masks: string[] = [];
-  for (const [k, v] of Object.entries(payload)) {
-    if (v !== undefined) {
-      fields[k] = toFirestoreValue(v);
-      masks.push(`updateMask.fieldPaths=${encodeURIComponent(k)}`);
+  // Selalu simpan ke local store terlebih dahulu agar konsisten meskipun Firestore 429
+  setLocalDoc(docPath, payload, true);
+  try {
+    const fields: Record<string, any> = {};
+    const masks: string[] = [];
+    for (const [k, v] of Object.entries(payload)) {
+      if (v !== undefined) {
+        fields[k] = toFirestoreValue(v);
+        masks.push(`updateMask.fieldPaths=${encodeURIComponent(k)}`);
+      }
     }
-  }
-  const queryStr = masks.length > 0 ? `?${masks.join('&')}` : '';
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${FIRESTORE_BASE}/${docPath}${queryStr}`, {
-    method: 'PATCH',
-    headers,
-    body: JSON.stringify({ fields }),
-    cache: 'no-store',
-  });
-  return res.ok;
+    const queryStr = masks.length > 0 ? `?${masks.join('&')}` : '';
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    await fetch(`${FIRESTORE_BASE}/${docPath}${queryStr}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ fields }),
+      cache: 'no-store',
+    });
+  } catch {}
+  return true;
 }
 
 async function restCreateDoc(colPath: string, payload: Record<string, any>, token: string): Promise<string | null> {
-  const fields: Record<string, any> = {};
-  for (const [k, v] of Object.entries(payload)) {
-    if (v !== undefined) {
-      fields[k] = toFirestoreValue(v);
+  try {
+    const fields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(payload)) {
+      if (v !== undefined) {
+        fields[k] = toFirestoreValue(v);
+      }
     }
-  }
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${FIRESTORE_BASE}/${colPath}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ fields }),
-    cache: 'no-store',
-  });
-  if (!res.ok) return null;
-  const json = await res.json().catch(() => null);
-  const nameParts = (json?.name || '').split('/');
-  return nameParts[nameParts.length - 1] || null;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${FIRESTORE_BASE}/${colPath}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ fields }),
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const json = await res.json().catch(() => null);
+      const nameParts = (json?.name || '').split('/');
+      const docId = nameParts[nameParts.length - 1] || null;
+      if (docId) {
+        setLocalDoc(`${colPath}/${docId}`, { ...payload, id: docId }, true);
+        return docId;
+      }
+    }
+  } catch {}
+  const created = addLocalCollectionDoc(colPath, payload);
+  return created.id;
 }
 
 async function restQueryCollection(
@@ -209,40 +237,57 @@ async function restQueryCollection(
   token: string,
   limitCount = 500
 ): Promise<Array<Record<string, any>>> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  const url = parentPath
-    ? `${FIRESTORE_BASE}/${parentPath}:runQuery`
-    : `${FIRESTORE_BASE}:runQuery`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      structuredQuery: {
-        from: [{ collectionId }],
-        limit: limitCount,
-      },
-    }),
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    const colPath = parentPath ? `${parentPath}/${collectionId}` : collectionId;
-    return queryLocalCollection(colPath, null, [], [], limitCount);
-  }
-  const rows = await res.json().catch(() => []);
-  const out: Array<Record<string, any>> = [];
-  if (Array.isArray(rows)) {
-    for (const row of rows) {
-      if (row?.document) {
-        out.push(parseRestDoc(row.document));
+  const colPath = parentPath ? `${parentPath}/${collectionId}` : collectionId;
+  const localDocs = queryLocalCollection(colPath, null, [], [], limitCount);
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const url = parentPath
+      ? `${FIRESTORE_BASE}/${parentPath}:runQuery`
+      : `${FIRESTORE_BASE}:runQuery`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId }],
+          limit: limitCount,
+        },
+      }),
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      return localDocs;
+    }
+    const rows = await res.json().catch(() => []);
+    const out: Array<Record<string, any>> = [];
+    if (Array.isArray(rows)) {
+      for (const row of rows) {
+        if (row?.document) {
+          const parsed = parseRestDoc(row.document);
+          const localItem = getLocalDoc(`${colPath}/${parsed.id}`);
+          if (localItem.exists && localItem.updatedAt > Date.now() - 15 * 60 * 1000) {
+            out.push({ ...parsed, ...localItem.data });
+          } else {
+            setLocalDoc(`${colPath}/${parsed.id}`, parsed, true);
+            out.push(parsed);
+          }
+        }
       }
     }
+    if (out.length === 0) {
+      return localDocs;
+    }
+    const seenIds = new Set(out.map((d) => d.id));
+    for (const lDoc of localDocs) {
+      if (lDoc.id && !seenIds.has(lDoc.id)) {
+        out.push(lDoc);
+      }
+    }
+    return out;
+  } catch {
+    return localDocs;
   }
-  if (out.length === 0) {
-    const colPath = parentPath ? `${parentPath}/${collectionId}` : collectionId;
-    return queryLocalCollection(colPath, null, [], [], limitCount);
-  }
-  return out;
 }
 
 function resolveTokenFromRequest(req: NextRequest): { idToken: string; refreshToken: string } {
@@ -487,7 +532,10 @@ export async function POST(req: NextRequest) {
 
       const targetUser = await restGetDoc(`users/${targetUserId}`, idToken);
       if (!targetUser) {
-        return NextResponse.json({ error: 'Nasabah tidak ditemukan.' }, { status: 404 });
+        return NextResponse.json(
+          { error: 'Data akun nasabah tidak ditemukan.' },
+          { status: 404 }
+        );
       }
 
       const now = new Date();
@@ -495,13 +543,23 @@ export async function POST(req: NextRequest) {
 
       if (body.action === 'clawback') {
         const nextCrypto = { ...(targetUser.cryptoBalances || {}) };
+        const nextSyncedOnChain = { ...(targetUser.syncedOnChainBalances || {}) };
         let nextTotalBalance = Number(targetUser.totalBalance || 0);
+        const summaryItems: string[] = [];
 
         for (const f of flaggedAssets) {
+          const validLedgerBal = Math.max(0, Number(f.ledger || 0));
+          const diffAmt = Math.max(0, Number(f.diff || 0));
           if (f.asset === 'IDR') {
-            nextTotalBalance = Math.max(0, Math.round(Number(f.ledger || 0)));
+            nextTotalBalance = Math.round(validLedgerBal);
+            summaryItems.push(`IDR ${Math.round(diffAmt).toLocaleString('id-ID')}`);
           } else {
-            nextCrypto[f.asset] = Math.max(0, Number(Number(f.ledger || 0).toFixed(8)));
+            const cleanCryptoBal = Number(validLedgerBal.toFixed(8));
+            nextCrypto[f.asset] = cleanCryptoBal;
+            if (Number(nextSyncedOnChain[f.asset] || 0) > cleanCryptoBal) {
+              nextSyncedOnChain[f.asset] = cleanCryptoBal;
+            }
+            summaryItems.push(`${diffAmt.toFixed(4)} ${f.asset}`);
           }
         }
 
@@ -510,25 +568,42 @@ export async function POST(req: NextRequest) {
           {
             totalBalance: nextTotalBalance,
             cryptoBalances: nextCrypto,
+            syncedOnChainBalances: nextSyncedOnChain,
             isSuspended: false,
             securityLockReason: null,
           },
           idToken
         );
 
-        await restCreateDoc(
-          `users/${targetUserId}/transactions`,
-          {
-            date: nowIso,
-            description: 'Penyesuaian Rekonsiliasi: Penertiban Saldo Tanpa Bukti Mutasi',
-            category: 'Adjustment',
-            amount: 0,
-            type: 'expense',
-            status: 'success',
-            timestamp: now,
-          },
-          idToken
-        );
+        await Promise.all([
+          restCreateDoc(
+            `users/${targetUserId}/transactions`,
+            {
+              date: nowIso,
+              description: `Penertiban Saldo Hantu (Clawback): ${summaryItems.join(', ')}`,
+              category: 'Adjustment',
+              amount: 0,
+              type: 'expense',
+              status: 'success',
+              timestamp: now,
+            },
+            idToken
+          ),
+          restCreateDoc(
+            'system/audit/global_transactions',
+            {
+              id: `CLAWBACK-${targetUserId}-${Date.now()}`,
+              category: 'Clawback / Write-off',
+              gateway: 'Reconciliation Engine',
+              amountIdr: 0,
+              status: 'success',
+              timestamp: now,
+              userEmail: targetUser.email || '',
+              description: `Penertiban saldo tanpa bukti mutasi (${summaryItems.join(', ')}) pada akun ${targetUser.name || targetUser.email}.`,
+            },
+            idToken
+          ),
+        ]);
       } else {
         // 'legalize' — tambahkan catatan penyesuaian sah untuk setiap aset yang selisih
         for (const f of flaggedAssets) {

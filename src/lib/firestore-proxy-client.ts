@@ -215,11 +215,12 @@ export function reviveFirestoreData(val: any): any {
 }
 
 const clientDocCache = new Map<string, { data: any; updatedAt: number; fromLocalWrite?: boolean }>();
-const LOCAL_OVERRIDES_KEY = 'alibank_doc_overrides_v1';
+const LOCAL_OVERRIDES_KEY = 'alibank_doc_overrides_v2';
 
 function loadPersistedOverrides(): Record<string, { data: any; updatedAt: number }> {
   if (typeof window === 'undefined') return {};
   try {
+    localStorage.removeItem('alibank_doc_overrides_v1');
     const raw = localStorage.getItem(LOCAL_OVERRIDES_KEY);
     if (!raw) return {};
     return JSON.parse(raw) || {};

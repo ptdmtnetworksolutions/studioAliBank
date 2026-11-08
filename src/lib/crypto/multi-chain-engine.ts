@@ -90,35 +90,60 @@ export interface MultiChainWalletAddresses {
   solanaAddress: string;
 }
 
-/**
- * Menurunkan alamat multi-chain deterministik dari sebuah private key atau entropy (misal UID user)
- */
-export function deriveMultiChainAddresses(input: string): MultiChainWalletAddresses {
-  let pkey = input.startsWith("0x") ? input : "0x" + input;
-  if (pkey.length !== 66 || !/^0x[0-9a-fA-F]{64}$/.test(pkey)) {
-    // Jika bukan 32-byte hex string, jadikan master seed deterministik (misal UID akun)
-    pkey = ethers.keccak256(ethers.toUtf8Bytes("alibank_multichain_v1_" + input));
-  }
-  const evmWallet = new ethers.Wallet(pkey);
-
-  // 1. EVM (Polygon / Ethereum)
-  const evmAddress = evmWallet.address;
-
-  // 2. Bitcoin Native SegWit (BIP-84 bc1q...)
-  const compressedPubHex = evmWallet.signingKey.compressedPublicKey;
+function pubkeyToBech32SegWit(compressedPubHex: string): string {
   const sha256Hash = ethers.sha256(compressedPubHex);
   const ripemdHash = ethers.ripemd160(sha256Hash);
 
   const rawBytes = Array.from(ethers.getBytes(ripemdHash));
   const converted = convertBits(rawBytes, 8, 5, true) || [];
-  const btcData = [0].concat(converted); // Witness Version 0
+  const btcData = [0].concat(converted); // Witness Version 0 (P2WPKH)
   const chk = createBech32Checksum("bc", btcData);
 
   let btcAddress = "bc1";
   for (let i = 0; i < btcData.length; ++i) btcAddress += BECH32_CHARSET.charAt(btcData[i]);
   for (let i = 0; i < chk.length; ++i) btcAddress += BECH32_CHARSET.charAt(chk[i]);
+  return btcAddress;
+}
 
-  // 3. Solana Native (Base58 32-byte public key)
+/**
+ * Menurunkan alamat multi-chain deterministik yang kompatibel dengan standar TrustWallet Core:
+ * - Mendukung BIP-39 Mnemonic Phrase (12/24 kata): menurunkan EVM di m/44'/60'/0'/0/0 & BTC SegWit di m/84'/0'/0'/0/0
+ * - Mendukung 32-byte Private Key Hex (0x...)
+ * - Mendukung Master Seed deterministik (UID akun)
+ */
+export function deriveMultiChainAddresses(input: string): MultiChainWalletAddresses {
+  const trimmed = String(input || "").trim();
+  const wordCount = trimmed.split(/\s+/).length;
+
+  // Jika input adalah 12/24 kata BIP-39 Mnemonic Phrase (standar TrustWallet / MetaMask)
+  if ((wordCount === 12 || wordCount === 24) && ethers.Mnemonic.isValidMnemonic(trimmed)) {
+    const mnemonicObj = ethers.Mnemonic.fromPhrase(trimmed);
+    const evmNode = ethers.HDNodeWallet.fromMnemonic(mnemonicObj, "m/44'/60'/0'/0/0");
+    const btcNode = ethers.HDNodeWallet.fromMnemonic(mnemonicObj, "m/84'/0'/0'/0/0");
+    const solSeedBytes = ethers.getBytes(
+      ethers.sha256(ethers.toUtf8Bytes("alibank_solana_v3_" + evmNode.privateKey))
+    );
+    return {
+      evmAddress: evmNode.address,
+      btcAddress: pubkeyToBech32SegWit(btcNode.signingKey.compressedPublicKey),
+      solanaAddress: encodeBase58(solSeedBytes),
+    };
+  }
+
+  let pkey = trimmed.startsWith("0x") ? trimmed : "0x" + trimmed;
+  if (pkey.length !== 66 || !/^0x[0-9a-fA-F]{64}$/.test(pkey)) {
+    // Jika bukan 32-byte hex string, jadikan master seed deterministik (misal UID akun)
+    pkey = ethers.keccak256(ethers.toUtf8Bytes("alibank_multichain_v1_" + trimmed));
+  }
+  const evmWallet = new ethers.Wallet(pkey);
+
+  // 1. EVM (Polygon / Ethereum — secp256k1 + keccak256)
+  const evmAddress = evmWallet.address;
+
+  // 2. Bitcoin Native SegWit (BIP-84 / BIP-173 Bech32 P2WPKH bc1q...)
+  const btcAddress = pubkeyToBech32SegWit(evmWallet.signingKey.compressedPublicKey);
+
+  // 3. Solana Native (Base58 32-byte address)
   const solSeedBytes = ethers.getBytes(ethers.sha256(ethers.toUtf8Bytes("alibank_solana_v3_" + pkey)));
   const solanaAddress = encodeBase58(solSeedBytes);
 
@@ -130,15 +155,16 @@ export function deriveMultiChainAddresses(input: string): MultiChainWalletAddres
 }
 
 /**
- * Membuat wallet multi-chain baru beserta private key native
+ * Membuat wallet multi-chain baru beserta BIP-39 Mnemonic & Private Key native (TrustWallet Core Standard)
  */
 export function generateMultiChainWallet() {
-  const randomWallet = ethers.Wallet.createRandom();
+  const randomWallet = ethers.HDNodeWallet.createRandom();
   const addresses = deriveMultiChainAddresses(randomWallet.privateKey);
 
   return {
     privateKey: randomWallet.privateKey,
     mnemonic: randomWallet.mnemonic?.phrase || "",
+    derivationPath: "m/44'/60'/0'/0/0",
     ...addresses,
   };
 }
