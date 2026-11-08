@@ -22,7 +22,7 @@ interface LandingPageProps {
 export function LandingPage({ onEnterApp }: LandingPageProps) {
   // English is the default language as requested
   const [lang, setLang] = useState<"en" | "id">("en");
-  const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
+  const [activeMegaMenu, setActiveMegaMenu] = useState<"learn" | "ecosystem" | null>(null);
   const [isDiffModalOpen, setIsDiffModalOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [copiedContract, setCopiedContract] = useState<string | null>(null);
@@ -258,31 +258,46 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
             {/* LEARN with Mega Menu Trigger */}
             <div className="relative h-full flex items-center">
               <button
-                onClick={() => setIsMegaMenuOpen(!isMegaMenuOpen)}
+                onClick={() => setActiveMegaMenu(activeMegaMenu === "learn" ? null : "learn")}
                 className={cn(
                   "relative h-full flex items-center text-[11px] font-bold tracking-[0.18em] transition-colors uppercase",
-                  isMegaMenuOpen
+                  activeMegaMenu === "learn"
                     ? "text-[#111111]"
                     : "text-[#444444] hover:text-[#111111]"
                 )}
               >
                 <span>{content.navLearn}</span>
               </button>
-              {isMegaMenuOpen && (
+              {activeMegaMenu === "learn" && (
                 <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#F4B728] z-50 pointer-events-none" />
               )}
             </div>
 
-            <a href="#ecosystem" onClick={() => setIsMegaMenuOpen(false)} className="hover:text-black transition-colors">
-              {content.navEcosystem}
-            </a>
-            <a href="#network" onClick={() => setIsMegaMenuOpen(false)} className="hover:text-black transition-colors">
+            {/* ECOSYSTEM with Mega Menu Trigger */}
+            <div className="relative h-full flex items-center">
+              <button
+                onClick={() => setActiveMegaMenu(activeMegaMenu === "ecosystem" ? null : "ecosystem")}
+                className={cn(
+                  "relative h-full flex items-center text-[11px] font-bold tracking-[0.18em] transition-colors uppercase",
+                  activeMegaMenu === "ecosystem"
+                    ? "text-[#111111]"
+                    : "text-[#444444] hover:text-[#111111]"
+                )}
+              >
+                <span>{content.navEcosystem}</span>
+              </button>
+              {activeMegaMenu === "ecosystem" && (
+                <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#F4B728] z-50 pointer-events-none" />
+              )}
+            </div>
+
+            <a href="#network" onClick={() => setActiveMegaMenu(null)} className="hover:text-black transition-colors">
               {content.navNetwork}
             </a>
-            <a href="#features" onClick={() => setIsMegaMenuOpen(false)} className="hover:text-black transition-colors">
+            <a href="#features" onClick={() => setActiveMegaMenu(null)} className="hover:text-black transition-colors">
               {content.navFeatures}
             </a>
-            <a href="#faq" onClick={() => setIsMegaMenuOpen(false)} className="hover:text-black transition-colors">
+            <a href="#faq" onClick={() => setActiveMegaMenu(null)} className="hover:text-black transition-colors">
               {content.navFaq}
             </a>
           </nav>
@@ -332,13 +347,13 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
         </div>
 
         {/* =========================================================================
-            MEGA MENU DROPDOWN PANEL (Zcash exact structure & precise alignment)
+            1.A MEGA MENU: LEARN
             ========================================================================= */}
-        {isMegaMenuOpen && (
+        {activeMegaMenu === "learn" && (
           <>
             {/* Click-outside backdrop */}
             <div
-              onClick={() => setIsMegaMenuOpen(false)}
+              onClick={() => setActiveMegaMenu(null)}
               className="fixed inset-0 top-20 z-40 bg-black/5 backdrop-blur-[1px]"
             />
 
@@ -357,7 +372,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                   <div className="pt-2">
                     <NextLink
                       href="/learn"
-                      onClick={() => setIsMegaMenuOpen(false)}
+                      onClick={() => setActiveMegaMenu(null)}
                       className="text-[11px] font-bold tracking-wider text-[#F4B728] hover:underline"
                     >
                       {lang === "en" ? "Browse Knowledge Hub →" : "Buka Pusat Pengetahuan →"}
@@ -374,7 +389,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     <li>
                       <NextLink
                         href="/learn?category=101"
-                        onClick={() => setIsMegaMenuOpen(false)}
+                        onClick={() => setActiveMegaMenu(null)}
                         className="hover:text-black transition-colors block"
                       >
                         {lang === "en" ? "What is AliBank?" : "Apa itu AliBank?"}
@@ -383,7 +398,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     <li>
                       <NextLink
                         href="/learn?category=101"
-                        onClick={() => setIsMegaMenuOpen(false)}
+                        onClick={() => setActiveMegaMenu(null)}
                         className="hover:text-black transition-colors block"
                       >
                         {lang === "en" ? "How is AliBank different from ALX?" : "Apa beda AliBank dengan ALX?"}
@@ -392,7 +407,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     <li>
                       <NextLink
                         href="/learn?category=wallet"
-                        onClick={() => setIsMegaMenuOpen(false)}
+                        onClick={() => setActiveMegaMenu(null)}
                         className="hover:text-black transition-colors block"
                       >
                         {lang === "en" ? "What are TrustWallet Core standards?" : "Apa itu standar TrustWallet Core?"}
@@ -401,7 +416,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     <li>
                       <NextLink
                         href="/learn?category=101"
-                        onClick={() => setIsMegaMenuOpen(false)}
+                        onClick={() => setActiveMegaMenu(null)}
                         className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
                       >
                         {lang === "en" ? "See all →" : "Lihat semua →"}
@@ -410,7 +425,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                   </ul>
                 </div>
 
-                {/* Col 3: SECURITY & AML (Flat aligned with other columns) */}
+                {/* Col 3: SECURITY & AML */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#E11D48] animate-pulse" />
@@ -422,7 +437,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     <li>
                       <NextLink
                         href="/learn?category=aml"
-                        onClick={() => setIsMegaMenuOpen(false)}
+                        onClick={() => setActiveMegaMenu(null)}
                         className="hover:text-black font-medium text-[#111111] transition-colors block"
                       >
                         {lang === "en"
@@ -433,7 +448,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     <li>
                       <NextLink
                         href="/learn?category=aml"
-                        onClick={() => setIsMegaMenuOpen(false)}
+                        onClick={() => setActiveMegaMenu(null)}
                         className="hover:text-black transition-colors block"
                       >
                         {lang === "en"
@@ -444,7 +459,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     <li>
                       <NextLink
                         href="/learn?category=aml"
-                        onClick={() => setIsMegaMenuOpen(false)}
+                        onClick={() => setActiveMegaMenu(null)}
                         className="hover:text-black transition-colors block"
                       >
                         {lang === "en"
@@ -455,7 +470,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     <li>
                       <NextLink
                         href="/learn?category=aml"
-                        onClick={() => setIsMegaMenuOpen(false)}
+                        onClick={() => setActiveMegaMenu(null)}
                         className="text-[11px] font-bold text-[#E11D48] hover:underline pt-1 block"
                       >
                         {lang === "en" ? "Explore AML Engine →" : "Pelajari Mesin AML →"}
@@ -473,7 +488,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     <li>
                       <NextLink
                         href="/learn?category=por"
-                        onClick={() => setIsMegaMenuOpen(false)}
+                        onClick={() => setActiveMegaMenu(null)}
                         className="hover:text-black transition-colors block"
                       >
                         {lang === "en"
@@ -484,7 +499,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     <li>
                       <NextLink
                         href="/learn?category=architecture"
-                        onClick={() => setIsMegaMenuOpen(false)}
+                        onClick={() => setActiveMegaMenu(null)}
                         className="hover:text-black transition-colors block"
                       >
                         {lang === "en"
@@ -495,7 +510,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     <li>
                       <NextLink
                         href="/learn?category=merchant"
-                        onClick={() => setIsMegaMenuOpen(false)}
+                        onClick={() => setActiveMegaMenu(null)}
                         className="hover:text-black transition-colors block"
                       >
                         {lang === "en"
@@ -506,7 +521,180 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     <li>
                       <NextLink
                         href="/learn"
-                        onClick={() => setIsMegaMenuOpen(false)}
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
+                      >
+                        {lang === "en" ? "See all →" : "Lihat semua →"}
+                      </NextLink>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* =========================================================================
+            1.B MEGA MENU: ECOSYSTEM
+            ========================================================================= */}
+        {activeMegaMenu === "ecosystem" && (
+          <>
+            {/* Click-outside backdrop */}
+            <div
+              onClick={() => setActiveMegaMenu(null)}
+              className="fixed inset-0 top-20 z-40 bg-black/5 backdrop-blur-[1px]"
+            />
+
+            <div className="absolute top-20 left-0 w-full bg-white border-b border-[#DFDAD0] shadow-xl z-50 animate-in fade-in duration-150">
+              <div className="max-w-[1280px] mx-auto px-6 py-10 pb-12 grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12 text-left">
+                {/* Col 1: Overview */}
+                <div className="space-y-3 pr-4 border-r border-[#ECE7DE]">
+                  <h3 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "ECOSYSTEM" : "EKOSISTEM"}
+                  </h3>
+                  <p className="text-xs text-[#666666] font-light leading-relaxed">
+                    {lang === "en"
+                      ? "Browse wallets, blockchain networks, developer tools and everything you need to become a participant in the AliBank ecosystem."
+                      : "Jelajahi dompet, jaringan blockchain, alat pengembang, dan infrastruktur pendukung ekosistem AliBank."}
+                  </p>
+                  <div className="pt-2">
+                    <NextLink
+                      href="/ecosystem"
+                      onClick={() => setActiveMegaMenu(null)}
+                      className="text-[11px] font-bold tracking-wider text-[#F4B728] hover:underline"
+                    >
+                      {lang === "en" ? "Browse Ecosystem Hub →" : "Buka Hub Ekosistem →"}
+                    </NextLink>
+                  </div>
+                </div>
+
+                {/* Col 2: WALLETS */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "WALLETS" : "DOMPET"}
+                  </h4>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=wallets"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        MetaMask Web3 Bridge
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=wallets"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        TrustWallet Core (BIP-39/44)
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=wallets"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        Hardware Wallet Custody
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=wallets"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
+                      >
+                        {lang === "en" ? "See all →" : "Lihat semua →"}
+                      </NextLink>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Col 3: NETWORKS & VAULTS */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "NETWORKS & VAULTS" : "JARINGAN & BRANKAS"}
+                  </h4>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=networks"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        Polygon Mainnet (ALX)
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=networks"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        Ethereum Liquidity Vault
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=networks"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        Bitcoin Native SegWit
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=networks"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
+                      >
+                        {lang === "en" ? "See all →" : "Lihat semua →"}
+                      </NextLink>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Col 4: BUILD */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "BUILD & MERCHANTS" : "PENGEMBANG & KASIR"}
+                  </h4>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=build"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        Build with AliBank REST API
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=merchant"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        Merchant POS & QRIS Terminal
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=build"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        Smart Contract Source Code
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=build"
+                        onClick={() => setActiveMegaMenu(null)}
                         className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
                       >
                         {lang === "en" ? "See all →" : "Lihat semua →"}
@@ -598,7 +786,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     {content.heroBadgeTitle}
                   </span>
                   <span className="block font-serif text-sm sm:text-base font-semibold text-[#111111] group-hover:text-[#F4B728] transition-colors leading-snug">
-                    {content.heroBadgeSub} &rarr;
+                    {content.heroBadgeSub} →
                   </span>
                 </button>
               </div>
@@ -935,7 +1123,7 @@ contract AliBankProtocol is ERC20, Ownable {
                 href="/about"
                 className="text-[11px] font-bold text-[#F4B728] uppercase tracking-wider inline-flex items-center gap-1 hover:underline pt-2"
               >
-                Documentation &rarr;
+                Documentation →
               </NextLink>
             </div>
 
@@ -951,7 +1139,7 @@ contract AliBankProtocol is ERC20, Ownable {
                 href="/register"
                 className="text-[11px] font-bold text-[#F4B728] uppercase tracking-wider inline-flex items-center gap-1 hover:underline pt-2"
               >
-                Create Account &rarr;
+                Create Account →
               </NextLink>
             </div>
 
@@ -969,7 +1157,7 @@ contract AliBankProtocol is ERC20, Ownable {
                 rel="noopener noreferrer"
                 className="text-[11px] font-bold text-[#F4B728] uppercase tracking-wider inline-flex items-center gap-1 hover:underline pt-2"
               >
-                Polygonscan &rarr;
+                Polygonscan →
               </a>
             </div>
 
@@ -985,7 +1173,7 @@ contract AliBankProtocol is ERC20, Ownable {
                 href="/login"
                 className="text-[11px] font-bold text-[#F4B728] uppercase tracking-wider inline-flex items-center gap-1 hover:underline pt-2"
               >
-                Merchant Portal &rarr;
+                Merchant Portal →
               </NextLink>
             </div>
           </div>
@@ -1314,7 +1502,7 @@ contract AliBankProtocol is ERC20, Ownable {
                 rel="noopener noreferrer"
                 className="text-xs font-bold text-black underline underline-offset-4 hover:text-[#F4B728] transition-colors"
               >
-                Inspect ALX on Polygonscan &rarr;
+                Inspect ALX on Polygonscan →
               </a>
               <button
                 onClick={() => setIsDiffModalOpen(false)}

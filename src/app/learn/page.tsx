@@ -184,7 +184,7 @@ export default function LearnPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [lang, setLang] = useState<"en" | "id">("en");
-  const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
+  const [activeMegaMenu, setActiveMegaMenu] = useState<"learn" | "ecosystem" | null>(null);
   const [copiedContract, setCopiedContract] = useState<string | null>(null);
 
   const ALX_POLYGON_CONTRACT = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
@@ -579,24 +579,38 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
             {/* LEARN with Mega Menu Trigger */}
             <div className="relative h-full flex items-center">
               <button
-                onClick={() => setIsMegaMenuOpen(!isMegaMenuOpen)}
+                onClick={() => setActiveMegaMenu(activeMegaMenu === "learn" ? null : "learn")}
                 className={cn(
                   "relative h-full flex items-center text-[11px] font-bold tracking-[0.18em] transition-colors uppercase",
-                  isMegaMenuOpen
+                  activeMegaMenu === "learn"
                     ? "text-[#111111]"
-                    : "text-[#444444] hover:text-[#111111]"
+                    : "text-black font-black hover:text-black"
                 )}
               >
                 <span>{lang === "en" ? "LEARN" : "PELAJARI"}</span>
               </button>
-              {isMegaMenuOpen && (
+              {(activeMegaMenu === "learn" || activeCategory !== "all") && (
                 <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#F4B728] z-50 pointer-events-none" />
               )}
             </div>
 
-            <NextLink href="/#ecosystem" className="hover:text-black transition-colors">
-              {lang === "en" ? "ECOSYSTEM" : "EKOSISTEM"}
-            </NextLink>
+            {/* ECOSYSTEM with Mega Menu Trigger */}
+            <div className="relative h-full flex items-center">
+              <button
+                onClick={() => setActiveMegaMenu(activeMegaMenu === "ecosystem" ? null : "ecosystem")}
+                className={cn(
+                  "relative h-full flex items-center text-[11px] font-bold tracking-[0.18em] transition-colors uppercase",
+                  activeMegaMenu === "ecosystem"
+                    ? "text-[#111111]"
+                    : "text-[#444444] hover:text-[#111111]"
+                )}
+              >
+                <span>{lang === "en" ? "ECOSYSTEM" : "EKOSISTEM"}</span>
+              </button>
+              {activeMegaMenu === "ecosystem" && (
+                <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#F4B728] z-50 pointer-events-none" />
+              )}
+            </div>
             <NextLink href="/#network" className="hover:text-black transition-colors">
               {lang === "en" ? "NETWORK" : "JARINGAN"}
             </NextLink>
@@ -652,13 +666,13 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
         </div>
 
         {/* =========================================================================
-            MEGA MENU DROPDOWN PANEL (Zcash exact structure & precise alignment)
+            1.A MEGA MENU: LEARN (Zcash exact structure & precise alignment)
             ========================================================================= */}
-        {isMegaMenuOpen && (
+        {activeMegaMenu === "learn" && (
           <>
             {/* Click-outside backdrop */}
             <div
-              onClick={() => setIsMegaMenuOpen(false)}
+              onClick={() => setActiveMegaMenu(null)}
               className="fixed inset-0 top-20 z-40 bg-black/5 backdrop-blur-[1px]"
             />
 
@@ -678,7 +692,7 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                     <button
                       onClick={() => {
                         setActiveCategory("all");
-                        setIsMegaMenuOpen(false);
+                        setActiveMegaMenu(null);
                       }}
                       className="text-[11px] font-bold tracking-wider text-[#F4B728] hover:underline"
                     >
@@ -697,7 +711,7 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                       <button
                         onClick={() => {
                           setSelectedArticle(articles.find((a) => a.id === "alibank-101") || null);
-                          setIsMegaMenuOpen(false);
+                          setActiveMegaMenu(null);
                         }}
                         className="hover:text-black text-left transition-colors"
                       >
@@ -708,7 +722,7 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                       <button
                         onClick={() => {
                           setSelectedArticle(articles.find((a) => a.id === "alibank-vs-alx") || null);
-                          setIsMegaMenuOpen(false);
+                          setActiveMegaMenu(null);
                         }}
                         className="hover:text-black text-left transition-colors"
                       >
@@ -719,7 +733,7 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                       <button
                         onClick={() => {
                           setSelectedArticle(articles.find((a) => a.id === "wallet-standards") || null);
-                          setIsMegaMenuOpen(false);
+                          setActiveMegaMenu(null);
                         }}
                         className="hover:text-black text-left transition-colors"
                       >
@@ -730,7 +744,7 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                       <button
                         onClick={() => {
                           setActiveCategory("101");
-                          setIsMegaMenuOpen(false);
+                          setActiveMegaMenu(null);
                         }}
                         className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
                       >
@@ -753,7 +767,7 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                       <button
                         onClick={() => {
                           setSelectedArticle(articles.find((a) => a.id === "aml-mandate") || null);
-                          setIsMegaMenuOpen(false);
+                          setActiveMegaMenu(null);
                         }}
                         className="hover:text-black text-left font-medium text-[#111111] transition-colors"
                       >
@@ -766,7 +780,7 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                       <button
                         onClick={() => {
                           setSelectedArticle(articles.find((a) => a.id === "phantom-engine") || null);
-                          setIsMegaMenuOpen(false);
+                          setActiveMegaMenu(null);
                         }}
                         className="hover:text-black text-left transition-colors"
                       >
@@ -779,7 +793,7 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                       <button
                         onClick={() => {
                           setSelectedArticle(articles.find((a) => a.id === "aml-suspension") || null);
-                          setIsMegaMenuOpen(false);
+                          setActiveMegaMenu(null);
                         }}
                         className="hover:text-black text-left transition-colors"
                       >
@@ -792,7 +806,7 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                       <button
                         onClick={() => {
                           setActiveCategory("aml");
-                          setIsMegaMenuOpen(false);
+                          setActiveMegaMenu(null);
                         }}
                         className="text-[11px] font-bold text-[#E11D48] hover:underline pt-1 block"
                       >
@@ -812,7 +826,7 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                       <button
                         onClick={() => {
                           setSelectedArticle(articles.find((a) => a.id === "por-card") || null);
-                          setIsMegaMenuOpen(false);
+                          setActiveMegaMenu(null);
                         }}
                         className="hover:text-black text-left transition-colors"
                       >
@@ -825,7 +839,7 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                       <button
                         onClick={() => {
                           setSelectedArticle(articles.find((a) => a.id === "double-entry") || null);
-                          setIsMegaMenuOpen(false);
+                          setActiveMegaMenu(null);
                         }}
                         className="hover:text-black text-left transition-colors"
                       >
@@ -838,7 +852,7 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                       <button
                         onClick={() => {
                           setSelectedArticle(articles.find((a) => a.id === "merchant-pos") || null);
-                          setIsMegaMenuOpen(false);
+                          setActiveMegaMenu(null);
                         }}
                         className="hover:text-black text-left transition-colors"
                       >
@@ -851,12 +865,185 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
                       <button
                         onClick={() => {
                           setActiveCategory("merchant");
-                          setIsMegaMenuOpen(false);
+                          setActiveMegaMenu(null);
                         }}
                         className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
                       >
                         {lang === "en" ? "See all →" : "Lihat semua →"}
                       </button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* =========================================================================
+            1.B MEGA MENU: ECOSYSTEM (Matching Zcash exactly)
+            ========================================================================= */}
+        {activeMegaMenu === "ecosystem" && (
+          <>
+            {/* Click-outside backdrop */}
+            <div
+              onClick={() => setActiveMegaMenu(null)}
+              className="fixed inset-0 top-20 z-40 bg-black/5 backdrop-blur-[1px]"
+            />
+
+            <div className="absolute top-20 left-0 w-full bg-white border-b border-[#DFDAD0] shadow-xl z-50 animate-in fade-in duration-150">
+              <div className="max-w-[1280px] mx-auto px-6 py-10 pb-12 grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12 text-left">
+                {/* Col 1: Overview */}
+                <div className="space-y-3 pr-4 border-r border-[#ECE7DE]">
+                  <h3 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "ECOSYSTEM" : "EKOSISTEM"}
+                  </h3>
+                  <p className="text-xs text-[#666666] font-light leading-relaxed">
+                    {lang === "en"
+                      ? "Browse wallets, blockchain networks, developer tools and everything you need to become a participant in the AliBank ecosystem."
+                      : "Jelajahi dompet, jaringan blockchain, alat pengembang, dan infrastruktur pendukung ekosistem AliBank."}
+                  </p>
+                  <div className="pt-2">
+                    <NextLink
+                      href="/ecosystem"
+                      onClick={() => setActiveMegaMenu(null)}
+                      className="text-[11px] font-bold tracking-wider text-[#F4B728] hover:underline"
+                    >
+                      {lang === "en" ? "Browse Ecosystem Hub →" : "Buka Hub Ekosistem →"}
+                    </NextLink>
+                  </div>
+                </div>
+
+                {/* Col 2: WALLETS */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "WALLETS" : "DOMPET"}
+                  </h4>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=wallets"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        MetaMask Web3 Bridge
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=wallets"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        TrustWallet Core (BIP-39/44)
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=wallets"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        Hardware Wallet Custody
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=wallets"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
+                      >
+                        {lang === "en" ? "See all →" : "Lihat semua →"}
+                      </NextLink>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Col 3: NETWORKS & VAULTS */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "NETWORKS & VAULTS" : "JARINGAN & BRANKAS"}
+                  </h4>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=networks"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        Polygon Mainnet (ALX)
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=networks"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        Ethereum Liquidity Vault
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=networks"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        Bitcoin Native SegWit
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=networks"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
+                      >
+                        {lang === "en" ? "See all →" : "Lihat semua →"}
+                      </NextLink>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Col 4: BUILD */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "BUILD & MERCHANTS" : "PENGEMBANG & KASIR"}
+                  </h4>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=build"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        Build with AliBank REST API
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=merchant"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        Merchant POS & QRIS Terminal
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=build"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="hover:text-black transition-colors block"
+                      >
+                        Smart Contract Source Code
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink
+                        href="/ecosystem?category=build"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
+                      >
+                        {lang === "en" ? "See all →" : "Lihat semua →"}
+                      </NextLink>
                     </li>
                   </ul>
                 </div>

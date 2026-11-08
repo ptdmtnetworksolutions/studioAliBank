@@ -57,6 +57,7 @@ export function BottomNav() {
   const excludedPaths = [
     "/about",
     "/learn",
+    "/ecosystem",
     "/overview",
     "/login",
     "/register",
