@@ -48,6 +48,7 @@ import { currencies } from "@/lib/currencies";
 import { GasStation } from "@/components/crypto/GasStation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ResponsiveContainer, AreaChart, Area, YAxis } from "recharts";
+import { LandingPage } from "@/components/landing/LandingPage";
 
 const MARKUP = 1.02;
 const INITIAL_COINS = [
@@ -158,22 +159,14 @@ function DashboardContent() {
   // Auth guard and viewport routing logic
   useEffect(() => {
     setMounted(true);
-    if (!userLoading && !user) {
-      const hasCookie = typeof document !== 'undefined' && document.cookie.includes('alibank_session=1');
-      const hasStored = typeof window !== 'undefined' && !!localStorage.getItem('alibank_user');
-      if (!hasCookie && !hasStored) {
-        router.replace('/login');
-        return;
-      }
-    }
     if (typeof window !== "undefined") {
       const isMobile = window.innerWidth < 768;
       setIsMobileViewport(isMobile);
-      if (isMobile && user) {
+      if (isMobile && user && searchParams.get('view') !== 'landing') {
         router.replace('/m/home');
       }
     }
-  }, [user, userLoading, router]);
+  }, [user, userLoading, router, searchParams]);
 
   // Fetch real-time market data (USDT price & other tickers)
   const fetchMarketData = useCallback(async () => {
@@ -438,6 +431,15 @@ function DashboardContent() {
       toast({ title: "Alamat Disalin", description: "Alamat dompet berhasil disalin ke papan klip." });
     }
   };
+
+  const isExplicitLanding = searchParams.get('view') === 'landing';
+  const hasCookie = typeof document !== 'undefined' && document.cookie.includes('alibank_session=1');
+  const hasStored = typeof window !== 'undefined' && !!localStorage.getItem('alibank_user');
+  const isUnauthenticated = !userLoading && !user && !hasCookie && !hasStored;
+
+  if (isExplicitLanding || isUnauthenticated) {
+    return <LandingPage />;
+  }
 
   if (!mounted || userLoading || !user || isMobileViewport) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">

@@ -13,8 +13,62 @@ import Script from 'next/script';
 import { Suspense } from 'react';
 
 export const metadata: Metadata = {
-  title: 'AliBank V3',
-  description: 'Infrastruktur perbankan elit dengan integrasi aset kripto Mainnet.',
+  metadataBase: new URL('https://alibank.tarroz.com'),
+  title: {
+    default: 'AliBank V3 - Hybrid Neobank & Web3 Multi-Chain Financial Network',
+    template: '%s | AliBank',
+  },
+  description:
+    'Infrastruktur perbankan digital hibrida terdepan dengan cadangan 100% terverifikasi (Proof-of-Reserves), transfer P2P bebas biaya, dan integrasi multi-chain native (Polygon, Ethereum Vault, Bitcoin SegWit).',
+  keywords: [
+    'AliBank',
+    'AliBank V3',
+    'hybrid neobank',
+    'digital banking indonesia',
+    'proof of reserves',
+    'web3 bank',
+    'alix coin',
+    'ALX',
+    'polygon mainnet',
+    'ethereum vault',
+    'bitcoin native segwit',
+    'trustwallet core',
+    'zero fee p2p transfer',
+    'merchant pos',
+    'qris crypto banking'
+  ],
+  authors: [{ name: 'AliBank Financial Network' }],
+  creator: 'AliBank',
+  publisher: 'AliBank V3',
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'AliBank V3 - Hybrid Neobank & Web3 Financial Network',
+    description:
+      'Perbankan digital hibrida berstandar dunia. 100% Bukti Cadangan Terbuka, transfer P2P instan bebas biaya, dan dompet multi-chain terdesentralisasi.',
+    url: 'https://alibank.tarroz.com',
+    siteName: 'AliBank',
+    locale: 'id_ID',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AliBank V3 - Hybrid Neobank & Web3 Platform',
+    description:
+      'Institutional-grade hybrid digital banking. Verified 1:1 Proof-of-Reserves, TrustWallet Core multi-chain standard, and zero-fee instant P2P payments.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,

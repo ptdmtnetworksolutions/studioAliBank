@@ -16,10 +16,12 @@ import {
 import { cn } from "@/lib/utils";
 import React, { useState, useEffect } from "react";
 import { LogoIcon } from "@/components/ui/logo";
+import { useUser } from "@/firebase";
 
 export function BottomNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { user } = useUser();
   const [mounted, setMounted] = useState(false);
   const [mode, setMode] = useState<'bursa' | 'dompet'>('bursa');
 
@@ -50,9 +52,11 @@ export function BottomNav() {
     return () => window.removeEventListener('alibank-mode-change', syncMode);
   }, [searchParams]);
 
-  if (!mounted) return null;
+  if (!mounted || !user) return null;
 
   const excludedPaths = [
+    "/about",
+    "/overview",
     "/login",
     "/register",
     "/admin",
