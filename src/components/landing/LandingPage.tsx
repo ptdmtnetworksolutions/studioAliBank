@@ -19,6 +19,19 @@ interface LandingPageProps {
   onEnterApp?: () => void;
 }
 
+// Pre-computed guilloche rays with 2 decimal precision to guarantee 100% SSR-client hydration match
+const HERO_GUILLOCHE_RAYS = Array.from({ length: 72 }, (_, i) => {
+  const angle = (i * 360) / 72;
+  const rad = (angle * Math.PI) / 180;
+  return {
+    x1: Number((200 + 40 * Math.cos(rad)).toFixed(2)),
+    y1: Number((200 + 40 * Math.sin(rad)).toFixed(2)),
+    x2: Number((200 + 180 * Math.cos(rad)).toFixed(2)),
+    y2: Number((200 + 180 * Math.sin(rad)).toFixed(2)),
+    opacity: i % 3 === 0 ? 0.9 : 0.4,
+  };
+});
+
 export function LandingPage({ onEnterApp }: LandingPageProps) {
   // English is the default language as requested
   const [lang, setLang] = useState<"en" | "id">("en");
@@ -912,6 +925,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="0.8"
+                  suppressHydrationWarning
                 >
                   {/* Central Inner Rings */}
                   <circle cx="200" cy="200" r="40" strokeWidth="1" />
@@ -919,24 +933,16 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                   <circle cx="200" cy="200" r="120" strokeWidth="0.6" />
                   <circle cx="200" cy="200" r="180" strokeWidth="1" />
                   {/* 72 Radiating Guilloche Rays */}
-                  {Array.from({ length: 72 }).map((_, i) => {
-                    const angle = (i * 360) / 72;
-                    const rad = (angle * Math.PI) / 180;
-                    const x1 = 200 + 40 * Math.cos(rad);
-                    const y1 = 200 + 40 * Math.sin(rad);
-                    const x2 = 200 + 180 * Math.cos(rad);
-                    const y2 = 200 + 180 * Math.sin(rad);
-                    return (
-                      <line
-                        key={i}
-                        x1={x1}
-                        y1={y1}
-                        x2={x2}
-                        y2={y2}
-                        opacity={i % 3 === 0 ? 0.9 : 0.4}
-                      />
-                    );
-                  })}
+                  {HERO_GUILLOCHE_RAYS.map((ray, i) => (
+                    <line
+                      key={i}
+                      x1={ray.x1}
+                      y1={ray.y1}
+                      x2={ray.x2}
+                      y2={ray.y2}
+                      opacity={ray.opacity}
+                    />
+                  ))}
                 </svg>
 
                 {/* Overlapping Interactive Floating Badge */}

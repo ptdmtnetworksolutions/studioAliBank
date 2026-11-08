@@ -19,6 +19,18 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
+// Pre-computed guilloche rays with 2 decimal precision to guarantee 100% SSR-client hydration match
+const GUILLOCHE_RAYS = Array.from({ length: 72 }, (_, i) => {
+  const angle = (i * 360) / 72;
+  const rad = (angle * Math.PI) / 180;
+  return {
+    x1: Number((200 + 40 * Math.cos(rad)).toFixed(2)),
+    y1: Number((200 + 40 * Math.sin(rad)).toFixed(2)),
+    x2: Number((200 + 190 * Math.cos(rad)).toFixed(2)),
+    y2: Number((200 + 190 * Math.sin(rad)).toFixed(2)),
+  };
+});
+
 export default function LoginPage() {
   const auth = useAuth();
   const router = useRouter();
@@ -128,20 +140,15 @@ export default function LoginPage() {
           fill="none"
           stroke="currentColor"
           strokeWidth="0.8"
+          suppressHydrationWarning
         >
           <circle cx="200" cy="200" r="40" strokeWidth="1" />
           <circle cx="200" cy="200" r="80" strokeWidth="0.5" strokeDasharray="3 3" />
           <circle cx="200" cy="200" r="140" strokeWidth="0.6" />
           <circle cx="200" cy="200" r="190" strokeWidth="1" />
-          {Array.from({ length: 72 }).map((_, i) => {
-            const angle = (i * 360) / 72;
-            const rad = (angle * Math.PI) / 180;
-            const x1 = 200 + 40 * Math.cos(rad);
-            const y1 = 200 + 40 * Math.sin(rad);
-            const x2 = 200 + 190 * Math.cos(rad);
-            const y2 = 200 + 190 * Math.sin(rad);
-            return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />;
-          })}
+          {GUILLOCHE_RAYS.map((ray, i) => (
+            <line key={i} x1={ray.x1} y1={ray.y1} x2={ray.x2} y2={ray.y2} />
+          ))}
         </svg>
       </div>
 
