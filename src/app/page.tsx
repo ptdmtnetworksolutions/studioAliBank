@@ -432,6 +432,11 @@ function DashboardContent() {
     }
   };
 
+  // During SSR and initial client hydration, guarantee 100% deterministic output matching server render
+  if (!mounted) {
+    return <LandingPage />;
+  }
+
   const isExplicitLanding = searchParams.get('view') === 'landing';
   const hasCookie = typeof document !== 'undefined' && document.cookie.includes('alibank_session=1');
   const hasStored = typeof window !== 'undefined' && !!localStorage.getItem('alibank_user');
@@ -441,10 +446,10 @@ function DashboardContent() {
     return <LandingPage />;
   }
 
-  if (!mounted || userLoading || !user || isMobileViewport) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-      <div className="w-16 h-16 rounded-2xl gold-gradient animate-pulse flex items-center justify-center p-3">
-        <LogoIcon className="text-white" />
+  if (userLoading || !user || isMobileViewport) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF9F6]">
+      <div className="w-12 h-12 rounded-full bg-[#F4B728] flex items-center justify-center text-black font-bold text-lg animate-pulse shadow-sm">
+        A
       </div>
     </div>
   );
@@ -1147,9 +1152,9 @@ function DesktopAssetRow({ name, symbol, amount, priceUsd, priceIdr, changePerce
 export default function RootPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-        <div className="w-16 h-16 rounded-2xl gold-gradient animate-pulse flex items-center justify-center p-3">
-          <LogoIcon className="text-white" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF9F6]">
+        <div className="w-12 h-12 rounded-full bg-[#F4B728] flex items-center justify-center text-black font-bold text-lg animate-pulse shadow-sm">
+          A
         </div>
       </div>
     }>
