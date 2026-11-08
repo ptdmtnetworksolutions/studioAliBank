@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { AliBankVaultABI } from '@/lib/abi/AliBankVault';
 import { AlixCoinABI } from '@/lib/abi/AlixCoin';
 import { firebaseConfig } from '@/firebase/config';
+import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -199,12 +200,37 @@ export async function POST(request: NextRequest) {
       if (refreshed) idToken = refreshed;
     }
 
-    // 1. Ambil data user, api_keys, dan liquidity secara paralel via Firestore REST API
-    const [userData, apiKeysData, liqData] = await Promise.all([
+    if (!idToken) {
+      return NextResponse.json({ error: 'Akses ditolak. Token otentikasi diperlukan.' }, { status: 401 });
+    }
+
+    // Verifikasi kepemilikan akun (Proteksi IDOR)
+    let callerUid: string | null = null;
+    try {
+      const parts = idToken.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+        callerUid = payload.user_id || payload.sub || null;
+      }
+    } catch {}
+    if (callerUid && callerUid !== userId) {
+      return NextResponse.json({ error: 'Pelanggaran keamanan: Anda tidak diizinkan mengklaim dari akun lain.' }, { status: 403 });
+    }
+
+    // 1. Ambil data user, api_keys, dan liquidity secara paralel via Local Store + Firestore REST API
+    const [restUser, restKeys, restLiq] = await Promise.all([
       restGetDoc(`users/${userId}`, idToken),
       restGetDoc('system/api_keys', idToken),
       restGetDoc('system/liquidity', idToken),
     ]);
+
+    const localUser = getLocalDoc(`users/${userId}`);
+    const localKeys = getLocalDoc('system/api_keys');
+    const localLiq = getLocalDoc('system/liquidity');
+
+    const userData = (localUser.exists ? localUser.data : null) || restUser;
+    const apiKeysData = { ...(localKeys.exists ? localKeys.data : {}), ...(restKeys || {}) };
+    const liqData = { ...(localLiq.exists ? localLiq.data : {}), ...(restLiq || {}) };
 
     if (!userData) {
       return NextResponse.json({ error: 'Verifikasi akun nasabah belum dapat diselesaikan saat ini. Silakan muat ulang atau coba beberapa saat lagi.' }, { status: 404 });
@@ -349,7 +375,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Gagal mengirim transaksi minting ke Polygon: ${polygonErrorMsg}` }, { status: 500 });
     }
 
-    // 8. Catat Transaksi & Notifikasi ke Firestore via REST API
+    // 8. Catat Transaksi & Notifikasi ke Local Store + Firestore via REST API
     const currentCryptoBalances: Record<string, number> = {
       ...(userData.cryptoBalances || {}),
     };
@@ -357,6 +383,54 @@ export async function POST(request: NextRequest) {
 
     const nowDate = new Date();
     const nowIso = nowDate.toISOString();
+
+    setLocalDoc(
+      `users/${userId}`,
+      {
+        lastClaimedTimestamp: now,
+        cryptoBalances: currentCryptoBalances,
+      },
+      true
+    );
+
+    const txPayload = {
+      date: nowIso,
+      description: 'Klaim Yield DeFi Vault',
+      category: 'Crypto Reward',
+      cryptoAmount: yieldAmount,
+      cryptoCurrency: 'ALX',
+      recipientAddress: walletAddress,
+      type: 'income',
+      status: 'success',
+      txHash: receipt.hash,
+      network: 'Polygon Mainnet',
+      timestamp: nowIso,
+    };
+    const auditPayload = {
+      id: `CLAIM-${Date.now()}`,
+      category: 'DeFi Staking Reward',
+      gateway: 'Vault Staking',
+      amountIdr: 0,
+      cryptoAmount: yieldAmount,
+      cryptoCurrency: 'ALX',
+      txHash: receipt.hash,
+      description: `Minted ${yieldAmount.toFixed(6)} ALX to ${walletAddress} for staking rewards.`,
+      status: 'berhasil',
+      timestamp: nowIso,
+      userEmail: userData.email || '',
+    };
+    const notifPayload = {
+      title: '🎁 Klaim Yield ALX Berhasil',
+      message: `Klaim yield staking sebesar ${yieldAmount.toFixed(6)} ALX berhasil diproses dan dikirim ke dompet Anda. Hash: ${receipt.hash.slice(0, 10)}...`,
+      type: 'success',
+      read: false,
+      createdAt: nowIso,
+      timestamp: nowIso,
+    };
+
+    addLocalCollectionDoc(`users/${userId}/transactions`, txPayload);
+    addLocalCollectionDoc('system/audit/global_transactions', auditPayload);
+    addLocalCollectionDoc(`users/${userId}/notifications`, notifPayload);
 
     await restPatchDoc(
       `users/${userId}`,
@@ -368,52 +442,9 @@ export async function POST(request: NextRequest) {
     );
 
     await Promise.all([
-      restCreateDoc(
-        `users/${userId}/transactions`,
-        {
-          date: nowIso,
-          description: 'Klaim Yield DeFi Vault',
-          category: 'Crypto Reward',
-          cryptoAmount: yieldAmount,
-          cryptoCurrency: 'ALX',
-          recipientAddress: walletAddress,
-          type: 'income',
-          status: 'success',
-          txHash: receipt.hash,
-          network: 'Polygon Mainnet',
-          timestamp: nowDate,
-        },
-        idToken
-      ),
-      restCreateDoc(
-        'system/audit/global_transactions',
-        {
-          id: `CLAIM-${Date.now()}`,
-          category: 'DeFi Staking Reward',
-          gateway: 'Vault Staking',
-          amountIdr: 0,
-          cryptoAmount: yieldAmount,
-          cryptoCurrency: 'ALX',
-          txHash: receipt.hash,
-          description: `Minted ${yieldAmount.toFixed(6)} ALX to ${walletAddress} for staking rewards.`,
-          status: 'berhasil',
-          timestamp: nowDate,
-          userEmail: userData.email || '',
-        },
-        idToken
-      ),
-      restCreateDoc(
-        `users/${userId}/notifications`,
-        {
-          title: '🎁 Klaim Yield ALX Berhasil',
-          message: `Klaim yield staking sebesar ${yieldAmount.toFixed(6)} ALX berhasil diproses dan dikirim ke dompet Anda. Hash: ${receipt.hash.slice(0, 10)}...`,
-          type: 'success',
-          read: false,
-          createdAt: nowIso,
-          timestamp: nowDate,
-        },
-        idToken
-      ),
+      restCreateDoc(`users/${userId}/transactions`, { ...txPayload, timestamp: nowDate }, idToken),
+      restCreateDoc('system/audit/global_transactions', { ...auditPayload, timestamp: nowDate }, idToken),
+      restCreateDoc(`users/${userId}/notifications`, { ...notifPayload, timestamp: nowDate }, idToken),
     ]);
 
     return NextResponse.json({

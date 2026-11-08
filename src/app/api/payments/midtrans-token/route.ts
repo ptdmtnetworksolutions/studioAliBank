@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getLocalDoc, setLocalDoc } from '@/lib/local-firestore-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,16 @@ async function getMidtransConfig(): Promise<{ serverKey: string; isSandbox: bool
     return { serverKey: process.env.MIDTRANS_SERVER_KEY, isSandbox };
   }
 
-  // Priority 2: Firebase Admin SDK (Firestore system/api_keys)
+  // Priority 2: Local Firestore Store (system/api_keys)
+  const localKeys = getLocalDoc('system/api_keys');
+  if (localKeys.exists && localKeys.data?.midtransServerKey) {
+    return {
+      serverKey: String(localKeys.data.midtransServerKey),
+      isSandbox: localKeys.data.midtransSandbox !== false,
+    };
+  }
+
+  // Priority 3: Firebase Admin SDK (Firestore system/api_keys)
   try {
     const adminApp = getAdminApp();
     const adminDb = getFirestore(adminApp);
@@ -106,22 +116,24 @@ export async function POST(request: NextRequest) {
     }
 
     if (userId) {
+      const pendingPayload = {
+        orderId,
+        amountIdr: amount,
+        customerName,
+        customerEmail: customerEmail || '',
+        userId,
+        cryptoAmount: cryptoAmount || 0,
+        cryptoCurrency: cryptoCurrency || 'ALX',
+        usdValue: usdValue || '0',
+        status: 'pending',
+        token: data.token,
+        createdAt: new Date().toISOString()
+      };
+      setLocalDoc(`midtrans_pending_transactions/${orderId}`, pendingPayload, true);
       try {
         const adminApp = getAdminApp();
         const adminDb = getFirestore(adminApp);
-        await adminDb.collection('midtrans_pending_transactions').doc(orderId).set({
-          orderId,
-          amountIdr: amount,
-          customerName,
-          customerEmail: customerEmail || '',
-          userId,
-          cryptoAmount: cryptoAmount || 0,
-          cryptoCurrency: cryptoCurrency || 'ALX',
-          usdValue: usdValue || '0',
-          status: 'pending',
-          token: data.token,
-          createdAt: new Date().toISOString()
-        });
+        await adminDb.collection('midtrans_pending_transactions').doc(orderId).set(pendingPayload);
       } catch (err: any) {
         console.warn('[Midtrans Route] Failed saving pending doc:', err?.message);
       }

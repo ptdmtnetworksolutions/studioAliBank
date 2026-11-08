@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import crypto from 'crypto';
+import { getLocalDoc, setLocalDoc, addLocalCollectionDoc, queryLocalCollection } from '@/lib/local-firestore-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,10 @@ function getAdminApp(): App {
 async function getMidtransServerKey(): Promise<string> {
   if (process.env.MIDTRANS_SERVER_KEY) {
     return process.env.MIDTRANS_SERVER_KEY;
+  }
+  const localKeys = getLocalDoc('system/api_keys');
+  if (localKeys.exists && localKeys.data?.midtransServerKey) {
+    return String(localKeys.data.midtransServerKey);
   }
   try {
     const adminApp = getAdminApp();
@@ -86,109 +91,122 @@ export async function POST(request: NextRequest) {
     const adminApp = getAdminApp();
     const db = getFirestore(adminApp);
 
-    // Ambil data pending transaksi dari Firestore
-    const pendingDocRef = db.collection('midtrans_pending_transactions').doc(order_id);
-    const pendingSnap = await pendingDocRef.get();
+    // Ambil data pending transaksi dari Local Store atau Firestore
+    const localPending = getLocalDoc(`midtrans_pending_transactions/${order_id}`);
+    let pendingData: Record<string, any> | null = localPending.exists ? localPending.data : null;
 
-    if (!pendingSnap.exists) {
+    if (!pendingData) {
+      try {
+        const pendingDocRef = db.collection('midtrans_pending_transactions').doc(order_id);
+        const pendingSnap = await pendingDocRef.get();
+        if (pendingSnap.exists) pendingData = pendingSnap.data()!;
+      } catch {}
+    }
+
+    if (!pendingData) {
       console.warn(`[Midtrans Webhook] Pending doc order ${order_id} tidak ditemukan.`);
       return NextResponse.json({ message: 'Order tidak ditemukan di pending records, diabaikan.' });
     }
 
-    const pendingData = pendingSnap.data()!;
     if (pendingData.status === 'success') {
       return NextResponse.json({ message: 'Order sudah berhasil diproses sebelumnya.' });
     }
 
     const { userId, userEmail, cryptoAmount, cryptoCurrency, amountIdr, usdValue } = pendingData;
-    const userRef = db.collection('users').doc(userId);
+    const nowIso = new Date().toISOString();
 
-    // ANTI KREDIT-GANDA: klien (finalizeTransaction) sudah mengkreditkan saldo via audit `BUY-<transaction_id>`
-    // saat Snap onSuccess. Jika ledger sudah memuatnya, jangan kreditkan lagi lewat webhook.
     if (transaction_id) {
-      const dupSnap = await db.collection('system').doc('audit').collection('global_transactions')
-        .where('id', 'in', [`BUY-${transaction_id}`, `MIDTRANS-${transaction_id}`])
-        .get();
-      if (!dupSnap.empty) {
-        await pendingDocRef.update({
+      const localDups = queryLocalCollection('system/audit/global_transactions', null, [], [], 200).filter((d) =>
+        [`BUY-${transaction_id}`, `MIDTRANS-${transaction_id}`].includes(String(d.id))
+      );
+      if (localDups.length > 0) {
+        setLocalDoc(`midtrans_pending_transactions/${order_id}`, {
           status: 'success',
           transactionId: transaction_id,
           paymentType: payment_type || '',
-          completedAt: new Date().toISOString(),
-          note: 'Sudah dikreditkan oleh klien; webhook hanya menandai selesai.'
-        });
+          completedAt: nowIso,
+        }, true);
         return NextResponse.json({ message: 'Order sudah dikreditkan sebelumnya (duplikat diabaikan).' });
       }
     }
 
-    await db.runTransaction(async (transaction) => {
-      // 1. Tambah saldo koin crypto pengguna
-      const cryptoField = `cryptoBalances.${cryptoCurrency}`;
-      transaction.update(userRef, {
-        [cryptoField]: FieldValue.increment(parseFloat(cryptoAmount))
-      });
-
-      // 2. Update Global Liquidity
-      const liquidityRef = db.collection('system').doc('liquidity');
-      transaction.update(liquidityRef, {
-        totalUsdInjected: FieldValue.increment(parseFloat(usdValue || '0')),
-        totalFiatInjected: FieldValue.increment(parseFloat(amountIdr))
-      });
-
-      // 3. Catat di Global Audit Log
-      const auditRef = db.collection('system').doc('audit').collection('global_transactions').doc();
-      transaction.set(auditRef, {
-        id: `MIDTRANS-${transaction_id || order_id}`,
-        category: "Market Execution",
-        gateway: "Midtrans Snap",
-        paymentType: payment_type || "snap",
-        amountIdr: parseFloat(amountIdr),
-        cryptoAmount: parseFloat(cryptoAmount),
-        cryptoCurrency: cryptoCurrency,
-        status: "success",
-        timestamp: FieldValue.serverTimestamp(),
-        userEmail: userEmail || pendingData.customerEmail || ''
-      });
-
-      // 4. Catat di Riwayat Transaksi Pengguna
-      const userTxRef = userRef.collection('transactions').doc();
-      transaction.set(userTxRef, {
-        date: new Date().toISOString(),
-        description: `Beli ${cryptoCurrency} via Midtrans Snap (${payment_type || 'Kliring'})`,
-        category: "Trading",
-        amount: parseFloat(amountIdr),
-        cryptoAmount: parseFloat(cryptoAmount),
-        cryptoCurrency: cryptoCurrency,
-        type: 'income',
-        status: "success",
-        gateway: "Midtrans Snap",
-        transactionId: transaction_id,
-        timestamp: FieldValue.serverTimestamp()
-      });
-
-      // 5. Kirim Notifikasi Resmi ke Inbox Pengguna
-      const notifRef = userRef.collection('notifications').doc();
-      transaction.set(notifRef, {
-        title: `⚡ Pembayaran Midtrans Sukses`,
-        message: `Pembayaran Rp ${parseFloat(amountIdr).toLocaleString('id-ID')} via Midtrans Snap berhasil. ${cryptoAmount} ${cryptoCurrency} telah ditambahkan ke dompet Anda. Rekening penampungan: PT DMT Network Solutions.`,
-        type: 'success',
-        category: 'transaksi',
-        read: false,
-        createdAt: new Date().toISOString(),
-        amount: parseFloat(amountIdr),
-        cryptoAmount: parseFloat(cryptoAmount),
-        cryptoCurrency: cryptoCurrency,
-        timestamp: FieldValue.serverTimestamp()
-      });
-
-      // 6. Tandai pending transaction sebagai success
-      transaction.update(pendingDocRef, {
-        status: 'success',
-        transactionId: transaction_id || '',
-        paymentType: payment_type || '',
-        completedAt: new Date().toISOString()
-      });
+    // Update Local Store secara atomik
+    const localUser = getLocalDoc(`users/${userId}`);
+    if (localUser.exists && localUser.data) {
+      const nextCrypto = { ...(localUser.data.cryptoBalances || {}) };
+      nextCrypto[cryptoCurrency] = Number(((Number(nextCrypto[cryptoCurrency] || 0)) + parseFloat(cryptoAmount)).toFixed(8));
+      setLocalDoc(`users/${userId}`, { cryptoBalances: nextCrypto }, true);
+    }
+    const localLiq = getLocalDoc('system/liquidity');
+    setLocalDoc('system/liquidity', {
+      totalUsdInjected: Number(localLiq.data?.totalUsdInjected || 0) + parseFloat(usdValue || '0'),
+      totalFiatInjected: Number(localLiq.data?.totalFiatInjected || 0) + parseFloat(amountIdr),
+    }, true);
+    addLocalCollectionDoc('system/audit/global_transactions', {
+      id: `MIDTRANS-${transaction_id || order_id}`,
+      category: "Market Execution",
+      gateway: "Midtrans Snap",
+      paymentType: payment_type || "snap",
+      amountIdr: parseFloat(amountIdr),
+      cryptoAmount: parseFloat(cryptoAmount),
+      cryptoCurrency: cryptoCurrency,
+      status: "success",
+      timestamp: nowIso,
+      userEmail: userEmail || pendingData.customerEmail || ''
     });
+    addLocalCollectionDoc(`users/${userId}/transactions`, {
+      date: nowIso,
+      description: `Beli ${cryptoCurrency} via Midtrans Snap (${payment_type || 'Kliring'})`,
+      category: "Trading",
+      amount: parseFloat(amountIdr),
+      cryptoAmount: parseFloat(cryptoAmount),
+      cryptoCurrency: cryptoCurrency,
+      type: 'income',
+      status: "success",
+      gateway: "Midtrans Snap",
+      transactionId: transaction_id,
+      timestamp: nowIso
+    });
+    addLocalCollectionDoc(`users/${userId}/notifications`, {
+      title: `⚡ Pembayaran Midtrans Sukses`,
+      message: `Pembayaran Rp ${parseFloat(amountIdr).toLocaleString('id-ID')} via Midtrans Snap berhasil. ${cryptoAmount} ${cryptoCurrency} telah ditambahkan ke dompet Anda.`,
+      type: 'success',
+      category: 'transaksi',
+      read: false,
+      createdAt: nowIso,
+      amount: parseFloat(amountIdr),
+      cryptoAmount: parseFloat(cryptoAmount),
+      cryptoCurrency: cryptoCurrency,
+      timestamp: nowIso
+    });
+    setLocalDoc(`midtrans_pending_transactions/${order_id}`, {
+      status: 'success',
+      transactionId: transaction_id || '',
+      paymentType: payment_type || '',
+      completedAt: nowIso
+    }, true);
+
+    try {
+      const pendingDocRef = db.collection('midtrans_pending_transactions').doc(order_id);
+      const userRef = db.collection('users').doc(userId);
+      await db.runTransaction(async (transaction) => {
+        const cryptoField = `cryptoBalances.${cryptoCurrency}`;
+        transaction.update(userRef, {
+          [cryptoField]: FieldValue.increment(parseFloat(cryptoAmount))
+        });
+        const liquidityRef = db.collection('system').doc('liquidity');
+        transaction.update(liquidityRef, {
+          totalUsdInjected: FieldValue.increment(parseFloat(usdValue || '0')),
+          totalFiatInjected: FieldValue.increment(parseFloat(amountIdr))
+        });
+        transaction.update(pendingDocRef, {
+          status: 'success',
+          transactionId: transaction_id || '',
+          paymentType: payment_type || '',
+          completedAt: nowIso
+        });
+      });
+    } catch {}
 
     return NextResponse.json({
       success: true,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import crypto from 'crypto';
+import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,14 @@ function getAdminApp(): App {
 }
 
 async function getIpaymuCredentials() {
+  const localKeys = getLocalDoc('system/api_keys');
+  if (localKeys.exists && localKeys.data?.ipaymuVa && localKeys.data?.ipaymuApiKey) {
+    return {
+      ipaymuVa: String(localKeys.data.ipaymuVa),
+      ipaymuApiKey: String(localKeys.data.ipaymuApiKey),
+      ipaymuSandbox: localKeys.data.ipaymuSandbox ?? false,
+    };
+  }
   try {
     const adminApp = getAdminApp();
     const adminDb = getFirestore(adminApp);
@@ -116,84 +125,97 @@ export async function POST(request: NextRequest) {
     const adminApp = getAdminApp();
     const db = getFirestore(adminApp);
 
-    // Retrieve pending transaction details from Firestore
-    const pendingDocRef = db.collection('ipaymu_pending_transactions').doc(reference_id);
-    const pendingSnap = await pendingDocRef.get();
+    // Retrieve pending transaction details from Local Store or Firestore
+    const localPending = getLocalDoc(`ipaymu_pending_transactions/${reference_id}`);
+    let pendingData: Record<string, any> | null = localPending.exists ? localPending.data : null;
 
-    if (!pendingSnap.exists) {
+    if (!pendingData) {
+      try {
+        const pendingDocRef = db.collection('ipaymu_pending_transactions').doc(reference_id);
+        const pendingSnap = await pendingDocRef.get();
+        if (pendingSnap.exists) pendingData = pendingSnap.data()!;
+      } catch {}
+    }
+
+    if (!pendingData) {
       console.warn(`[iPaymu Webhook Warning]: Referensi order ${reference_id} tidak ditemukan.`);
       return NextResponse.json({ error: 'Referensi order tidak ditemukan.' }, { status: 404 });
     }
 
-    const pendingData = pendingSnap.data()!;
     if (pendingData.status === 'success') {
       return NextResponse.json({ message: 'Order sudah berhasil diproses sebelumnya.' });
     }
 
     const { userId, userEmail, cryptoAmount, cryptoCurrency, amountIdr, usdValue } = pendingData;
+    const nowIso = new Date().toISOString();
 
-    const userRef = db.collection('users').doc(userId);
-
-    await db.runTransaction(async (transaction) => {
-      // 1. Credit Crypto coins
-      const cryptoField = `cryptoBalances.${cryptoCurrency}`;
-      transaction.update(userRef, {
-        [cryptoField]: FieldValue.increment(parseFloat(cryptoAmount))
-      });
-
-      // 2. Update Global Liquidity
-      const liquidityRef = db.collection('system').doc('liquidity');
-      transaction.update(liquidityRef, {
-        totalUsdInjected: FieldValue.increment(parseFloat(usdValue)),
-        totalFiatInjected: FieldValue.increment(parseFloat(amountIdr))
-      });
-
-      // 3. Record Global Audit Log
-      const auditRef = db.collection('system').doc('audit').collection('global_transactions').doc();
-      transaction.set(auditRef, {
-        id: `IPAYMU-${trx_id}`,
-        category: "Market Execution",
-        gateway: "iPaymu",
-        amountIdr: parseFloat(amountIdr),
-        cryptoAmount: parseFloat(cryptoAmount),
-        cryptoCurrency: cryptoCurrency,
-        status: "success",
-        timestamp: FieldValue.serverTimestamp(),
-        userEmail: userEmail
-      });
-
-      // 4. Record User Transaction History
-      const userTxRef = userRef.collection('transactions').doc();
-      transaction.set(userTxRef, {
-        date: new Date().toISOString(),
-        description: `Beli ${cryptoCurrency} via iPaymu`,
-        category: "Trading",
-        amount: parseFloat(amountIdr),
-        cryptoAmount: parseFloat(cryptoAmount),
-        cryptoCurrency: cryptoCurrency,
-        type: 'income',
-        status: "success",
-        timestamp: FieldValue.serverTimestamp()
-      });
-
-      // 5. Send In-App Notification
-      const notifRef = userRef.collection('notifications').doc();
-      transaction.set(notifRef, {
-        title: `⚡ Pembayaran iPaymu Sukses`,
-        message: `Pembayaran Rp ${parseFloat(amountIdr).toLocaleString('id-ID')} via iPaymu berhasil. ${cryptoAmount} ${cryptoCurrency} telah ditambahkan ke dompet Anda.`,
-        type: 'success',
-        read: false,
-        createdAt: new Date().toISOString(),
-        timestamp: FieldValue.serverTimestamp()
-      });
-
-      // 6. Update Pending Transaction Status
-      transaction.update(pendingDocRef, {
-        status: 'success',
-        trxId: trx_id,
-        completedAt: new Date().toISOString()
-      });
+    const localUser = getLocalDoc(`users/${userId}`);
+    if (localUser.exists && localUser.data) {
+      const nextCrypto = { ...(localUser.data.cryptoBalances || {}) };
+      nextCrypto[cryptoCurrency] = Number(((Number(nextCrypto[cryptoCurrency] || 0)) + parseFloat(cryptoAmount)).toFixed(8));
+      setLocalDoc(`users/${userId}`, { cryptoBalances: nextCrypto }, true);
+    }
+    const localLiq = getLocalDoc('system/liquidity');
+    setLocalDoc('system/liquidity', {
+      totalUsdInjected: Number(localLiq.data?.totalUsdInjected || 0) + parseFloat(usdValue || '0'),
+      totalFiatInjected: Number(localLiq.data?.totalFiatInjected || 0) + parseFloat(amountIdr),
+    }, true);
+    addLocalCollectionDoc('system/audit/global_transactions', {
+      id: `IPAYMU-${trx_id}`,
+      category: "Market Execution",
+      gateway: "iPaymu",
+      amountIdr: parseFloat(amountIdr),
+      cryptoAmount: parseFloat(cryptoAmount),
+      cryptoCurrency: cryptoCurrency,
+      status: "success",
+      timestamp: nowIso,
+      userEmail: userEmail
     });
+    addLocalCollectionDoc(`users/${userId}/transactions`, {
+      date: nowIso,
+      description: `Beli ${cryptoCurrency} via iPaymu`,
+      category: "Trading",
+      amount: parseFloat(amountIdr),
+      cryptoAmount: parseFloat(cryptoAmount),
+      cryptoCurrency: cryptoCurrency,
+      type: 'income',
+      status: "success",
+      timestamp: nowIso
+    });
+    addLocalCollectionDoc(`users/${userId}/notifications`, {
+      title: `⚡ Pembayaran iPaymu Sukses`,
+      message: `Pembayaran Rp ${parseFloat(amountIdr).toLocaleString('id-ID')} via iPaymu berhasil. ${cryptoAmount} ${cryptoCurrency} telah ditambahkan ke dompet Anda.`,
+      type: 'success',
+      read: false,
+      createdAt: nowIso,
+      timestamp: nowIso
+    });
+    setLocalDoc(`ipaymu_pending_transactions/${reference_id}`, {
+      status: 'success',
+      trxId: trx_id,
+      completedAt: nowIso
+    }, true);
+
+    try {
+      const pendingDocRef = db.collection('ipaymu_pending_transactions').doc(reference_id);
+      const userRef = db.collection('users').doc(userId);
+      await db.runTransaction(async (transaction) => {
+        const cryptoField = `cryptoBalances.${cryptoCurrency}`;
+        transaction.update(userRef, {
+          [cryptoField]: FieldValue.increment(parseFloat(cryptoAmount))
+        });
+        const liquidityRef = db.collection('system').doc('liquidity');
+        transaction.update(liquidityRef, {
+          totalUsdInjected: FieldValue.increment(parseFloat(usdValue)),
+          totalFiatInjected: FieldValue.increment(parseFloat(amountIdr))
+        });
+        transaction.update(pendingDocRef, {
+          status: 'success',
+          trxId: trx_id,
+          completedAt: nowIso
+        });
+      });
+    } catch {}
 
     return NextResponse.json({
       success: true,

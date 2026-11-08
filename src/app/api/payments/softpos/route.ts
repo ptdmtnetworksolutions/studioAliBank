@@ -4,6 +4,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { executeSoftPosAcquirerTransaction, DEFAULT_SOFTPOS_PROFILE } from '@/lib/softpos-acquirer';
 import { detectCardBin } from '@/lib/bin-detector';
+import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,8 +61,85 @@ export async function POST(request: NextRequest) {
       userEmail: userEmail || ''
     });
 
-    // 2. Perbarui Ledger Firestore (Saldo Kripto & Escrow Penampungan Perusahaan)
-    let serverUpdated = false;
+    // 2. Perbarui Ledger Local Store & Firestore (Saldo Kripto & Escrow Penampungan Perusahaan)
+    let serverUpdated = true;
+    const nowIso = new Date().toISOString();
+    const localUser = getLocalDoc(`users/${userId}`);
+    if (localUser.exists && localUser.data) {
+      const nextCrypto = { ...(localUser.data.cryptoBalances || {}) };
+      nextCrypto[cryptoCurrency] = Number(((Number(nextCrypto[cryptoCurrency] || 0)) + parseFloat(String(cryptoAmount))).toFixed(8));
+      setLocalDoc(`users/${userId}`, { cryptoBalances: nextCrypto }, true);
+    }
+    const localLiq = getLocalDoc('system/liquidity');
+    const prevFiat = Number(localLiq.data?.totalFiatInjected || 0);
+    const prevUsd = Number(localLiq.data?.totalUsdInjected || 0);
+    setLocalDoc('system/liquidity', {
+      totalFiatInjected: prevFiat + parseFloat(String(amountIdr)),
+      totalUsdInjected: prevUsd + parseFloat(String(usdValue || 0)),
+      lastSoftPosSettlement: nowIso,
+      lastAcquirer: DEFAULT_SOFTPOS_PROFILE.acquirerName,
+    }, true);
+    addLocalCollectionDoc('system/audit/global_transactions', {
+      id: receipt.transactionId,
+      category: "SoftPOS EDC Contactless",
+      gateway: `SoftPOS ${cardBin.bank.shortName} (${cardBin.cardType} ${cardBin.network})`,
+      acquirer: DEFAULT_SOFTPOS_PROFILE.acquirerName,
+      terminalId: DEFAULT_SOFTPOS_PROFILE.terminalId,
+      merchantId: DEFAULT_SOFTPOS_PROFILE.merchantId,
+      approvalCode: receipt.approvalCode,
+      rrn: receipt.retrievalRefNumber,
+      settlementAccount: DEFAULT_SOFTPOS_PROFILE.settlementAccount.accountNumber,
+      settlementHolder: DEFAULT_SOFTPOS_PROFILE.settlementAccount.accountHolder,
+      amountIdr: parseFloat(String(amountIdr)),
+      cryptoAmount: parseFloat(String(cryptoAmount)),
+      cryptoCurrency: cryptoCurrency,
+      cardMasked: cardBin.maskedPan,
+      bankName: cardBin.bank.name,
+      cardType: cardBin.cardType,
+      status: "success",
+      timestamp: nowIso,
+      userEmail: userEmail || ""
+    });
+    addLocalCollectionDoc(`users/${userId}/transactions`, {
+      date: nowIso,
+      description: `Beli ${cryptoCurrency} via EDC SoftPOS Tap (${cardBin.bank.shortName} ${cardBin.cardType})`,
+      category: "Trading",
+      amount: parseFloat(String(amountIdr)),
+      cryptoAmount: parseFloat(String(cryptoAmount)),
+      cryptoCurrency: cryptoCurrency,
+      type: 'income',
+      status: "success",
+      approvalCode: receipt.approvalCode,
+      rrn: receipt.retrievalRefNumber,
+      terminalId: DEFAULT_SOFTPOS_PROFILE.terminalId,
+      merchantName: DEFAULT_SOFTPOS_PROFILE.merchantName,
+      settlementDestination: receipt.settlementDestination,
+      bankName: cardBin.bank.name,
+      cardType: cardBin.cardType,
+      maskedPan: cardBin.maskedPan,
+      timestamp: nowIso
+    });
+    addLocalCollectionDoc(`users/${userId}/notifications`, {
+      title: `Pembayaran EDC SoftPOS Berhasil (${cardBin.bank.shortName})`,
+      message: `Pembelian ${cryptoAmount} ${cryptoCurrency} senilai Rp ${Number(amountIdr).toLocaleString('id-ID')} via SoftPOS Contactless (${cardBin.bank.shortName} ${cardBin.cardType} *${cardBin.cleanPan.slice(-4)}). Otorisasi: ${receipt.approvalCode}, RRN: ${receipt.retrievalRefNumber}. Dana disalurkan ke Rekening Penampungan PT DMT Network Solutions di Bank Syariah Indonesia (BSI - 7216683913).`,
+      type: "success",
+      category: "transaksi",
+      read: false,
+      createdAt: nowIso,
+      amount: parseFloat(String(amountIdr)),
+      cryptoAmount: parseFloat(String(cryptoAmount)),
+      cryptoCurrency: cryptoCurrency,
+      terminalId: DEFAULT_SOFTPOS_PROFILE.terminalId,
+      merchantName: DEFAULT_SOFTPOS_PROFILE.merchantName,
+      approvalCode: receipt.approvalCode,
+      rrn: receipt.retrievalRefNumber,
+      bankName: cardBin.bank.name,
+      cardType: cardBin.cardType,
+      maskedPan: cardBin.maskedPan,
+      settlementDestination: receipt.settlementDestination,
+      timestamp: nowIso
+    });
+
     try {
       const adminApp = getAdminApp();
       if (adminApp) {

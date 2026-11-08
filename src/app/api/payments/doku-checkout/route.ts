@@ -3,6 +3,7 @@ import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { createDokuCheckout, DOKU_CONFIG_DEFAULT } from '@/lib/doku';
+import { getLocalDoc, setLocalDoc } from '@/lib/local-firestore-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,8 +38,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Parameter transaksi tidak lengkap.' }, { status: 400 });
     }
 
-    // Ambil konfigurasi (Bisa override dari Firestore system/api_keys jika diset)
+    // Ambil konfigurasi (Bisa override dari Local Store atau Firestore system/api_keys jika diset)
     let config = { ...DOKU_CONFIG_DEFAULT };
+    const localKeys = getLocalDoc('system/api_keys');
+    if (localKeys.exists && localKeys.data) {
+      const kData = localKeys.data;
+      if (kData.dokuClientId) config.clientId = kData.dokuClientId;
+      if (kData.dokuSecretKey) config.secretKey = kData.dokuSecretKey;
+      if (kData.dokuApiKey) config.apiKey = kData.dokuApiKey;
+      if (kData.dokuIsProduction !== undefined) config.isProduction = kData.dokuIsProduction;
+    }
+
+    const pendingDoc = {
+      orderId,
+      amount: Number(amount),
+      customerName,
+      customerEmail: customerEmail || '',
+      userId: userId || '',
+      cryptoAmount: Number(cryptoAmount || 0),
+      cryptoCurrency: cryptoCurrency || 'ALX',
+      usdValue: String(usdValue || '0'),
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      gateway: 'DOKU Checkout'
+    };
+    setLocalDoc(`doku_pending_transactions/${orderId}`, pendingDoc, true);
+
     try {
       const adminApp = getAdminApp();
       if (adminApp) {

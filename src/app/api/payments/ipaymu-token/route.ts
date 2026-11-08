@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import crypto from 'crypto';
+import { getLocalDoc, setLocalDoc } from '@/lib/local-firestore-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,14 @@ function getAdminApp(): App {
 }
 
 async function getIpaymuCredentials() {
+  const localKeys = getLocalDoc('system/api_keys');
+  if (localKeys.exists && localKeys.data?.ipaymuVa && localKeys.data?.ipaymuApiKey) {
+    return {
+      ipaymuVa: String(localKeys.data.ipaymuVa),
+      ipaymuApiKey: String(localKeys.data.ipaymuApiKey),
+      ipaymuSandbox: localKeys.data.ipaymuSandbox ?? false,
+    };
+  }
   try {
     const adminApp = getAdminApp();
     const adminDb = getFirestore(adminApp);
@@ -106,10 +115,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errMsg }, { status: response.status === 200 ? 400 : response.status });
     }
 
-    // Save pending transaction to Firestore
-    const adminApp = getAdminApp();
-    const db = getFirestore(adminApp);
-    await db.collection('ipaymu_pending_transactions').doc(orderId).set({
+    // Save pending transaction to Local Store & Firestore
+    const pendingPayload = {
       orderId,
       userId,
       userEmail: customerEmail || '',
@@ -120,8 +127,16 @@ export async function POST(request: NextRequest) {
       usdValue: parseFloat(usdValue),
       status: 'pending',
       createdAt: new Date().toISOString(),
-      timestamp: new Date()
-    });
+    };
+    setLocalDoc(`ipaymu_pending_transactions/${orderId}`, pendingPayload, true);
+    try {
+      const adminApp = getAdminApp();
+      const db = getFirestore(adminApp);
+      await db.collection('ipaymu_pending_transactions').doc(orderId).set({
+        ...pendingPayload,
+        timestamp: new Date()
+      });
+    } catch {}
 
     return NextResponse.json({
       redirectUrl: data.Data.Url

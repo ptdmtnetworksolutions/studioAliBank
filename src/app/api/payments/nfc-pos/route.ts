@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
+import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,15 @@ async function getApiKeysFromFirestore(): Promise<any> {
     return {
       paypalClientId: process.env.PAYPAL_CLIENT_ID,
       paypalClientSecret: process.env.PAYPAL_CLIENT_SECRET,
+    };
+  }
+
+  // Priority 1.5: Local Firestore Store
+  const localKeys = getLocalDoc('system/api_keys');
+  if (localKeys.exists && localKeys.data?.paypalClientId && localKeys.data?.paypalClientSecret) {
+    return {
+      paypalClientId: String(localKeys.data.paypalClientId),
+      paypalClientSecret: String(localKeys.data.paypalClientSecret),
     };
   }
 
@@ -286,8 +296,43 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    // 3. Update Ledger in Firestore if Admin SDK is available, else delegate to client
-    let serverUpdated = false;
+    // 3. Update Ledger in Local Store & Firestore
+    let serverUpdated = true;
+    const nowIso = new Date().toISOString();
+    const localUser = getLocalDoc(`users/${userId}`);
+    if (localUser.exists && localUser.data) {
+      const nextCrypto = { ...(localUser.data.cryptoBalances || {}) };
+      nextCrypto[cryptoCurrency] = Number(((Number(nextCrypto[cryptoCurrency] || 0)) + parseFloat(cryptoAmount)).toFixed(8));
+      setLocalDoc(`users/${userId}`, { cryptoBalances: nextCrypto }, true);
+    }
+    const localLiq = getLocalDoc('system/liquidity');
+    setLocalDoc('system/liquidity', {
+      totalUsdInjected: Number(localLiq.data?.totalUsdInjected || 0) + parseFloat(usdValue),
+      totalFiatInjected: Number(localLiq.data?.totalFiatInjected || 0) + parseFloat(amountIdr),
+    }, true);
+    addLocalCollectionDoc('system/audit/global_transactions', {
+      id: `POS-NFC-${paymentResult.id}`,
+      category: "Market Execution",
+      gateway: `NFC Tap (${paymentResult.brand} *${paymentResult.lastDigits})`,
+      amountIdr: parseFloat(amountIdr),
+      cryptoAmount: parseFloat(cryptoAmount),
+      cryptoCurrency: cryptoCurrency,
+      status: "success",
+      timestamp: nowIso,
+      userEmail: userEmail
+    });
+    addLocalCollectionDoc(`users/${userId}/transactions`, {
+      date: nowIso,
+      description: `Beli ${cryptoCurrency} via NFC Tap ${paymentResult.brand}`,
+      category: "Trading",
+      amount: parseFloat(amountIdr),
+      cryptoAmount: parseFloat(cryptoAmount),
+      cryptoCurrency: cryptoCurrency,
+      type: 'income',
+      status: "success",
+      timestamp: nowIso
+    });
+
     try {
       const adminApp = getAdminApp();
       if (adminApp) {

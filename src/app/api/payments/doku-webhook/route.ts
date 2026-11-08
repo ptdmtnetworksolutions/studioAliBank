@@ -3,6 +3,7 @@ import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { verifyDokuWebhookSignature, DOKU_CONFIG_DEFAULT } from '@/lib/doku';
+import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,12 +60,17 @@ export async function POST(request: NextRequest) {
 
     // Ambil Secret Key untuk verifikasi
     let secretKey = DOKU_CONFIG_DEFAULT.secretKey;
-    try {
-      const keysDoc = await db.collection('system').doc('api_keys').get();
-      if (keysDoc.exists && keysDoc.data()?.dokuSecretKey) {
-        secretKey = keysDoc.data()!.dokuSecretKey;
-      }
-    } catch (e) {}
+    const localKeys = getLocalDoc('system/api_keys');
+    if (localKeys.exists && localKeys.data?.dokuSecretKey) {
+      secretKey = String(localKeys.data.dokuSecretKey);
+    } else {
+      try {
+        const keysDoc = await db.collection('system').doc('api_keys').get();
+        if (keysDoc.exists && keysDoc.data()?.dokuSecretKey) {
+          secretKey = keysDoc.data()!.dokuSecretKey;
+        }
+      } catch (e) {}
+    }
 
     // Verifikasi Signature jika header Signature dikirim
     if (signature) {
@@ -92,16 +98,23 @@ export async function POST(request: NextRequest) {
       }, { status: 200 });
     }
 
-    // Ambil pending transaction
-    const pendingRef = db.collection('doku_pending_transactions').doc(orderId);
-    const pendingSnap = await pendingRef.get();
+    // Ambil pending transaction dari Local Store atau Firestore
+    const localPending = getLocalDoc(`doku_pending_transactions/${orderId}`);
+    let pendingData: Record<string, any> | null = localPending.exists ? localPending.data : null;
 
-    if (!pendingSnap.exists) {
+    if (!pendingData) {
+      try {
+        const pendingRef = db.collection('doku_pending_transactions').doc(orderId);
+        const pendingSnap = await pendingRef.get();
+        if (pendingSnap.exists) pendingData = pendingSnap.data()!;
+      } catch {}
+    }
+
+    if (!pendingData) {
       console.warn(`[DOKU Webhook] Pending record untuk ${orderId} tidak ditemukan.`);
       return NextResponse.json({ message: 'Order tidak ditemukan di pending list.' }, { status: 200 });
     }
 
-    const pendingData = pendingSnap.data()!;
     if (pendingData.status === 'success') {
       return NextResponse.json({ message: 'Order sudah berhasil dikreditkan sebelumnya.' }, { status: 200 });
     }
@@ -111,51 +124,72 @@ export async function POST(request: NextRequest) {
     const cryptoCurrency = pendingData.cryptoCurrency || 'ALX';
     const fiatAmount = Number(pendingData.amount || 0);
     const usdValue = String(pendingData.usdValue || '0');
+    const nowIso = new Date().toISOString();
 
-    // Jalankan Transaction untuk mengkreditkan kripto ke user dan mencatat audit
-    await db.runTransaction(async (transaction) => {
-      const userRef = db.collection('users').doc(userId);
-      const userSnap = await transaction.get(userRef);
-
-      if (userSnap.exists && cryptoAmount > 0) {
-        const cryptoField = `cryptoBalances.${cryptoCurrency}`;
-        transaction.update(userRef, {
-          [cryptoField]: FieldValue.increment(cryptoAmount)
-        });
-      }
-
-      // Tandai order sukses
-      transaction.update(pendingRef, {
-        status: 'success',
-        settledAt: FieldValue.serverTimestamp(),
-        paymentChannel: channelId,
-        dokuPayload: payload
-      });
-
-      // Update Liquidity Escrow Perusahaan PT DMT Network Solutions
-      const liquidityRef = db.collection('system').doc('liquidity');
-      transaction.update(liquidityRef, {
-        totalFiatInjected: FieldValue.increment(fiatAmount),
-        totalUsdInjected: FieldValue.increment(parseFloat(usdValue) || 0),
-        lastSettlementDate: FieldValue.serverTimestamp(),
-        lastGateway: 'DOKU'
-      });
-
-      // Audit Transaksi Global
-      const auditRef = db.collection('system').doc('audit').collection('global_transactions').doc();
-      transaction.set(auditRef, {
-        id: `DOKU-${orderId}`,
-        category: 'DOKU Checkout Instan',
-        gateway: `DOKU (${channelId})`,
-        amountIdr: fiatAmount,
-        cryptoAmount,
-        cryptoCurrency,
-        userId,
-        status: 'SUCCESS',
-        timestamp: FieldValue.serverTimestamp(),
-        reference: orderId
-      });
+    const localUser = getLocalDoc(`users/${userId}`);
+    if (localUser.exists && localUser.data && cryptoAmount > 0) {
+      const nextCrypto = { ...(localUser.data.cryptoBalances || {}) };
+      nextCrypto[cryptoCurrency] = Number(((Number(nextCrypto[cryptoCurrency] || 0)) + cryptoAmount).toFixed(8));
+      setLocalDoc(`users/${userId}`, { cryptoBalances: nextCrypto }, true);
+    }
+    setLocalDoc(`doku_pending_transactions/${orderId}`, {
+      status: 'success',
+      settledAt: nowIso,
+      paymentChannel: channelId,
+      dokuPayload: payload,
+    }, true);
+    const localLiq = getLocalDoc('system/liquidity');
+    setLocalDoc('system/liquidity', {
+      totalFiatInjected: Number(localLiq.data?.totalFiatInjected || 0) + fiatAmount,
+      totalUsdInjected: Number(localLiq.data?.totalUsdInjected || 0) + (parseFloat(usdValue) || 0),
+      lastSettlementDate: nowIso,
+      lastGateway: 'DOKU',
+    }, true);
+    addLocalCollectionDoc('system/audit/global_transactions', {
+      id: `DOKU-${orderId}`,
+      category: 'DOKU Checkout Instan',
+      gateway: `DOKU (${channelId})`,
+      amountIdr: fiatAmount,
+      cryptoAmount,
+      cryptoCurrency,
+      status: 'success',
+      timestamp: nowIso,
+      userEmail: pendingData.customerEmail || '',
     });
+    addLocalCollectionDoc(`users/${userId}/transactions`, {
+      date: nowIso,
+      description: `Beli ${cryptoCurrency} via DOKU (${channelId})`,
+      category: 'Trading',
+      amount: fiatAmount,
+      cryptoAmount,
+      cryptoCurrency,
+      type: 'income',
+      status: 'success',
+      gateway: 'DOKU',
+      orderId,
+      timestamp: nowIso,
+    });
+
+    try {
+      const pendingRef = db.collection('doku_pending_transactions').doc(orderId);
+      await db.runTransaction(async (transaction) => {
+        const userRef = db.collection('users').doc(userId);
+        const userSnap = await transaction.get(userRef);
+
+        if (userSnap.exists && cryptoAmount > 0) {
+          const cryptoField = `cryptoBalances.${cryptoCurrency}`;
+          transaction.update(userRef, {
+            [cryptoField]: FieldValue.increment(cryptoAmount)
+          });
+        }
+        transaction.update(pendingRef, {
+          status: 'success',
+          settledAt: FieldValue.serverTimestamp(),
+          paymentChannel: channelId,
+          dokuPayload: payload
+        });
+      });
+    } catch {}
 
     console.log(`[DOKU Webhook] Sukses mengkreditkan ${cryptoAmount} ${cryptoCurrency} ke user ${userId} untuk order ${orderId}`);
 

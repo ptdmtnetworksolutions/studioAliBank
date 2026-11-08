@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getLocalDoc, setLocalDoc, addLocalCollectionDoc, queryLocalCollection } from '@/lib/local-firestore-store';
 
 /**
  * @fileOverview API Webhook PayPal AliBank V3.
@@ -94,9 +95,15 @@ export async function POST(req: NextRequest) {
       const transactionId = resource.id; // Capture ID
       const orderId = resource.supplementary_data?.related_ids?.order_id; // Order ID jika ada
 
-      // 1b. Dapatkan kredensial PayPal dari Firestore untuk verifikasi back-channel
-      const apiKeysSnap = await db.collection('system').doc('api_keys').get();
-      const keys = apiKeysSnap.exists ? apiKeysSnap.data()! : {};
+      // 1b. Dapatkan kredensial PayPal dari Local Store atau Firestore untuk verifikasi back-channel
+      const localKeys = getLocalDoc('system/api_keys');
+      let keys: Record<string, any> = localKeys.exists && localKeys.data ? localKeys.data : {};
+      if (!keys.paypalClientId) {
+        try {
+          const apiKeysSnap = await db.collection('system').doc('api_keys').get();
+          if (apiKeysSnap.exists) keys = apiKeysSnap.data()!;
+        } catch {}
+      }
       const { paypalClientId, paypalClientSecret } = keys;
 
       if (paypalClientId && paypalClientSecret) {
@@ -107,10 +114,6 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // LOGIKA ANTI-DUPLIKASI (Idempotency):
-      // Pembayaran POS NFC (NFC Tap) dan checkout client-side (finalizeTransaction) sudah merekam 
-      // transaksi ini langsung ke database agar respons instan.
-      // Kita perlu mengecek ID transaksi/order ini agar tidak terjadi double-counting saldo / likuiditas.
       const possibleIds = [
         `POS-NFC-${transactionId}`,
         `BUY-${transactionId}`,
@@ -122,40 +125,39 @@ export async function POST(req: NextRequest) {
         possibleIds.push(`WEBHOOK-PAYPAL-${orderId}`);
       }
 
-      const dupQuery = await db.collection('system')
-        .doc('audit')
-        .collection('global_transactions')
-        .where('id', 'in', possibleIds)
-        .get();
-
-      if (!dupQuery.empty) {
-        console.log(`[PayPal Webhook] Transaksi ${transactionId} (Order: ${orderId}) sudah diproses sebelumnya di ledger. Mengabaikan.`);
+      const localDups = queryLocalCollection('system/audit/global_transactions', null, [], [], 200).filter((d) =>
+        possibleIds.includes(String(d.id))
+      );
+      if (localDups.length > 0) {
         return NextResponse.json({ message: 'Webhook Processed (Duplicate Ignored)' }, { status: 200 });
       }
 
-      const liquidityRef = db.collection('system').doc('liquidity');
-      const auditRef = db.collection('system').doc('audit').collection('global_transactions').doc();
-
-      // Update Likuiditas Global (IDR Estimasi)
-      const estimatedIdr = amountUsd * 17690; 
-      
-      await liquidityRef.update({
-        totalUsdInjected: FieldValue.increment(amountUsd),
-        totalFiatInjected: FieldValue.increment(estimatedIdr)
-      });
-
-      // Catat ke Buku Besar Audit sebagai penyelesaian otomatis
-      await auditRef.set({
+      const estimatedIdr = amountUsd * 17690;
+      const nowIso = new Date().toISOString();
+      const localLiq = getLocalDoc('system/liquidity');
+      setLocalDoc('system/liquidity', {
+        totalUsdInjected: Number(localLiq.data?.totalUsdInjected || 0) + amountUsd,
+        totalFiatInjected: Number(localLiq.data?.totalFiatInjected || 0) + estimatedIdr,
+      }, true);
+      addLocalCollectionDoc('system/audit/global_transactions', {
         id: `WEBHOOK-PAYPAL-${transactionId}`,
         category: "External Settlement",
-        gateway: "PayPal Webhook Auto",
-        amountUsd: amountUsd,
+        gateway: "PayPal Webhook",
         amountIdr: estimatedIdr,
-        description: `Otomatisasi kliring via Webhook untuk Transaksi ${transactionId} (Order: ${orderId || 'N/A'}).`,
-        status: "success",
-        timestamp: FieldValue.serverTimestamp(),
-        userEmail: "system_reconciliation@alibank.com"
+        amountUsd: amountUsd,
+        description: `PayPal Webhook Capture Settlement. Capture ID: ${transactionId} (Order: ${orderId || 'N/A'})`,
+        status: "berhasil",
+        timestamp: nowIso,
+        userEmail: body.resource?.payer?.email_address || "paypal_webhook@alibank.com"
       });
+
+      try {
+        const liquidityRef = db.collection('system').doc('liquidity');
+        await liquidityRef.update({
+          totalUsdInjected: FieldValue.increment(amountUsd),
+          totalFiatInjected: FieldValue.increment(estimatedIdr)
+        });
+      } catch {}
 
       console.log(`[PayPal Webhook] Sukses memproses kliring untuk transaksi: ${transactionId}`);
       return NextResponse.json({ message: 'Webhook Processed' }, { status: 200 });
