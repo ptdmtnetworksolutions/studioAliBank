@@ -523,17 +523,14 @@
     },
     "users/Z1ZovFjSt7QdkabPmyi7uewd44v1": {
       "data": {
-        "uid": "Z1ZovFjSt7QdkabPmyi7uewd44v1",
-        "name": "AMINUDIN",
-        "email": "muhamadfadlipratama17@gmail.com",
-        "accountNumber": "884092386043",
-        "createdAt": {
-          "__type": "timestamp",
-          "seconds": 1773337582,
-          "nanoseconds": 489000000,
-          "iso": "2026-03-12T17:46:22.489Z"
-        },
         "savings": 0,
+        "uid": "Z1ZovFjSt7QdkabPmyi7uewd44v1",
+        "btcAddress": "bc1q850tmflzhom49oa4h01hff43pk12ydxdm9yxc0",
+        "walletAddress": "0x11E1824673427bFE2b39841b6097CDEc8E0Bc2AB",
+        "name": "AMINUDIN",
+        "accountNumber": "884092386043",
+        "tier": "Settled (Debt Cleared)",
+        "totalBalance": 0,
         "withdrawalMethods": [
           {
             "id": "WDM-1776341233015",
@@ -544,22 +541,25 @@
             "createdAt": "2026-04-16T12:07:13.015Z"
           }
         ],
-        "tier": "Settled (Debt Cleared)",
-        "phone": "087822187012",
-        "totalBalance": 7258509.85985351,
-        "btcAddress": "bc1q850tmflzhom49oa4h01hff43pk12ydxdm9yxc0",
-        "walletAddress": "0x11E1824673427bFE2b39841b6097CDEc8E0Bc2AB",
-        "isSuspended": false,
+        "createdAt": {
+          "__type": "timestamp",
+          "seconds": 1773337582,
+          "nanoseconds": 489000000,
+          "iso": "2026-03-12T17:46:22.489Z"
+        },
         "securityLockReason": null,
+        "isSuspended": false,
+        "phone": "087822187012",
+        "email": "muhamadfadlipratama17@gmail.com",
         "cryptoBalances": {
-          "ALX": 0,
-          "BTC": 0,
           "ETH": 0,
+          "BTC": 0,
+          "ALX": 0,
           "USDT": 0
         },
         "id": "Z1ZovFjSt7QdkabPmyi7uewd44v1"
       },
-      "updatedAt": 1794091523919
+      "updatedAt": 1794102576168
     },
     "users/ajO0RqP1C8cSSxBEcf3dfEDiyNS2": {
       "data": {
@@ -3453,6 +3453,44 @@
         }
       },
       "updatedAt": 1794100896334
+    },
+    "users/Z1ZovFjSt7QdkabPmyi7uewd44v1/transactions/Gas31h4fUdxn1H6lQbw4": {
+      "data": {
+        "cryptoCurrency": null,
+        "timestamp": {
+          "__type": "timestamp",
+          "seconds": 1794102009,
+          "nanoseconds": 148000000,
+          "iso": "2026-11-08T01:40:09.148Z"
+        },
+        "cryptoAmount": 0,
+        "amount": 7258509.86,
+        "description": "Penyesuaian Manual oleh Admin (Pengurangan)",
+        "status": "success",
+        "category": "Adjustment",
+        "type": "expense",
+        "date": "2026-11-08T01:40:08.920Z",
+        "id": "Gas31h4fUdxn1H6lQbw4"
+      },
+      "updatedAt": 1794102009282
+    },
+    "system/audit/global_transactions/3gPT0DLacrKZAI395sca": {
+      "data": {
+        "description": "Penyesuaian manual 7.258.509,86 IDR oleh Admin untuk AMINUDIN",
+        "id": "3gPT0DLacrKZAI395sca",
+        "amountIdr": -7258509.86,
+        "category": "Manual Adjustment",
+        "timestamp": {
+          "__type": "timestamp",
+          "seconds": 1794102009,
+          "nanoseconds": 545000000,
+          "iso": "2026-11-08T01:40:09.545Z"
+        },
+        "gateway": "Admin Terminal",
+        "status": "berhasil",
+        "userEmail": "muhamadfadlipratama17@gmail.com"
+      },
+      "updatedAt": 1794102009619
     }
   }
 }

@@ -176,20 +176,26 @@ export function ClientsView({ allUsers }: any) {
 
     const ref = doc(db, "users", selectedUser.id);
     const val = op === 'add' ? amt : -amt;
-    const key = type === 'idr' ? "totalBalance" : "cryptoBalances.ALX";
 
-    // 1. Update Saldo Utama
-    await proxyUpdateDoc(ref, { [key]: increment(val) });
+    let nextBal = Number(selectedUser.totalBalance || 0);
+    let nextAlx = Number(selectedUser.cryptoBalances?.ALX || 0);
+
+    if (type === 'idr') {
+      const rawNext = nextBal + val;
+      nextBal = Math.abs(rawNext) < 0.01 ? 0 : Number(rawNext.toFixed(2));
+      await proxyUpdateDoc(ref, { totalBalance: nextBal });
+    } else {
+      const rawNext = nextAlx + val;
+      nextAlx = Math.abs(rawNext) < 0.00000001 ? 0 : Number(rawNext.toFixed(8));
+      await proxyUpdateDoc(ref, { "cryptoBalances.ALX": nextAlx });
+    }
 
     // Update state lokal modal secara instan agar angka langsung sinkron
     setSelectedUser((prev: any) => {
       if (!prev) return prev;
       if (type === 'idr') {
-        const nextBal = Number(((prev.totalBalance || 0) + val).toFixed(2));
         return { ...prev, totalBalance: nextBal };
       } else {
-        const prevAlx = prev.cryptoBalances?.ALX || 0;
-        const nextAlx = Number((prevAlx + val).toFixed(8));
         return {
           ...prev,
           cryptoBalances: { ...(prev.cryptoBalances || {}), ALX: nextAlx },

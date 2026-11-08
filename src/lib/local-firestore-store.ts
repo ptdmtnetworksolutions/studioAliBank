@@ -128,12 +128,38 @@ export function deleteLocalDoc(docPath: string): void {
   }
 }
 
+function extractIncrementOperand(incomingVal: any): number {
+  if (!incomingVal || typeof incomingVal !== 'object') return 0;
+  if (typeof incomingVal._operand === 'number') return incomingVal._operand;
+  if (typeof incomingVal.operand === 'number') return incomingVal.operand;
+  if (typeof incomingVal.Dc === 'number') return incomingVal.Dc;
+  for (const [k, v] of Object.entries(incomingVal)) {
+    if (k !== '_methodName' && k !== '__op' && typeof v === 'number' && !isNaN(v)) {
+      return v;
+    }
+  }
+  return 0;
+}
+
+function extractArrayElements(incomingVal: any): any[] | null {
+  if (!incomingVal || typeof incomingVal !== 'object') return null;
+  if (Array.isArray(incomingVal._elements)) return incomingVal._elements;
+  if (Array.isArray(incomingVal.Sc)) return incomingVal.Sc;
+  for (const [k, v] of Object.entries(incomingVal)) {
+    if (k !== '_methodName' && Array.isArray(v)) {
+      return v;
+    }
+  }
+  return null;
+}
+
 export function resolveFirestoreTransformValue(currentVal: any, incomingVal: any): any {
   if (!incomingVal || typeof incomingVal !== 'object') return incomingVal;
   if (incomingVal._methodName === 'increment' || incomingVal.__op === 'increment') {
-    const delta = Number(incomingVal._operand ?? incomingVal.operand ?? 0);
+    const delta = extractIncrementOperand(incomingVal);
     const base = typeof currentVal === 'number' && !isNaN(currentVal) ? currentVal : Number(currentVal) || 0;
-    return Number((base + delta).toFixed(8));
+    const sum = base + delta;
+    return Math.abs(sum) < 0.005 ? 0 : Number(sum.toFixed(8));
   }
   if (incomingVal._methodName === 'serverTimestamp' || incomingVal.__sentinel === 'serverTimestamp') {
     const nowIso = new Date().toISOString();
@@ -145,16 +171,22 @@ export function resolveFirestoreTransformValue(currentVal: any, incomingVal: any
       iso: nowIso,
     };
   }
-  if (incomingVal._methodName === 'arrayUnion' && Array.isArray(incomingVal._elements)) {
-    const arr = Array.isArray(currentVal) ? [...currentVal] : [];
-    for (const el of incomingVal._elements) {
-      if (!arr.includes(el)) arr.push(el);
+  if (incomingVal._methodName === 'arrayUnion') {
+    const elements = extractArrayElements(incomingVal);
+    if (elements) {
+      const arr = Array.isArray(currentVal) ? [...currentVal] : [];
+      for (const el of elements) {
+        if (!arr.includes(el)) arr.push(el);
+      }
+      return arr;
     }
-    return arr;
   }
-  if (incomingVal._methodName === 'arrayRemove' && Array.isArray(incomingVal._elements)) {
-    const arr = Array.isArray(currentVal) ? [...currentVal] : [];
-    return arr.filter((item) => !incomingVal._elements.includes(item));
+  if (incomingVal._methodName === 'arrayRemove') {
+    const elements = extractArrayElements(incomingVal);
+    if (elements) {
+      const arr = Array.isArray(currentVal) ? [...currentVal] : [];
+      return arr.filter((item) => !elements.includes(item));
+    }
   }
   if (Array.isArray(incomingVal) || incomingVal instanceof Date || incomingVal.__type === 'timestamp') {
     return incomingVal;
