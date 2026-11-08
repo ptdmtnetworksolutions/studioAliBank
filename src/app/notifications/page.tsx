@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Navbar } from "@/components/layout/Navbar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { 
   ArrowLeft, 
@@ -9,24 +8,22 @@ import {
   MessageSquareText, 
   Volume2, 
   Gift, 
-  User, 
-  Calendar, 
-  LayoutGrid,
+  ShieldCheck, 
   Loader2,
-  Brush,
+  CheckCheck,
   ArrowRightLeft,
-  ChevronRight,
   ChevronLeft,
   Bell,
   Clock,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles,
+  Filter,
+  Check
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, limit, doc, updateDoc, writeBatch } from "firebase/firestore";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -34,14 +31,14 @@ type NotificationCategory = {
   id: string;
   name: string;
   icon: any;
-  color: string;
+  description: string;
 };
 
 const CATEGORIES: NotificationCategory[] = [
-  { id: 'transaksi', name: "Transaksi", icon: ArrowRightLeft, color: "bg-green-500/10 text-green-600" },
-  { id: 'akun', name: "Keamanan & Akun", icon: User, color: "bg-blue-500/10 text-blue-600" },
-  { id: 'pengumuman', name: "Pengumuman", icon: Volume2, color: "bg-amber-500/10 text-amber-600" },
-  { id: 'marketing', name: "Promo & Reward", icon: Gift, color: "bg-rose-500/10 text-rose-600" },
+  { id: 'transaksi', name: "Transaksi & Transfer", icon: ArrowRightLeft, description: "Mutasi saldo, setor, tarik, & pembayaran SoftPOS" },
+  { id: 'akun', name: "Keamanan & Akun", icon: ShieldCheck, description: "Otentikasi, device login, limit, & status KYC" },
+  { id: 'pengumuman', name: "Pengumuman Sistem", icon: Volume2, description: "Pembaruan node, jadwal kliring, & protokol bank" },
+  { id: 'marketing', name: "Promo & Hadiah", icon: Gift, description: "Staking reward ALX, cashback, & kampanye VIP" },
 ];
 
 export default function NotificationsPage() {
@@ -52,9 +49,11 @@ export default function NotificationsPage() {
   
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    document.title = "Pesan & Notifikasi - AliBank V 3.1";
     const handleResize = () => {
       setIsMobile(window.innerWidth < 1024);
     };
@@ -74,21 +73,37 @@ export default function NotificationsPage() {
 
   const { data: realNotifications, isLoading: loading } = useCollection<any>(notificationsQuery);
 
+  const isNotificationInCategory = (n: any, catId: string) => {
+    const t = (n.title || "").toLowerCase();
+    const type = (n.type || "").toLowerCase();
+    
+    if (catId === 'transaksi') {
+      return t.includes('top up') || t.includes('transfer') || t.includes('dana') || 
+             t.includes('bayar') || t.includes('pencairan') || t.includes('settlement') || 
+             t.includes('beli') || t.includes('jual') || t.includes('withdraw') || 
+             t.includes('penarikan') || t.includes('klaim yield') || t.includes('softpos') ||
+             t.includes('edc');
+    }
+    if (catId === 'akun') {
+      return t.includes('akun') || t.includes('device') || t.includes('signature') || 
+             t.includes('password') || t.includes('profil') || t.includes('pembekuan') || 
+             t.includes('keamanan') || type === 'alert';
+    }
+    if (catId === 'marketing') {
+      return t.includes('reward') || t.includes('promo') || t.includes('hadiah') || 
+             t.includes('turnamen') || t.includes('kampanye');
+    }
+    if (catId === 'pengumuman') {
+      return type === 'info' || t.includes('pengumuman') || t.includes('sistem') || 
+             t.includes('mainnet') || t.includes('pemeliharaan');
+    }
+    return false;
+  };
+
   const getCategoryData = (catId: string) => {
     if (!realNotifications) return { latest: null, unreadCount: 0 };
     
-    const filtered = realNotifications.filter(n => {
-      const t = (n.title || "").toLowerCase();
-      const msg = (n.message || "").toLowerCase();
-      const type = (n.type || "").toLowerCase();
-      
-      if (catId === 'transaksi') return t.includes('top up') || t.includes('transfer') || t.includes('dana') || t.includes('bayar') || t.includes('pencairan') || t.includes('settlement') || t.includes('beli') || t.includes('jual') || t.includes('withdraw');
-      if (catId === 'akun') return t.includes('akun') || t.includes('device') || t.includes('signature') || t.includes('password') || t.includes('profil') || type === 'alert';
-      if (catId === 'marketing') return t.includes('reward') || t.includes('promo') || t.includes('hadiah') || t.includes('turnamen') || t.includes('kampanye');
-      if (catId === 'pengumuman') return type === 'info' || t.includes('pengumuman') || t.includes('sistem') || t.includes('mainnet');
-      return false;
-    });
-
+    const filtered = realNotifications.filter(n => isNotificationInCategory(n, catId));
     const unread = filtered.filter(n => !n.read).length;
     return { 
       latest: filtered[0] || null, 
@@ -108,7 +123,15 @@ export default function NotificationsPage() {
     });
     if (count > 0) {
       await batch.commit();
-      toast({ title: "Pesan Dibersihkan", description: "Semua notifikasi telah ditandai sebagai terbaca." });
+      toast({ 
+        title: "Seluruh Pesan Ditandai Dibaca", 
+        description: `${count} notifikasi telah berhasil diperbarui ke status terbaca.` 
+      });
+    } else {
+      toast({ 
+        title: "Pusat Pesan Bersih", 
+        description: "Tidak ada notifikasi baru yang belum dibaca." 
+      });
     }
   };
 
@@ -118,10 +141,20 @@ export default function NotificationsPage() {
     await updateDoc(ref, { read: true });
   };
 
+  const displayedNotifications = realNotifications ? (
+    selectedCategory 
+      ? realNotifications.filter((n: any) => isNotificationInCategory(n, selectedCategory))
+      : realNotifications
+  ) : [];
+
+  const totalUnreadCount = realNotifications 
+    ? realNotifications.filter((n: any) => !n.read).length 
+    : 0;
+
   if (!mounted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-[#FAF9F6]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#111111]" />
       </div>
     );
   }
@@ -129,130 +162,143 @@ export default function NotificationsPage() {
   // ─── MOBILE RENDERING ──────────────────────────────────────────────────────
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col font-body selection:bg-primary/30">
+      <div className="min-h-screen bg-[#FAF9F6] text-[#111111] flex flex-col font-sans selection:bg-[#F4B728] selection:text-black">
         {/* Header */}
-        <header className="px-4 h-14 flex items-center justify-between sticky top-0 bg-background z-50 border-b border-border/50">
-          <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition-colors">
-            <ArrowLeft className="w-6 h-6" />
+        <header className="px-4 h-16 flex items-center justify-between sticky top-0 bg-white/90 backdrop-blur-md z-50 border-b border-[#DFDAD0]">
+          <button 
+            onClick={() => router.back()} 
+            className="p-2 hover:bg-[#FAF9F6] rounded-sm border border-[#DFDAD0] transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-5 h-5 text-[#111111]" />
           </button>
-          <h1 className="text-lg font-black tracking-tight italic uppercase">Pesan & Notifikasi</h1>
-          <div className="flex items-center gap-2">
-            <button onClick={handleMarkAllRead} className="p-2 hover:bg-muted rounded-full transition-colors">
-              <Brush className="w-5 h-5 text-muted-foreground" />
-            </button>
-            <button className="p-2 hover:bg-muted rounded-full transition-colors">
-              <Settings className="w-5 h-5 text-muted-foreground" />
-            </button>
+          <div className="flex flex-col items-center">
+            <h1 className="font-serif text-base font-bold text-[#111111] tracking-tight">Pesan & Notifikasi</h1>
+            <span className="text-[9px] font-mono tracking-wider uppercase px-2 py-0.5 bg-[#FAF9F6] border border-[#DFDAD0] text-[#666666] rounded-sm mt-0.5">
+              AliBank Event Node
+            </span>
           </div>
+          <button 
+            onClick={handleMarkAllRead} 
+            className="p-2 hover:bg-[#FAF9F6] rounded-sm border border-[#DFDAD0] transition-colors cursor-pointer text-[#111111]"
+            title="Tandai semua dibaca"
+          >
+            <CheckCheck className="w-4 h-4" />
+          </button>
         </header>
 
-        <main className="flex-1 overflow-y-auto no-scrollbar">
-          {/* Categories Section */}
-          <div className="space-y-1 py-2">
-            {CATEGORIES.map((cat) => {
-              const { latest, unreadCount } = getCategoryData(cat.id);
-              const Icon = cat.icon;
-              
-              return (
-                <div 
-                  key={cat.id} 
-                  className="px-4 py-4 flex items-center gap-4 hover:bg-muted active:bg-muted transition-colors cursor-pointer group"
-                >
-                  <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-110", cat.color)}>
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  
-                  <div className="flex-1 min-w-0 border-b border-border pb-4 group-last:border-none">
-                    <div className="flex justify-between items-start mb-1">
-                      <h3 className="text-base font-black tracking-tight text-foreground italic uppercase">{cat.name}</h3>
-                      <div className="flex flex-col items-end gap-1.5">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                          {latest ? new Date(latest.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }) : ""}
-                        </span>
-                        {unreadCount > 0 && (
-                          <div className="bg-primary text-primary-foreground text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-lg animate-in zoom-in">
-                            {unreadCount}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <p className="text-xs font-medium text-muted-foreground truncate leading-tight italic">
-                      {latest ? latest.message : "Tidak ada pesan baru dalam kategori ini"}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Full Activity List */}
-          <section className="px-4 py-8 space-y-6">
+        <main className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-6">
+          {/* Categories Grid (Mobile) */}
+          <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
-              <h2 className="text-sm font-black text-muted-foreground uppercase tracking-[0.2em] italic">Aktivitas Terbaru</h2>
-              <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black uppercase italic">Live Sync</Badge>
+              <h2 className="text-[10px] font-bold uppercase tracking-wider text-[#777777]">Kategori Notifikasi</h2>
+              {selectedCategory && (
+                <button 
+                  onClick={() => setSelectedCategory(null)} 
+                  className="text-[10px] font-mono font-bold text-[#111111] underline uppercase cursor-pointer"
+                >
+                  Tampilkan Semua
+                </button>
+              )}
             </div>
 
-            <div className="space-y-4 pb-20">
+            <div className="grid grid-cols-2 gap-2.5">
+              {CATEGORIES.map((cat) => {
+                const { latest, unreadCount } = getCategoryData(cat.id);
+                const Icon = cat.icon;
+                const isSelected = selectedCategory === cat.id;
+                
+                return (
+                  <div 
+                    key={cat.id} 
+                    onClick={() => setSelectedCategory(isSelected ? null : cat.id)}
+                    className={cn(
+                      "p-3 rounded-sm border transition-all cursor-pointer flex flex-col justify-between gap-3 shadow-xs",
+                      isSelected ? "bg-white border-[#111111] ring-1 ring-black" : "bg-white border-[#DFDAD0] hover:border-black"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="w-8 h-8 rounded-sm bg-[#FAF9F6] border border-[#DFDAD0] text-[#111111] flex items-center justify-center">
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      {unreadCount > 0 && (
+                        <span className="bg-[#111111] text-white text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-sm">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-serif text-xs font-bold text-[#111111]">{cat.name}</h3>
+                      <p className="text-[10px] text-[#777777] font-light truncate mt-0.5">
+                        {latest ? latest.title : "Tidak ada pesan"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Full Activity List (Mobile) */}
+          <section className="space-y-3 pb-16">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <h2 className="font-serif text-sm font-bold text-[#111111]">
+                  {selectedCategory ? CATEGORIES.find(c => c.id === selectedCategory)?.name : "Aktivitas Terbaru"}
+                </h2>
+              </div>
+              <span className="text-[9px] font-mono tracking-wider uppercase px-2 py-0.5 bg-white border border-[#DFDAD0] text-[#666666] rounded-sm">
+                {displayedNotifications.length} Pesan
+              </span>
+            </div>
+
+            <div className="space-y-3">
               {loading ? (
-                <div className="py-20 flex flex-col items-center justify-center gap-4 opacity-30">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">Sinkronisasi Pesan...</p>
+                <div className="py-16 flex flex-col items-center justify-center gap-3 opacity-40">
+                  <Loader2 className="w-7 h-7 animate-spin text-[#111111]" />
+                  <p className="text-[10px] font-mono uppercase tracking-widest text-[#777777]">Sinkronisasi Node...</p>
                 </div>
-              ) : realNotifications && realNotifications.length > 0 ? (
-                realNotifications.map((n: any) => (
+              ) : displayedNotifications.length > 0 ? (
+                displayedNotifications.map((n: any) => (
                   <div 
                     key={n.id} 
                     className={cn(
-                      "p-5 rounded-[2rem] border transition-all active:scale-[0.98] cursor-pointer relative overflow-hidden group",
-                      n.read ? "bg-muted/20 border-border/50 opacity-60" : "bg-card border-primary/20 shadow-xl shadow-primary/5"
+                      "p-4 rounded-sm border transition-all cursor-pointer relative overflow-hidden bg-white shadow-xs",
+                      n.read ? "border-[#DFDAD0] opacity-80" : "border-[#DFDAD0] ring-1 ring-[#111111]/10"
                     )}
                     onClick={() => !n.read && markAsRead(n.id)}
                   >
-                    {!n.read && <div className="absolute left-0 top-0 bottom-0 w-1.5 gold-gradient" />}
+                    {!n.read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#F4B728]" />}
                     
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "w-8 h-8 rounded-xl flex items-center justify-center",
-                          n.type === 'success' ? "bg-green-100 text-green-600" : 
-                          n.type === 'alert' ? "bg-rose-100 text-rose-600" : "bg-primary/10 text-primary"
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "font-mono text-[9px] font-bold uppercase px-2 py-0.5 rounded-sm border",
+                          n.type === 'success' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : 
+                          n.type === 'alert' ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-amber-50 text-amber-800 border-amber-200"
                         )}>
-                          {n.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : 
-                           n.type === 'alert' ? <AlertTriangle className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
-                        </div>
-                        <Badge className={cn(
-                          "border-none text-[7px] font-black uppercase px-2 h-4",
-                          n.type === 'success' ? "bg-green-500 text-white" : 
-                          n.type === 'alert' ? "bg-rose-500 text-white" : "bg-primary text-black"
-                        )}>
-                          {n.type || 'INFO'}
-                        </Badge>
+                          {n.type === 'success' ? 'Sukses' : n.type === 'alert' ? 'Peringatan' : n.type || 'Info'}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-[8px] font-bold text-muted-foreground uppercase italic">
-                        <Clock className="w-3 h-3" />
-                        {new Date(n.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                      <div className="flex items-center gap-1 font-mono text-[10px] text-[#777777]">
+                        <Clock className="w-3 h-3 text-[#999999]" />
+                        <span>{new Date(n.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                     </div>
                     
-                    <h3 className="text-sm font-black italic uppercase tracking-tight text-foreground group-hover:text-primary transition-colors">{n.title}</h3>
-                    <p className="text-[11px] font-medium text-muted-foreground mt-1.5 leading-relaxed italic">{n.message}</p>
+                    <h3 className="font-serif text-sm font-bold text-[#111111] tracking-tight">{n.title}</h3>
+                    <p className="text-xs text-[#555555] font-light mt-1 leading-relaxed">{n.message}</p>
 
                     {(n.terminalId || n.approvalCode || n.settlementDestination) && (
-                      <div className="mt-3 p-3 rounded-2xl bg-muted/40 border border-border/60 text-[10px] space-y-1.5 font-mono">
-                        <div className="flex justify-between items-center text-muted-foreground">
-                          <span>Terminal: <strong className="text-foreground">{n.terminalId || 'ALX-SOFTPOS-01'}</strong></span>
-                          <span>Auth: <strong className="text-emerald-500 font-bold">{n.approvalCode || 'APPROVED'}</strong></span>
+                      <div className="mt-2.5 p-2.5 rounded-sm bg-[#FAF9F6] border border-[#DFDAD0] text-[10px] space-y-1 font-mono text-[#555555]">
+                        <div className="flex justify-between items-center">
+                          <span>Terminal: <strong className="text-[#111111]">{n.terminalId || 'ALX-SOFTPOS-01'}</strong></span>
+                          <span>Auth: <strong className="text-emerald-700 font-bold">{n.approvalCode || 'APPROVED'}</strong></span>
                         </div>
                         {n.rrn && (
-                          <div className="flex justify-between items-center text-muted-foreground">
-                            <span>RRN: <strong className="text-foreground">{n.rrn}</strong></span>
-                            <span>Kartu: <strong className="text-foreground">{n.cardType || 'DEBIT'}</strong></span>
-                          </div>
-                        )}
-                        {n.settlementDestination && (
-                          <div className="pt-1.5 border-t border-border/40 text-[9px] text-muted-foreground">
-                            <span>Settlement: </span>
-                            <span className="text-primary font-bold">{n.settlementDestination}</span>
+                          <div className="flex justify-between items-center">
+                            <span>RRN: <strong className="text-[#111111]">{n.rrn}</strong></span>
+                            <span>Kartu: <strong className="text-[#111111]">{n.cardType || 'DEBIT'}</strong></span>
                           </div>
                         )}
                       </div>
@@ -260,9 +306,10 @@ export default function NotificationsPage() {
                   </div>
                 ))
               ) : (
-                <div className="py-20 text-center space-y-4 opacity-20 italic">
-                  <MessageSquareText className="w-12 h-12 mx-auto" />
-                  <p className="text-xs font-black uppercase tracking-widest">Pusat Pesan Kosong</p>
+                <div className="py-16 text-center space-y-3 bg-white border border-[#DFDAD0] rounded-sm p-8 shadow-xs">
+                  <MessageSquareText className="w-10 h-10 mx-auto text-[#AAAAAA]" />
+                  <p className="font-serif text-sm font-bold text-[#111111]">Tidak Ada Notifikasi</p>
+                  <p className="text-xs text-[#777777] font-light">Tidak ada pesan yang cocok dengan filter yang dipilih.</p>
                 </div>
               )}
             </div>
@@ -272,157 +319,213 @@ export default function NotificationsPage() {
     );
   }
 
-  // ─── DESKTOP RENDERING ─────────────────────────────────────────────────────
+  // ─── DESKTOP RENDERING (V 3.1 EDITORIAL PRIVATE BANKING) ───────────────────
   return (
-    <div className="min-h-screen bg-background text-foreground flex font-body selection:bg-primary/30 w-full">
+    <div className="min-h-screen bg-[#FAF9F6] text-[#111111] flex font-sans selection:bg-[#F4B728] selection:text-black w-full">
       {/* SIDEBAR NAVIGATION */}
       <Sidebar />
 
       {/* MAIN CONTAINER */}
-      <main className="ml-64 flex-1 flex flex-col min-w-0 bg-background text-foreground">
+      <main className="ml-64 flex-1 flex flex-col min-w-0 bg-[#FAF9F6] text-[#111111]">
         {/* HEADER */}
-        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 sticky top-0 z-40">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-black text-foreground uppercase italic tracking-tight">Pesan & Notifikasi</h2>
-            <Badge className="bg-primary/10 text-primary border-primary/20 px-3 h-5 rounded-full font-bold uppercase tracking-widest text-[8px]">
-              Sistem & Lainnya
-            </Badge>
+        <header className="h-20 bg-white/90 backdrop-blur-md border-b border-[#DFDAD0] flex items-center justify-between px-8 sticky top-0 z-40">
+          <div className="flex items-center gap-3">
+            <h2 className="font-serif text-2xl font-bold text-[#111111] tracking-tight">Pesan & Notifikasi</h2>
+            <span className="text-[10px] font-mono tracking-wider uppercase px-2.5 py-1 bg-[#FAF9F6] border border-[#DFDAD0] text-[#666666] rounded-sm">
+              AliBank Event Ledger Node
+            </span>
+            {totalUnreadCount > 0 && (
+              <span className="bg-[#111111] text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded-sm">
+                {totalUnreadCount} Belum Dibaca
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-6">
-            <button onClick={handleMarkAllRead} className="p-2 hover:bg-muted rounded-full relative" title="Tandai semua dibaca">
-              <Brush className="w-5 h-5 text-muted-foreground" />
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={handleMarkAllRead} 
+              className="px-3.5 py-2 rounded-sm bg-white hover:bg-[#FAF9F6] border border-[#DFDAD0] text-xs font-bold uppercase tracking-wider text-[#111111] transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+              title="Tandai semua dibaca"
+            >
+              <CheckCheck className="w-4 h-4 text-[#F4B728]" />
+              <span>Tandai Semua Dibaca</span>
             </button>
-            <button className="p-2 hover:bg-muted rounded-full relative">
-              <Settings className="w-5 h-5 text-muted-foreground" />
-            </button>
-            <button className="p-2 hover:bg-muted rounded-full relative" onClick={() => router.back()}>
-              <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+            <button 
+              onClick={() => router.back()} 
+              className="p-2.5 rounded-sm bg-white hover:bg-[#FAF9F6] border border-[#DFDAD0] text-[#111111] transition-colors cursor-pointer shadow-xs"
+              title="Kembali"
+            >
+              <ChevronLeft className="w-4 h-4" />
             </button>
           </div>
         </header>
 
         {/* CONTAINER CONTENT */}
-        <div className="p-8 space-y-8 max-w-[1200px] w-full mx-auto overflow-y-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* LEFT COLUMN: CATEGORIES */}
+        <div className="p-8 space-y-8 max-w-[1300px] w-full mx-auto overflow-y-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* LEFT COLUMN: CATEGORIES (5 cols) */}
             <div className="lg:col-span-5 space-y-4">
-              <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest px-1">Kategori Notifikasi</h2>
-              <div className="space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="font-serif text-xs font-bold uppercase tracking-widest text-[#777777]">Kategori Notifikasi</h3>
+                {selectedCategory && (
+                  <button 
+                    onClick={() => setSelectedCategory(null)} 
+                    className="text-xs font-mono font-bold text-[#111111] hover:underline uppercase cursor-pointer"
+                  >
+                    Reset Filter [Semua]
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-3">
                 {CATEGORIES.map((cat) => {
                   const { latest, unreadCount } = getCategoryData(cat.id);
                   const Icon = cat.icon;
+                  const isSelected = selectedCategory === cat.id;
                   
                   return (
-                    <Card 
+                    <div 
                       key={cat.id} 
-                      className="px-5 py-4 flex items-center gap-4 hover:border-primary/50 transition-all cursor-pointer group bg-card border border-border rounded-2xl"
+                      onClick={() => setSelectedCategory(isSelected ? null : cat.id)}
+                      className={cn(
+                        "p-5 flex items-start gap-4 rounded-sm border transition-all cursor-pointer group bg-white shadow-xs relative overflow-hidden",
+                        isSelected 
+                          ? "border-[#111111] bg-[#FAF9F6] ring-1 ring-black shadow-sm" 
+                          : "border-[#DFDAD0] hover:border-[#111111]"
+                      )}
                     >
-                      <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-110", cat.color)}>
-                        <Icon className="w-6 h-6" />
+                      {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#111111]" />}
+
+                      <div className={cn(
+                        "w-10 h-10 rounded-sm bg-[#FAF9F6] border border-[#DFDAD0] text-[#111111] flex items-center justify-center shrink-0 group-hover:border-black transition-colors",
+                        isSelected && "bg-[#111111] text-white border-black"
+                      )}>
+                        <Icon className="w-5 h-5" />
                       </div>
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start mb-1">
-                          <h3 className="text-base font-black tracking-tight text-foreground italic uppercase">{cat.name}</h3>
+                          <h4 className="font-serif text-sm font-bold text-[#111111] tracking-tight group-hover:text-black">
+                            {cat.name}
+                          </h4>
                           <div className="flex items-center gap-2">
-                            <span className="text-[9px] font-bold text-muted-foreground uppercase">
+                            <span className="font-mono text-[10px] text-[#888888]">
                               {latest ? new Date(latest.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }) : ""}
                             </span>
                             {unreadCount > 0 && (
-                              <div className="bg-primary text-primary-foreground text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-lg">
+                              <span className="bg-[#111111] text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-sm">
                                 {unreadCount}
-                              </div>
+                              </span>
                             )}
                           </div>
                         </div>
-                        <p className="text-xs font-medium text-muted-foreground truncate leading-tight italic">
-                          {latest ? latest.message : "Tidak ada pesan baru dalam kategori ini"}
+                        <p className="text-xs text-[#666666] font-light leading-snug line-clamp-2">
+                          {latest ? latest.message : cat.description}
                         </p>
                       </div>
-                    </Card>
+                    </div>
                   );
                 })}
               </div>
+
+              {/* Status Indicator Card */}
+              <div className="p-5 rounded-sm bg-white border border-[#DFDAD0] shadow-xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#F4B728]" />
+                  <h4 className="font-serif text-xs font-bold uppercase tracking-wider text-[#111111]">Protokol Notifikasi Ledger</h4>
+                </div>
+                <p className="text-xs text-[#666666] font-light leading-relaxed">
+                  Semua aktivitas transaksi kliring, perubahan akun, dan otentikasi smart contract dicatat langsung ke dalam buku besar node AliBank dengan tanda waktu terverifikasi.
+                </p>
+              </div>
             </div>
 
-            {/* RIGHT COLUMN: FULL ACTIVITY LIST */}
+            {/* RIGHT COLUMN: FULL ACTIVITY LIST (7 cols) */}
             <div className="lg:col-span-7 space-y-4">
               <div className="flex items-center justify-between px-1">
-                <h2 className="text-xs font-black text-muted-foreground uppercase tracking-widest">Aktivitas Terbaru</h2>
-                <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black uppercase italic">Live Sync</Badge>
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <h3 className="font-serif text-sm font-bold text-[#111111]">
+                    {selectedCategory ? `Aktivitas: ${CATEGORIES.find(c => c.id === selectedCategory)?.name}` : "Aktivitas Terbaru"}
+                  </h3>
+                </div>
+                <span className="text-[10px] font-mono tracking-wider uppercase px-2 py-0.5 bg-white border border-[#DFDAD0] text-[#666666] rounded-sm">
+                  {displayedNotifications.length} Pesan Terdaftar
+                </span>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {loading ? (
-                  <div className="py-20 flex flex-col items-center justify-center gap-4 opacity-30">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <p className="text-[10px] font-black uppercase tracking-widest">Sinkronisasi Pesan...</p>
+                  <div className="py-20 flex flex-col items-center justify-center gap-3 bg-white border border-[#DFDAD0] rounded-sm shadow-xs">
+                    <Loader2 className="w-8 h-8 animate-spin text-[#111111]" />
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-[#777777]">Sinkronisasi Node Log...</p>
                   </div>
-                ) : realNotifications && realNotifications.length > 0 ? (
-                  realNotifications.map((n: any) => (
-                    <Card 
+                ) : displayedNotifications.length > 0 ? (
+                  displayedNotifications.map((n: any) => (
+                    <div 
                       key={n.id} 
                       className={cn(
-                        "p-5 rounded-[2rem] border transition-all active:scale-[0.98] cursor-pointer relative overflow-hidden group bg-card",
-                        n.read ? "border-border/50 opacity-60" : "border-primary/20 shadow-sm"
+                        "p-5 rounded-sm border transition-all cursor-pointer relative overflow-hidden bg-white shadow-xs hover:border-[#111111]",
+                        n.read ? "border-[#DFDAD0] opacity-80" : "border-[#DFDAD0] ring-1 ring-[#111111]/10"
                       )}
                       onClick={() => !n.read && markAsRead(n.id)}
                     >
-                      {!n.read && <div className="absolute left-0 top-0 bottom-0 w-1.5 gold-gradient" />}
+                      {!n.read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#F4B728]" />}
                       
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "w-8 h-8 rounded-xl flex items-center justify-center",
-                            n.type === 'success' ? "bg-green-500/10 text-green-500" : 
-                            n.type === 'alert' ? "bg-rose-500/10 text-rose-500" : "bg-primary/10 text-primary"
+                      <div className="flex justify-between items-start mb-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <span className={cn(
+                            "font-mono text-[9px] font-bold uppercase px-2.5 py-0.5 rounded-sm border",
+                            n.type === 'success' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : 
+                            n.type === 'alert' ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-amber-50 text-amber-800 border-amber-200"
                           )}>
-                            {n.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : 
-                             n.type === 'alert' ? <AlertTriangle className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
-                          </div>
-                          <Badge className={cn(
-                            "border-none text-[7px] font-black uppercase px-2 h-4",
-                            n.type === 'success' ? "bg-green-500 text-white" : 
-                            n.type === 'alert' ? "bg-rose-500 text-white" : "bg-primary text-black"
-                          )}>
-                            {n.type || 'INFO'}
-                          </Badge>
+                            {n.type === 'success' ? 'Sukses' : n.type === 'alert' ? 'Peringatan' : n.type || 'Info'}
+                          </span>
+                          {!n.read && (
+                            <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-[#F4B728]">
+                              • Baru
+                            </span>
+                          )}
                         </div>
-                        <div className="flex items-center gap-1.5 text-[8px] font-bold text-muted-foreground uppercase italic">
-                          <Clock className="w-3 h-3" />
-                          {new Date(n.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-[#777777]">
+                          <Clock className="w-3.5 h-3.5 text-[#999999]" />
+                          <span>{new Date(n.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                       </div>
                       
-                      <h3 className="text-sm font-black italic uppercase tracking-tight text-foreground group-hover:text-primary transition-colors">{n.title}</h3>
-                      <p className="text-[11px] font-medium text-muted-foreground mt-1.5 leading-relaxed italic">{n.message}</p>
+                      <h4 className="font-serif text-base font-bold text-[#111111] tracking-tight">{n.title}</h4>
+                      <p className="text-xs text-[#555555] font-light mt-1 leading-relaxed">{n.message}</p>
 
                       {(n.terminalId || n.approvalCode || n.settlementDestination) && (
-                        <div className="mt-3 p-3 rounded-2xl bg-muted/40 border border-border/60 text-[10px] space-y-1.5 font-mono">
-                          <div className="flex justify-between items-center text-muted-foreground">
-                            <span>Terminal: <strong className="text-foreground">{n.terminalId || 'ALX-SOFTPOS-01'}</strong></span>
-                            <span>Auth: <strong className="text-emerald-500 font-bold">{n.approvalCode || 'APPROVED'}</strong></span>
+                        <div className="mt-3.5 p-3 rounded-sm bg-[#FAF9F6] border border-[#DFDAD0] text-[11px] font-mono text-[#555555] space-y-1.5">
+                          <div className="flex justify-between items-center pb-1.5 border-b border-[#EAE6DF]">
+                            <span>Terminal: <strong className="text-[#111111]">{n.terminalId || 'ALX-SOFTPOS-01'}</strong></span>
+                            <span>Auth: <strong className="text-emerald-700 font-bold">{n.approvalCode || 'APPROVED'}</strong></span>
                           </div>
                           {n.rrn && (
-                            <div className="flex justify-between items-center text-muted-foreground">
-                              <span>RRN: <strong className="text-foreground">{n.rrn}</strong></span>
-                              <span>Kartu: <strong className="text-foreground">{n.cardType || 'DEBIT'}</strong></span>
+                            <div className="flex justify-between items-center">
+                              <span>RRN: <strong className="text-[#111111]">{n.rrn}</strong></span>
+                              <span>Kartu: <strong className="text-[#111111]">{n.cardType || 'DEBIT'}</strong></span>
                             </div>
                           )}
                           {n.settlementDestination && (
-                            <div className="pt-1.5 border-t border-border/40 text-[9px] text-muted-foreground">
-                              <span>Settlement: </span>
-                              <span className="text-primary font-bold">{n.settlementDestination}</span>
+                            <div className="pt-1.5 border-t border-[#EAE6DF] text-[10px]">
+                              <span>Penyaluran Dana: </span>
+                              <strong className="text-[#111111]">{n.settlementDestination}</strong>
                             </div>
                           )}
                         </div>
                       )}
-                    </Card>
+                    </div>
                   ))
                 ) : (
-                  <div className="py-20 text-center space-y-4 opacity-20 italic">
-                    <MessageSquareText className="w-12 h-12 mx-auto" />
-                    <p className="text-xs font-black uppercase tracking-widest">Pusat Pesan Kosong</p>
+                  <div className="py-20 text-center space-y-3 bg-white border border-[#DFDAD0] rounded-sm p-8 shadow-xs">
+                    <MessageSquareText className="w-12 h-12 mx-auto text-[#AAAAAA]" />
+                    <h4 className="font-serif text-base font-bold text-[#111111]">Pusat Pesan Kosong</h4>
+                    <p className="text-xs text-[#777777] font-light">
+                      {selectedCategory 
+                        ? `Tidak ada notifikasi dalam kategori ${CATEGORIES.find(c => c.id === selectedCategory)?.name}.` 
+                        : "Seluruh aktivitas Anda tercatat dengan aman di sini."}
+                    </p>
                   </div>
                 )}
               </div>
