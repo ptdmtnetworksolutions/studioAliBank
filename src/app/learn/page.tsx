@@ -581,14 +581,17 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
               <button
                 onClick={() => setIsMegaMenuOpen(!isMegaMenuOpen)}
                 className={cn(
-                  "h-full flex items-center border-b-2 transition-colors uppercase",
+                  "relative h-full flex items-center text-[11px] font-bold tracking-[0.18em] transition-colors uppercase",
                   isMegaMenuOpen
-                    ? "border-[#F4B728] text-black font-black"
-                    : "border-transparent text-black font-black hover:text-black"
+                    ? "text-[#111111]"
+                    : "text-[#444444] hover:text-[#111111]"
                 )}
               >
-                {lang === "en" ? "LEARN" : "PELAJARI"}
+                <span>{lang === "en" ? "LEARN" : "PELAJARI"}</span>
               </button>
+              {isMegaMenuOpen && (
+                <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#F4B728] z-50 pointer-events-none" />
+              )}
             </div>
 
             <NextLink href="/#ecosystem" className="hover:text-black transition-colors">
@@ -649,220 +652,217 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
         </div>
 
         {/* =========================================================================
-            MEGA MENU DROPDOWN PANEL (Zcash exact structure)
+            MEGA MENU DROPDOWN PANEL (Zcash exact structure & precise alignment)
             ========================================================================= */}
         {isMegaMenuOpen && (
-          <div className="absolute top-20 left-0 w-full bg-white border-b border-[#DFDAD0] shadow-2xl z-50 animate-in fade-in duration-200">
-            <div className="max-w-[1280px] mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-4 gap-8">
-              {/* Col 1: Overview */}
-              <div className="space-y-3 pr-4 border-r border-[#ECE7DE]">
-                <h3 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
-                  {lang === "en" ? "LEARN" : "PELAJARI"}
-                </h3>
-                <p className="text-xs text-[#666666] font-light leading-relaxed">
-                  {lang === "en"
-                    ? "Learn the basics of the AliBank hybrid protocol, strict anti-money laundering security, on-chain reserves, and self-sovereign multi-chain banking."
-                    : "Pelajari dasar protokol hibrida AliBank, keamanan ketat anti-pencucian uang, transparansi cadangan on-chain, dan kedaulatan perbankan multi-chain."}
-                </p>
-                <div className="pt-2">
-                  <button
-                    onClick={() => {
-                      setActiveCategory("all");
-                      setIsMegaMenuOpen(false);
-                    }}
-                    className="text-[11px] font-bold uppercase tracking-wider text-[#F4B728] hover:underline"
-                  >
-                    {lang === "en" ? "Browse Knowledge Hub &rarr;" : "Buka Pusat Pengetahuan &rarr;"}
-                  </button>
+          <>
+            {/* Click-outside backdrop */}
+            <div
+              onClick={() => setIsMegaMenuOpen(false)}
+              className="fixed inset-0 top-20 z-40 bg-black/5 backdrop-blur-[1px]"
+            />
+
+            <div className="absolute top-20 left-0 w-full bg-white border-b border-[#DFDAD0] shadow-xl z-50 animate-in fade-in duration-150">
+              <div className="max-w-[1280px] mx-auto px-6 py-10 pb-12 grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12 text-left">
+                {/* Col 1: Overview */}
+                <div className="space-y-3 pr-4 border-r border-[#ECE7DE]">
+                  <h3 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "LEARN" : "PELAJARI"}
+                  </h3>
+                  <p className="text-xs text-[#666666] font-light leading-relaxed">
+                    {lang === "en"
+                      ? "Learn the basics of the AliBank hybrid protocol, strict anti-money laundering security, on-chain reserves, and self-sovereign multi-chain banking."
+                      : "Pelajari dasar protokol hibrida AliBank, keamanan ketat anti-pencucian uang, transparansi cadangan on-chain, dan kedaulatan perbankan multi-chain."}
+                  </p>
+                  <div className="pt-2">
+                    <button
+                      onClick={() => {
+                        setActiveCategory("all");
+                        setIsMegaMenuOpen(false);
+                      }}
+                      className="text-[11px] font-bold tracking-wider text-[#F4B728] hover:underline"
+                    >
+                      {lang === "en" ? "Browse Knowledge Hub →" : "Buka Pusat Pengetahuan →"}
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* Col 2: ALIBANK 101 */}
-              <div className="space-y-3">
-                <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
-                  ALIBANK 101
-                </h4>
-                <ul className="space-y-2.5 text-xs text-[#555555]">
-                  <li>
-                    <button
-                      onClick={() => {
-                        setSelectedArticle(articles.find((a) => a.id === "alibank-101") || null);
-                        setIsMegaMenuOpen(false);
-                      }}
-                      className="hover:text-black text-left transition-colors"
-                    >
-                      {lang === "en" ? "What is AliBank?" : "Apa itu AliBank?"}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => {
-                        setSelectedArticle(articles.find((a) => a.id === "alibank-vs-alx") || null);
-                        setIsMegaMenuOpen(false);
-                      }}
-                      className="hover:text-black text-left transition-colors"
-                    >
-                      {lang === "en" ? "How is AliBank different from ALX?" : "Apa beda AliBank dengan ALX?"}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => {
-                        setSelectedArticle(articles.find((a) => a.id === "wallet-standards") || null);
-                        setIsMegaMenuOpen(false);
-                      }}
-                      className="hover:text-black text-left transition-colors"
-                    >
-                      {lang === "en" ? "What are TrustWallet Core standards?" : "Apa itu standar TrustWallet Core?"}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => {
-                        setActiveCategory("101");
-                        setIsMegaMenuOpen(false);
-                      }}
-                      className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
-                    >
-                      {lang === "en" ? "See all &rarr;" : "Lihat semua &rarr;"}
-                    </button>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Col 3: SECURITY & AML (The core focus!) */}
-              <div className="space-y-3 bg-[#FAF8F5] p-4 rounded-sm border border-[#EAE5DC]">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#E11D48] animate-pulse" />
-                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#E11D48]">
-                    {lang === "en" ? "SECURITY & AML" : "KEAMANAN & AML"}
+                {/* Col 2: ALIBANK 101 */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    ALIBANK 101
                   </h4>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <button
+                        onClick={() => {
+                          setSelectedArticle(articles.find((a) => a.id === "alibank-101") || null);
+                          setIsMegaMenuOpen(false);
+                        }}
+                        className="hover:text-black text-left transition-colors"
+                      >
+                        {lang === "en" ? "What is AliBank?" : "Apa itu AliBank?"}
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => {
+                          setSelectedArticle(articles.find((a) => a.id === "alibank-vs-alx") || null);
+                          setIsMegaMenuOpen(false);
+                        }}
+                        className="hover:text-black text-left transition-colors"
+                      >
+                        {lang === "en" ? "How is AliBank different from ALX?" : "Apa beda AliBank dengan ALX?"}
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => {
+                          setSelectedArticle(articles.find((a) => a.id === "wallet-standards") || null);
+                          setIsMegaMenuOpen(false);
+                        }}
+                        className="hover:text-black text-left transition-colors"
+                      >
+                        {lang === "en" ? "What are TrustWallet Core standards?" : "Apa itu standar TrustWallet Core?"}
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => {
+                          setActiveCategory("101");
+                          setIsMegaMenuOpen(false);
+                        }}
+                        className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
+                      >
+                        {lang === "en" ? "See all →" : "Lihat semua →"}
+                      </button>
+                    </li>
+                  </ul>
                 </div>
-                <ul className="space-y-2.5 text-xs text-[#444444]">
-                  <li>
-                    <button
-                      onClick={() => {
-                        setSelectedArticle(articles.find((a) => a.id === "aml-mandate") || null);
-                        setIsMegaMenuOpen(false);
-                      }}
-                      className="hover:text-black text-left font-semibold text-[#111111] transition-colors"
-                    >
-                      {lang === "en"
-                        ? "Zero-Tolerance Anti-Money Laundering Policy"
-                        : "Kebijakan Nol-Toleransi Anti-Pencucian Uang"}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => {
-                        setSelectedArticle(articles.find((a) => a.id === "phantom-engine") || null);
-                        setIsMegaMenuOpen(false);
-                      }}
-                      className="hover:text-black text-left transition-colors"
-                    >
-                      {lang === "en"
-                        ? "Real-Time Anomaly & Phantom Detection"
-                        : "Deteksi Saldo Hantu & Anomali Real-Time"}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => {
-                        setSelectedArticle(articles.find((a) => a.id === "aml-suspension") || null);
-                        setIsMegaMenuOpen(false);
-                      }}
-                      className="hover:text-black text-left transition-colors"
-                    >
-                      {lang === "en"
-                        ? "What triggers an account restriction?"
-                        : "Apa yang memicu pembekuan akun?"}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => {
-                        setActiveCategory("aml");
-                        setIsMegaMenuOpen(false);
-                      }}
-                      className="text-[11px] font-bold text-[#E11D48] hover:underline pt-1 block"
-                    >
-                      {lang === "en" ? "Explore AML Engine &rarr;" : "Pelajari Mesin AML &rarr;"}
-                    </button>
-                  </li>
-                </ul>
-              </div>
 
-              {/* Col 4: USING ALIBANK */}
-              <div className="space-y-3">
-                <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
-                  {lang === "en" ? "USING ALIBANK" : "PENGGUNAAN"}
-                </h4>
-                <ul className="space-y-2.5 text-xs text-[#555555]">
-                  <li>
-                    <button
-                      onClick={() => {
-                        setSelectedArticle(articles.find((a) => a.id === "por-card") || null);
-                        setIsMegaMenuOpen(false);
-                      }}
-                      className="hover:text-black text-left transition-colors"
-                    >
-                      {lang === "en"
-                        ? "How to audit Proof of Reserves?"
-                        : "Cara audit Bukti Cadangan (PoR)?"}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => {
-                        setSelectedArticle(articles.find((a) => a.id === "double-entry") || null);
-                        setIsMegaMenuOpen(false);
-                      }}
-                      className="hover:text-black text-left transition-colors"
-                    >
-                      {lang === "en"
-                        ? "Why double-entry ledger matters?"
-                        : "Mengapa buku besar ganda mutlak?"}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => {
-                        setSelectedArticle(articles.find((a) => a.id === "merchant-pos") || null);
-                        setIsMegaMenuOpen(false);
-                      }}
-                      className="hover:text-black text-left transition-colors"
-                    >
-                      {lang === "en"
-                        ? "Merchant POS & QRIS acceptance"
-                        : "Penerimaan Kasir POS & QRIS"}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => {
-                        setActiveCategory("merchant");
-                        setIsMegaMenuOpen(false);
-                      }}
-                      className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
-                    >
-                      {lang === "en" ? "See all &rarr;" : "Lihat semua &rarr;"}
-                    </button>
-                  </li>
-                </ul>
+                {/* Col 3: SECURITY & AML (Flat aligned with other columns) */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#E11D48] animate-pulse" />
+                    <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#E11D48]">
+                      {lang === "en" ? "SECURITY & AML" : "KEAMANAN & AML"}
+                    </h4>
+                  </div>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <button
+                        onClick={() => {
+                          setSelectedArticle(articles.find((a) => a.id === "aml-mandate") || null);
+                          setIsMegaMenuOpen(false);
+                        }}
+                        className="hover:text-black text-left font-medium text-[#111111] transition-colors"
+                      >
+                        {lang === "en"
+                          ? "Zero-Tolerance Anti-Money Laundering Policy"
+                          : "Kebijakan Nol-Toleransi Anti-Pencucian Uang"}
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => {
+                          setSelectedArticle(articles.find((a) => a.id === "phantom-engine") || null);
+                          setIsMegaMenuOpen(false);
+                        }}
+                        className="hover:text-black text-left transition-colors"
+                      >
+                        {lang === "en"
+                          ? "Real-Time Anomaly & Phantom Detection"
+                          : "Deteksi Saldo Hantu & Anomali Real-Time"}
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => {
+                          setSelectedArticle(articles.find((a) => a.id === "aml-suspension") || null);
+                          setIsMegaMenuOpen(false);
+                        }}
+                        className="hover:text-black text-left transition-colors"
+                      >
+                        {lang === "en"
+                          ? "What triggers an account restriction?"
+                          : "Apa yang memicu pembekuan akun?"}
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => {
+                          setActiveCategory("aml");
+                          setIsMegaMenuOpen(false);
+                        }}
+                        className="text-[11px] font-bold text-[#E11D48] hover:underline pt-1 block"
+                      >
+                        {lang === "en" ? "Explore AML Engine →" : "Pelajari Mesin AML →"}
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Col 4: USING ALIBANK */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "USING ALIBANK" : "PENGGUNAAN"}
+                  </h4>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <button
+                        onClick={() => {
+                          setSelectedArticle(articles.find((a) => a.id === "por-card") || null);
+                          setIsMegaMenuOpen(false);
+                        }}
+                        className="hover:text-black text-left transition-colors"
+                      >
+                        {lang === "en"
+                          ? "How to audit Proof of Reserves?"
+                          : "Cara audit Bukti Cadangan (PoR)?"}
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => {
+                          setSelectedArticle(articles.find((a) => a.id === "double-entry") || null);
+                          setIsMegaMenuOpen(false);
+                        }}
+                        className="hover:text-black text-left transition-colors"
+                      >
+                        {lang === "en"
+                          ? "Why double-entry ledger matters?"
+                          : "Mengapa buku besar ganda mutlak?"}
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => {
+                          setSelectedArticle(articles.find((a) => a.id === "merchant-pos") || null);
+                          setIsMegaMenuOpen(false);
+                        }}
+                        className="hover:text-black text-left transition-colors"
+                      >
+                        {lang === "en"
+                          ? "Merchant POS & QRIS acceptance"
+                          : "Penerimaan Kasir POS & QRIS"}
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => {
+                          setActiveCategory("merchant");
+                          setIsMegaMenuOpen(false);
+                        }}
+                        className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block"
+                      >
+                        {lang === "en" ? "See all →" : "Lihat semua →"}
+                      </button>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
-
-            {/* Close Bar */}
-            <div className="border-t border-[#ECE7DE] py-2 px-6 flex justify-end bg-[#FBF9F5]">
-              <button
-                onClick={() => setIsMegaMenuOpen(false)}
-                className="text-[11px] font-bold text-[#888888] hover:text-black uppercase tracking-wider flex items-center gap-1"
-              >
-                <span>{lang === "en" ? "Close Menu" : "Tutup Menu"}</span>
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
+          </>
         )}
       </header>
 
