@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { firebaseConfig } from '@/firebase/config';
+import { getLocalDoc, queryLocalCollection } from '@/lib/local-firestore-store';
 import { AliBankVaultABI } from '@/lib/abi/AliBankVault';
 
 export const dynamic = 'force-dynamic';
@@ -152,7 +153,10 @@ async function restGetDoc(docPath: string, token: string): Promise<Record<string
     headers,
     cache: 'no-store',
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    const local = getLocalDoc(docPath);
+    return local.exists ? local.data : null;
+  }
   const json = await res.json().catch(() => null);
   return json ? parseRestDoc(json) : null;
 }
@@ -221,7 +225,10 @@ async function restQueryCollection(
     }),
     cache: 'no-store',
   });
-  if (!res.ok) return [];
+  if (!res.ok) {
+    const colPath = parentPath ? `${parentPath}/${collectionId}` : collectionId;
+    return queryLocalCollection(colPath, null, [], [], limitCount);
+  }
   const rows = await res.json().catch(() => []);
   const out: Array<Record<string, any>> = [];
   if (Array.isArray(rows)) {
@@ -230,6 +237,10 @@ async function restQueryCollection(
         out.push(parseRestDoc(row.document));
       }
     }
+  }
+  if (out.length === 0) {
+    const colPath = parentPath ? `${parentPath}/${collectionId}` : collectionId;
+    return queryLocalCollection(colPath, null, [], [], limitCount);
   }
   return out;
 }

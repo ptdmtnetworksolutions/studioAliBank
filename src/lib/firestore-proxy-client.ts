@@ -467,6 +467,10 @@ export async function proxyGetCollection<T = any>(refOrQuery: any): Promise<{
       return { ok: false, docs: [], status: res.status };
     }
 
+    if (json.quotaFallback && json.docs.length === 0) {
+      return { ok: false, docs: [], status: 429 };
+    }
+
     const docs = json.docs.map((d: any) => reviveFirestoreData(d));
     return {
       ok: true,

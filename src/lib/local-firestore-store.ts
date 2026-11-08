@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import seedStore from './local-firestore-seed.json';
 
 const CACHE_FILE = path.join('/tmp', 'alibank-local-firestore-cache.json');
 
@@ -11,19 +12,33 @@ let memoryStore: LocalStoreSchema | null = null;
 
 function loadStore(): LocalStoreSchema {
   if (memoryStore) return memoryStore;
+  const baseDocs: Record<string, { data: Record<string, any>; updatedAt: number }> = {};
+  if (seedStore && typeof (seedStore as any).docs === 'object') {
+    for (const [k, v] of Object.entries((seedStore as any).docs)) {
+      baseDocs[k] = v as { data: Record<string, any>; updatedAt: number };
+    }
+  }
   try {
     if (fs.existsSync(CACHE_FILE)) {
       const raw = fs.readFileSync(CACHE_FILE, 'utf8');
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed.docs === 'object') {
-        memoryStore = parsed;
-        return memoryStore!;
+        for (const [k, v] of Object.entries(parsed.docs)) {
+          const entry = v as { data: Record<string, any>; updatedAt: number };
+          const existing = baseDocs[k];
+          if (!existing || (entry.updatedAt || 0) >= (existing.updatedAt || 0)) {
+            baseDocs[k] = {
+              data: existing?.data ? { ...existing.data, ...entry.data } : entry.data,
+              updatedAt: entry.updatedAt || Date.now(),
+            };
+          }
+        }
       }
     }
   } catch (e) {
     console.warn('[LocalFirestoreStore] Failed reading cache file:', e);
   }
-  memoryStore = { docs: {} };
+  memoryStore = { docs: baseDocs };
   return memoryStore;
 }
 
@@ -68,6 +83,23 @@ export function setLocalDoc(docPath: string, data: Record<string, any>, merge = 
   };
   saveStore(store);
   return nextData;
+}
+
+export function setLocalDocsBatch(entries: Array<{ path: string; data: Record<string, any> }>, merge = true): void {
+  if (!Array.isArray(entries) || entries.length === 0) return;
+  const store = loadStore();
+  const now = Date.now();
+  for (const item of entries) {
+    const clean = normalizeDocPath(item.path);
+    if (!clean || !item.data) continue;
+    const id = clean.split('/').pop() || '';
+    const existing = store.docs[clean]?.data || {};
+    store.docs[clean] = {
+      data: merge ? { ...existing, ...item.data, id } : { ...item.data, id },
+      updatedAt: now,
+    };
+  }
+  saveStore(store);
 }
 
 export function deleteLocalDoc(docPath: string): void {
@@ -128,7 +160,6 @@ export function applyLocalDocUpdate(
   const id = clean.split('/').pop() || '';
   const store = loadStore();
   const storedExisting = store.docs[clean]?.data || {};
-  // Merge baseData (from client snapshot) with storedExisting (server local updates take precedence if newer)
   const existingData: Record<string, any> = merge
     ? { ...(baseData || {}), ...storedExisting }
     : {};
@@ -191,12 +222,10 @@ export function queryLocalCollection(
     if (!entry?.data) continue;
     const segs = docPath.split('/');
     if (collectionGroup) {
-      // Check if parent collection matches collectionGroup
       if (segs.length >= 2 && segs[segs.length - 2] === collectionGroup) {
         results.push({ ...entry.data, id: segs[segs.length - 1] });
       }
     } else if (cleanCol) {
-      // Exact parent collection match: segs has 1 more segment than colSegments
       if (
         segs.length === colSegments.length + 1 &&
         docPath.startsWith(cleanCol + '/')
@@ -254,4 +283,3 @@ export function queryLocalCollection(
 
   return results;
 }
-

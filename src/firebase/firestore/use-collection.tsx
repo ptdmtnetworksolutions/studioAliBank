@@ -93,6 +93,7 @@ export function useCollection<T = any>(
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
   const snapshotActiveRef = useRef<boolean>(false);
+  const hasDataRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!memoizedTargetRefOrQuery) {
@@ -100,6 +101,7 @@ export function useCollection<T = any>(
       setIsLoading(false);
       setError(null);
       snapshotActiveRef.current = false;
+      hasDataRef.current = false;
       return;
     }
 
@@ -110,6 +112,7 @@ export function useCollection<T = any>(
       setIsLoading(false);
       setError(null);
       snapshotActiveRef.current = false;
+      hasDataRef.current = false;
       return;
     }
 
@@ -123,7 +126,10 @@ export function useCollection<T = any>(
       const res = await proxyGetCollection<T>(memoizedTargetRefOrQuery);
       if (cancelled) return;
       if (res.ok) {
-        setData(res.docs);
+        if (res.docs.length > 0 || !hasDataRef.current) {
+          if (res.docs.length > 0) hasDataRef.current = true;
+          setData(res.docs);
+        }
         setError(null);
         setIsLoading(false);
       }
@@ -141,7 +147,10 @@ export function useCollection<T = any>(
           ...(doc.data() as T),
           id: doc.id,
         }));
-        setData(results);
+        if (results.length > 0 || !hasDataRef.current) {
+          if (results.length > 0) hasDataRef.current = true;
+          setData(results);
+        }
         setError(null);
         setIsLoading(false);
       },

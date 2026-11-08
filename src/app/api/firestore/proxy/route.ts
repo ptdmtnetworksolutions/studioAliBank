@@ -3,6 +3,7 @@ import { firebaseConfig } from '@/firebase/config';
 import {
   getLocalDoc,
   setLocalDoc,
+  setLocalDocsBatch,
   deleteLocalDoc,
   applyLocalDocUpdate,
   addLocalCollectionDoc,
@@ -449,10 +450,20 @@ export async function POST(request: NextRequest) {
           orders,
           limitCount
         );
-        if (localDocs.length > 0 || res.status === 429 || res.status >= 500) {
+        if (localDocs.length > 0) {
           const response = NextResponse.json({
             docs: localDocs,
             fallbackLocal: true,
+            newIdToken,
+            newRefreshToken,
+          });
+          attachTokenCookies(response, newIdToken, newRefreshToken);
+          return response;
+        }
+        if (res.status === 429 || res.status >= 500) {
+          const response = NextResponse.json({
+            docs: [],
+            quotaFallback: true,
             newIdToken,
             newRefreshToken,
           });
@@ -469,16 +480,20 @@ export async function POST(request: NextRequest) {
       const rows = await res.json();
       let docs: Record<string, any>[] = [];
       const cleanColPath = path ? String(path).replace(/^\/+|\/+$/g, '') : null;
+      const batchEntries: Array<{ path: string; data: Record<string, any> }> = [];
       if (Array.isArray(rows)) {
         for (const row of rows) {
           if (row?.document) {
             const parsedDoc = parseFirestoreDoc(row.document);
             docs.push(parsedDoc);
             if (cleanColPath && parsedDoc.id) {
-              setLocalDoc(`${cleanColPath}/${parsedDoc.id}`, parsedDoc, true);
+              batchEntries.push({ path: `${cleanColPath}/${parsedDoc.id}`, data: parsedDoc });
             }
           }
         }
+      }
+      if (batchEntries.length > 0) {
+        setLocalDocsBatch(batchEntries, true);
       }
 
       // Merge any locally created docs that are not yet in remote docs
