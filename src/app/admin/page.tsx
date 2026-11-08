@@ -95,6 +95,7 @@ function AdminContent() {
   const [onChainEth, setOnChainEth] = useState<string>("0");
   const [syncingVault, setSyncingVault] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState<string>("");
 
   // DATA FETCHING STRATEGY V3.5 - RECONCILIATION MODE
   const userEmailClean = String(user?.email || '').toLowerCase();
@@ -107,7 +108,7 @@ function AdminContent() {
   const liquidityRef = useMemoFirebase(() => (db && isPrivileged ? doc(db, "system", "liquidity") : null), [db, isPrivileged]);
   const { data: globalLiquidity } = useDoc(liquidityRef);
   
-  const usersQuery = useMemoFirebase(() => (db && isPrivileged ? query(collection(db, "users"), limit(100)) : null), [db, isPrivileged]);
+  const usersQuery = useMemoFirebase(() => (db && isPrivileged ? query(collection(db, "users"), limit(500)) : null), [db, isPrivileged]);
   const { data: allUsers } = useCollection(usersQuery);
   
   // 1. Ambil Log Audit Global (Resmi)
@@ -289,7 +290,12 @@ function AdminContent() {
 
             <div className="relative w-full max-w-sm hidden sm:block">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Cari data global..." className="h-11 pl-12 bg-muted border-none rounded-xl text-xs font-bold w-full" />
+              <Input
+                placeholder="Cari nama, email, atau UID (88...)..."
+                value={globalSearch}
+                onChange={(e) => setGlobalSearch(e.target.value)}
+                className="h-11 pl-12 bg-muted border-none rounded-xl text-xs font-bold w-full"
+              />
             </div>
           </div>
 
@@ -322,8 +328,8 @@ function AdminContent() {
           )}
           {activeTab === 'kyc' && <KycVerificationView allUsers={allUsers} />}
           {activeTab === 'pending' && <PendingRequestsView topupRequests={topupRequests} />}
-          {activeTab === 'ledger' && <ClientLedgerView allUsers={allUsers} />}
-          {activeTab === 'users' && <ClientsView allUsers={allUsers} />}
+          {activeTab === 'ledger' && <ClientLedgerView allUsers={allUsers} globalSearch={globalSearch} />}
+          {activeTab === 'users' && <ClientsView allUsers={allUsers} globalSearch={globalSearch} />}
           {activeTab === 'vault' && <VaultControlView onChainEth={onChainEth} VAULT_CONTRACT={VAULT_CONTRACT} auditLogs={combinedAuditLogs} />}
           {activeTab === 'tokenomics' && (
             <TokenomicsView 

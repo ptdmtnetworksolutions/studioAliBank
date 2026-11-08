@@ -72,7 +72,7 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 
-export function ClientsView({ allUsers }: any) {
+export function ClientsView({ allUsers, globalSearch = "" }: any) {
   const db = useFirestore();
   const auth = useAuth();
   const { toast } = useToast();
@@ -138,11 +138,19 @@ export function ClientsView({ allUsers }: any) {
     }
   }, [allUsers, selectedUser?.id]);
 
-  const filteredUsers = allUsers?.filter((u: any) => 
-    u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.accountNumber?.includes(searchTerm)
-  );
+  const effectiveSearch = (searchTerm || globalSearch || "").trim().toLowerCase();
+
+  const filteredUsers = allUsers?.filter((u: any) => {
+    if (!effectiveSearch) return true;
+    return (
+      u.name?.toLowerCase().includes(effectiveSearch) || 
+      u.email?.toLowerCase().includes(effectiveSearch) ||
+      String(u.accountNumber || "").toLowerCase().includes(effectiveSearch) ||
+      String(u.id || "").toLowerCase().includes(effectiveSearch) ||
+      String(u.uid || "").toLowerCase().includes(effectiveSearch) ||
+      String(u.walletAddress || "").toLowerCase().includes(effectiveSearch)
+    );
+  });
 
   useEffect(() => {
     async function fetchDetails() {
@@ -334,15 +342,20 @@ export function ClientsView({ allUsers }: any) {
 
   return (
     <div className="animate-in fade-in slide-in-from-right-10 duration-700 space-y-8">
-      <header className="flex justify-between items-center px-2">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-2">
         <div>
-          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Pusat Nasabah</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-3xl font-black italic uppercase tracking-tighter">Pusat Nasabah</h2>
+            <Badge variant="outline" className="border-primary/30 text-primary font-black text-[10px] uppercase px-3 h-6 italic">
+              {filteredUsers?.length || 0} / {allUsers?.length || 0} Akun
+            </Badge>
+          </div>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Audit Keamanan & Kontrol Likuiditas Dompet</p>
         </div>
-        <div className="relative w-80">
+        <div className="relative w-full md:w-80">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
-            placeholder="Cari Email atau UID Nasabah..." 
+            placeholder="Cari Nama, Email, atau UID Nasabah..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="h-12 pl-12 bg-card border-none rounded-2xl text-xs font-bold shadow-sm focus:ring-2 focus:ring-primary/20"
@@ -394,7 +407,8 @@ export function ClientsView({ allUsers }: any) {
                   <td className="px-8 py-5">
                     <div className="flex gap-4">
                       <div className="flex flex-col"><span className="text-[8px] font-black text-muted-foreground uppercase">USDT</span><span className="text-[11px] font-bold text-teal-600">{u.cryptoBalances?.USDT?.toFixed(2) || '0.00'}</span></div>
-                      <div className="flex flex-col"><span className="text-[8px] font-black text-muted-foreground uppercase">BTC</span><span className="text-[11px] font-bold text-orange-500">{u.cryptoBalances?.BTC?.toFixed(8) || '0.0000'}</span></div>
+                      <div className="flex flex-col"><span className="text-[8px] font-black text-muted-foreground uppercase">ETH</span><span className="text-[11px] font-bold text-blue-500">{u.cryptoBalances?.ETH?.toFixed(6) || '0.000000'}</span></div>
+                      <div className="flex flex-col"><span className="text-[8px] font-black text-muted-foreground uppercase">BTC</span><span className="text-[11px] font-bold text-orange-500">{u.cryptoBalances?.BTC?.toFixed(8) || '0.00000000'}</span></div>
                     </div>
                   </td>
                   <td className="px-8 py-5 text-right">
@@ -571,7 +585,10 @@ export function ClientsView({ allUsers }: any) {
                                     </div>
                                   </td>
                                   <td className="py-4 px-4 text-right font-black italic text-[11px]">
-                                    {t.type === 'income' ? '+' : '-'}Rp{(t.amountIdr || t.amount || t.stakeAmount || 0).toLocaleString()}
+                                    {t.type === 'income' ? '+' : '-'}
+                                    {(t.amountIdr || t.amount || t.stakeAmount)
+                                      ? `Rp${Number(t.amountIdr || t.amount || t.stakeAmount || 0).toLocaleString('id-ID')}`
+                                      : `${Number(t.cryptoAmount || t.toAmount || t.fromAmount || 0).toLocaleString('id-ID', { maximumFractionDigits: 8 })} ${t.cryptoCurrency || t.toCurrency || t.fromCurrency || ''}`}
                                   </td>
                                 </tr>
                               ))}
@@ -614,6 +631,8 @@ export function ClientsView({ allUsers }: any) {
                       <tbody className="divide-y divide-border">
                         {userTxs.map((tx) => {
                           const nominal = tx.amountIdr || tx.amount || tx.stakeAmount || 0;
+                          const cryptoAmt = tx.cryptoAmount || tx.toAmount || tx.fromAmount || 0;
+                          const cryptoCurr = tx.cryptoCurrency || tx.toCurrency || tx.fromCurrency || '';
                           return (
                             <tr key={tx.id} className="hover:bg-muted/50 transition-colors">
                               <td className="px-8 py-4 text-[9px] font-mono font-bold text-muted-foreground italic">
@@ -630,7 +649,10 @@ export function ClientsView({ allUsers }: any) {
                                   "text-[11px] font-black italic",
                                   tx.type === 'income' ? "text-green-600" : "text-rose-600"
                                 )}>
-                                  {tx.type === 'income' ? '+' : '-'}Rp{nominal.toLocaleString()}
+                                  {tx.type === 'income' ? '+' : '-'}
+                                  {nominal > 0 || !cryptoCurr
+                                    ? `Rp${Number(nominal).toLocaleString('id-ID')}`
+                                    : `${Number(cryptoAmt).toLocaleString('id-ID', { maximumFractionDigits: 8 })} ${cryptoCurr}`}
                                 </span>
                               </td>
                             </tr>

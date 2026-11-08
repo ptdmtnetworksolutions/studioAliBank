@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { firebaseConfig } from '@/firebase/config';
 import { ethers } from 'ethers';
 import { deriveMultiChainAddresses } from '@/lib/crypto/multi-chain-engine';
+import { setLocalDoc } from '@/lib/local-firestore-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,6 +81,27 @@ export async function POST(request: NextRequest) {
     const internalWallet = ethers.Wallet.createRandom();
     const multiChain = deriveMultiChainAddresses(internalWallet.privateKey);
     const accountNumber = '88' + Math.floor(1000000000 + Math.random() * 9000000000).toString();
+
+    const nowIso = new Date().toISOString();
+
+    // Simpan ke Local Firestore Store agar langsung muncul di halaman Nasabah & Buku Besar
+    setLocalDoc(`users/${uid}`, {
+      id: uid,
+      uid,
+      name: cleanName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      accountNumber,
+      totalBalance: 0,
+      savings: 0,
+      tier: 'Regular',
+      kycStatus: 'unverified',
+      walletAddress: multiChain.evmAddress,
+      btcAddress: multiChain.btcAddress,
+      solanaAddress: multiChain.solanaAddress,
+      cryptoBalances: { BTC: 0, ETH: 0, USDT: 0, ALX: 0, SOL: 0 },
+      createdAt: nowIso,
+    }, true);
 
     // 4. Simpan ke Firestore via REST API menggunakan idToken user
     const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/users/${uid}`;

@@ -54,7 +54,7 @@ import { proxyGetCollection } from "@/lib/firestore-proxy-client";
 
 const ALX_PRICE_IDR = Math.round(ALX_PRICE_USD_FALLBACK * IDR_RATE_FALLBACK);
 
-export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
+export function ClientLedgerView({ allUsers, globalSearch = "" }: { allUsers: any[] | null; globalSearch?: string }) {
   const db = useFirestore();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,7 +72,7 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
     if (typeof window === "undefined") return;
     const preselectedUid = sessionStorage.getItem("alibank_admin_selected_ledger_uid");
     if (preselectedUid) {
-      const found = allUsers.find((u: any) => u.id === preselectedUid || u.uid === preselectedUid);
+      const found = allUsers.find((u: any) => u.id === preselectedUid || u.uid === preselectedUid || u.accountNumber === preselectedUid);
       if (found) {
         setSelectedUser(found);
       }
@@ -80,18 +80,31 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
     }
   }, [allUsers]);
 
-  // LOGIKA PENCARIAN & SARAN NASABAH
+  // Sinkronkan data nasabah terpilih saat daftar allUsers diperbarui
+  useEffect(() => {
+    if (selectedUser?.id && Array.isArray(allUsers)) {
+      const updated = allUsers.find((u: any) => u.id === selectedUser.id);
+      if (updated) {
+        setSelectedUser(updated);
+      }
+    }
+  }, [allUsers, selectedUser?.id]);
+
+  // LOGIKA PENCARIAN & DAFTAR SELURUH NASABAH (tanpa pemotongan .slice(0, 10))
   const suggestions = useMemo(() => {
     if (!allUsers) return [];
-    if (!searchTerm) return allUsers.slice(0, 10); 
+    const activeQuery = (searchTerm || globalSearch || "").trim().toLowerCase();
+    if (!activeQuery) return allUsers;
     
-    const s = searchTerm.toLowerCase();
     return allUsers.filter(u => 
-      u.name?.toLowerCase().includes(s) || 
-      u.email?.toLowerCase().includes(s) || 
-      u.accountNumber?.includes(s)
-    ).slice(0, 10);
-  }, [allUsers, searchTerm]);
+      u.name?.toLowerCase().includes(activeQuery) || 
+      u.email?.toLowerCase().includes(activeQuery) || 
+      String(u.accountNumber || '').toLowerCase().includes(activeQuery) ||
+      String(u.id || '').toLowerCase().includes(activeQuery) ||
+      String(u.uid || '').toLowerCase().includes(activeQuery) ||
+      String(u.walletAddress || '').toLowerCase().includes(activeQuery)
+    );
+  }, [allUsers, searchTerm, globalSearch]);
 
   useEffect(() => {
     async function fetchDeepLedger() {
@@ -100,18 +113,22 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
       setIsForensicLoading(true);
       
       try {
-        // 1. Ambil Riwayat Transaksi Nasabah (Local Ledger) dengan fallback Proxy REST
+        // 1. Ambil Riwayat Transaksi Nasabah (Local Ledger) via Proxy terlebih dahulu
         const qLocal = query(
           collection(db, "users", selectedUser.id, "transactions"),
           orderBy("timestamp", "desc"),
           limit(300)
         );
-        try {
-          const localSnap = await getDocs(qLocal);
-          setUserTxs(localSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-        } catch {
-          const proxyRes = await proxyGetCollection(qLocal);
-          setUserTxs(proxyRes?.docs || []);
+        const proxyRes = await proxyGetCollection<any>(qLocal);
+        if (proxyRes.ok) {
+          setUserTxs(proxyRes.docs || []);
+        } else {
+          try {
+            const localSnap = await getDocs(qLocal);
+            setUserTxs(localSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          } catch {
+            setUserTxs([]);
+          }
         }
 
         // 2. Ambil Topup Requests (Pending & Approved)
@@ -120,16 +137,21 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
           where("userId", "==", selectedUser.id),
           limit(100)
         );
-        try {
-          const topupSnap = await getDocs(qTopup);
-          const allReqs = topupSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+        const proxyReqs = await proxyGetCollection<any>(qTopup);
+        if (proxyReqs.ok) {
+          const allReqs: any[] = proxyReqs.docs || [];
           setPendingTopups(allReqs.filter(r => r.status === 'pending' && r.type !== 'withdraw' && r.type !== 'cash_delivery'));
           setApprovedTopups(allReqs.filter(r => r.status === 'approved' && r.type !== 'withdraw' && r.type !== 'cash_delivery'));
-        } catch {
-          const proxyReqs = await proxyGetCollection(qTopup);
-          const allReqs: any[] = proxyReqs?.docs || [];
-          setPendingTopups(allReqs.filter(r => r.status === 'pending' && r.type !== 'withdraw' && r.type !== 'cash_delivery'));
-          setApprovedTopups(allReqs.filter(r => r.status === 'approved' && r.type !== 'withdraw' && r.type !== 'cash_delivery'));
+        } else {
+          try {
+            const topupSnap = await getDocs(qTopup);
+            const allReqs = topupSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+            setPendingTopups(allReqs.filter(r => r.status === 'pending' && r.type !== 'withdraw' && r.type !== 'cash_delivery'));
+            setApprovedTopups(allReqs.filter(r => r.status === 'approved' && r.type !== 'withdraw' && r.type !== 'cash_delivery'));
+          } catch {
+            setPendingTopups([]);
+            setApprovedTopups([]);
+          }
         }
 
         // 3. DEEP SCAN: Cari bukti di Audit Global
@@ -139,12 +161,16 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
           orderBy("timestamp", "desc"),
           limit(100)
         );
-        try {
-          const globalSnap = await getDocs(qGlobal);
-          setGlobalAuditMatches(globalSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-        } catch {
-          const proxyGlobal = await proxyGetCollection(qGlobal);
-          setGlobalAuditMatches(proxyGlobal?.docs || []);
+        const proxyGlobal = await proxyGetCollection<any>(qGlobal);
+        if (proxyGlobal.ok) {
+          setGlobalAuditMatches(proxyGlobal.docs || []);
+        } else {
+          try {
+            const globalSnap = await getDocs(qGlobal);
+            setGlobalAuditMatches(globalSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          } catch {
+            setGlobalAuditMatches([]);
+          }
         }
 
       } catch (e) {
@@ -363,9 +389,9 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
 
       {!selectedUser ? (
         <div className="space-y-6">
-          <div className="flex items-center gap-2 px-2">
+          <div className="flex items-center justify-between px-2">
             <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest italic">
-              Daftar Nasabah Terdaftar
+              Daftar Nasabah Terdaftar ({suggestions.length} dari {allUsers?.length || 0} Akun)
             </h4>
           </div>
           
@@ -377,16 +403,29 @@ export function ClientLedgerView({ allUsers }: { allUsers: any[] | null }) {
                 className="p-6 rounded-[2rem] bg-card border border-border/50 hover:border-primary/40 cursor-pointer transition-all hover:scale-[1.02] active:scale-95 group shadow-sm"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl gold-gradient flex items-center justify-center p-0.5">
+                  <div className="w-12 h-12 rounded-2xl gold-gradient flex items-center justify-center p-0.5 shrink-0">
                     <div className="w-full h-full rounded-2xl bg-background flex items-center justify-center overflow-hidden">
                       <UserAvatar avatarUrl={u.avatarUrl} photoURL={u.photoURL} name={u.name} email={u.email} size={48} />
                     </div>
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <h5 className="text-sm font-black italic uppercase text-foreground leading-none truncate">{u.name}</h5>
                     <p className="text-[9px] font-bold text-muted-foreground mt-1.5 uppercase truncate">{u.email}</p>
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className="text-[8px] font-mono font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
+                        UID: {u.accountNumber || '-'}
+                      </span>
+                      <span className="text-[9px] font-black italic text-foreground">
+                        Rp {(u.totalBalance || 0).toLocaleString('id-ID')}
+                      </span>
+                      {(u.cryptoBalances?.ALX || 0) > 0 && (
+                        <span className="text-[9px] font-black italic text-primary">
+                          • {(u.cryptoBalances?.ALX || 0).toLocaleString('id-ID', { maximumFractionDigits: 4 })} ALX
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground/30 group-hover:text-primary transition-colors" />
+                  <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0" />
                 </div>
               </Card>
             ))}

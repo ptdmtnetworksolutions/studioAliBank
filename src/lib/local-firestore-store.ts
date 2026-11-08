@@ -9,9 +9,21 @@ interface LocalStoreSchema {
 }
 
 let memoryStore: LocalStoreSchema | null = null;
+let lastCacheMtimeMs = 0;
 
 function loadStore(): LocalStoreSchema {
-  if (memoryStore) return memoryStore;
+  try {
+    if (fs.existsSync(CACHE_FILE)) {
+      const stat = fs.statSync(CACHE_FILE);
+      if (memoryStore && stat.mtimeMs === lastCacheMtimeMs) {
+        return memoryStore;
+      }
+      lastCacheMtimeMs = stat.mtimeMs;
+    } else if (memoryStore) {
+      return memoryStore;
+    }
+  } catch {}
+
   const baseDocs: Record<string, { data: Record<string, any>; updatedAt: number }> = {};
   if (seedStore && typeof (seedStore as any).docs === 'object') {
     for (const [k, v] of Object.entries((seedStore as any).docs)) {
@@ -46,6 +58,8 @@ function saveStore(store: LocalStoreSchema) {
   memoryStore = store;
   try {
     fs.writeFileSync(CACHE_FILE, JSON.stringify(store, null, 2), 'utf8');
+    const stat = fs.statSync(CACHE_FILE);
+    lastCacheMtimeMs = stat.mtimeMs;
   } catch (e) {
     console.warn('[LocalFirestoreStore] Failed writing cache file:', e);
   }

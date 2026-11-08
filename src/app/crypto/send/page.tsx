@@ -207,6 +207,38 @@ export default function CryptoSendPage() {
         }
 
         const cleanRecipient = recipientAddress.trim();
+
+        // Deteksi otomatis apakah tujuan adalah UID Nasabah AliBank (88xxxxxxxxxx) atau Email internal
+        const isInternalUidOrEmail = /^88\d{8,14}$/.test(cleanRecipient) || cleanRecipient.includes('@');
+        if (isInternalUidOrEmail) {
+          const xferRes = await fetch('/api/transfer', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({
+              senderId: user.uid,
+              senderName: userData?.name || user.email,
+              recipientId: cleanRecipient,
+              asset: assetType,
+              amount: numAmount,
+              note: `Transfer internal ${assetType} via Hub Kripto`,
+            }),
+          });
+          const xferData = await xferRes.json();
+          if (!xferRes.ok) throw new Error(xferData.error || 'Transfer internal gagal.');
+
+          triggerFirestoreSync();
+          setTxHash(xferData.transferId || `INTERNAL-${Date.now()}`);
+          setStep('success');
+          toast({
+            title: "Transfer Internal Berhasil",
+            description: `${numAmount} ${assetType} berhasil dikirim ke ${xferData.recipientName} (${cleanRecipient}).`,
+          });
+          return;
+        }
+
         const res = await fetch('/api/crypto/withdraw', {
           method: 'POST',
           headers: { 
@@ -451,10 +483,10 @@ export default function CryptoSendPage() {
             )}
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Alamat Penerima Eksternal</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Alamat Wallet Tujuan atau UID Nasabah AliBank</label>
               <div className="relative">
                 <Input 
-                  placeholder={assetType === 'BTC' ? "Contoh: 1FSj... atau alamat BTC" : "Contoh: 0x... atau alamat wallet"} 
+                  placeholder={assetType === 'BTC' ? "Contoh: 1FSj..., alamat BTC, atau UID 88..." : "Contoh: 0x... (Wallet Eksternal) atau UID 88... (Nasabah AliBank)"} 
                   value={recipientAddress}
                   onChange={(e) => setRecipientAddress(e.target.value)}
                   className="h-14 rounded-2xl liquid-glass font-bold text-xs" 

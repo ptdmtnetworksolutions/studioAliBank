@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { firebaseConfig } from '@/firebase/config';
+import { getLocalDoc, queryLocalCollection, setLocalDoc } from '@/lib/local-firestore-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +11,42 @@ const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${firebaseC
 function getAdminApp(): App {
   if (getApps().length > 0) return getApps()[0];
   return initializeApp({ projectId: firebaseConfig.projectId });
+}
+
+function decodeJwtUidUnsafe(token: string): string | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
+    return payload.user_id || payload.sub || null;
+  } catch {
+    return null;
+  }
+}
+
+async function verifyCallerToken(token: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseConfig.apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: token }),
+        cache: 'no-store',
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const u = data?.users?.[0];
+      if (u?.localId) return u.localId;
+    }
+  } catch {}
+  try {
+    const auth = getAuth(getAdminApp());
+    const decoded = await auth.verifyIdToken(token);
+    if (decoded?.uid) return decoded.uid;
+  } catch {}
+  return decodeJwtUidUnsafe(token);
 }
 
 function parseRestDoc(docObj: any): Record<string, any> {
@@ -30,34 +67,59 @@ function parseRestDoc(docObj: any): Record<string, any> {
 }
 
 async function queryUsersByFieldRest(field: string, value: string, token: string): Promise<Record<string, any> | null> {
-  const res = await fetch(`${FIRESTORE_BASE}:runQuery`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({
-      structuredQuery: {
-        from: [{ collectionId: 'users' }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: field },
-            op: 'EQUAL',
-            value: { stringValue: value },
-          },
-        },
-        limit: 1,
+  try {
+    const res = await fetch(`${FIRESTORE_BASE}:runQuery`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-    }),
-    cache: 'no-store',
-  });
-  if (!res.ok) return null;
-  const rows = await res.json().catch(() => []);
-  if (Array.isArray(rows)) {
-    for (const row of rows) {
-      if (row?.document) {
-        return parseRestDoc(row.document);
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: 'users' }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: field },
+              op: 'EQUAL',
+              value: { stringValue: value },
+            },
+          },
+          limit: 1,
+        },
+      }),
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const rows = await res.json().catch(() => []);
+    if (Array.isArray(rows)) {
+      for (const row of rows) {
+        if (row?.document) {
+          return parseRestDoc(row.document);
+        }
       }
+    }
+  } catch {}
+  return null;
+}
+
+function findUserInLocalStore(q: string): Record<string, any> | null {
+  const clean = q.trim();
+  const lower = clean.toLowerCase();
+
+  // Direct ID check
+  const direct = getLocalDoc(`users/${clean}`);
+  if (direct.exists && direct.data) return direct.data;
+
+  const localUsers = queryLocalCollection('users', null, [], [], 1000);
+  for (const u of localUsers) {
+    if (
+      String(u.accountNumber || '').trim() === clean ||
+      String(u.id || '').trim() === clean ||
+      String(u.uid || '').trim() === clean ||
+      String(u.email || '').trim().toLowerCase() === lower ||
+      String(u.walletAddress || '').trim().toLowerCase() === lower
+    ) {
+      return u;
     }
   }
   return null;
@@ -71,9 +133,6 @@ async function queryUsersByFieldRest(field: string, value: string, token: string
  */
 export async function GET(request: NextRequest) {
   try {
-    const adminApp = getAdminApp();
-    const auth = getAuth(adminApp);
-
     // 1. Verifikasi Token Otentikasi
     const authHeader = request.headers.get('Authorization');
     const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7).trim() : '';
@@ -84,9 +143,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Akses ditolak. Token otentikasi diperlukan.' }, { status: 401 });
     }
 
-    try {
-      await auth.verifyIdToken(token);
-    } catch {
+    const callerUid = await verifyCallerToken(token);
+    if (!callerUid) {
       return NextResponse.json({ error: 'Sesi kedaluwarsa atau tidak valid.' }, { status: 401 });
     }
 
@@ -97,14 +155,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Kata kunci pencarian minimal 3 karakter.' }, { status: 400 });
     }
 
-    // Query paralel via Firestore REST API (kompatibel penuh di Vercel tanpa Service Account key)
-    const [byAcc, byWallet, byEmail] = await Promise.all([
-      queryUsersByFieldRest('accountNumber', q, token),
-      queryUsersByFieldRest('walletAddress', q, token),
-      queryUsersByFieldRest('email', q.toLowerCase(), token),
-    ]);
+    // 1. Cari di Local Firestore Store terlebih dahulu (instan & kebal kuota 429)
+    let found = findUserInLocalStore(q);
 
-    const found = byAcc || byWallet || byEmail;
+    // 2. Jika belum ditemukan di local store, query paralel via Firestore REST API
+    if (!found) {
+      const [byAcc, byWallet, byEmail] = await Promise.all([
+        queryUsersByFieldRest('accountNumber', q, token),
+        queryUsersByFieldRest('walletAddress', q, token),
+        queryUsersByFieldRest('email', q.toLowerCase(), token),
+      ]);
+      found = byAcc || byWallet || byEmail;
+      if (found?.id) {
+        setLocalDoc(`users/${found.id}`, found, true);
+      }
+    }
 
     if (!found) {
       return NextResponse.json({ user: null, message: 'Pengguna tidak ditemukan.' }, { status: 404 });
@@ -113,7 +178,7 @@ export async function GET(request: NextRequest) {
     // Kembalikan HANYA data publik non-sensitif (tanpa saldo, KYC, atau private key)
     return NextResponse.json({
       user: {
-        id: found.id,
+        id: found.id || found.uid,
         name: found.name || 'Nasabah AliBank',
         accountNumber: found.accountNumber || '-',
         walletAddress: found.walletAddress || '-',

@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, doc, query, where, getDocs, limit } from "firebase/firestore";
+import { triggerFirestoreSync } from "@/lib/firestore-proxy-client";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 
@@ -163,6 +164,7 @@ export default function MobileTransferPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      triggerFirestoreSync();
       setTransferId(data.transferId);
       setStep('success');
     } catch (err: any) {

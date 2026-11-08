@@ -24,6 +24,7 @@ import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, doc, query, where, getDocs, limit } from "firebase/firestore";
+import { triggerFirestoreSync } from "@/lib/firestore-proxy-client";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { LogoIcon } from "@/components/ui/logo";
@@ -166,6 +167,7 @@ export default function TransferPage() {
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
+      triggerFirestoreSync();
       setTransferResult(result);
       setStep('success');
     } catch (err: any) {
