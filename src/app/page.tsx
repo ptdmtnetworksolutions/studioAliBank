@@ -450,7 +450,7 @@ function DashboardContent() {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex font-body selection:bg-primary/30">
+    <div className="min-h-screen bg-[#FAF9F6] text-[#111111] flex font-sans selection:bg-[#F4B728] selection:text-black">
       
       {/* SIDEBAR NAVIGATION */}
       <Sidebar />
@@ -459,31 +459,42 @@ function DashboardContent() {
       <main className="ml-64 flex-1 flex flex-col min-w-0">
         
         {/* HEADER */}
-        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 sticky top-0 z-40">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-black text-foreground uppercase italic tracking-tight">Dashboard</h2>
-            <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[8px] font-black h-5 uppercase px-2">
-              Node Sync: {lastSync || "connecting..."}
-            </Badge>
+        <header className="h-20 bg-white/90 backdrop-blur-md border-b border-[#DFDAD0] flex items-center justify-between px-8 sticky top-0 z-40">
+          <div className="flex items-center gap-3">
+            <h2 className="font-serif text-2xl font-bold text-[#111111] tracking-tight">Dashboard</h2>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-[#FAF9F6] border border-[#DFDAD0] text-[10px] font-mono text-[#666666]">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Node Sync: {lastSync || "Connected"}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-5">
             <div className="relative w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Cari transaksi atau aset..." className="h-10 pl-10 bg-muted/50 border-none rounded-lg text-sm font-medium" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#888888]" />
+              <input
+                placeholder="Cari transaksi atau aset..."
+                className="w-full h-10 pl-10 pr-4 bg-[#FAF9F6] border border-[#DFDAD0] rounded-sm text-xs text-[#111111] placeholder:text-[#999999] focus:outline-none focus:border-black focus:bg-white transition-colors"
+              />
             </div>
             
-            <div className="flex items-center gap-4 border-l border-border pl-6">
+            <div className="flex items-center gap-4 border-l border-[#DFDAD0] pl-5">
               <GasStation />
-              <Activity className="w-4 h-4 text-muted-foreground" />
-              <div className="relative cursor-pointer" onClick={() => router.push('/notifications')}>
-                <Bell className="w-5 h-5 text-muted-foreground" />
+              <div 
+                className="relative cursor-pointer p-2 hover:bg-[#FAF9F6] rounded-sm transition-colors text-[#666666] hover:text-black" 
+                onClick={() => router.push('/notifications')}
+                title="Notifikasi"
+              >
+                <Bell className="w-4.5 h-4.5" />
                 {unreadNotifications && unreadNotifications.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-primary text-primary-foreground text-[8px] font-black rounded-full flex items-center justify-center">
+                  <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-[#F4B728] text-black text-[8px] font-bold rounded-full flex items-center justify-center leading-none">
                     {unreadNotifications.length}
                   </span>
                 )}
               </div>
-              <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border cursor-pointer shrink-0" onClick={() => router.push('/profile')}>
+              <div 
+                className="w-8 h-8 rounded-full bg-white overflow-hidden border border-[#DFDAD0] cursor-pointer shrink-0 hover:border-black transition-colors" 
+                onClick={() => router.push('/profile')}
+                title="Profil Pengguna"
+              >
                 <UserAvatar avatarUrl={userData?.avatarUrl} photoURL={user?.photoURL} name={userData?.name} email={user?.email} size={32} />
               </div>
             </div>
@@ -495,56 +506,57 @@ function DashboardContent() {
 
           {/* DEBT CRITICAL ALERT CARD */}
           {debtInfo.hasDebt && (
-            <Card className="bg-rose-600 text-white rounded-[2rem] p-6 shadow-xl border-none animate-in zoom-in duration-500 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10"><Skull className="w-32 h-32" /></div>
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center shrink-0 border border-white/10 shadow-lg">
-                    <ShieldAlert className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-black uppercase italic tracking-wider leading-none">Restriksi Likuiditas Akun</h3>
-                    <p className="text-xs font-bold uppercase opacity-85">Terdeteksi hutang tidak terverifikasi sebesar Rp{debtInfo.totalDebtValIdr.toLocaleString('id-ID')}. Selesaikan kewajiban untuk memulihkan akses penuh.</p>
-                  </div>
+            <div className="bg-[#FFF1F2] border border-[#FECDD3] rounded-sm p-6 text-[#9F1239] shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-sm bg-[#FFE4E6] border border-[#FECDD3] flex items-center justify-center shrink-0">
+                  <ShieldAlert className="w-6 h-6 text-[#E11D48]" />
                 </div>
-                <Button 
-                  onClick={() => router.push('/debt-repayment')}
-                  className="bg-white text-rose-600 hover:bg-white/95 border-none font-black italic uppercase text-xs px-6 py-5 rounded-xl shadow-lg shrink-0"
-                >
-                  Bayar Kewajiban
-                </Button>
+                <div className="space-y-1">
+                  <h3 className="font-serif text-base font-bold text-[#881337] tracking-tight">Restriksi Likuiditas Akun</h3>
+                  <p className="text-xs text-[#9F1239] leading-relaxed">
+                    Terdeteksi kewajiban tidak terverifikasi sebesar Rp{debtInfo.totalDebtValIdr.toLocaleString('id-ID')}. Selesaikan kewajiban untuk memulihkan akses penuh ke brankas dana.
+                  </p>
+                </div>
               </div>
-            </Card>
+              <button 
+                onClick={() => router.push('/debt-repayment')}
+                className="px-5 py-2.5 bg-[#E11D48] hover:bg-[#BE123C] text-white text-xs font-bold uppercase tracking-wider rounded-sm transition-colors shrink-0 shadow-sm cursor-pointer"
+              >
+                Bayar Kewajiban →
+              </button>
+            </div>
           )}
 
           {/* KYC VERIFICATION ALERT */}
           {!debtInfo.hasDebt && userData && userData.kycStatus !== 'verified' && (
-            <div className="p-4 px-6 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-300">
+            <div className="p-5 rounded-sm bg-[#FFFDF5] border border-[#FDE68A] flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
               <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/30 shadow-inner">
+                <div className="w-10 h-10 rounded-sm bg-[#FEF3C7] text-[#D97706] flex items-center justify-center shrink-0 border border-[#FDE68A]">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-black uppercase italic text-foreground flex items-center gap-2">
-                    Verifikasi Identitas Nasabah (KYC)
-                    <Badge className="bg-amber-500 text-white text-[8px] font-black px-1.5 h-4 uppercase border-none">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-serif text-sm font-bold text-[#111111] tracking-tight">
+                      Verifikasi Identitas Nasabah (KYC)
+                    </h4>
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-sm bg-[#F4B728]/25 text-[#92400E] border border-[#F4B728]/40 uppercase tracking-widest">
                       {userData.kycStatus === 'pending' ? 'Sedang Ditinjau' : 'Verifikasi Diperlukan'}
-                    </Badge>
-                  </h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#666666] font-light mt-1 leading-relaxed">
                     {userData.kycStatus === 'pending' 
                       ? 'Dokumen identitas Anda sedang ditinjau tim kepatuhan AliBank. Klik untuk memeriksa detail status pengajuan Anda.'
                       : 'Lakukan verifikasi KTP & selfie biometrik untuk membuka limit transaksi hingga Rp 100 Juta, pencairan rekening bank, dan fitur kliring PayPal.'}
                   </p>
                 </div>
               </div>
-              <Button 
+              <button 
                 onClick={() => router.push('/settings/kyc')}
-                className="gold-gradient text-white font-black uppercase italic text-[11px] h-9 px-5 rounded-xl shadow-md shrink-0 flex items-center gap-1.5"
+                className="px-5 py-2.5 bg-[#111111] hover:bg-black text-white text-xs font-bold uppercase tracking-wider rounded-sm shrink-0 flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
               >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                {userData.kycStatus === 'pending' ? 'Cek Status KYC' : 'Verifikasi Sekarang'}
-              </Button>
+                <ShieldCheck className="w-3.5 h-3.5 text-[#F4B728]" />
+                <span>{userData.kycStatus === 'pending' ? 'Cek Status KYC' : 'Verifikasi Sekarang →'}</span>
+              </button>
             </div>
           )}
 
@@ -552,125 +564,178 @@ function DashboardContent() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             {/* PORTFOLIO OVERVIEW CARD */}
-            <Card className="lg:col-span-2 rounded-[2.5rem] bg-card border border-border shadow-sm p-8 flex flex-col justify-between relative overflow-hidden min-h-[300px]">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none" />
-              <div className="space-y-4">
+            <div className="lg:col-span-2 bg-white border border-[#DFDAD0] rounded-sm p-8 shadow-sm flex flex-col justify-between relative overflow-hidden min-h-[300px] space-y-6">
+              {/* Radial Sunburst Guilloche Watermark */}
+              <div className="absolute top-0 right-0 w-80 h-80 opacity-[0.035] pointer-events-none -mr-16 -mt-16">
+                <svg viewBox="0 0 200 200" className="w-full h-full text-black" fill="none" stroke="currentColor">
+                  <circle cx="100" cy="100" r="30" strokeWidth="1" />
+                  <circle cx="100" cy="100" r="60" strokeWidth="0.5" strokeDasharray="3 3" />
+                  <circle cx="100" cy="100" r="90" strokeWidth="0.8" />
+                </svg>
+              </div>
+
+              <div className="space-y-4 relative z-10">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-widest text-muted-foreground italic">Total Saldo Terkonsolidasi</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#777777]">
+                    Total Saldo Terkonsolidasi
+                  </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[150px]">{userData?.walletAddress || "Initializing wallet..."}</span>
-                    <button onClick={copyAddress} className="w-6 h-6 rounded bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors">
-                      <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-[10px] font-mono text-[#666666] bg-[#FAF9F6] border border-[#DFDAD0] px-2.5 py-1 rounded-sm truncate max-w-[180px]">
+                      {userData?.walletAddress || "Initializing wallet..."}
+                    </span>
+                    <button 
+                      onClick={copyAddress} 
+                      title="Salin Alamat" 
+                      className="w-7 h-7 rounded-sm bg-[#FAF9F6] hover:bg-[#F4F1EA] border border-[#DFDAD0] flex items-center justify-center transition-colors text-[#666666] hover:text-black cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
                 
-                <div className="flex flex-col md:flex-row md:items-baseline gap-4 md:gap-8">
-                  <h1 className="text-5xl font-black italic tracking-tighter text-foreground">
+                <div className="flex flex-col md:flex-row md:items-baseline gap-2 md:gap-6 pt-1">
+                  <h1 className="font-serif text-4xl sm:text-5xl font-bold tracking-tight text-[#111111]">
                     Rp{totalValueCalculated.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
                   </h1>
-                  <span className="text-xl font-bold text-muted-foreground italic">
+                  <span className="text-xl sm:text-2xl font-light text-[#777777]">
                     ≈ US${totalValueUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Badge className={cn("text-[9px] font-black italic border-none uppercase px-2.5 h-6", pnlData.isUp ? "bg-green-500/10 text-green-600" : "bg-rose-500/10 text-rose-600")}>
+                <div className="flex items-center gap-3 pt-1">
+                  <span className={cn(
+                    "text-xs font-mono font-bold px-2.5 py-1 rounded-sm border",
+                    pnlData.isUp 
+                      ? "bg-[#F0FDF4] border-[#BBF7D0] text-[#15803D]" 
+                      : "bg-[#FFF1F2] border-[#FECDD3] text-[#9F1239]"
+                  )}>
                     PNL Hari Ini: {pnlData.isUp ? '+' : ''}{pnlData.percent.toFixed(2)}%
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Terupdate langsung dari mainnet</span>
+                  </span>
+                  <span className="text-[10px] text-[#888888] uppercase tracking-wider font-medium">
+                    Terupdate langsung dari Mainnet
+                  </span>
                 </div>
               </div>
 
               {/* QUICK ACTIONS BAR */}
-              <div className="grid grid-cols-4 gap-4 mt-8 pt-6 border-t border-border/50">
-                <DesktopActionBtn icon={DollarSign} label="Beli Crypto" desc="Instan VA / Credit Card" onClick={() => router.push('/crypto/buy')} />
-                <DesktopActionBtn icon={ArrowRightLeft} label="Convert" desc="Swap aset instan" onClick={() => router.push('/crypto/buy?tab=convert')} />
-                <DesktopActionBtn icon={Send} label="Kirim Aset" desc="Transfer ke wallet luar" onClick={() => router.push('/crypto/send')} />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 border-t border-[#ECE7DE] relative z-10">
+                <DesktopActionBtn icon={DollarSign} label="Beli Crypto" desc="Instan VA / Kartu" onClick={() => router.push('/crypto/buy')} />
+                <DesktopActionBtn icon={ArrowRightLeft} label="Convert" desc="Swap Aset Instan" onClick={() => router.push('/crypto/buy?tab=convert')} />
+                <DesktopActionBtn icon={Send} label="Kirim Aset" desc="Transfer ke Wallet Luar" onClick={() => router.push('/crypto/send')} />
                 <DesktopActionBtn icon={Download} label="Terima" desc="Tampilkan QR / Address" onClick={() => router.push('/crypto/receive')} />
               </div>
-            </Card>
+            </div>
 
             {/* INTEGRATED GAMES / ALPHA WIDGET */}
-            <Card className="rounded-[2.5rem] bg-card border border-border shadow-sm p-8 flex flex-col justify-between">
-              <div className="space-y-4">
-                <h3 className="text-xs font-black uppercase italic text-muted-foreground tracking-widest">Aktivitas & Hiburan</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">Gunakan token ALX Anda untuk bermain game finansial atau hubungkan dengan copy-trading.</p>
+            <div className="bg-white border border-[#DFDAD0] rounded-sm p-8 shadow-sm flex flex-col justify-between space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#777777]">
+                  Aktivitas & Ekosistem
+                </h3>
+                <p className="text-xs text-[#666666] font-light leading-relaxed">
+                  Gunakan token ALX Anda untuk utilitas finansial, hiburan, atau copy-trading otomatis.
+                </p>
               </div>
 
-              <div className="space-y-4 my-6">
-                <Card className="p-4 bg-muted/30 border border-border rounded-2xl flex items-center justify-between cursor-pointer hover:bg-muted/60 transition-all shadow-sm group" onClick={() => router.push('/crypto/trade-pro/btc')}>
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black italic shrink-0 group-hover:scale-105 transition-transform">Tx</div>
+              <div className="space-y-3 my-2">
+                <div 
+                  onClick={() => router.push('/crypto/trade-pro/btc')}
+                  className="p-3.5 bg-[#FAF9F6] hover:bg-white border border-[#DFDAD0] hover:border-black rounded-sm flex items-center justify-between cursor-pointer transition-all group"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-9 h-9 rounded-sm bg-[#111111] flex items-center justify-center text-[#F4B728] font-mono text-xs font-bold shrink-0">
+                      Tx
+                    </div>
                     <div>
-                      <p className="text-sm font-black uppercase italic leading-tight group-hover:text-primary transition-colors">Trade X Pro</p>
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase mt-0.5 block">Simulator Options Kripto</span>
+                      <p className="text-xs font-bold uppercase tracking-wider text-[#111111] group-hover:text-black">Trade X Pro</p>
+                      <span className="text-[10px] text-[#777777] uppercase font-light mt-0.5 block">Simulator Options Kripto</span>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                </Card>
+                  <ChevronRight className="w-4 h-4 text-[#888888] group-hover:text-black transition-colors" />
+                </div>
 
-                <Card className="p-4 bg-muted/30 border border-border rounded-2xl flex items-center justify-between cursor-pointer hover:bg-muted/60 transition-all shadow-sm group" onClick={() => router.push('/games/spin')}>
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0 group-hover:scale-105 transition-transform">
-                      <Sparkles className="w-5 h-5 animate-pulse" />
+                <div 
+                  onClick={() => router.push('/games/spin')}
+                  className="p-3.5 bg-[#FAF9F6] hover:bg-white border border-[#DFDAD0] hover:border-black rounded-sm flex items-center justify-between cursor-pointer transition-all group"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-9 h-9 rounded-sm bg-[#FFFBEB] border border-[#FDE68A] flex items-center justify-center text-[#D97706] shrink-0">
+                      <Sparkles className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-sm font-black uppercase italic leading-tight group-hover:text-orange-500 transition-colors">Ali Spin Wheel</p>
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase mt-0.5 block">Fortune Spin Harian</span>
+                      <p className="text-xs font-bold uppercase tracking-wider text-[#111111] group-hover:text-black">Ali Spin Wheel</p>
+                      <span className="text-[10px] text-[#777777] uppercase font-light mt-0.5 block">Fortune Spin Harian</span>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                </Card>
+                  <ChevronRight className="w-4 h-4 text-[#888888] group-hover:text-black transition-colors" />
+                </div>
 
-                <Card className="p-4 bg-muted/30 border border-border rounded-2xl flex items-center justify-between cursor-pointer hover:bg-muted/60 transition-all shadow-sm group" onClick={() => router.push('/games/moba')}>
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500 shrink-0 group-hover:scale-105 transition-transform">
-                      <Gamepad2 className="w-5 h-5" />
+                <div 
+                  onClick={() => router.push('/games/moba')}
+                  className="p-3.5 bg-[#FAF9F6] hover:bg-white border border-[#DFDAD0] hover:border-black rounded-sm flex items-center justify-between cursor-pointer transition-all group"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-9 h-9 rounded-sm bg-[#F5F3FF] border border-[#DDD6FE] flex items-center justify-center text-[#7C3AED] shrink-0">
+                      <Gamepad2 className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-sm font-black uppercase italic leading-tight group-hover:text-purple-500 transition-colors">AliBank Arena MOBA</p>
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase mt-0.5 block">Pertempuran Hero & Klaim Token ALX</span>
+                      <p className="text-xs font-bold uppercase tracking-wider text-[#111111] group-hover:text-black">AliBank Arena MOBA</p>
+                      <span className="text-[10px] text-[#777777] uppercase font-light mt-0.5 block">Pertempuran Hero & Klaim ALX</span>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                </Card>
+                  <ChevronRight className="w-4 h-4 text-[#888888] group-hover:text-black transition-colors" />
+                </div>
               </div>
 
-              <div className="flex gap-2">
-                <Button className="w-full h-11 bg-muted hover:bg-muted/80 text-foreground font-black uppercase italic text-[10px] rounded-xl" onClick={() => router.push('/p2p/order-history')}>
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button 
+                  onClick={() => router.push('/p2p/order-history')}
+                  className="w-full py-2.5 bg-white hover:bg-[#FAF9F6] border border-[#DFDAD0] hover:border-black text-[#111111] text-xs font-bold uppercase tracking-wider rounded-sm transition-colors cursor-pointer"
+                >
                   P2P Order Hub
-                </Button>
-                <Button className="w-full h-11 bg-primary text-primary-foreground font-black uppercase italic text-[10px] rounded-xl" onClick={() => router.push('/alpha')}>
-                  Alpha Hub (Copy-Trade)
-                </Button>
+                </button>
+                <button 
+                  onClick={() => router.push('/alpha')}
+                  className="w-full py-2.5 bg-[#111111] hover:bg-black text-white text-xs font-bold uppercase tracking-wider rounded-sm transition-colors shadow-sm cursor-pointer"
+                >
+                  Alpha Hub →
+                </button>
               </div>
-            </Card>
+            </div>
           </div>
 
           {/* LOWER GRID FOR ASSETS AND RECENT TRANSACTIONS */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
             
             {/* ASSETS PORTFOLIO GRID */}
-            <Card className="xl:col-span-2 rounded-[2.5rem] bg-card border border-border shadow-sm overflow-hidden p-8 space-y-6">
+            <div className="xl:col-span-2 bg-white border border-[#DFDAD0] rounded-sm shadow-sm overflow-hidden p-8 space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase italic text-muted-foreground tracking-widest">Rincian Portofolio Aset</h3>
-                <Badge variant="outline" className="text-[8px] font-black uppercase px-2 h-5">Semua jaringan didukung</Badge>
+                <div className="space-y-1">
+                  <h3 className="font-serif text-xl font-bold tracking-tight text-[#111111]">
+                    Rincian Portofolio Aset
+                  </h3>
+                  <p className="text-xs text-[#777777] font-light">
+                    Saldo terverifikasi langsung dari smart contract & cadangan terpusat
+                  </p>
+                </div>
+                <span className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 bg-[#FAF9F6] border border-[#DFDAD0] text-[#666666] rounded-sm">
+                  Multi-Chain Reserves
+                </span>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-border text-[9px] font-black uppercase text-muted-foreground tracking-widest pb-3">
-                      <th className="py-3">Token</th>
-                      <th className="py-3 text-right">Saldo Dimiliki</th>
-                      <th className="py-3 text-right">Harga Satuan</th>
-                      <th className="py-3 text-right">Estimasi Nilai (USD)</th>
-                      <th className="py-3 text-right">Estimasi Nilai (IDR)</th>
-                      <th className="py-3 text-center">Trend 24h</th>
+                    <tr className="border-b border-[#ECE7DE] text-[9px] font-bold uppercase text-[#777777] tracking-[0.14em] pb-3">
+                      <th className="py-3 font-bold">Token</th>
+                      <th className="py-3 text-right font-bold">Saldo Dimiliki</th>
+                      <th className="py-3 text-right font-bold">Harga Satuan</th>
+                      <th className="py-3 text-right font-bold">Estimasi Nilai (USD)</th>
+                      <th className="py-3 text-right font-bold">Estimasi Nilai (IDR)</th>
+                      <th className="py-3 text-center font-bold">Trend 24h</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/60">
+                  <tbody className="divide-y divide-[#F4F1EA]">
                     {(() => {
                       const COIN_NAMES: Record<string, string> = {
                         "ALX": "Alix Coin",
@@ -800,139 +865,147 @@ function DashboardContent() {
                   </tbody>
                 </table>
               </div>
-            </Card>
+            </div>
 
             <div className="space-y-8 flex flex-col">
               {/* DEFI VAULT STAKING CARD */}
               {userData?.walletAddress && (
-                <Card className="rounded-[2.5rem] bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border border-primary/20 p-8 space-y-6">
+                <div className="bg-white border border-[#DFDAD0] rounded-sm p-8 shadow-sm space-y-6">
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5 text-white">
-                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                          <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                          <path d="M2 17l10 5 10-5"></path>
-                        </svg>
+                      <div className="w-9 h-9 rounded-full bg-[#F4B728] flex items-center justify-center shadow-sm text-black font-bold">
+                        A
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <h3 className="text-sm font-black italic tracking-tight uppercase">DeFi Vault Tabungan</h3>
-                          <Badge className="bg-primary/20 text-primary text-[7px] font-black uppercase h-3.5 px-1 border-none leading-none animate-pulse">On-Chain</Badge>
+                          <h3 className="font-serif text-base font-bold text-[#111111] tracking-tight">DeFi Vault Tabungan</h3>
+                          <span className="text-[8px] font-bold uppercase px-1.5 py-0.2 rounded-sm bg-[#F4B728]/20 border border-[#F4B728]/40 text-[#855B00]">On-Chain</span>
                         </div>
-                        <p className="text-[9px] font-mono text-muted-foreground tracking-tighter mt-0.5">
-                          Address: {userData.walletAddress.substring(0, 8)}...{userData.walletAddress.substring(userData.walletAddress.length - 6)}
+                        <p className="text-[10px] font-mono text-[#888888] mt-0.5">
+                          Vault: {userData.walletAddress.substring(0, 8)}...{userData.walletAddress.substring(userData.walletAddress.length - 6)}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4 pt-2 border-t border-border/50">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase">Saldo Staking (ETH)</span>
-                      <span className="text-sm font-black italic">{vaultBalanceEth.toFixed(6).replace(/\.?0+$/, "")} ETH</span>
+                  <div className="space-y-4 pt-2 border-t border-[#ECE7DE]">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-[10px] font-bold text-[#777777] uppercase tracking-wider">Saldo Staking (ETH)</span>
+                      <span className="font-mono font-bold text-[#111111]">{vaultBalanceEth.toFixed(6).replace(/\.?0+$/, "")} ETH</span>
                     </div>
 
-                    <div className="flex justify-between items-center py-2 bg-primary/5 rounded-2xl px-4 border border-primary/10">
+                    <div className="flex justify-between items-center py-3 bg-[#FAF9F6] rounded-sm px-4 border border-[#DFDAD0]">
                       <div className="flex flex-col">
-                        <span className="text-[9px] font-bold text-primary uppercase">Yield Terkumpul (ALX)</span>
-                        <span className="text-[7px] text-muted-foreground font-medium uppercase tracking-wider">Berdetak Real-Time</span>
+                        <span className="text-[10px] font-bold text-[#666666] uppercase tracking-wider">Yield Terkumpul (ALX)</span>
+                        <span className="text-[8px] text-[#888888] uppercase font-mono">Berdetak Real-Time</span>
                       </div>
                       <div className="text-right">
-                        <p className="text-base font-black italic text-primary animate-pulse font-mono">
+                        <p className="text-base font-bold font-mono text-[#111111]">
                           {vaultStakingYieldAlx > 0 ? vaultStakingYieldAlx.toFixed(8) : "0.00000000"} ALX
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center text-[9px] font-bold uppercase pt-1 text-muted-foreground">
+                    <div className="flex justify-between items-center text-[10px] font-bold uppercase pt-1 text-[#777777]">
                       <span>Base APY</span>
-                      <span className="text-green-500 font-black italic">12.00% p.a</span>
+                      <span className="text-emerald-600 font-mono font-bold">12.00% p.a</span>
                     </div>
                   </div>
 
                   {stakingClaimError && (
-                    <div className="p-3 rounded-xl bg-rose-500/10 text-rose-500 text-[9px] font-bold uppercase border border-rose-500/20">
+                    <div className="p-3 rounded-sm bg-[#FFF1F2] text-[#9F1239] text-xs font-medium border border-[#FECDD3]">
                       Error: {stakingClaimError}
                     </div>
                   )}
 
                   {stakingClaimSuccess && (
-                    <div className="p-3 rounded-xl bg-green-500/10 text-green-500 text-[9px] font-bold uppercase border border-green-500/20">
+                    <div className="p-3 rounded-sm bg-[#F0FDF4] text-[#15803D] text-xs font-medium border border-[#BBF7D0]">
                       Klaim Berhasil! Token ALX telah dikreditkan ke saldo Anda.
                     </div>
                   )}
 
                   <div className="grid grid-cols-2 gap-3 pt-2">
-                    <Button 
-                      variant="outline" 
-                      className="h-10 bg-primary/10 hover:bg-primary/20 text-primary border-none rounded-xl font-black uppercase text-[9px] italic"
+                    <button 
+                      className="h-10 bg-white hover:bg-[#FAF9F6] border border-[#DFDAD0] hover:border-black text-[#111111] text-xs font-bold uppercase tracking-wider rounded-sm transition-colors cursor-pointer"
                       onClick={() => router.push('/crypto/receive?asset=ETH')}
                     >
                       Tabung ETH
-                    </Button>
-                    <Button 
+                    </button>
+                    <button 
                       disabled={isStakingClaiming || vaultStakingYieldAlx < 0.0001}
                       onClick={claimStakingYield}
-                      className="h-10 gold-gradient text-white border-none rounded-xl font-black uppercase text-[9px] italic shadow-md active:scale-95 transition-all"
+                      className="h-10 bg-[#111111] hover:bg-black text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-sm active:scale-95 transition-all disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1.5"
                     >
                       {isStakingClaiming ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#F4B728]" />
                       ) : (
                         "Klaim Yield (ALX)"
                       )}
-                    </Button>
+                    </button>
                   </div>
 
-                  <p className="text-[8px] text-rose-500 font-bold uppercase leading-relaxed italic text-center opacity-85">
+                  <p className="text-[9px] text-[#9F1239] font-medium leading-relaxed text-center">
                     * Setoran baru atau penarikan ETH akan mereset durasi yield. Klaim ALX terlebih dahulu!
                   </p>
-                </Card>
+                </div>
               )}
 
               {/* RECENT TRANSACTIONS PANEL */}
-              <Card className="rounded-[2.5rem] bg-card border border-border shadow-sm p-8 space-y-6 flex flex-col justify-between flex-1">
+              <div className="bg-white border border-[#DFDAD0] rounded-sm p-8 shadow-sm space-y-6 flex flex-col justify-between flex-1">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-black uppercase italic text-muted-foreground tracking-widest">Riwayat Aktivitas</h3>
-                    <History className="w-4 h-4 text-muted-foreground" />
+                    <h3 className="font-serif text-lg font-bold text-[#111111] tracking-tight">Riwayat Aktivitas</h3>
+                    <History className="w-4 h-4 text-[#888888]" />
                   </div>
 
-                  <div className="space-y-4 overflow-y-auto max-h-[350px] pr-2 no-scrollbar">
+                  <div className="space-y-3 overflow-y-auto max-h-[350px] pr-1 no-scrollbar">
                     {userTxs && userTxs.length > 0 ? (
                       userTxs.slice(0, 6).map((tx) => (
-                        <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors">
+                        <div key={tx.id} className="flex items-center justify-between p-3 rounded-sm bg-[#FAF9F6] hover:bg-white border border-transparent hover:border-[#DFDAD0] transition-colors">
                           <div className="flex items-center gap-3">
-                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", tx.type === 'income' ? "bg-green-500/10 text-green-600" : "bg-rose-500/10 text-rose-500")}>
+                            <div className={cn(
+                              "w-8 h-8 rounded-sm flex items-center justify-center border", 
+                              tx.type === 'income' 
+                                ? "bg-[#F0FDF4] border-[#BBF7D0] text-[#15803D]" 
+                                : "bg-[#FFF1F2] border-[#FECDD3] text-[#9F1239]"
+                            )}>
                               {tx.type === 'income' ? <Download className="w-4 h-4" /> : <Send className="w-4 h-4" />}
                             </div>
                             <div>
-                              <p className="text-xs font-black uppercase italic leading-none truncate max-w-[130px]">{tx.description || tx.category}</p>
-                              <span className="text-[8px] font-bold text-muted-foreground block mt-1 uppercase">{new Date(tx.date || tx.timestamp?.seconds * 1000).toLocaleDateString()}</span>
+                              <p className="text-xs font-bold text-[#111111] leading-none truncate max-w-[130px]">{tx.description || tx.category}</p>
+                              <span className="text-[9px] font-mono text-[#888888] block mt-1 uppercase">{new Date(tx.date || tx.timestamp?.seconds * 1000).toLocaleDateString()}</span>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-xs font-black italic">
+                            <p className="text-xs font-mono font-bold text-[#111111]">
                               {tx.amount ? `Rp${tx.amount.toLocaleString()}` : `${tx.cryptoAmount?.toFixed(4) || tx.toAmount?.toFixed(4)} ${tx.cryptoCurrency || tx.toCurrency || ''}`}
                             </p>
-                            <Badge variant="outline" className={cn("text-[6px] font-black h-3.5 uppercase border-none px-1.5 mt-0.5", tx.status === 'success' ? "bg-green-600/10 text-green-600" : "bg-orange-500/10 text-orange-500")}>
+                            <span className={cn(
+                              "text-[8px] font-bold uppercase px-1.5 py-0.2 rounded-sm border inline-block mt-0.5", 
+                              tx.status === 'success' 
+                                ? "bg-[#F0FDF4] border-[#BBF7D0] text-[#15803D]" 
+                                : "bg-[#FFFBEB] border-[#FDE68A] text-[#D97706]"
+                            )}>
                               {tx.status || 'Success'}
-                            </Badge>
+                            </span>
                           </div>
                         </div>
                       ))
                     ) : (
-                      <div className="py-20 text-center opacity-30 italic">
-                        <p className="text-xs font-black uppercase tracking-widest">Belum ada transaksi</p>
+                      <div className="py-20 text-center opacity-40">
+                        <p className="text-xs font-medium uppercase tracking-widest text-[#888888]">Belum ada transaksi</p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <Button className="w-full h-11 bg-muted hover:bg-muted/80 text-foreground font-black uppercase italic text-[10px] rounded-xl mt-4" onClick={() => router.push('/transactions')}>
-                  Lihat Semua Riwayat
-                </Button>
-              </Card>
+                <button 
+                  className="w-full py-2.5 bg-white hover:bg-[#FAF9F6] border border-[#DFDAD0] hover:border-black text-[#111111] text-xs font-bold uppercase tracking-wider rounded-sm transition-colors mt-3 cursor-pointer" 
+                  onClick={() => router.push('/transactions')}
+                >
+                  Lihat Semua Riwayat →
+                </button>
+              </div>
             </div>
           </div>
           
@@ -946,13 +1019,16 @@ function DashboardContent() {
 // Action Button component
 function DesktopActionBtn({ icon: Icon, label, desc, onClick }: any) {
   return (
-    <button className="flex items-center gap-4 p-4 rounded-2xl bg-muted/40 hover:bg-muted/80 transition-all border border-border/40 text-left group" onClick={onClick}>
-      <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
-        <Icon className="w-5 h-5 text-foreground" />
+    <button 
+      className="flex items-center gap-3.5 p-3.5 rounded-sm bg-[#FAF9F6] hover:bg-white transition-all border border-[#DFDAD0] hover:border-black text-left group cursor-pointer" 
+      onClick={onClick}
+    >
+      <div className="w-9 h-9 rounded-sm bg-white border border-[#DFDAD0] group-hover:border-black flex items-center justify-center shrink-0 shadow-xs transition-colors">
+        <Icon className="w-4.5 h-4.5 text-[#111111]" />
       </div>
       <div>
-        <p className="text-xs font-black uppercase italic leading-none">{label}</p>
-        <span className="text-[8px] font-bold text-muted-foreground uppercase block mt-1 leading-none">{desc}</span>
+        <p className="text-xs font-bold uppercase tracking-wider text-[#111111] leading-none">{label}</p>
+        <span className="text-[9px] text-[#777777] uppercase font-light block mt-1 leading-none">{desc}</span>
       </div>
     </button>
   );
@@ -975,17 +1051,26 @@ function DesktopAssetRow({ name, symbol, amount, priceUsd, priceIdr, changePerce
   return (
     <tr 
       onClick={handleRowClick}
-      className="hover:bg-muted/30 transition-colors cursor-pointer group"
+      className="hover:bg-[#FAF9F6] transition-colors cursor-pointer group text-xs"
     >
-      <td className="py-4">
+      <td className="py-3.5">
         <div className="flex items-center gap-3">
-          <div className={cn("w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shrink-0", isNative ? "gold-gradient text-white" : (symbol === 'IDR' ? "bg-green-500/10 text-green-600 border border-green-500/20" : (symbol === 'ETH_VAULT' ? "bg-primary text-white p-1" : "bg-muted relative")))}>
+          <div className={cn(
+            "w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shrink-0 border border-[#DFDAD0]", 
+            isNative 
+              ? "bg-[#F4B728] text-black font-bold" 
+              : (symbol === 'IDR' 
+                  ? "bg-[#F0FDF4] text-[#15803D]" 
+                  : (symbol === 'ETH_VAULT' 
+                      ? "bg-[#111111] text-white p-1.5" 
+                      : "bg-white relative"))
+          )}>
             {isNative ? (
-              <LogoIcon className="p-1.5 w-full h-full text-white" />
+              <span className="font-bold text-xs text-black">A</span>
             ) : symbol === 'IDR' ? (
-              <span className="font-black text-[10px] italic">Rp</span>
+              <span className="font-bold text-[10px] text-[#15803D]">Rp</span>
             ) : symbol === 'ETH_VAULT' ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-[#F4B728]">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                 <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
                 <path d="M2 17l10 5 10-5"></path>
@@ -1002,7 +1087,7 @@ function DesktopAssetRow({ name, symbol, amount, priceUsd, priceIdr, changePerce
                     if (fallback) fallback.classList.remove('hidden');
                   }}
                 />
-                <div className="hidden absolute inset-0 flex items-center justify-center bg-muted rounded-full font-black text-xs text-slate-400">
+                <div className="hidden absolute inset-0 flex items-center justify-center bg-[#FAF9F6] rounded-full font-bold text-xs text-[#888888]">
                   {symbol[0]}
                 </div>
               </>
@@ -1010,47 +1095,47 @@ function DesktopAssetRow({ name, symbol, amount, priceUsd, priceIdr, changePerce
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-black uppercase italic">{name}</span>
-              {isNative && <Badge className="bg-primary/20 text-primary text-[6px] h-3 px-1 leading-none border-none">V3</Badge>}
-              {symbol === 'ETH_VAULT' && <Badge className="bg-primary/20 text-primary text-[6px] h-3 px-1 leading-none border-none animate-pulse">DeFi</Badge>}
+              <span className="text-xs font-bold text-[#111111]">{name}</span>
+              {isNative && <span className="bg-[#F4B728]/25 text-[#92400E] border border-[#F4B728]/40 text-[7px] font-bold px-1 py-0.2 rounded-sm leading-none uppercase">V3.1</span>}
+              {symbol === 'ETH_VAULT' && <span className="bg-[#111111] text-[#F4B728] text-[7px] font-bold px-1 py-0.2 rounded-sm leading-none uppercase">DeFi</span>}
             </div>
-            <span className="text-[8px] font-bold text-muted-foreground uppercase mt-0.5 block">{symbol === 'ETH_VAULT' ? 'ETH' : symbol}</span>
+            <span className="text-[9px] font-mono text-[#888888] uppercase mt-0.5 block">{symbol === 'ETH_VAULT' ? 'ETH' : symbol}</span>
           </div>
         </div>
       </td>
-      <td className="py-4 text-right">
-        <p className="text-xs font-black italic leading-none">{amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 6 })}</p>
-        <span className="text-[8px] font-bold text-muted-foreground uppercase mt-1 block leading-none">{symbol}</span>
+      <td className="py-3.5 text-right font-mono text-xs font-bold text-[#111111]">
+        <p className="leading-none">{amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 6 })}</p>
+        <span className="text-[9px] font-mono text-[#888888] uppercase mt-1 block leading-none">{symbol}</span>
       </td>
-      <td className="py-4 text-right">
-        <p className="text-xs font-black italic leading-none">${priceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
-        <span className="text-[8px] font-bold text-muted-foreground uppercase mt-1 block leading-none">USD</span>
+      <td className="py-3.5 text-right font-mono text-xs text-[#666666]">
+        <p className="leading-none">${priceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
+        <span className="text-[9px] font-mono text-[#888888] uppercase mt-1 block leading-none">USD</span>
       </td>
-      <td className="py-4 text-right">
-        <p className="text-xs font-black italic text-foreground leading-none">
+      <td className="py-3.5 text-right font-mono text-xs font-bold text-[#111111]">
+        <p className="leading-none">
           ${(amount * priceUsd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
-        <span className="text-[8px] font-bold text-muted-foreground uppercase mt-1 block leading-none">USD Value</span>
+        <span className="text-[9px] font-mono text-[#888888] uppercase mt-1 block leading-none">USD Value</span>
       </td>
-      <td className="py-4 text-right">
-        <p className="text-xs font-black italic text-foreground leading-none">
+      <td className="py-3.5 text-right font-mono text-xs font-bold text-[#111111]">
+        <p className="leading-none">
           Rp{(amount * priceIdr).toLocaleString('id-ID', { maximumFractionDigits: 0 })}
         </p>
-        <span className="text-[8px] font-bold text-muted-foreground uppercase mt-1 block leading-none">IDR Value</span>
+        <span className="text-[9px] font-mono text-[#888888] uppercase mt-1 block leading-none">IDR Value</span>
       </td>
-      <td className="py-4 text-center w-24">
+      <td className="py-3.5 text-center w-24">
         <div className="flex flex-col items-center gap-1">
-          <div className="h-6 w-20">
+          <div className="h-5 w-20">
             {trend && trend.length > 0 && (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trend}>
                   <YAxis domain={['auto', 'auto']} hide />
-                  <Area type="monotone" dataKey="value" stroke={isUp ? "#22C55E" : "#EF4444"} fill={isUp ? "#22C55E" : "#EF4444"} fillOpacity={0.05} strokeWidth={1.5} isAnimationActive={false} />
+                  <Area type="monotone" dataKey="value" stroke={isUp ? "#16A34A" : "#DC2626"} fill={isUp ? "#16A34A" : "#DC2626"} fillOpacity={0.06} strokeWidth={1.2} isAnimationActive={false} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
           </div>
-          <span className={cn("text-[8px] font-black italic leading-none", changePercent === 0 ? "text-muted-foreground" : isUp ? "text-green-500" : "text-rose-500")}>
+          <span className={cn("text-[8px] font-mono font-bold leading-none", changePercent === 0 ? "text-[#888888]" : isUp ? "text-emerald-600" : "text-rose-600")}>
             {changePercent === 0 ? '0.00%' : `${isUp ? '+' : ''}${changePercent.toFixed(2)}%`}
           </span>
         </div>

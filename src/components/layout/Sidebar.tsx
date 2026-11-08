@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
+import NextLink from "next/link";
 import { 
   LayoutDashboard, 
   User, 
@@ -11,8 +12,6 @@ import {
   PiggyBank, 
   ArrowDownToLine, 
   Coins, 
-  CreditCard, 
-  ArrowRightLeft, 
   Compass, 
   TrendingUp, 
   Users, 
@@ -27,7 +26,6 @@ import {
   Circle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { LogoIcon } from "@/components/ui/logo";
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -81,21 +79,36 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="hidden lg:flex w-64 bg-card border-r border-border flex-col fixed h-screen z-50 overflow-y-auto no-scrollbar">
-      {/* BRAND HEADER */}
-      <div className="p-6 flex items-center gap-3 border-b border-border/40 shrink-0">
-        <div className="w-10 h-10 rounded-xl gold-gradient p-2 flex items-center justify-center shadow-lg text-white">
-          <LogoIcon />
-        </div>
-        <span className="font-bold text-xl tracking-tighter italic uppercase text-foreground">AliBank</span>
+    <aside className="hidden lg:flex w-64 bg-white border-r border-[#DFDAD0] flex-col fixed h-screen z-50 overflow-y-auto no-scrollbar font-sans selection:bg-[#F4B728] selection:text-black">
+      {/* BRAND HEADER (V 3.1 Editorial Style) */}
+      <div className="p-6 flex items-center justify-between border-b border-[#ECE7DE] shrink-0 bg-[#FAF9F6]">
+        <NextLink href="/" className="flex items-center gap-3 group">
+          <div className="w-8 h-8 rounded-full bg-[#F4B728] flex items-center justify-center font-bold text-black text-sm shadow-sm group-hover:scale-105 transition-transform">
+            A
+          </div>
+          <div className="flex flex-col">
+            <span className="font-serif text-lg font-bold tracking-tight text-[#111111] leading-none">
+              AliBank
+            </span>
+            <span className="text-[8px] font-mono tracking-widest uppercase text-[#888888] mt-1">
+              Institutional
+            </span>
+          </div>
+        </NextLink>
+
+        <span className="text-[8px] font-bold tracking-[0.16em] uppercase px-2 py-0.5 rounded-sm bg-white border border-[#DFDAD0] text-[#444444]">
+          V 3.1
+        </span>
       </div>
 
       {/* NAVIGATION SECTIONS */}
-      <nav className="flex-1 px-4 py-6 space-y-7">
+      <nav className="flex-1 px-3 py-6 space-y-6">
         
         {/* SECTION 1: RINGKASAN & AKUN */}
-        <div className="space-y-1.5">
-          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest px-3 mb-2">Ikhtisar & Akun</p>
+        <div className="space-y-1">
+          <p className="text-[9px] font-bold text-[#888888] uppercase tracking-[0.18em] px-3 mb-2">
+            Ikhtisar & Akun
+          </p>
           
           <SidebarItem 
             icon={LayoutDashboard} 
@@ -132,8 +145,10 @@ export function Sidebar() {
         </div>
 
         {/* SECTION 2: PERBANKAN RETAIL */}
-        <div className="space-y-1.5">
-          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest px-3 mb-2">Layanan Perbankan</p>
+        <div className="space-y-1">
+          <p className="text-[9px] font-bold text-[#888888] uppercase tracking-[0.18em] px-3 mb-2">
+            Layanan Perbankan
+          </p>
           
           <SidebarItem 
             icon={Send} 
@@ -163,29 +178,31 @@ export function Sidebar() {
         </div>
 
         {/* SECTION 3: WEB3 & DEFI */}
-        <div className="space-y-1.5">
-          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest px-3 mb-2">DeFi & Web3</p>
+        <div className="space-y-1">
+          <p className="text-[9px] font-bold text-[#888888] uppercase tracking-[0.18em] px-3 mb-2">
+            DeFi & Web3
+          </p>
           
           {/* Collapsible Crypto Submenu */}
           <div>
             <div 
               onClick={() => setCryptoExpanded(!cryptoExpanded)} 
               className={cn(
-                "flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all group",
+                "flex items-center justify-between px-3 py-2 rounded-sm cursor-pointer transition-colors text-xs font-medium",
                 (pathname?.startsWith("/crypto") || pathname?.includes("/trade-pro")) && !cryptoExpanded
-                  ? "bg-primary/5 text-primary" 
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  ? "bg-[#111111] text-white font-bold" 
+                  : "text-[#666666] hover:bg-[#FAF9F6] hover:text-[#111111]"
               )}
             >
-              <div className="flex items-center gap-3">
-                <Compass className={cn("w-4.5 h-4.5", (pathname?.startsWith("/crypto") || pathname?.includes("/trade-pro")) ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
-                <span className="text-xs font-black uppercase italic tracking-tight">Layanan Kripto</span>
+              <div className="flex items-center gap-2.5">
+                <Compass className="w-4 h-4 shrink-0" />
+                <span className="uppercase tracking-[0.08em]">Layanan Kripto</span>
               </div>
-              {cryptoExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {cryptoExpanded ? <ChevronUp className="w-3.5 h-3.5 text-[#888888]" /> : <ChevronDown className="w-3.5 h-3.5 text-[#888888]" />}
             </div>
             
             {cryptoExpanded && (
-              <div className="pl-4 space-y-1 mt-1 ml-4 border-l border-border/40">
+              <div className="pl-3 space-y-0.5 mt-1 ml-3.5 border-l border-[#DFDAD0]">
                 <SubmenuItem 
                   label="Bursa Pasar" 
                   active={pathname === "/crypto"} 
@@ -197,7 +214,7 @@ export function Sidebar() {
                   onClick={() => handleNavigation("/crypto/buy")} 
                 />
                 <SubmenuItem 
-                  label="Convert/Swap" 
+                  label="Convert / Swap" 
                   active={pathname === "/crypto/convert" || (pathname === "/crypto/buy" && pathname.includes("tab=convert"))} 
                   onClick={() => handleNavigation("/crypto/convert")} 
                 />
@@ -226,8 +243,10 @@ export function Sidebar() {
         </div>
 
         {/* SECTION 4: SISTEM & PENGATURAN */}
-        <div className="space-y-1.5">
-          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest px-3 mb-2">Sistem & Lainnya</p>
+        <div className="space-y-1">
+          <p className="text-[9px] font-bold text-[#888888] uppercase tracking-[0.18em] px-3 mb-2">
+            Sistem & Pengaturan
+          </p>
           
           <SidebarItem 
             icon={MessageSquare} 
@@ -235,26 +254,27 @@ export function Sidebar() {
             active={pathname === "/ai-assistant"} 
             onClick={() => handleNavigation("/ai-assistant")} 
           />
+
           {/* Collapsible Mini Games Submenu */}
           <div>
             <div 
               onClick={() => setGamesExpanded(!gamesExpanded)} 
               className={cn(
-                "flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all group",
+                "flex items-center justify-between px-3 py-2 rounded-sm cursor-pointer transition-colors text-xs font-medium",
                 pathname?.startsWith("/games") && !gamesExpanded
-                  ? "bg-primary/5 text-primary font-bold" 
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  ? "bg-[#111111] text-white font-bold" 
+                  : "text-[#666666] hover:bg-[#FAF9F6] hover:text-[#111111]"
               )}
             >
-              <div className="flex items-center gap-3">
-                <Gamepad2 className={cn("w-4.5 h-4.5", pathname?.startsWith("/games") ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
-                <span className="text-xs font-black uppercase italic tracking-tight">Mini Games</span>
+              <div className="flex items-center gap-2.5">
+                <Gamepad2 className="w-4 h-4 shrink-0" />
+                <span className="uppercase tracking-[0.08em]">Mini Games</span>
               </div>
-              {gamesExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {gamesExpanded ? <ChevronUp className="w-3.5 h-3.5 text-[#888888]" /> : <ChevronDown className="w-3.5 h-3.5 text-[#888888]" />}
             </div>
             
             {gamesExpanded && (
-              <div className="pl-4 space-y-1 mt-1 ml-4 border-l border-border/40">
+              <div className="pl-3 space-y-0.5 mt-1 ml-3.5 border-l border-[#DFDAD0]">
                 <SubmenuItem 
                   label="Ali Spin Wheel" 
                   active={pathname === "/games/spin"} 
@@ -268,6 +288,7 @@ export function Sidebar() {
               </div>
             )}
           </div>
+
           <SidebarItem 
             icon={Settings} 
             label="Pengaturan" 
@@ -288,26 +309,29 @@ export function Sidebar() {
       </nav>
 
       {/* FOOTER USER CARD & SYSTEM HEALTH */}
-      <div className="p-4 border-t border-border/40 shrink-0 space-y-3 bg-card/50">
+      <div className="p-4 border-t border-[#ECE7DE] shrink-0 space-y-3 bg-[#FAF9F6]">
         {user && (
           <div 
             onClick={() => router.push('/profile')}
-            className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted/50 cursor-pointer transition-all group"
+            className="flex items-center gap-3 p-2 rounded-sm hover:bg-white border border-transparent hover:border-[#DFDAD0] cursor-pointer transition-all group"
             title="Buka Profil"
           >
-            <div className="w-9 h-9 rounded-full bg-muted overflow-hidden border border-border shrink-0">
-              <UserAvatar avatarUrl={userData?.avatarUrl} photoURL={user?.photoURL} name={userData?.name} email={user?.email} size={36} />
+            <div className="w-8 h-8 rounded-full bg-white overflow-hidden border border-[#DFDAD0] shrink-0">
+              <UserAvatar avatarUrl={userData?.avatarUrl} photoURL={user?.photoURL} name={userData?.name} email={user?.email} size={32} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-black uppercase italic truncate group-hover:text-primary transition-colors">{userData?.name || user?.displayName || "Nasabah AliBank"}</p>
-              <p className="text-[9px] font-bold text-muted-foreground font-mono truncate">{user?.email}</p>
+              <p className="text-xs font-bold text-[#111111] truncate group-hover:text-black">
+                {userData?.name || user?.displayName || "Nasabah AliBank"}
+              </p>
+              <p className="text-[9px] font-mono text-[#888888] truncate">{user?.email}</p>
             </div>
           </div>
         )}
-        <div className="flex items-center justify-between text-[8px] font-black text-muted-foreground uppercase tracking-widest px-2">
-          <span>Network Health</span>
-          <span className="flex items-center gap-1 text-green-500">
-            <Wifi className="w-2.5 h-2.5" /> Live
+        <div className="flex items-center justify-between text-[9px] font-mono uppercase text-[#777777] px-2 pt-1 border-t border-[#ECE7DE]">
+          <span>Mainnet Node</span>
+          <span className="flex items-center gap-1.5 text-emerald-600 font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live
           </span>
         </div>
       </div>
@@ -331,35 +355,37 @@ function SidebarItem({ icon: Icon, label, active = false, onClick, badge, tag, v
     <div 
       onClick={onClick} 
       className={cn(
-        "flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all group relative",
+        "flex items-center justify-between px-3 py-2 rounded-sm cursor-pointer transition-colors text-xs relative",
         active 
-          ? (variant === "admin" ? "bg-rose-500/10 text-rose-500 font-bold" : "bg-primary/10 text-primary font-bold") 
-          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+          ? (variant === "admin" 
+              ? "bg-rose-700 text-white font-bold shadow-sm" 
+              : "bg-[#111111] text-white font-bold shadow-sm") 
+          : "text-[#666666] hover:bg-[#FAF9F6] hover:text-[#111111]"
       )}
     >
-      <div className="flex items-center gap-3">
-        <Icon className={cn("w-4.5 h-4.5 transition-colors", active ? (variant === "admin" ? "text-rose-500" : "text-primary") : "text-muted-foreground group-hover:text-foreground")} />
-        <span className="text-xs font-black uppercase italic tracking-tight">{label}</span>
+      <div className="flex items-center gap-2.5">
+        <Icon className={cn("w-4 h-4 shrink-0 transition-colors", active ? "text-white" : "text-[#888888]")} />
+        <span className="uppercase tracking-[0.08em] font-medium leading-none">{label}</span>
       </div>
       
       {/* Right widgets (badge or tag) */}
       <div className="flex items-center gap-1.5 z-10">
         {tag && (
-          <span className="text-[7px] font-black px-1.5 py-0.5 bg-primary/20 text-primary rounded border border-primary/20 uppercase tracking-widest">
+          <span className={cn(
+            "text-[8px] font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wider",
+            active 
+              ? "bg-white/20 text-white border border-white/20" 
+              : "bg-[#F4F1EA] text-[#666666] border border-[#DFDAD0]"
+          )}>
             {tag}
           </span>
         )}
         {badge !== undefined && (
-          <span className="bg-primary text-primary-foreground text-[8px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center shadow-lg">
+          <span className="bg-[#F4B728] text-black text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
             {badge}
           </span>
         )}
       </div>
-
-      {/* Active left indicator bar */}
-      {active && (
-        <div className={cn("w-1 h-5 rounded-full absolute left-0 top-1/2 -translate-y-1/2", variant === "admin" ? "bg-rose-500" : "bg-primary")} />
-      )}
     </div>
   );
 }
@@ -376,11 +402,13 @@ function SubmenuItem({ label, active = false, onClick }: SubmenuItemProps) {
     <div 
       onClick={onClick} 
       className={cn(
-        "flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer transition-all text-[11px] font-bold uppercase tracking-wider group relative",
-        active ? "text-primary font-extrabold" : "text-muted-foreground/85 hover:text-foreground"
+        "flex items-center gap-2 px-2.5 py-1.5 rounded-sm cursor-pointer transition-colors text-[11px] font-medium uppercase tracking-wider",
+        active 
+          ? "text-[#111111] font-bold bg-[#FAF9F6]" 
+          : "text-[#777777] hover:text-[#111111] hover:bg-[#FAF9F6]"
       )}
     >
-      <Circle className={cn("w-1.5 h-1.5 transition-all", active ? "text-primary fill-primary scale-110" : "text-muted-foreground/40 group-hover:text-muted-foreground")} />
+      <Circle className={cn("w-1 h-1 shrink-0", active ? "text-[#111111] fill-[#111111]" : "text-[#BBBBBB]")} />
       <span>{label}</span>
     </div>
   );
