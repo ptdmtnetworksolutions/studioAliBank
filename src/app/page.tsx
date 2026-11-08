@@ -435,7 +435,7 @@ function DashboardContent() {
   const isExplicitLanding = searchParams.get('view') === 'landing';
   const hasCookie = typeof document !== 'undefined' && document.cookie.includes('alibank_session=1');
   const hasStored = typeof window !== 'undefined' && !!localStorage.getItem('alibank_user');
-  const isUnauthenticated = !userLoading && !user && !hasCookie && !hasStored;
+  const isUnauthenticated = (!user && !userLoading) || (!hasCookie && !hasStored);
 
   if (isExplicitLanding || isUnauthenticated) {
     return <LandingPage />;

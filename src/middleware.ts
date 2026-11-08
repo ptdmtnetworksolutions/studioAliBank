@@ -15,18 +15,18 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Jika pengunjung membuka halaman /tor-required secara langsung (atau dari cache lama), arahkan langsung ke beranda / login
+  // 2. Jika pengunjung membuka halaman /tor-required secara langsung (atau dari cache lama), arahkan langsung ke beranda
   if (pathname === "/tor-required" && searchParams.get("simulate_block") !== "1") {
-    const hasSession = req.cookies.has("alibank_session");
-    return NextResponse.redirect(new URL(hasSession ? "/" : "/login", req.url));
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
   // 3. Allow native Android app via User-Agent
   const userAgent = req.headers.get("user-agent") || "";
   const isNativeApp = userAgent.includes("AliBank-Android") || req.headers.get("x-requested-with") === "com.alibank.pos";
 
-  // 4. Cegah Flash of Dashboard: User belum login langsung dialihkan ke /login di level Edge
-  if (pathname === "/" || pathname === "/m/home") {
+  // 4. Khusus rute private mobile (/m/home): Jika user belum login, arahkan ke /login
+  // Catatan: Rute beranda utama ("/") dibiarkan terbuka karena menampilkan Landing Page resmi bagi pengunjung publik/belum login.
+  if (pathname === "/m/home") {
     const hasSession = req.cookies.has("alibank_session");
     if (!hasSession) {
       return NextResponse.redirect(new URL("/login", req.url));

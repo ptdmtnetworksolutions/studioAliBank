@@ -295,7 +295,12 @@ export async function proxyGetDoc<T = any>(path: string): Promise<{
     }
 
     if (res.status === 401 && !json?.newIdToken) {
-      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+      const publicPaths = ['/login', '/register', '/about'];
+      const isPublicPath = typeof window !== 'undefined' && (
+        window.location.pathname === '/' ||
+        publicPaths.some(p => window.location.pathname.startsWith(p))
+      );
+      if (typeof window !== 'undefined' && !isPublicPath) {
         clearAlibankAuthSession();
         window.location.replace('/login');
       }

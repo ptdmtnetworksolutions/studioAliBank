@@ -220,6 +220,20 @@ function AdminContent() {
     setIsMobileMenuOpen(false);
   };
 
+  const handleAdminLogout = async () => {
+    try {
+      const { clearAlibankAuthSession } = await import('@/lib/firestore-proxy-client');
+      clearAlibankAuthSession();
+      if (auth) {
+        await auth.signOut().catch(() => {});
+      }
+      router.replace('/');
+    } catch (e) {
+      console.error('Logout error:', e);
+      router.replace('/');
+    }
+  };
+
   if (userLoading || !user || !isAuthorized) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
 
   const NavItems = () => (
@@ -257,7 +271,7 @@ function AdminContent() {
                 {theme === 'dark' ? <Sun className="w-4 h-4 text-primary" /> : <Moon className="w-4 h-4" />}
               </button>
             </div>
-            <SidebarItem icon={LogOut} label="Keluar" className="text-rose-500" onClick={() => auth?.signOut()} />
+            <SidebarItem icon={LogOut} label="Keluar" className="text-rose-500" onClick={handleAdminLogout} />
           </div>
         </div>
       </aside>
@@ -283,7 +297,7 @@ function AdminContent() {
                   <NavItems />
                 </nav>
                 <div className="p-6 border-t border-border mt-auto">
-                   <SidebarItem icon={LogOut} label="Keluar" className="text-rose-500" onClick={() => auth?.signOut()} />
+                   <SidebarItem icon={LogOut} label="Keluar" className="text-rose-500" onClick={handleAdminLogout} />
                 </div>
               </SheetContent>
             </Sheet>

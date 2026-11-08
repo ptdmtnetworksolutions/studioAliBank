@@ -748,7 +748,14 @@ function MoreView({ products, liquidity }: any) {
         <MenuToolItem icon={Box} label="Market Inventory" sub="Deploy Global Infrastructure" color="bg-blue-500/10 text-blue-500" onClick={() => setView('inventory')} />
         <MenuToolItem icon={FileText} label="System Audit Ledger" sub="Real-Time Operation History" color="bg-accent/10 text-accent" onClick={() => {}} />
         <MenuToolItem icon={Settings} label="Interface Settings" sub="UI/UX & Security Policy" color="bg-muted text-muted-foreground" onClick={() => {}} />
-        <MenuToolItem icon={LogOut} label="Log Out Terminal" sub="Kill active admin session" color="bg-rose-500/10 text-rose-500" onClick={() => auth?.signOut()} />
+        <MenuToolItem icon={LogOut} label="Log Out Terminal" sub="Kill active admin session" color="bg-rose-500/10 text-rose-500" onClick={async () => {
+          const { clearAlibankAuthSession } = await import('@/lib/firestore-proxy-client');
+          clearAlibankAuthSession();
+          if (auth) {
+            await auth.signOut().catch(() => {});
+          }
+          router.replace('/');
+        }} />
       </div>
     </div>
   );

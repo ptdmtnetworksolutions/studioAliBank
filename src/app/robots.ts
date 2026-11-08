@@ -17,3 +17,4 @@ export default function robots(): MetadataRoute.Robots {
     sitemap: 'https://alibank.tarroz.com/sitemap.xml',
   };
 }
+

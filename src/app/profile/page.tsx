@@ -283,7 +283,7 @@ export default function ProfilePage() {
       if (auth) {
         await signOut(auth).catch(() => {});
       }
-      router.replace('/login');
+      router.replace('/');
       toast({ title: "Berhasil Keluar", description: "Anda telah keluar dari akun AliBank." });
     } catch (error) {
       console.error("Logout error:", error);

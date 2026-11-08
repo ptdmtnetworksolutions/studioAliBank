@@ -1028,3 +1028,4 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
     </div>
   );
 }
+
