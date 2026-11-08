@@ -75,9 +75,9 @@ export function setLocalDoc(docPath: string, data: Record<string, any>, merge = 
   const clean = normalizeDocPath(docPath);
   const id = clean.split('/').pop() || '';
   const store = loadStore();
-  const existing = store.docs[clean]?.data || {};
+  const existing: Record<string, any> = store.docs[clean]?.data || {};
   const terminalStatuses = ['rejected', 'approved', 'verified', 'completed'];
-  const nextData = merge ? { ...existing, ...data, id } : { ...data, id };
+  const nextData: Record<string, any> = merge ? { ...existing, ...data, id } : { ...data, id };
   if (
     existing.status &&
     terminalStatuses.includes(String(existing.status).toLowerCase()) &&
@@ -102,8 +102,8 @@ export function setLocalDocsBatch(entries: Array<{ path: string; data: Record<st
     const clean = normalizeDocPath(item.path);
     if (!clean || !item.data) continue;
     const id = clean.split('/').pop() || '';
-    const existing = store.docs[clean]?.data || {};
-    const nextData = merge ? { ...existing, ...item.data, id } : { ...item.data, id };
+    const existing: Record<string, any> = store.docs[clean]?.data || {};
+    const nextData: Record<string, any> = merge ? { ...existing, ...item.data, id } : { ...item.data, id };
     if (
       existing.status &&
       terminalStatuses.includes(String(existing.status).toLowerCase()) &&
