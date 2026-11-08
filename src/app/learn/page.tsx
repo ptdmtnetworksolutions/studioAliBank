@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, Suspense } from "react";
 import NextLink from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -176,7 +176,7 @@ function FormattedArticleContent({ text }: { text: string }) {
   return <div className="space-y-1 text-left">{elements}</div>;
 }
 
-export default function LearnPage() {
+function LearnContent() {
   const searchParams = useSearchParams();
   const initialCategory = (searchParams.get("category") as any) || "all";
   
@@ -1532,6 +1532,22 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function LearnPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
+          <div className="w-9 h-9 rounded-full bg-[#F4B728] flex items-center justify-center font-bold text-black text-lg animate-pulse">
+            A
+          </div>
+        </div>
+      }
+    >
+      <LearnContent />
+    </Suspense>
   );
 }
 

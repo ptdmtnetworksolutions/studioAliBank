@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, Suspense } from "react";
 import NextLink from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -159,7 +159,7 @@ function FormattedContent({ text }: { text: string }) {
   return <div className="space-y-1 text-left">{elements}</div>;
 }
 
-export default function EcosystemPage() {
+function EcosystemContent() {
   const searchParams = useSearchParams();
   const initialCategory = (searchParams.get("category") as any) || "all";
 
@@ -1360,5 +1360,21 @@ Setiap transaksi dilindungi oleh sistem escrow otomatis di buku besar AliBank un
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function EcosystemPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
+          <div className="w-9 h-9 rounded-full bg-[#F4B728] flex items-center justify-center font-bold text-black text-lg animate-pulse">
+            A
+          </div>
+        </div>
+      }
+    >
+      <EcosystemContent />
+    </Suspense>
   );
 }

@@ -1272,3 +1272,4 @@ AliBank mengadopsi standar internasional BIP-39 dan BIP-44:
     </div>
   );
 }
+
