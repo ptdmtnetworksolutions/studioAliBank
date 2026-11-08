@@ -215,10 +215,34 @@ export function reviveFirestoreData(val: any): any {
 }
 
 const clientDocCache = new Map<string, { data: any; updatedAt: number; fromLocalWrite?: boolean }>();
+const LOCAL_OVERRIDES_KEY = 'alibank_doc_overrides_v1';
+
+function loadPersistedOverrides(): Record<string, { data: any; updatedAt: number }> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(LOCAL_OVERRIDES_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) || {};
+  } catch {
+    return {};
+  }
+}
+
+function savePersistedOverride(cleanPath: string, data: any) {
+  if (typeof window === 'undefined') return;
+  try {
+    const all = loadPersistedOverrides();
+    all[cleanPath] = { data, updatedAt: Date.now() };
+    localStorage.setItem(LOCAL_OVERRIDES_KEY, JSON.stringify(all));
+  } catch {}
+}
 
 export function setCachedClientDoc(path: string, data: any, fromLocalWrite = false) {
   const clean = String(path || '').replace(/^\/+|\/+$/g, '');
   if (!clean || !data || typeof data !== 'object') return;
+  if (fromLocalWrite) {
+    savePersistedOverride(clean, data);
+  }
   const existing = clientDocCache.get(clean);
   if (!fromLocalWrite && existing?.fromLocalWrite && Date.now() - existing.updatedAt < 10 * 60 * 1000) {
     // Keep local write changes on top of older snapshot data
@@ -231,7 +255,15 @@ export function setCachedClientDoc(path: string, data: any, fromLocalWrite = fal
 
 export function getCachedClientDoc(path: string): any | null {
   const clean = String(path || '').replace(/^\/+|\/+$/g, '');
-  return clientDocCache.get(clean)?.data || null;
+  const inMem = clientDocCache.get(clean)?.data;
+  if (inMem) return inMem;
+  const persisted = loadPersistedOverrides()[clean];
+  if (persisted?.data) {
+    const revived = reviveFirestoreData(persisted.data);
+    clientDocCache.set(clean, { data: revived, updatedAt: persisted.updatedAt || Date.now(), fromLocalWrite: true });
+    return revived;
+  }
+  return null;
 }
 
 export async function proxyGetDoc<T = any>(path: string): Promise<{
@@ -471,7 +503,33 @@ export async function proxyGetCollection<T = any>(refOrQuery: any): Promise<{
       return { ok: false, docs: [], status: 429 };
     }
 
-    const docs = json.docs.map((d: any) => reviveFirestoreData(d));
+    const overrides = loadPersistedOverrides();
+    const cleanColPath = descriptor.path ? String(descriptor.path).replace(/^\/+|\/+$/g, '') : null;
+
+    let docs = json.docs.map((d: any) => {
+      const revived = reviveFirestoreData(d);
+      if (cleanColPath && revived?.id) {
+        const docKey = `${cleanColPath}/${revived.id}`;
+        const localOverride = overrides[docKey]?.data || clientDocCache.get(docKey)?.data;
+        if (localOverride) {
+          return { ...revived, ...reviveFirestoreData(localOverride), id: revived.id };
+        }
+      }
+      return revived;
+    });
+
+    if (Array.isArray(descriptor.filters) && descriptor.filters.length > 0) {
+      docs = docs.filter((doc: any) =>
+        descriptor.filters.every((f) => {
+          const actual = doc?.[f.field];
+          const expected = f.value;
+          if (f.op === '==' || f.op === 'EQUAL') return actual === expected;
+          if (f.op === '!=' || f.op === 'NOT_EQUAL') return actual !== expected;
+          return true;
+        })
+      );
+    }
+
     return {
       ok: true,
       docs,

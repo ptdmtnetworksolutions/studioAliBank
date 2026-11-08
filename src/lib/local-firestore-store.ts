@@ -76,7 +76,15 @@ export function setLocalDoc(docPath: string, data: Record<string, any>, merge = 
   const id = clean.split('/').pop() || '';
   const store = loadStore();
   const existing = store.docs[clean]?.data || {};
+  const terminalStatuses = ['rejected', 'approved', 'verified', 'completed'];
   const nextData = merge ? { ...existing, ...data, id } : { ...data, id };
+  if (
+    existing.status &&
+    terminalStatuses.includes(String(existing.status).toLowerCase()) &&
+    String(data?.status || '').toLowerCase() === 'pending'
+  ) {
+    nextData.status = existing.status;
+  }
   store.docs[clean] = {
     data: nextData,
     updatedAt: Date.now(),
@@ -89,13 +97,22 @@ export function setLocalDocsBatch(entries: Array<{ path: string; data: Record<st
   if (!Array.isArray(entries) || entries.length === 0) return;
   const store = loadStore();
   const now = Date.now();
+  const terminalStatuses = ['rejected', 'approved', 'verified', 'completed'];
   for (const item of entries) {
     const clean = normalizeDocPath(item.path);
     if (!clean || !item.data) continue;
     const id = clean.split('/').pop() || '';
     const existing = store.docs[clean]?.data || {};
+    const nextData = merge ? { ...existing, ...item.data, id } : { ...item.data, id };
+    if (
+      existing.status &&
+      terminalStatuses.includes(String(existing.status).toLowerCase()) &&
+      String(item.data?.status || '').toLowerCase() === 'pending'
+    ) {
+      nextData.status = existing.status;
+    }
     store.docs[clean] = {
-      data: merge ? { ...existing, ...item.data, id } : { ...item.data, id },
+      data: nextData,
       updatedAt: now,
     };
   }

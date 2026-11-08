@@ -65,7 +65,7 @@
         "lastClaimedTimestamp": 1794057520,
         "id": "IJOuQpjEOMgvlYfzvQ1yfp976Oa2"
       },
-      "updatedAt": 1794078107855
+      "updatedAt": 1794091523919
     },
     "users/IJOuQpjEOMgvlYfzvQ1yfp976Oa2/transactions/6nTm824a2gyIr92lZLfN": {
       "data": {
@@ -104,7 +104,7 @@
         "tradeXGrossVolumeIdr": 1170022,
         "id": "liquidity"
       },
-      "updatedAt": 1794078107747
+      "updatedAt": 1794091522920
     },
     "marketplace/item-1774874319014": {
       "data": {
@@ -262,7 +262,7 @@
         },
         "id": "4U1skY7fh4Sx4cR9HsnUKTryrF22"
       },
-      "updatedAt": 1794078107854
+      "updatedAt": 1794091523919
     },
     "users/80wLMTfQUEeqQ3toG8OM88DZqGv1": {
       "data": {
@@ -291,7 +291,7 @@
         "tier": "Premium Verified",
         "id": "80wLMTfQUEeqQ3toG8OM88DZqGv1"
       },
-      "updatedAt": 1794078107854
+      "updatedAt": 1794091523919
     },
     "users/Bys5IUBfycVzd99obtAKEkluz5Y2": {
       "data": {
@@ -333,7 +333,7 @@
         "securityLockReason": "Suspended by admin: Reconciliation manual audit flag.",
         "id": "Bys5IUBfycVzd99obtAKEkluz5Y2"
       },
-      "updatedAt": 1794078107855
+      "updatedAt": 1794091523919
     },
     "users/CjQm8mNGo3coofIvAArmdzj7QzE2": {
       "data": {
@@ -362,7 +362,7 @@
         },
         "id": "CjQm8mNGo3coofIvAArmdzj7QzE2"
       },
-      "updatedAt": 1794078107855
+      "updatedAt": 1794091523919
     },
     "users/PMelVJ8N0QSfCoGQLcDDi3RS89z1": {
       "data": {
@@ -430,7 +430,7 @@
         "lastSyncedBlockPolygon": 96900679,
         "id": "PMelVJ8N0QSfCoGQLcDDi3RS89z1"
       },
-      "updatedAt": 1794078107855
+      "updatedAt": 1794091523919
     },
     "users/RyTocu55cyaVQ2jQ9RrTnobQi9r2": {
       "data": {
@@ -459,7 +459,7 @@
         },
         "id": "RyTocu55cyaVQ2jQ9RrTnobQi9r2"
       },
-      "updatedAt": 1794078107855
+      "updatedAt": 1794091523919
     },
     "users/UfZyz9jxpdfV95dXzvZWz7MymFJ3": {
       "data": {
@@ -487,7 +487,7 @@
         "btcAddress": "bc1qxz4ov9ea1kt2bmv1zdkwrbzp0aopmsloy0wnyi",
         "id": "UfZyz9jxpdfV95dXzvZWz7MymFJ3"
       },
-      "updatedAt": 1794078107856
+      "updatedAt": 1794091523919
     },
     "users/Y6sEzvQ767NHxuwwTVxRwrGf5Wy1": {
       "data": {
@@ -519,7 +519,7 @@
         "securityLockReason": "Auto-Suspended: Ledger reconciliation discrepancy detected.",
         "id": "Y6sEzvQ767NHxuwwTVxRwrGf5Wy1"
       },
-      "updatedAt": 1794078107856
+      "updatedAt": 1794091523919
     },
     "users/Z1ZovFjSt7QdkabPmyi7uewd44v1": {
       "data": {
@@ -559,7 +559,7 @@
         },
         "id": "Z1ZovFjSt7QdkabPmyi7uewd44v1"
       },
-      "updatedAt": 1794078107856
+      "updatedAt": 1794091523919
     },
     "users/ajO0RqP1C8cSSxBEcf3dfEDiyNS2": {
       "data": {
@@ -607,8 +607,8 @@
           }
         ],
         "syncedOnChainBalances": {
-          "USDT": 0,
-          "ALX": 35100
+          "ALX": 35100,
+          "USDT": 0
         },
         "isSuspended": true,
         "securityLockReason": "Suspended by admin: Reconciliation manual audit flag.",
@@ -617,13 +617,13 @@
         "cryptoBalances": {
           "ETH": 0,
           "USDT": 0,
-          "BTC": 0,
-          "ALX": 30034.396919711595
+          "ALX": 29614.39271971159,
+          "BTC": 0
         },
         "lastSyncedBlockPolygon": 96912120,
         "id": "ajO0RqP1C8cSSxBEcf3dfEDiyNS2"
       },
-      "updatedAt": 1794078107856
+      "updatedAt": 1794100861700
     },
     "users/dmAeXCdtFvfdyx4wUVj0wkH1jJh1": {
       "data": {
@@ -707,7 +707,7 @@
         "lastSyncedBlockPolygon": 96912912,
         "id": "dmAeXCdtFvfdyx4wUVj0wkH1jJh1"
       },
-      "updatedAt": 1794078107856
+      "updatedAt": 1794091523919
     },
     "users/e5tJ7nSy0QSCtC1ymagCvzeYbBr1": {
       "data": {
@@ -736,7 +736,7 @@
         },
         "id": "e5tJ7nSy0QSCtC1ymagCvzeYbBr1"
       },
-      "updatedAt": 1794078107857
+      "updatedAt": 1794091523919
     },
     "users/j4nqCVa06VT6YeQQ13OLzrQ38xD3": {
       "data": {
@@ -764,7 +764,7 @@
         "btcAddress": "bc1qym9lfmy992avacjvz3yzh4eqkt9o9iocl2tgsm",
         "id": "j4nqCVa06VT6YeQQ13OLzrQ38xD3"
       },
-      "updatedAt": 1794078107857
+      "updatedAt": 1794091523919
     },
     "users/l1Z7maVDL1ZrU4SBj9SSi88fnzE3": {
       "data": {
@@ -832,7 +832,7 @@
         "lastSyncedBlockPolygon": 96905819,
         "id": "l1Z7maVDL1ZrU4SBj9SSi88fnzE3"
       },
-      "updatedAt": 1794078107857
+      "updatedAt": 1794091523919
     },
     "users/mvfFqOMY7nPcBAkrPJpKCuA9rTr2": {
       "data": {
@@ -866,7 +866,7 @@
         "lastSyncedBlockPolygon": 96782388,
         "id": "mvfFqOMY7nPcBAkrPJpKCuA9rTr2"
       },
-      "updatedAt": 1794078107857
+      "updatedAt": 1794091523919
     },
     "users/o7FyXUGET0XEcClSVUIEYYtg2ZF2": {
       "data": {
@@ -896,7 +896,7 @@
         "lastSyncedBlockPolygon": 88730545,
         "id": "o7FyXUGET0XEcClSVUIEYYtg2ZF2"
       },
-      "updatedAt": 1794078107857
+      "updatedAt": 1794091523919
     },
     "users/oU3atkl2qNQcAI6EW9xondNWCcn1": {
       "data": {
@@ -944,7 +944,7 @@
         "lastSyncedBlockPolygon": 96714799,
         "id": "oU3atkl2qNQcAI6EW9xondNWCcn1"
       },
-      "updatedAt": 1794078107858
+      "updatedAt": 1794091523919
     },
     "users/ocilQPpGfkTgm7a6gmiWpr3AzIz1": {
       "data": {
@@ -1012,7 +1012,7 @@
         "lastSyncedBlockPolygon": 96903613,
         "id": "ocilQPpGfkTgm7a6gmiWpr3AzIz1"
       },
-      "updatedAt": 1794078107858
+      "updatedAt": 1794091523919
     },
     "users/sKqOEBbKMSh2CHBaX6SRSpL5S7G3": {
       "data": {
@@ -1043,25 +1043,36 @@
         },
         "id": "sKqOEBbKMSh2CHBaX6SRSpL5S7G3"
       },
-      "updatedAt": 1794078107858
+      "updatedAt": 1794091523919
     },
     "users/tJAwORDLDxRNZlEdjlGKaUESyD43": {
       "data": {
+        "btcAddress": "bc1qpeea26hchrrmz3v4ebuu964qtvjmbv624kv42v",
+        "accountNumber": "884679658410",
+        "syncedOnChainBalances": {
+          "ALX": 35000,
+          "USDT": 0
+        },
+        "uid": "tJAwORDLDxRNZlEdjlGKaUESyD43",
+        "totalBalance": 30389000,
+        "walletAddress": "0xef6598eF2641d6baB367Ba5ba23CefC1e9F98e33",
+        "cryptoBalances": {
+          "ALX": 35040.54908459875,
+          "USDT": 0,
+          "BTC": 0,
+          "ETH": 0
+        },
+        "lastSyncedBlockPolygon": 96912900,
+        "name": "Dwi Prakasa Wira Utama",
+        "phone": "082120974745",
+        "tier": "Restructured (Legal)",
         "createdAt": {
           "__type": "timestamp",
           "seconds": 1793293229,
           "nanoseconds": 75000000,
           "iso": "2026-10-29T17:00:29.075Z"
         },
-        "btcAddress": "bc1qpeea26hchrrmz3v4ebuu964qtvjmbv624kv42v",
-        "walletAddress": "0xef6598eF2641d6baB367Ba5ba23CefC1e9F98e33",
         "email": "backupwirautama@gmail.com",
-        "accountNumber": "884679658410",
-        "phone": "082120974745",
-        "savings": 0,
-        "uid": "tJAwORDLDxRNZlEdjlGKaUESyD43",
-        "name": "Dwi Prakasa Wira Utama",
-        "kycStatus": "verified",
         "withdrawalMethods": [
           {
             "id": "WDM-1793348899994",
@@ -1072,22 +1083,11 @@
             "createdAt": "2026-10-30T08:28:19.994Z"
           }
         ],
-        "syncedOnChainBalances": {
-          "ALX": 35000,
-          "USDT": 0
-        },
-        "tier": "Restructured (Legal)",
-        "totalBalance": 30389000,
-        "cryptoBalances": {
-          "BTC": 0,
-          "ETH": 0,
-          "USDT": 0,
-          "ALX": 35040.54908459875
-        },
-        "lastSyncedBlockPolygon": 96912900,
+        "kycStatus": "verified",
+        "savings": 0,
         "id": "tJAwORDLDxRNZlEdjlGKaUESyD43"
       },
-      "updatedAt": 1794078107858
+      "updatedAt": 1794100895516
     },
     "users/y0npCcQnN1abTy1DG7XVj7uARD32": {
       "data": {
@@ -1115,7 +1115,7 @@
         "walletAddress": "0xC600b089A62c06E13B656fDb6E99318901B5E5cA",
         "id": "y0npCcQnN1abTy1DG7XVj7uARD32"
       },
-      "updatedAt": 1794078107859
+      "updatedAt": 1794091523919
     },
     "system/audit/global_transactions/yjc50jK0zYjp70XOGVHy": {
       "data": {
@@ -3014,14 +3014,14 @@
     "topup_requests/5CucDDvd76Ln2Paad48R": {
       "data": {
         "bankDetails": {
-          "accountNumber": "428601000001567",
-          "accountName": "NANA NATIJATUL ULFAH",
+          "bank": "bri",
           "bankName": "Bank Rakyat Indonesia (BRI)",
-          "bank": "bri"
+          "accountNumber": "428601000001567",
+          "accountName": "NANA NATIJATUL ULFAH"
         },
         "userEmail": "alloexpay@gmail.com",
         "amount": 3000000,
-        "status": "pending",
+        "status": "rejected",
         "asset": "IDR",
         "createdAt": {
           "__type": "timestamp",
@@ -3034,9 +3034,16 @@
         "userName": "NANA NATIJATUL ULFAH",
         "userId": "ajO0RqP1C8cSSxBEcf3dfEDiyNS2",
         "txDocId": "Bxmm0jPSYdMtFM5jADsV",
-        "id": "5CucDDvd76Ln2Paad48R"
+        "id": "5CucDDvd76Ln2Paad48R",
+        "rejectionReason": "Ketidaksesuaian Alur Transaksi / Saldo Belum Dikonversi ke IDR: Pengajuan penarikan dana IDR mendahului konfirmasi settlement dana di sistem, atau aset yang masuk ditukarkan ke aset kripto lain (BTC) bukan ke saldo IDR.",
+        "rejectedAt": {
+          "__type": "timestamp",
+          "seconds": 1794100862,
+          "nanoseconds": 800000000,
+          "iso": "2026-11-08T01:21:02.800Z"
+        }
       },
-      "updatedAt": 1794078107963
+      "updatedAt": 1794100862856
     },
     "topup_requests/6UnyVVKzIdX9eaZXC6fI": {
       "data": {
@@ -3158,7 +3165,7 @@
     },
     "topup_requests/WVv2kpbIef2XMRT7zMnV": {
       "data": {
-        "status": "pending",
+        "status": "rejected",
         "totalToTransfer": 39240000,
         "asset": "IDR",
         "userName": "Dwi Prakasa Wira Utama",
@@ -3172,10 +3179,10 @@
         "userId": "tJAwORDLDxRNZlEdjlGKaUESyD43",
         "type": "withdraw",
         "bankDetails": {
-          "bankName": "Bank Negara Indonesia (BNI)",
-          "bank": "bni",
+          "accountNumber": "1944656280",
           "accountName": "DWI PRAKARSA WIRA UTAMA",
-          "accountNumber": "1944656280"
+          "bank": "bni",
+          "bankName": "Bank Negara Indonesia (BNI)"
         },
         "createdAt": {
           "__type": "timestamp",
@@ -3185,9 +3192,16 @@
         },
         "amount": 39240000,
         "userEmail": "backupwirautama@gmail.com",
-        "id": "WVv2kpbIef2XMRT7zMnV"
+        "id": "WVv2kpbIef2XMRT7zMnV",
+        "rejectionReason": "Underlying Aset Belum Final / Settlement Kliring (T+1): Aset kripto atau dana setoran belum selesai melalui masa kliring settlement sistem (Holding Period T+1) atau konfirmasi on-chain belum final.",
+        "rejectedAt": {
+          "__type": "timestamp",
+          "seconds": 1794100896,
+          "nanoseconds": 524000000,
+          "iso": "2026-11-08T01:21:36.524Z"
+        }
       },
-      "updatedAt": 1794078107969
+      "updatedAt": 1794100896603
     },
     "topup_requests/WvL7SRhY8n1a6DGPevkx": {
       "data": {
@@ -3227,12 +3241,12 @@
         "bankDetails": {
           "accountName": "WIR",
           "bankName": "Bank Negara Indonesia (BNI)",
-          "accountNumber": "1944656280",
-          "bank": "bni"
+          "bank": "bni",
+          "accountNumber": "1944656280"
         },
         "asset": "IDR",
         "type": "withdraw",
-        "status": "pending",
+        "status": "rejected",
         "totalToTransfer": 39240000,
         "timestamp": {
           "__type": "timestamp",
@@ -3241,9 +3255,16 @@
           "iso": "2026-11-07T14:31:34.363Z"
         },
         "txDocId": "wXhq4UWBVKvxv8mBxa5I",
-        "id": "kyL75Kmi8S0MD7lvZAsm"
+        "id": "kyL75Kmi8S0MD7lvZAsm",
+        "rejectionReason": "Nama Pemilik Rekening Bank Tujuan Berbeda: Nama pemilik pada rekening bank tujuan tidak cocok dengan data identitas pemilik akun AliBank.",
+        "rejectedAt": {
+          "__type": "timestamp",
+          "seconds": 1794100871,
+          "nanoseconds": 507000000,
+          "iso": "2026-11-08T01:21:11.507Z"
+        }
       },
-      "updatedAt": 1794078107971
+      "updatedAt": 1794100871570
     },
     "topup_requests/x30jEA15ZB8xg2sL8PZT": {
       "data": {
@@ -3267,6 +3288,171 @@
         "id": "x30jEA15ZB8xg2sL8PZT"
       },
       "updatedAt": 1794078107972
+    },
+    "users/ajO0RqP1C8cSSxBEcf3dfEDiyNS2/transactions/Bxmm0jPSYdMtFM5jADsV": {
+      "data": {
+        "status": "rejected",
+        "category": "Withdraw",
+        "description": "Penarikan Ditolak: Ketidaksesuaian Alur Transaksi / Saldo Belum Dikonversi ke IDR: Pengajuan penarikan dana IDR mendahului konfirmasi settlement dana di sistem, atau aset yang masuk ditukarkan ke aset kripto lain (BTC) bukan ke saldo IDR. (Dana Direfund)",
+        "id": "Bxmm0jPSYdMtFM5jADsV",
+        "type": "expense",
+        "asset": "IDR",
+        "date": "2026-10-30T15:38:55.494Z",
+        "timestamp": {
+          "__type": "timestamp",
+          "seconds": 1793374735,
+          "nanoseconds": 972000000,
+          "iso": "2026-10-30T15:38:55.972Z"
+        },
+        "bankDetails": {
+          "bankName": "Bank Rakyat Indonesia (BRI)",
+          "bank": "bri",
+          "accountName": "NANA NATIJATUL ULFAH",
+          "accountNumber": "428601000001567"
+        },
+        "amount": 3000000
+      },
+      "updatedAt": 1794100861986
+    },
+    "users/ajO0RqP1C8cSSxBEcf3dfEDiyNS2/notifications/OgHgSHFCscUdjBexTaph": {
+      "data": {
+        "type": "error",
+        "read": false,
+        "rejectionReason": "Ketidaksesuaian Alur Transaksi / Saldo Belum Dikonversi ke IDR: Pengajuan penarikan dana IDR mendahului konfirmasi settlement dana di sistem, atau aset yang masuk ditukarkan ke aset kripto lain (BTC) bukan ke saldo IDR.",
+        "message": "Permintaan penarikan Rp 3.000.000 ke Bank Rakyat Indonesia (BRI) (428601000001567) tidak dapat disetujui kliring. Alasan: \"Ketidaksesuaian Alur Transaksi / Saldo Belum Dikonversi ke IDR: Pengajuan penarikan dana IDR mendahului konfirmasi settlement dana di sistem, atau aset yang masuk ditukarkan ke aset kripto lain (BTC) bukan ke saldo IDR.\". Seluruh saldo telah dikembalikan utuh ke saldo utama AliBank Anda.",
+        "createdAt": "2026-11-08T01:21:02.012Z",
+        "title": "Penarikan Ditolak & Saldo Direfund",
+        "id": "OgHgSHFCscUdjBexTaph"
+      },
+      "updatedAt": 1794100862294
+    },
+    "system/audit/global_transactions/JRmhmyEFNyfp2VGunlV1": {
+      "data": {
+        "description": "Admin menolak penarikan NANA NATIJATUL ULFAH [Alasan: Ketidaksesuaian Alur Transaksi / Saldo Belum Dikonversi ke IDR: Pengajuan penarikan dana IDR mendahului konfirmasi settlement dana di sistem, atau aset yang masuk ditukarkan ke aset kripto lain (BTC) bukan ke saldo IDR.]. Saldo Rp 3.000.000 direfund.",
+        "userEmail": "alloexpay@gmail.com",
+        "timestamp": {
+          "__type": "timestamp",
+          "seconds": 1794100862,
+          "nanoseconds": 506000000,
+          "iso": "2026-11-08T01:21:02.506Z"
+        },
+        "amountIdr": 3000000,
+        "status": "dibatalkan",
+        "id": "JRmhmyEFNyfp2VGunlV1",
+        "rejectionReason": "Ketidaksesuaian Alur Transaksi / Saldo Belum Dikonversi ke IDR: Pengajuan penarikan dana IDR mendahului konfirmasi settlement dana di sistem, atau aset yang masuk ditukarkan ke aset kripto lain (BTC) bukan ke saldo IDR.",
+        "category": "Refund Penarikan"
+      },
+      "updatedAt": 1794100862569
+    },
+    "users/tJAwORDLDxRNZlEdjlGKaUESyD43/transactions/wXhq4UWBVKvxv8mBxa5I": {
+      "data": {
+        "status": "rejected",
+        "category": "Withdraw",
+        "description": "Penarikan Ditolak: Nama Pemilik Rekening Bank Tujuan Berbeda: Nama pemilik pada rekening bank tujuan tidak cocok dengan data identitas pemilik akun AliBank. (Dana Direfund)",
+        "id": "wXhq4UWBVKvxv8mBxa5I",
+        "bankDetails": {
+          "accountName": "WIR",
+          "bankName": "Bank Negara Indonesia (BNI)",
+          "bank": "bni",
+          "accountNumber": "1944656280"
+        },
+        "amount": 39240000,
+        "type": "expense",
+        "date": "2026-11-07T14:31:14.586Z",
+        "asset": "IDR",
+        "timestamp": {
+          "__type": "timestamp",
+          "seconds": 1794061877,
+          "nanoseconds": 693000000,
+          "iso": "2026-11-07T14:31:17.693Z"
+        }
+      },
+      "updatedAt": 1794100870709
+    },
+    "users/tJAwORDLDxRNZlEdjlGKaUESyD43/notifications/81ce87vTyIJ1psUj2mJm": {
+      "data": {
+        "title": "Penarikan Ditolak & Saldo Direfund",
+        "message": "Permintaan penarikan Rp 39.240.000 ke Bank Negara Indonesia (BNI) (1944656280) tidak dapat disetujui kliring. Alasan: \"Nama Pemilik Rekening Bank Tujuan Berbeda: Nama pemilik pada rekening bank tujuan tidak cocok dengan data identitas pemilik akun AliBank.\". Seluruh saldo telah dikembalikan utuh ke saldo utama AliBank Anda.",
+        "type": "error",
+        "read": false,
+        "rejectionReason": "Nama Pemilik Rekening Bank Tujuan Berbeda: Nama pemilik pada rekening bank tujuan tidak cocok dengan data identitas pemilik akun AliBank.",
+        "createdAt": "2026-11-08T01:21:10.730Z",
+        "id": "81ce87vTyIJ1psUj2mJm"
+      },
+      "updatedAt": 1794100871038
+    },
+    "system/audit/global_transactions/G0xaRs8wUfrP6u1yDXbe": {
+      "data": {
+        "userEmail": "backupwirautama@gmail.com",
+        "category": "Refund Penarikan",
+        "description": "Admin menolak penarikan Dwi Prakasa Wira Utama [Alasan: Nama Pemilik Rekening Bank Tujuan Berbeda: Nama pemilik pada rekening bank tujuan tidak cocok dengan data identitas pemilik akun AliBank.]. Saldo Rp 39.240.000 direfund.",
+        "status": "dibatalkan",
+        "timestamp": {
+          "__type": "timestamp",
+          "seconds": 1794100871,
+          "nanoseconds": 216000000,
+          "iso": "2026-11-08T01:21:11.216Z"
+        },
+        "rejectionReason": "Nama Pemilik Rekening Bank Tujuan Berbeda: Nama pemilik pada rekening bank tujuan tidak cocok dengan data identitas pemilik akun AliBank.",
+        "id": "G0xaRs8wUfrP6u1yDXbe",
+        "amountIdr": 39240000
+      },
+      "updatedAt": 1794100871291
+    },
+    "users/tJAwORDLDxRNZlEdjlGKaUESyD43/transactions/xXofUxhrnqKnHYletZv1": {
+      "data": {
+        "status": "rejected",
+        "category": "Withdraw",
+        "description": "Penarikan Ditolak: Underlying Aset Belum Final / Settlement Kliring (T+1): Aset kripto atau dana setoran belum selesai melalui masa kliring settlement sistem (Holding Period T+1) atau konfirmasi on-chain belum final. (Dana Direfund)",
+        "id": "xXofUxhrnqKnHYletZv1",
+        "date": "2026-11-07T14:56:44.267Z",
+        "asset": "IDR",
+        "bankDetails": {
+          "accountNumber": "1944656280",
+          "accountName": "DWI PRAKARSA WIRA UTAMA",
+          "bank": "bni",
+          "bankName": "Bank Negara Indonesia (BNI)"
+        },
+        "amount": 39240000,
+        "type": "expense",
+        "timestamp": {
+          "__type": "timestamp",
+          "seconds": 1794063404,
+          "nanoseconds": 707000000,
+          "iso": "2026-11-07T14:56:44.707Z"
+        }
+      },
+      "updatedAt": 1794100895756
+    },
+    "users/tJAwORDLDxRNZlEdjlGKaUESyD43/notifications/ovv7oU6nVfI5wvvVY5FU": {
+      "data": {
+        "createdAt": "2026-11-08T01:21:35.764Z",
+        "rejectionReason": "Underlying Aset Belum Final / Settlement Kliring (T+1): Aset kripto atau dana setoran belum selesai melalui masa kliring settlement sistem (Holding Period T+1) atau konfirmasi on-chain belum final.",
+        "message": "Permintaan penarikan Rp 39.240.000 ke Bank Negara Indonesia (BNI) (1944656280) tidak dapat disetujui kliring. Alasan: \"Underlying Aset Belum Final / Settlement Kliring (T+1): Aset kripto atau dana setoran belum selesai melalui masa kliring settlement sistem (Holding Period T+1) atau konfirmasi on-chain belum final.\". Seluruh saldo telah dikembalikan utuh ke saldo utama AliBank Anda.",
+        "title": "Penarikan Ditolak & Saldo Direfund",
+        "type": "error",
+        "read": false,
+        "id": "ovv7oU6nVfI5wvvVY5FU"
+      },
+      "updatedAt": 1794100896058
+    },
+    "system/audit/global_transactions/tH7i1RQzKBKFLWZoXh7c": {
+      "data": {
+        "amountIdr": 39240000,
+        "rejectionReason": "Underlying Aset Belum Final / Settlement Kliring (T+1): Aset kripto atau dana setoran belum selesai melalui masa kliring settlement sistem (Holding Period T+1) atau konfirmasi on-chain belum final.",
+        "description": "Admin menolak penarikan Dwi Prakasa Wira Utama [Alasan: Underlying Aset Belum Final / Settlement Kliring (T+1): Aset kripto atau dana setoran belum selesai melalui masa kliring settlement sistem (Holding Period T+1) atau konfirmasi on-chain belum final.]. Saldo Rp 39.240.000 direfund.",
+        "category": "Refund Penarikan",
+        "status": "dibatalkan",
+        "id": "tH7i1RQzKBKFLWZoXh7c",
+        "userEmail": "backupwirautama@gmail.com",
+        "timestamp": {
+          "__type": "timestamp",
+          "seconds": 1794100896,
+          "nanoseconds": 261000000,
+          "iso": "2026-11-08T01:21:36.261Z"
+        }
+      },
+      "updatedAt": 1794100896334
     }
   }
 }
