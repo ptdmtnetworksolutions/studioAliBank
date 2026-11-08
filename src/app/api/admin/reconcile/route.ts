@@ -5,7 +5,9 @@ import {
   getLocalDoc,
   queryLocalCollection,
   setLocalDoc,
+  deleteLocalDoc,
   addLocalCollectionDoc,
+  RECONCILIATION_BASELINE_MS,
 } from '@/lib/local-firestore-store';
 import { AliBankVaultABI } from '@/lib/abi/AliBankVault';
 
@@ -150,6 +152,53 @@ function parseRestDoc(docObj: any): Record<string, any> {
   return data;
 }
 
+function parseRestDocWithMeta(docObj: any): { data: Record<string, any>; updateMs: number } {
+  const data = parseRestDoc(docObj);
+  const rawTime = docObj?.updateTime || docObj?.createTime;
+  const parsedMs = rawTime ? new Date(rawTime).getTime() : 0;
+  return {
+    data,
+    updateMs: isNaN(parsedMs) ? 0 : parsedMs,
+  };
+}
+
+async function restSyncDocToFirestore(docPath: string, payload: Record<string, any>, token: string): Promise<void> {
+  if (!token) return;
+  try {
+    const fields: Record<string, any> = {};
+    const masks: string[] = [];
+    for (const [k, v] of Object.entries(payload)) {
+      if (v !== undefined && k !== 'id') {
+        fields[k] = toFirestoreValue(v);
+        masks.push(`updateMask.fieldPaths=${encodeURIComponent(k)}`);
+      }
+    }
+    if (masks.length === 0) return;
+    const queryStr = `?${masks.join('&')}`;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+    await fetch(`${FIRESTORE_BASE}/${docPath}${queryStr}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ fields }),
+      cache: 'no-store',
+    });
+  } catch {}
+}
+
+async function restDeleteDocFromFirestore(docPath: string, token: string): Promise<void> {
+  if (!token) return;
+  try {
+    await fetch(`${FIRESTORE_BASE}/${docPath}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    });
+  } catch {}
+}
+
 async function restGetDoc(docPath: string, token: string): Promise<Record<string, any> | null> {
   const local = getLocalDoc(docPath);
   const headers: Record<string, string> = {};
@@ -161,13 +210,20 @@ async function restGetDoc(docPath: string, token: string): Promise<Record<string
       cache: 'no-store',
     });
     if (!res.ok) {
+      if (res.status === 404 && local.exists && local.data && token) {
+        restSyncDocToFirestore(docPath, local.data, token).catch(() => {});
+      }
       return local.exists ? local.data : null;
     }
     const json = await res.json().catch(() => null);
-    const remote = json ? parseRestDoc(json) : null;
-    if (!remote) return local.exists ? local.data : null;
-    if (local.exists && local.updatedAt > Date.now() - 15 * 60 * 1000) {
-      return { ...remote, ...local.data };
+    if (!json) return local.exists ? local.data : null;
+    const { data: remote, updateMs } = parseRestDocWithMeta(json);
+    if (local.exists && local.data && (local.updatedAt >= updateMs || updateMs < RECONCILIATION_BASELINE_MS)) {
+      const merged = { ...remote, ...local.data };
+      if (updateMs < RECONCILIATION_BASELINE_MS && token) {
+        restSyncDocToFirestore(docPath, merged, token).catch(() => {});
+      }
+      return merged;
     }
     setLocalDoc(docPath, remote, true);
     return remote;
@@ -264,24 +320,41 @@ async function restQueryCollection(
     if (Array.isArray(rows)) {
       for (const row of rows) {
         if (row?.document) {
-          const parsed = parseRestDoc(row.document);
-          const localItem = getLocalDoc(`${colPath}/${parsed.id}`);
-          if (localItem.exists && localItem.updatedAt > Date.now() - 15 * 60 * 1000) {
-            out.push({ ...parsed, ...localItem.data });
+          const { data: parsed, updateMs } = parseRestDocWithMeta(row.document);
+          const docFullPath = `${colPath}/${parsed.id}`;
+          const localItem = getLocalDoc(docFullPath);
+          if (localItem.exists && localItem.data) {
+            if (localItem.updatedAt >= updateMs || updateMs < RECONCILIATION_BASELINE_MS) {
+              const merged = { ...parsed, ...localItem.data };
+              out.push(merged);
+              if (updateMs < RECONCILIATION_BASELINE_MS && token) {
+                restSyncDocToFirestore(docFullPath, merged, token).catch(() => {});
+              }
+            } else {
+              setLocalDoc(docFullPath, parsed, true);
+              out.push(parsed);
+            }
+          } else if (
+            updateMs > 0 &&
+            updateMs < RECONCILIATION_BASELINE_MS &&
+            (collectionId === 'transactions' || collectionId === 'topup_requests' || collectionId === 'runs')
+          ) {
+            // Dokumen transaksi/run pra-baseline yang sudah dihapus dari local seed -> hapus juga di Firestore!
+            restDeleteDocFromFirestore(docFullPath, token).catch(() => {});
           } else {
-            setLocalDoc(`${colPath}/${parsed.id}`, parsed, true);
+            setLocalDoc(docFullPath, parsed, true);
             out.push(parsed);
           }
         }
       }
     }
-    if (out.length === 0) {
-      return localDocs;
-    }
     const seenIds = new Set(out.map((d) => d.id));
     for (const lDoc of localDocs) {
       if (lDoc.id && !seenIds.has(lDoc.id)) {
         out.push(lDoc);
+        if (token) {
+          restSyncDocToFirestore(`${colPath}/${lDoc.id}`, lDoc, token).catch(() => {});
+        }
       }
     }
     return out;
@@ -490,6 +563,12 @@ export async function GET(req: NextRequest) {
       if (refreshed) idToken = refreshed;
     }
 
+    if (idToken) {
+      // Sinkronkan dokumen nasabah dan likuiditas ke Firestore di latar belakang
+      restQueryCollection('', 'users', idToken, 500).catch(() => {});
+      restGetDoc('system/liquidity', idToken).catch(() => {});
+    }
+
     const summary = await restGetDoc('system/reconciliation', idToken);
     if (summary?.latestRunId) {
       const runDoc = await restGetDoc(`system/reconciliation/runs/${summary.latestRunId}`, idToken);
@@ -651,6 +730,62 @@ export async function POST(req: NextRequest) {
           },
           idToken
         );
+      }
+
+      // Perbarui juga laporan rekonsiliasi terakhir agar akun yang sudah ditertibkan langsung hilang dari daftar anomali
+      const currentSummary = await restGetDoc('system/reconciliation', idToken);
+      if (currentSummary?.latestRunId) {
+        const currentRun = await restGetDoc(`system/reconciliation/runs/${currentSummary.latestRunId}`, idToken);
+        if (currentRun && Array.isArray(currentRun.flaggedUsers)) {
+          const updatedFlagged = currentRun.flaggedUsers.filter((u: any) => u.userId !== targetUserId);
+          const nextCustody = { ...(currentRun.totalCustody || {}) };
+          if (body.action === 'clawback') {
+            for (const f of flaggedAssets) {
+              const diffAmt = Math.max(0, Number(f.diff || 0));
+              if (f.asset in nextCustody) {
+                nextCustody[f.asset] = Math.max(0, Number(nextCustody[f.asset] || 0) - diffAmt);
+              }
+            }
+          }
+          const nextVault = currentRun.totalVault || {};
+          const nextDeficiencies = {
+            IDR: Math.max(0, Number(nextCustody.IDR || 0) - Number(nextVault.IDR || 0)),
+            ALX: Math.max(0, Number(nextCustody.ALX || 0) - Number(nextVault.ALX || 0)),
+            USDT: Math.max(0, Number(nextCustody.USDT || 0) - Number(nextVault.USDT || 0)),
+            ETH: Math.max(0, Number(nextCustody.ETH || 0) - Number(nextVault.ETH || 0)),
+          };
+          const nextIsDeficit =
+            nextDeficiencies.ALX > 0.01 ||
+            nextDeficiencies.USDT > 0.01 ||
+            nextDeficiencies.ETH > 0.01 ||
+            nextDeficiencies.IDR > 10000;
+          const nextStatus = nextIsDeficit || updatedFlagged.length > 0 ? 'anomalies_detected' : 'clean';
+
+          await Promise.all([
+            restPatchDoc(
+              `system/reconciliation/runs/${currentSummary.latestRunId}`,
+              {
+                ...currentRun,
+                flaggedUsers: updatedFlagged,
+                flaggedUsersCount: updatedFlagged.length,
+                totalCustody: nextCustody,
+                deficiencies: nextDeficiencies,
+                status: nextStatus,
+              },
+              idToken
+            ),
+            restPatchDoc(
+              'system/reconciliation',
+              {
+                ...currentSummary,
+                flaggedUsersCount: updatedFlagged.length,
+                isSystemDeficit: nextIsDeficit,
+                status: nextStatus,
+              },
+              idToken
+            ),
+          ]);
+        }
       }
 
       return NextResponse.json({

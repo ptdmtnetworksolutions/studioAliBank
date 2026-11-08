@@ -2,7 +2,15 @@ import fs from 'fs';
 import path from 'path';
 import seedStore from './local-firestore-seed.json';
 
-const CACHE_FILE = path.join('/tmp', 'alibank-local-firestore-cache.json');
+const CACHE_FILE = path.join('/tmp', 'alibank-local-firestore-cache-v2.json');
+
+/**
+ * Timestamp baseline rekonsiliasi bersih (2026-11-08T11:00:00.000Z / 18:00 WIB).
+ * Dokumen remote Firestore dengan updateTime lebih lama dari baseline ini
+ * tidak boleh menimpa state bersih di local-firestore-seed.json dan akan
+ * di-heal (PATCH / DELETE) kembali ke Google Cloud Firestore secara otomatis.
+ */
+export const RECONCILIATION_BASELINE_MS = 1794135600000;
 
 interface LocalStoreSchema {
   docs: Record<string, { data: Record<string, any>; updatedAt: number }>;
@@ -27,7 +35,11 @@ function loadStore(): LocalStoreSchema {
   const baseDocs: Record<string, { data: Record<string, any>; updatedAt: number }> = {};
   if (seedStore && typeof (seedStore as any).docs === 'object') {
     for (const [k, v] of Object.entries((seedStore as any).docs)) {
-      baseDocs[k] = v as { data: Record<string, any>; updatedAt: number };
+      const seedEntry = v as { data: Record<string, any>; updatedAt: number };
+      baseDocs[k] = {
+        data: seedEntry.data,
+        updatedAt: Math.max(seedEntry.updatedAt || 0, RECONCILIATION_BASELINE_MS),
+      };
     }
   }
   try {
@@ -37,11 +49,13 @@ function loadStore(): LocalStoreSchema {
       if (parsed && typeof parsed.docs === 'object') {
         for (const [k, v] of Object.entries(parsed.docs)) {
           const entry = v as { data: Record<string, any>; updatedAt: number };
+          const entryTime = entry.updatedAt || 0;
+          if (entryTime < RECONCILIATION_BASELINE_MS) continue;
           const existing = baseDocs[k];
-          if (!existing || (entry.updatedAt || 0) >= (existing.updatedAt || 0)) {
+          if (!existing || entryTime >= (existing.updatedAt || 0)) {
             baseDocs[k] = {
               data: existing?.data ? { ...existing.data, ...entry.data } : entry.data,
-              updatedAt: entry.updatedAt || Date.now(),
+              updatedAt: entryTime || Date.now(),
             };
           }
         }

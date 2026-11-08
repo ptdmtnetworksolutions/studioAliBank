@@ -66,7 +66,7 @@
         "id": "IJOuQpjEOMgvlYfzvQ1yfp976Oa2",
         "solanaAddress": "EoGT3naxqt2cyXv9RSu7kUrtQ5Zq172kwLtdBQMhcXmM"
       },
-      "updatedAt": 1794106722726
+      "updatedAt": 1794135600000
     },
     "system/liquidity": {
       "data": {
@@ -84,7 +84,7 @@
         "tradeXGrossVolumeIdr": 1170022,
         "id": "liquidity"
       },
-      "updatedAt": 1794105217235
+      "updatedAt": 1794135600000
     },
     "marketplace/item-1774874319014": {
       "data": {
@@ -103,7 +103,7 @@
           "iso": "2026-03-30T12:39:23.705Z"
         }
       },
-      "updatedAt": 1794078107837
+      "updatedAt": 1794135600000
     },
     "marketplace/item-1774874276456": {
       "data": {
@@ -122,7 +122,7 @@
           "iso": "2026-03-30T13:18:35.657Z"
         }
       },
-      "updatedAt": 1794078107837
+      "updatedAt": 1794135600000
     },
     "marketplace/item-1774874056576": {
       "data": {
@@ -135,7 +135,7 @@
         "id": "item-1774874056576",
         "createdAt": "2026-03-30T12:34:16.576Z"
       },
-      "updatedAt": 1794078107837
+      "updatedAt": 1794135600000
     },
     "marketplace/item-1774871139934": {
       "data": {
@@ -154,7 +154,7 @@
           "iso": "2026-03-30T12:33:31.455Z"
         }
       },
-      "updatedAt": 1794078107837
+      "updatedAt": 1794135600000
     },
     "marketplace/item-1774871096153": {
       "data": {
@@ -173,7 +173,7 @@
           "iso": "2026-03-30T11:58:12.223Z"
         }
       },
-      "updatedAt": 1794078107837
+      "updatedAt": 1794135600000
     },
     "marketplace/prod-master-node-v3": {
       "data": {
@@ -193,7 +193,7 @@
           "iso": "2026-03-30T12:11:21.818Z"
         }
       },
-      "updatedAt": 1794078107837
+      "updatedAt": 1794135600000
     },
     "marketplace/prod-basic-node-v3": {
       "data": {
@@ -213,7 +213,7 @@
           "iso": "2026-03-30T11:59:06.927Z"
         }
       },
-      "updatedAt": 1794078107837
+      "updatedAt": 1794135600000
     },
     "users/4U1skY7fh4Sx4cR9HsnUKTryrF22": {
       "data": {
@@ -245,7 +245,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/80wLMTfQUEeqQ3toG8OM88DZqGv1": {
       "data": {
@@ -277,7 +277,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/Bys5IUBfycVzd99obtAKEkluz5Y2": {
       "data": {
@@ -324,7 +324,7 @@
           "USDT": 0
         }
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/CjQm8mNGo3coofIvAArmdzj7QzE2": {
       "data": {
@@ -356,7 +356,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/PMelVJ8N0QSfCoGQLcDDi3RS89z1": {
       "data": {
@@ -426,7 +426,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/RyTocu55cyaVQ2jQ9RrTnobQi9r2": {
       "data": {
@@ -458,7 +458,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/UfZyz9jxpdfV95dXzvZWz7MymFJ3": {
       "data": {
@@ -489,7 +489,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/Y6sEzvQ767NHxuwwTVxRwrGf5Wy1": {
       "data": {
@@ -526,7 +526,7 @@
           "USDT": 0
         }
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/Z1ZovFjSt7QdkabPmyi7uewd44v1": {
       "data": {
@@ -571,7 +571,7 @@
           "USDT": 0
         }
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/ajO0RqP1C8cSSxBEcf3dfEDiyNS2": {
       "data": {
@@ -636,7 +636,7 @@
         "id": "ajO0RqP1C8cSSxBEcf3dfEDiyNS2",
         "solanaAddress": "7b2BXBEJP7wixdCwrPsPskkBgxChdTwuQ8VmfTxF9BA6"
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/dmAeXCdtFvfdyx4wUVj0wkH1jJh1": {
       "data": {
@@ -723,7 +723,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794106722726
+      "updatedAt": 1794135600000
     },
     "users/e5tJ7nSy0QSCtC1ymagCvzeYbBr1": {
       "data": {
@@ -755,7 +755,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/j4nqCVa06VT6YeQQ13OLzrQ38xD3": {
       "data": {
@@ -786,7 +786,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/l1Z7maVDL1ZrU4SBj9SSi88fnzE3": {
       "data": {
@@ -856,7 +856,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/mvfFqOMY7nPcBAkrPJpKCuA9rTr2": {
       "data": {
@@ -893,7 +893,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/o7FyXUGET0XEcClSVUIEYYtg2ZF2": {
       "data": {
@@ -926,7 +926,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/oU3atkl2qNQcAI6EW9xondNWCcn1": {
       "data": {
@@ -975,7 +975,7 @@
         "id": "oU3atkl2qNQcAI6EW9xondNWCcn1",
         "solanaAddress": "4Vtc9hYrxEjSuRshe8S4SC8T1V4Zka6UCpGpe8waE2cJ"
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/ocilQPpGfkTgm7a6gmiWpr3AzIz1": {
       "data": {
@@ -1045,7 +1045,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/sKqOEBbKMSh2CHBaX6SRSpL5S7G3": {
       "data": {
@@ -1077,7 +1077,7 @@
         "id": "sKqOEBbKMSh2CHBaX6SRSpL5S7G3",
         "solanaAddress": "4A4wfCftCi4BozVRwmr4gWTFD4h2LejtEaYHUy8AQXGY"
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/tJAwORDLDxRNZlEdjlGKaUESyD43": {
       "data": {
@@ -1124,7 +1124,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/y0npCcQnN1abTy1DG7XVj7uARD32": {
       "data": {
@@ -1155,7 +1155,7 @@
         "isSuspended": false,
         "securityLockReason": null
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/yjc50jK0zYjp70XOGVHy": {
       "data": {
@@ -1174,7 +1174,7 @@
           "iso": "2026-11-07T17:46:26.326Z"
         }
       },
-      "updatedAt": 1794078107904
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/GL4sI5rQkUEBveZHX4HS": {
       "data": {
@@ -1193,7 +1193,7 @@
           "iso": "2026-11-07T17:44:23.156Z"
         }
       },
-      "updatedAt": 1794078107904
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/A0vR4g4925N8HAQz7RlT": {
       "data": {
@@ -1212,7 +1212,7 @@
           "iso": "2026-11-07T17:44:07.743Z"
         }
       },
-      "updatedAt": 1794078107904
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/8PbW4DHArrBCDUsMmB3L": {
       "data": {
@@ -1231,7 +1231,7 @@
           "iso": "2026-11-07T17:43:57.394Z"
         }
       },
-      "updatedAt": 1794078107904
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/kaA0Bucd0ZU5OpsBEu0C": {
       "data": {
@@ -1250,7 +1250,7 @@
           "iso": "2026-11-07T17:43:48.434Z"
         }
       },
-      "updatedAt": 1794078107905
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/VWtnuzNfI7OMgYDBGYSm": {
       "data": {
@@ -1269,7 +1269,7 @@
           "iso": "2026-11-07T17:42:19.517Z"
         }
       },
-      "updatedAt": 1794078107905
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/Y0kNXABWymSjc9BTk7dd": {
       "data": {
@@ -1288,7 +1288,7 @@
           "iso": "2026-11-07T17:42:05.650Z"
         }
       },
-      "updatedAt": 1794078107905
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/cJIVfEYQxwKRLqDXmb5t": {
       "data": {
@@ -1307,7 +1307,7 @@
           "iso": "2026-11-07T17:40:56.280Z"
         }
       },
-      "updatedAt": 1794078107905
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/NmWcasKeQPKqny1P1pI5": {
       "data": {
@@ -1326,7 +1326,7 @@
           "iso": "2026-11-07T17:40:31.348Z"
         }
       },
-      "updatedAt": 1794078107906
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/y5OSGbvQVWXYLkx1Nfvg": {
       "data": {
@@ -1345,7 +1345,7 @@
           "iso": "2026-11-07T17:40:03.353Z"
         }
       },
-      "updatedAt": 1794078107906
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/zwvc6KCeXa7l8jTWdvr2": {
       "data": {
@@ -1364,7 +1364,7 @@
           "iso": "2026-11-07T17:39:47.125Z"
         }
       },
-      "updatedAt": 1794078107906
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/K1RNqrkS5reDb8lpKgio": {
       "data": {
@@ -1383,7 +1383,7 @@
           "iso": "2026-11-07T17:39:30.017Z"
         }
       },
-      "updatedAt": 1794078107906
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/Ntew3Ji51GzYISEZieGd": {
       "data": {
@@ -1402,7 +1402,7 @@
           "iso": "2026-11-07T17:38:58.534Z"
         }
       },
-      "updatedAt": 1794078107907
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/hjeqYlDMwFYFuzhZ0ZkA": {
       "data": {
@@ -1421,7 +1421,7 @@
           "iso": "2026-11-07T17:38:32.605Z"
         }
       },
-      "updatedAt": 1794078107907
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/lWyGnpFZrlAYKWLjjuHW": {
       "data": {
@@ -1440,7 +1440,7 @@
           "iso": "2026-11-07T17:35:50.536Z"
         }
       },
-      "updatedAt": 1794078107907
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/CLxVN1mcD2kJoBsn6SPz": {
       "data": {
@@ -1459,7 +1459,7 @@
           "iso": "2026-11-07T17:35:39.352Z"
         }
       },
-      "updatedAt": 1794078107907
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/qdj4m7K6yApYy7DxKlpb": {
       "data": {
@@ -1476,7 +1476,7 @@
           "iso": "2026-11-07T17:35:20.354Z"
         }
       },
-      "updatedAt": 1794078107908
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/lfxXBtC9KiRchhTC6Gg5": {
       "data": {
@@ -1495,7 +1495,7 @@
           "iso": "2026-11-07T17:33:35.326Z"
         }
       },
-      "updatedAt": 1794078107908
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/DZTTiQmck0SOJFEmda1p": {
       "data": {
@@ -1514,7 +1514,7 @@
           "iso": "2026-11-07T17:33:23.685Z"
         }
       },
-      "updatedAt": 1794078107908
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/NwW5bcV76BW0fgAPyagp": {
       "data": {
@@ -1533,7 +1533,7 @@
           "iso": "2026-11-07T17:33:04.686Z"
         }
       },
-      "updatedAt": 1794078107908
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/8UYq5TX1wnfPxj9tNHl9": {
       "data": {
@@ -1552,7 +1552,7 @@
           "iso": "2026-11-07T17:32:46.482Z"
         }
       },
-      "updatedAt": 1794078107908
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/qMcv4z4w9mWG5HMn8PnQ": {
       "data": {
@@ -1571,7 +1571,7 @@
           "iso": "2026-11-07T17:32:19.637Z"
         }
       },
-      "updatedAt": 1794078107909
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/oDYYz43I6JwWuRcsEuNM": {
       "data": {
@@ -1590,7 +1590,7 @@
           "iso": "2026-11-07T17:29:16.671Z"
         }
       },
-      "updatedAt": 1794078107909
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/FXsggEYmoCqqATCOTN3v": {
       "data": {
@@ -1609,7 +1609,7 @@
           "iso": "2026-11-07T17:26:11.915Z"
         }
       },
-      "updatedAt": 1794078107909
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/nZKApG9Bc1ZmGb30gY7s": {
       "data": {
@@ -1628,7 +1628,7 @@
           "iso": "2026-11-07T17:25:51.923Z"
         }
       },
-      "updatedAt": 1794078107909
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/0lhUwMY3SPO8Zrmes841": {
       "data": {
@@ -1647,7 +1647,7 @@
           "iso": "2026-11-07T17:25:34.518Z"
         }
       },
-      "updatedAt": 1794078107910
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/Z38VJBNk6HDXIRSoL4K4": {
       "data": {
@@ -1666,7 +1666,7 @@
           "iso": "2026-11-07T17:25:19.644Z"
         }
       },
-      "updatedAt": 1794078107910
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/GdI1Zv02ZyfJtz5BLrzk": {
       "data": {
@@ -1685,7 +1685,7 @@
           "iso": "2026-11-07T17:25:00.708Z"
         }
       },
-      "updatedAt": 1794078107910
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/wkOzUVeWnp4CGzB564wf": {
       "data": {
@@ -1704,7 +1704,7 @@
           "iso": "2026-11-07T17:24:50.022Z"
         }
       },
-      "updatedAt": 1794078107910
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/Tswg3hdr1SbNPK7mkGao": {
       "data": {
@@ -1723,7 +1723,7 @@
           "iso": "2026-11-07T17:24:22.783Z"
         }
       },
-      "updatedAt": 1794078107910
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/csIx5ZoEZ97FF17FAjRu": {
       "data": {
@@ -1742,7 +1742,7 @@
           "iso": "2026-11-07T17:24:03.131Z"
         }
       },
-      "updatedAt": 1794078107911
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/KStfz6D82sWFgHp04Yvg": {
       "data": {
@@ -1761,7 +1761,7 @@
           "iso": "2026-11-07T17:23:54.704Z"
         }
       },
-      "updatedAt": 1794078107911
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/7z8iOD01O28yNuiygkpR": {
       "data": {
@@ -1780,7 +1780,7 @@
           "iso": "2026-11-07T17:23:43.915Z"
         }
       },
-      "updatedAt": 1794078107911
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/v8RrTEfB5gQ2GPAR58qR": {
       "data": {
@@ -1799,7 +1799,7 @@
           "iso": "2026-11-07T17:23:39.761Z"
         }
       },
-      "updatedAt": 1794078107911
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/iPbrWeEaFbTSHJaRSfbQ": {
       "data": {
@@ -1818,7 +1818,7 @@
           "iso": "2026-11-07T17:23:32.347Z"
         }
       },
-      "updatedAt": 1794078107912
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/zTBAi41lrb2mmYNbs8BB": {
       "data": {
@@ -1837,7 +1837,7 @@
           "iso": "2026-11-07T17:23:18.273Z"
         }
       },
-      "updatedAt": 1794078107912
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/6r1HFeqPR736vHChFICD": {
       "data": {
@@ -1856,7 +1856,7 @@
           "iso": "2026-11-07T17:23:11.340Z"
         }
       },
-      "updatedAt": 1794078107912
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/m6NWhec75SKu78s2gMME": {
       "data": {
@@ -1875,7 +1875,7 @@
           "iso": "2026-11-07T17:22:51.906Z"
         }
       },
-      "updatedAt": 1794078107913
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/vbns0FL7nhe7EScA9hoc": {
       "data": {
@@ -1894,7 +1894,7 @@
           "iso": "2026-11-07T17:22:33.036Z"
         }
       },
-      "updatedAt": 1794078107913
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/tikPsB0U4bdsEHKHHllB": {
       "data": {
@@ -1913,7 +1913,7 @@
           "iso": "2026-11-07T17:22:21.795Z"
         }
       },
-      "updatedAt": 1794078107913
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/UbrQLEjNvZSn2v21ieXI": {
       "data": {
@@ -1932,7 +1932,7 @@
           "iso": "2026-11-07T17:22:03.798Z"
         }
       },
-      "updatedAt": 1794078107914
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/CeiXNxOEhWk68PRRciHM": {
       "data": {
@@ -1951,7 +1951,7 @@
           "iso": "2026-11-07T17:21:40.225Z"
         }
       },
-      "updatedAt": 1794078107914
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/B9W9RbldnVKcdztjVOwT": {
       "data": {
@@ -1970,7 +1970,7 @@
           "iso": "2026-11-07T17:21:21.808Z"
         }
       },
-      "updatedAt": 1794078107918
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/vhu4KYu9FJq4L9eOThhx": {
       "data": {
@@ -1989,7 +1989,7 @@
           "iso": "2026-11-07T17:21:02.066Z"
         }
       },
-      "updatedAt": 1794078107918
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/7SNwYKWlLD0YA6sx193R": {
       "data": {
@@ -2008,7 +2008,7 @@
           "iso": "2026-11-07T17:17:21.490Z"
         }
       },
-      "updatedAt": 1794078107918
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/dIJT8dy59saW9kUUuREo": {
       "data": {
@@ -2027,7 +2027,7 @@
           "iso": "2026-11-07T17:16:42.673Z"
         }
       },
-      "updatedAt": 1794078107919
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/bx6fSJYHZAWsKEn6OxNh": {
       "data": {
@@ -2046,7 +2046,7 @@
           "iso": "2026-11-07T17:16:16.343Z"
         }
       },
-      "updatedAt": 1794078107919
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/UCbIuMtdgvWqLBbIqxmf": {
       "data": {
@@ -2065,7 +2065,7 @@
           "iso": "2026-11-07T17:16:01.116Z"
         }
       },
-      "updatedAt": 1794078107920
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/SHbNDYDMawIZRru4zSRr": {
       "data": {
@@ -2084,7 +2084,7 @@
           "iso": "2026-11-07T17:15:44.411Z"
         }
       },
-      "updatedAt": 1794078107920
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/ire8wjABR6IvjQJMjCgW": {
       "data": {
@@ -2102,7 +2102,7 @@
         "userEmail": "backupwirautama@gmail.com",
         "txDocId": "xXofUxhrnqKnHYletZv1"
       },
-      "updatedAt": 1794078107921
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/GByWM4iBWN3SMv7SNCr8": {
       "data": {
@@ -2121,7 +2121,7 @@
         "category": "Market Trade",
         "description": "Buy 0.00036959 BTC by Dwi Prakasa Wira Utama"
       },
-      "updatedAt": 1794078107922
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/HRPYIg6GzE9RbP5Pjflt": {
       "data": {
@@ -2139,7 +2139,7 @@
         },
         "category": "Withdraw"
       },
-      "updatedAt": 1794078107922
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/F3FY6Lel7XyceO6Ds0hX": {
       "data": {
@@ -2156,7 +2156,7 @@
         "description": "Installment plan started by Dwi Prakasa Wira Utama. Monthly: Rp 3.502.189.",
         "userEmail": "backupwirautama@gmail.com"
       },
-      "updatedAt": 1794078107923
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/8onsjEult4s3m1i38pA5": {
       "data": {
@@ -2175,7 +2175,7 @@
           "iso": "2026-11-07T14:09:43.251Z"
         }
       },
-      "updatedAt": 1794078107923
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/qoPGSWtacuXQ8bhfFBSn": {
       "data": {
@@ -2194,7 +2194,7 @@
           "iso": "2026-11-07T14:08:17.982Z"
         }
       },
-      "updatedAt": 1794078107923
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/y9CRsZclhOghxbU0CdEU": {
       "data": {
@@ -2211,7 +2211,7 @@
         "userEmail": "alloexpay@gmail.com",
         "id": "y9CRsZclhOghxbU0CdEU"
       },
-      "updatedAt": 1794078107924
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/AddQRX2VJywVBh7mACRo": {
       "data": {
@@ -2230,7 +2230,7 @@
           "iso": "2026-11-07T13:30:55.827Z"
         }
       },
-      "updatedAt": 1794078107924
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/ulaXi5cnM9pYJ3Yhexbp": {
       "data": {
@@ -2249,7 +2249,7 @@
           "iso": "2026-11-07T13:29:53.979Z"
         }
       },
-      "updatedAt": 1794078107925
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/gyIxOKsyBIynfthlQQQE": {
       "data": {
@@ -2268,7 +2268,7 @@
           "iso": "2026-11-07T13:29:08.130Z"
         }
       },
-      "updatedAt": 1794078107925
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/hPt6Ej4ynboULBplDjff": {
       "data": {
@@ -2287,7 +2287,7 @@
           "iso": "2026-11-07T13:28:23.725Z"
         }
       },
-      "updatedAt": 1794078107925
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/RinoH1HI9UZlI6g8hZhi": {
       "data": {
@@ -2306,7 +2306,7 @@
           "iso": "2026-11-07T13:28:11.774Z"
         }
       },
-      "updatedAt": 1794078107926
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/iFgpvQupIzrEUWGYfXt6": {
       "data": {
@@ -2325,7 +2325,7 @@
           "iso": "2026-11-07T13:26:38.307Z"
         }
       },
-      "updatedAt": 1794078107927
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/SQ6dbJ2NXDbMlK2lbTpx": {
       "data": {
@@ -2346,7 +2346,7 @@
         "cryptoAmount": 0.004501919278229176,
         "gateway": "Vault Staking"
       },
-      "updatedAt": 1794078107927
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/tOyuE6K1e7qIBYSc2tlK": {
       "data": {
@@ -2363,7 +2363,7 @@
         "status": "success",
         "userEmail": "jangoden01@gmail.com"
       },
-      "updatedAt": 1794078107927
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/JmdJVvzZ1dfdgtOcklJY": {
       "data": {
@@ -2379,7 +2379,7 @@
           "iso": "2026-11-07T12:39:46.783Z"
         }
       },
-      "updatedAt": 1794078107928
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/Bgk0zZKNlCrHcGdCquAd": {
       "data": {
@@ -2395,7 +2395,7 @@
           "iso": "2026-11-07T12:32:00.419Z"
         }
       },
-      "updatedAt": 1794078107928
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/zQpT2f6rYhGAfPeJ1Eqe": {
       "data": {
@@ -2411,7 +2411,7 @@
         "category": "Verifikasi Identitas",
         "userEmail": "4flowwwww4@gmail.com"
       },
-      "updatedAt": 1794078107928
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/Wb9goWbJfaBmB3vZ2wsc": {
       "data": {
@@ -2427,7 +2427,7 @@
           "iso": "2026-11-07T11:54:20.891Z"
         }
       },
-      "updatedAt": 1794078107929
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/SNEaenzO1TRtSBnmsh3P": {
       "data": {
@@ -2443,7 +2443,7 @@
           "iso": "2026-11-06T14:36:09.578Z"
         }
       },
-      "updatedAt": 1794078107929
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/Yw2LwT6OJEQPNBKUP0fM": {
       "data": {
@@ -2459,7 +2459,7 @@
           "iso": "2026-11-06T01:41:39.069Z"
         }
       },
-      "updatedAt": 1794078107930
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/NYMW5IrZVnh2vcZekfkY": {
       "data": {
@@ -2480,7 +2480,7 @@
         "description": "Auto-credited deposit 35100 ALX ke NANA NATIJATUL ULFAH. Hash: 0xonchain_al...",
         "id": "NYMW5IrZVnh2vcZekfkY"
       },
-      "updatedAt": 1794078107931
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/Ab0ZI152eEG8LR9RaHjN": {
       "data": {
@@ -2497,7 +2497,7 @@
         },
         "amountIdr": 3000000
       },
-      "updatedAt": 1794078107931
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/Ztfv4liJIsy3YIZ9XM7y": {
       "data": {
@@ -2518,7 +2518,7 @@
         "userEmail": "backupwirautama@gmail.com",
         "amountIdr": 0
       },
-      "updatedAt": 1794078107932
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/RZ40aCxIzU7UCaEAcWoG": {
       "data": {
@@ -2539,7 +2539,7 @@
         "cryptoAmount": 35100,
         "amountIdr": 0
       },
-      "updatedAt": 1794078107932
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/PR40jpGV9Q6eetAKlBLg": {
       "data": {
@@ -2560,7 +2560,7 @@
         "amountIdr": 0,
         "category": "External Inflow"
       },
-      "updatedAt": 1794078107933
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/XwCWcZsPxfF1oG6V3tRf": {
       "data": {
@@ -2578,7 +2578,7 @@
           "iso": "2026-10-30T14:57:20.272Z"
         }
       },
-      "updatedAt": 1794078107933
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/F7z3YVpCpEGzk5HAnSQi": {
       "data": {
@@ -2596,7 +2596,7 @@
           "iso": "2026-10-30T14:57:20.001Z"
         }
       },
-      "updatedAt": 1794078107934
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/Ey840LBP6rcz77D1fA3m": {
       "data": {
@@ -2614,7 +2614,7 @@
           "iso": "2026-10-30T14:57:19.400Z"
         }
       },
-      "updatedAt": 1794078107934
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/u7NJdGLl59TU2kxJgHeg": {
       "data": {
@@ -2632,7 +2632,7 @@
           "iso": "2026-10-30T14:57:18.846Z"
         }
       },
-      "updatedAt": 1794078107935
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/01nJAA92lKiaK9g4Ojw8": {
       "data": {
@@ -2650,7 +2650,7 @@
           "iso": "2026-10-30T14:57:18.409Z"
         }
       },
-      "updatedAt": 1794078107935
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/z730X1706v4gH9xKqFrZ": {
       "data": {
@@ -2668,7 +2668,7 @@
           "iso": "2026-10-30T14:57:17.973Z"
         }
       },
-      "updatedAt": 1794078107935
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/Szgm64CoeLU8ATYyLmef": {
       "data": {
@@ -2684,7 +2684,7 @@
         "id": "Szgm64CoeLU8ATYyLmef",
         "description": "Super Admin menyetujui KYC secara manual untuk DINI RAHMAN. Status akun: TERVERIFIKASI."
       },
-      "updatedAt": 1794078107936
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/v2kogCZyJOBhgdBDgVx3": {
       "data": {
@@ -2705,7 +2705,7 @@
         "cryptoCurrency": "ALX",
         "cryptoAmount": 30000
       },
-      "updatedAt": 1794078107936
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/hufgIvgaAcpFPMQnphCC": {
       "data": {
@@ -2723,7 +2723,7 @@
           "iso": "2026-10-30T10:17:57.021Z"
         }
       },
-      "updatedAt": 1794078107936
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/uNT6cxDYnMnVd2RSBua6": {
       "data": {
@@ -2739,7 +2739,7 @@
           "iso": "2026-10-30T08:36:57.969Z"
         }
       },
-      "updatedAt": 1794078107937
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/baqMWzaYkFA00DoD02X2": {
       "data": {
@@ -2756,7 +2756,7 @@
           "iso": "2026-10-30T08:33:18.920Z"
         }
       },
-      "updatedAt": 1794078107937
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/g9bUu7Wc4zPNlrkiTGjI": {
       "data": {
@@ -2772,7 +2772,7 @@
           "iso": "2026-10-30T07:52:11.255Z"
         }
       },
-      "updatedAt": 1794078107938
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/DSmKrg0ksKbWZDFt7yeG": {
       "data": {
@@ -2788,7 +2788,7 @@
           "iso": "2026-10-30T04:10:51.628Z"
         }
       },
-      "updatedAt": 1794078107938
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/85MZ0Y0cnpbTFNhtuVLp": {
       "data": {
@@ -2815,7 +2815,7 @@
           "iso": "2026-10-29T21:20:41.667Z"
         }
       },
-      "updatedAt": 1794078107939
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/i5rvLjplSGcyMKMXczsB": {
       "data": {
@@ -2834,7 +2834,7 @@
           "iso": "2026-10-29T20:24:08.296Z"
         }
       },
-      "updatedAt": 1794078107940
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/TCOJThi4WilX3YdSnpRJ": {
       "data": {
@@ -2853,7 +2853,7 @@
           "iso": "2026-10-29T20:23:14.658Z"
         }
       },
-      "updatedAt": 1794078107940
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/PpdJboe4claNPpfk2nUF": {
       "data": {
@@ -2872,7 +2872,7 @@
           "iso": "2026-10-29T20:21:27.857Z"
         }
       },
-      "updatedAt": 1794078107941
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/ZWmV32txf3JPuulMOdho": {
       "data": {
@@ -2891,7 +2891,7 @@
           "iso": "2026-10-29T20:19:31.485Z"
         }
       },
-      "updatedAt": 1794078107942
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/eIWqhSiZZhB32JnxcnCr": {
       "data": {
@@ -2910,7 +2910,7 @@
           "iso": "2026-10-29T20:17:38.518Z"
         }
       },
-      "updatedAt": 1794078107943
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/XFER-1783510622978": {
       "data": {
@@ -2930,7 +2930,7 @@
           "iso": "2026-07-08T11:37:03.100Z"
         }
       },
-      "updatedAt": 1794078107945
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/BmhEi8j9diWJqpcTpcsS": {
       "data": {
@@ -2950,7 +2950,7 @@
           "iso": "2026-06-24T14:32:13.472Z"
         }
       },
-      "updatedAt": 1794078107946
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/IAJNyn7xFQ1Zn7pnpig2": {
       "data": {
@@ -2967,7 +2967,7 @@
           "iso": "2026-06-20T16:21:13.046Z"
         }
       },
-      "updatedAt": 1794078107947
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/4E4I9zv0Ntnhae1fnEQb": {
       "data": {
@@ -2984,7 +2984,7 @@
           "iso": "2026-06-20T16:20:42.313Z"
         }
       },
-      "updatedAt": 1794078107948
+      "updatedAt": 1794135600000
     },
     "topup_requests/4fCX8faWgzG96hRGK4sQ": {
       "data": {
@@ -3004,10 +3004,10 @@
           "nanoseconds": 42000000,
           "iso": "2026-04-18T17:06:29.042Z"
         },
-        "status": "approved",
+        "status": "rejected",
         "id": "4fCX8faWgzG96hRGK4sQ"
       },
-      "updatedAt": 1794078107962
+      "updatedAt": 1794135600000
     },
     "topup_requests/5CucDDvd76Ln2Paad48R": {
       "data": {
@@ -3041,7 +3041,7 @@
           "iso": "2026-11-08T01:21:02.800Z"
         }
       },
-      "updatedAt": 1794100862856
+      "updatedAt": 1794135600000
     },
     "topup_requests/6UnyVVKzIdX9eaZXC6fI": {
       "data": {
@@ -3061,10 +3061,10 @@
           "nanoseconds": 558000000,
           "iso": "2026-05-31T11:43:55.558Z"
         },
-        "status": "approved",
+        "status": "rejected",
         "id": "6UnyVVKzIdX9eaZXC6fI"
       },
-      "updatedAt": 1794078107964
+      "updatedAt": 1794135600000
     },
     "topup_requests/9zLBENvSQUhwIbxr9h8K": {
       "data": {
@@ -3084,10 +3084,10 @@
           "nanoseconds": 645000000,
           "iso": "2026-04-18T11:19:04.645Z"
         },
-        "status": "approved",
+        "status": "rejected",
         "id": "9zLBENvSQUhwIbxr9h8K"
       },
-      "updatedAt": 1794078107965
+      "updatedAt": 1794135600000
     },
     "topup_requests/RAhE5bDPtLHG9kMWZ6Ql": {
       "data": {
@@ -3108,10 +3108,10 @@
           "nanoseconds": 251000000,
           "iso": "2026-06-13T07:48:14.251Z"
         },
-        "status": "approved",
+        "status": "rejected",
         "id": "RAhE5bDPtLHG9kMWZ6Ql"
       },
-      "updatedAt": 1794078107966
+      "updatedAt": 1794135600000
     },
     "topup_requests/SVAiSKV6sHu1JHM5tZ7w": {
       "data": {
@@ -3132,10 +3132,10 @@
           "nanoseconds": 239000000,
           "iso": "2026-05-31T15:39:25.239Z"
         },
-        "status": "approved",
+        "status": "rejected",
         "id": "SVAiSKV6sHu1JHM5tZ7w"
       },
-      "updatedAt": 1794078107967
+      "updatedAt": 1794135600000
     },
     "topup_requests/SVQMoUqYe42x4ZVSJEtm": {
       "data": {
@@ -3156,10 +3156,10 @@
           "nanoseconds": 342000000,
           "iso": "2026-06-09T15:59:23.342Z"
         },
-        "status": "approved",
+        "status": "rejected",
         "id": "SVQMoUqYe42x4ZVSJEtm"
       },
-      "updatedAt": 1794078107968
+      "updatedAt": 1794135600000
     },
     "topup_requests/WVv2kpbIef2XMRT7zMnV": {
       "data": {
@@ -3199,7 +3199,7 @@
           "iso": "2026-11-08T01:21:36.524Z"
         }
       },
-      "updatedAt": 1794100896603
+      "updatedAt": 1794135600000
     },
     "topup_requests/WvL7SRhY8n1a6DGPevkx": {
       "data": {
@@ -3211,7 +3211,7 @@
         "estimatedAsset": 1000,
         "txid": "0xe5b50ed604e18b8f88cf5081c7ffbd04cb68019e9cae83461234be7e382d547f",
         "proofImage": "",
-        "status": "approved",
+        "status": "rejected",
         "type": "crypto_deposit",
         "createdAt": "2026-06-17T17:49:39.761Z",
         "timestamp": {
@@ -3222,7 +3222,7 @@
         },
         "id": "WvL7SRhY8n1a6DGPevkx"
       },
-      "updatedAt": 1794078107970
+      "updatedAt": 1794135600000
     },
     "topup_requests/kyL75Kmi8S0MD7lvZAsm": {
       "data": {
@@ -3262,7 +3262,7 @@
           "iso": "2026-11-08T01:21:11.507Z"
         }
       },
-      "updatedAt": 1794100871570
+      "updatedAt": 1794135600000
     },
     "topup_requests/x30jEA15ZB8xg2sL8PZT": {
       "data": {
@@ -3282,10 +3282,10 @@
           "nanoseconds": 77000000,
           "iso": "2026-04-04T19:25:10.077Z"
         },
-        "status": "approved",
+        "status": "rejected",
         "id": "x30jEA15ZB8xg2sL8PZT"
       },
-      "updatedAt": 1794078107972
+      "updatedAt": 1794135600000
     },
     "users/ajO0RqP1C8cSSxBEcf3dfEDiyNS2/notifications/OgHgSHFCscUdjBexTaph": {
       "data": {
@@ -3297,7 +3297,7 @@
         "title": "Penarikan Ditolak & Saldo Direfund",
         "id": "OgHgSHFCscUdjBexTaph"
       },
-      "updatedAt": 1794100862294
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/JRmhmyEFNyfp2VGunlV1": {
       "data": {
@@ -3315,7 +3315,7 @@
         "rejectionReason": "Ketidaksesuaian Alur Transaksi / Saldo Belum Dikonversi ke IDR: Pengajuan penarikan dana IDR mendahului konfirmasi settlement dana di sistem, atau aset yang masuk ditukarkan ke aset kripto lain (BTC) bukan ke saldo IDR.",
         "category": "Refund Penarikan"
       },
-      "updatedAt": 1794100862569
+      "updatedAt": 1794135600000
     },
     "users/tJAwORDLDxRNZlEdjlGKaUESyD43/notifications/81ce87vTyIJ1psUj2mJm": {
       "data": {
@@ -3327,7 +3327,7 @@
         "createdAt": "2026-11-08T01:21:10.730Z",
         "id": "81ce87vTyIJ1psUj2mJm"
       },
-      "updatedAt": 1794100871038
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/G0xaRs8wUfrP6u1yDXbe": {
       "data": {
@@ -3345,7 +3345,7 @@
         "id": "G0xaRs8wUfrP6u1yDXbe",
         "amountIdr": 39240000
       },
-      "updatedAt": 1794100871291
+      "updatedAt": 1794135600000
     },
     "users/tJAwORDLDxRNZlEdjlGKaUESyD43/notifications/ovv7oU6nVfI5wvvVY5FU": {
       "data": {
@@ -3357,7 +3357,7 @@
         "read": false,
         "id": "ovv7oU6nVfI5wvvVY5FU"
       },
-      "updatedAt": 1794100896058
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/tH7i1RQzKBKFLWZoXh7c": {
       "data": {
@@ -3375,7 +3375,7 @@
           "iso": "2026-11-08T01:21:36.261Z"
         }
       },
-      "updatedAt": 1794100896334
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/3gPT0DLacrKZAI395sca": {
       "data": {
@@ -3393,7 +3393,7 @@
         "status": "berhasil",
         "userEmail": "muhamadfadlipratama17@gmail.com"
       },
-      "updatedAt": 1794102009619
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/RECON-MAINNET-ALIGN-1794104347440": {
       "data": {
@@ -3408,7 +3408,7 @@
         "userEmail": "alidzulfikar075@gmail.com",
         "description": "Penyelarasan penuh Buku Besar Nasabah & Kustodi terhadap saldo riil Polygon Mainnet (611.100 ALX Nasabah + 238.850,0146 ALX Brankas) & Ethereum Mainnet Vault (0,000339 ETH). Seluruh saldo hantu (unbacked) telah ditertibkan."
       },
-      "updatedAt": 1794107947371
+      "updatedAt": 1794135600000
     },
     "system/reconciliation/runs/RUN-1794104347440": {
       "data": {
@@ -3442,19 +3442,19 @@
         "rpcErrors": [],
         "status": "clean"
       },
-      "updatedAt": 1794107947371
+      "updatedAt": 1794135600000
     },
     "system/reconciliation": {
       "data": {
         "id": "reconciliation",
         "latestRunId": "RUN-1794104395154",
-        "latestRunTimestamp": "2026-11-08T02:19:55.045Z",
+        "latestRunTimestamp": "2026-11-08T11:00:00.000Z",
         "status": "clean",
         "flaggedUsersCount": 0,
         "isSystemDeficit": false,
         "rpcErrors": []
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/ajO0RqP1C8cSSxBEcf3dfEDiyNS2/transactions/ONCHAIN-ALX-NANA": {
       "data": {
@@ -3471,7 +3471,7 @@
         "txHash": "0xonchain_alx_c4e77b07_35100000000",
         "timestamp": "2026-11-08T02:19:55.045Z"
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/oU3atkl2qNQcAI6EW9xondNWCcn1/transactions/ONCHAIN-ALX-ALINURMAN": {
       "data": {
@@ -3488,7 +3488,7 @@
         "txHash": "0xonchain_alx_96238413_501000000000",
         "timestamp": "2026-11-08T02:19:55.045Z"
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/tJAwORDLDxRNZlEdjlGKaUESyD43/transactions/ONCHAIN-ALX-DWIPRAKASA": {
       "data": {
@@ -3505,7 +3505,7 @@
         "txHash": "0xonchain_alx_ef6598ef_35000000000",
         "timestamp": "2026-11-08T02:19:55.045Z"
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/dmAeXCdtFvfdyx4wUVj0wkH1jJh1/transactions/ONCHAIN-ALX-DINIRAHMAN": {
       "data": {
@@ -3522,7 +3522,7 @@
         "txHash": "0xonchain_alx_38396edc_30000000000",
         "timestamp": "2026-11-07T18:00:00.000Z"
       },
-      "updatedAt": 1794106722726
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/RECON-MAINNET-ALIGN-1794104395153": {
       "data": {
@@ -3537,14 +3537,14 @@
         "userEmail": "alidzulfikar075@gmail.com",
         "description": "Penyelarasan penuh Buku Besar Nasabah & Kustodi terhadap saldo riil Polygon Mainnet (611.100 ALX Nasabah + 238.850,0146 ALX Brankas) & Ethereum Mainnet Vault (0,000339 ETH). Seluruh saldo hantu (unbacked) telah ditertibkan."
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "system/reconciliation/runs/RUN-1794104395154": {
       "data": {
         "id": "RUN-1794104395154",
         "runId": "RUN-1794104395154",
-        "timestamp": "2026-11-08T02:19:55.045Z",
-        "createdAt": "2026-11-08T02:19:55.045Z",
+        "timestamp": "2026-11-08T11:00:00.000Z",
+        "createdAt": "2026-11-08T11:00:00.000Z",
         "totalUsersAudited": 22,
         "flaggedUsersCount": 0,
         "flaggedUsers": [],
@@ -3571,7 +3571,7 @@
         "rpcErrors": [],
         "status": "clean"
       },
-      "updatedAt": 1794107995045
+      "updatedAt": 1794135600000
     },
     "users/dmAeXCdtFvfdyx4wUVj0wkH1jJh1/transactions/XFER-ALX-DINI-TO-DZUL-OUT": {
       "data": {
@@ -3591,7 +3591,7 @@
         "cryptoAmount": 30000,
         "cryptoCurrency": "ALX"
       },
-      "updatedAt": 1794106722726
+      "updatedAt": 1794135600000
     },
     "users/IJOuQpjEOMgvlYfzvQ1yfp976Oa2/transactions/ONCHAIN-ALX-DZULFIKAR": {
       "data": {
@@ -3608,7 +3608,7 @@
         "txHash": "0xonchain_alx_582538e7_10000000000",
         "timestamp": "2026-11-07T17:00:00.000Z"
       },
-      "updatedAt": 1794106722726
+      "updatedAt": 1794135600000
     },
     "users/IJOuQpjEOMgvlYfzvQ1yfp976Oa2/transactions/ONCHAIN-ETH-DZULFIKAR": {
       "data": {
@@ -3625,7 +3625,7 @@
         "txHash": "0xonchain_eth_582538e7_000339",
         "timestamp": "2026-11-07T17:05:00.000Z"
       },
-      "updatedAt": 1794106722726
+      "updatedAt": 1794135600000
     },
     "users/IJOuQpjEOMgvlYfzvQ1yfp976Oa2/transactions/ONCHAIN-BTC-DZULFIKAR": {
       "data": {
@@ -3642,7 +3642,7 @@
         "txHash": "btc_onchain_bc1qcsi6mg3d7cvq055rqz9cjp2w074283b0mrjsku_757sats",
         "timestamp": "2026-11-07T17:10:00.000Z"
       },
-      "updatedAt": 1794106722726
+      "updatedAt": 1794135600000
     },
     "users/IJOuQpjEOMgvlYfzvQ1yfp976Oa2/transactions/XFER-ALX-DINI-TO-DZUL-IN": {
       "data": {
@@ -3662,7 +3662,7 @@
         "cryptoAmount": 30000,
         "cryptoCurrency": "ALX"
       },
-      "updatedAt": 1794106722726
+      "updatedAt": 1794135600000
     },
     "users/IJOuQpjEOMgvlYfzvQ1yfp976Oa2/notifications/NOTIF-XFER-DINI-TO-DZUL": {
       "data": {
@@ -3674,7 +3674,7 @@
         "createdAt": "2026-11-08T02:58:32.726Z",
         "timestamp": "2026-11-08T02:58:32.726Z"
       },
-      "updatedAt": 1794106722726
+      "updatedAt": 1794135600000
     },
     "users/dmAeXCdtFvfdyx4wUVj0wkH1jJh1/notifications/NOTIF-XFER-DINI-TO-DZUL-OUT": {
       "data": {
@@ -3686,7 +3686,7 @@
         "createdAt": "2026-11-08T02:58:32.726Z",
         "timestamp": "2026-11-08T02:58:32.726Z"
       },
-      "updatedAt": 1794106722726
+      "updatedAt": 1794135600000
     },
     "system/audit/global_transactions/XFER-ALX-DINI-TO-DZUL": {
       "data": {
@@ -3705,7 +3705,7 @@
         "userEmail": "jangoden01@gmail.com",
         "note": "Transfer ALX ke UID 885591370087"
       },
-      "updatedAt": 1794106722726
+      "updatedAt": 1794135600000
     }
   }
 }
