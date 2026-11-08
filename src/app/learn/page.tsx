@@ -32,6 +32,150 @@ interface Article {
   isSpecialStyle?: "yellow" | "dark" | "normal";
 }
 
+function FormattedArticleContent({ text }: { text: string }) {
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+  let currentList: React.ReactNode[] = [];
+
+  const flushList = () => {
+    if (currentList.length > 0) {
+      elements.push(
+        <ul key={`ul-${elements.length}-${Date.now()}`} className="space-y-3 my-4 pl-1">
+          {currentList}
+        </ul>
+      );
+      currentList = [];
+    }
+  };
+
+  const renderInline = (lineText: string) => {
+    // Regex matches **bold text** and `code text`
+    const parts = lineText.split(/(\*\*.*?\*\*|`.*?`)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return (
+          <strong key={i} className="font-semibold text-[#111111]">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      if (part.startsWith("`") && part.endsWith("`")) {
+        return (
+          <code
+            key={i}
+            className="px-1.5 py-0.5 bg-[#EAE6DF] font-mono text-xs rounded-sm text-[#111111] break-all border border-[#DFDAD0]"
+          >
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+      return part;
+    });
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
+    const line = rawLine.trim();
+
+    if (!line) {
+      flushList();
+      continue;
+    }
+
+    // Heading ###
+    if (line.startsWith("### ")) {
+      flushList();
+      elements.push(
+        <h4
+          key={`h4-${i}`}
+          className="font-serif text-lg sm:text-xl font-bold text-[#111111] mt-6 mb-3 border-b border-[#E8E4DC] pb-2"
+        >
+          {renderInline(line.replace("### ", ""))}
+        </h4>
+      );
+      continue;
+    }
+
+    // Heading ##
+    if (line.startsWith("## ")) {
+      flushList();
+      elements.push(
+        <h3
+          key={`h3-${i}`}
+          className="font-serif text-xl sm:text-2xl font-bold text-[#111111] mt-7 mb-3 border-b border-[#DFDAD0] pb-2.5"
+        >
+          {renderInline(line.replace("## ", ""))}
+        </h3>
+      );
+      continue;
+    }
+
+    // Math block ($$ ... $$)
+    if (line.startsWith("$$") && line.endsWith("$$")) {
+      flushList();
+      const formula = line.slice(2, -2).trim();
+      elements.push(
+        <div
+          key={`math-${i}`}
+          className="my-5 p-4 bg-[#F5F2EA] border border-[#DFDAD0] rounded-sm text-center font-mono text-xs sm:text-sm text-[#111111] shadow-inner"
+        >
+          {formula}
+        </div>
+      );
+      continue;
+    }
+
+    // Bullet point list item (- or *)
+    if (line.startsWith("- ") || line.startsWith("* ")) {
+      const itemText = line.slice(2);
+      currentList.push(
+        <li
+          key={`li-${i}`}
+          className="flex items-start gap-3 text-sm text-[#333333] font-light leading-relaxed"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-[#F4B728] mt-2 shrink-0" />
+          <span className="flex-1">{renderInline(itemText)}</span>
+        </li>
+      );
+      continue;
+    }
+
+    // Numbered list item (e.g. "1. ")
+    if (/^\d+\.\s/.test(line)) {
+      const numMatch = line.match(/^(\d+)\.\s(.*)/);
+      if (numMatch) {
+        flushList();
+        elements.push(
+          <div
+            key={`num-${i}`}
+            className="flex items-start gap-3.5 my-3 text-sm text-[#333333] font-light leading-relaxed"
+          >
+            <span className="w-6 h-6 rounded-full bg-[#111111] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+              {numMatch[1]}
+            </span>
+            <div className="flex-1 pt-0.5">{renderInline(numMatch[2])}</div>
+          </div>
+        );
+        continue;
+      }
+    }
+
+    // Regular paragraph
+    flushList();
+    elements.push(
+      <p
+        key={`p-${i}`}
+        className="text-sm sm:text-base text-[#444444] font-light leading-relaxed my-3"
+      >
+        {renderInline(line)}
+      </p>
+    );
+  }
+
+  flushList();
+  return <div className="space-y-1 text-left">{elements}</div>;
+}
+
 export default function LearnPage() {
   const searchParams = useSearchParams();
   const initialCategory = (searchParams.get("category") as any) || "all";
@@ -789,8 +933,8 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
 
                 <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#111111] tracking-tight">
                   {lang === "en"
-                    ? "ALIBANK ZERO-TOLERANCE ANTI-MONEY LAUNDERING & ANOMALY SURVEILLANCE"
-                    : "MANDAT ANTI-PENCUCIAN UANG (AML) & PENGAWASAN ANOMALI ALIBANK"}
+                    ? "ALIBANK ZERO-TOLERANCE ANTI-MONEY LAUNDERING & SYSTEM INTEGRITY MANDATE"
+                    : "MANDAT TEGAS: PENCEGAHAN PENCUCIAN UANG (AML) & PENGAWASAN SISTEM ALIBANK"}
                 </h2>
 
                 <p className="text-sm text-[#555555] font-light leading-relaxed">
@@ -894,8 +1038,8 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
 
             <div className="w-full h-px bg-[#DFDAD0]" />
 
-            <div className="space-y-4 text-sm text-[#333333] font-light leading-relaxed whitespace-pre-line">
-              {selectedArticle.content}
+            <div className="py-2">
+              <FormattedArticleContent text={selectedArticle.content} />
             </div>
 
             <div className="flex items-center justify-between pt-6 border-t border-[#DFDAD0]">
