@@ -580,17 +580,11 @@ Setiap transaksi dilindungi oleh sistem escrow otomatis di buku besar AliBank un
             </div>
 
             <NextLink
-              href="/login"
-              className="text-xs font-bold uppercase tracking-wider text-[#333333] hover:text-black transition-colors hidden sm:inline-block px-3 py-2"
+              href="/learn"
+              className="p-2 text-[#444444] hover:text-black transition-colors"
+              title="Search"
             >
-              {lang === "en" ? "Sign In" : "Masuk"}
-            </NextLink>
-
-            <NextLink
-              href="/register"
-              className="bg-[#111111] hover:bg-black text-white text-xs font-bold uppercase tracking-wider px-5 py-2.5 rounded-sm shadow-sm transition-all duration-200 hover:shadow-md"
-            >
-              {lang === "en" ? "Open Account" : "Buka Rekening"}
+              <Search className="w-4 h-4" />
             </NextLink>
           </div>
         </div>

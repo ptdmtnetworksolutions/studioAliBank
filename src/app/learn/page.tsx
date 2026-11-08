@@ -636,7 +636,7 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
             </NextLink>
           </nav>
 
-          {/* Actions & Language Switcher */}
+          {/* Actions & Language Switcher (Clean Zcash Standard, No Sign In / Open Account) */}
           <div className="flex items-center gap-4">
             <div className="flex items-center text-[10px] font-bold tracking-widest border border-[#DFDAD0] rounded-sm p-0.5 bg-[#F4F1EA]">
               <button
@@ -663,19 +663,16 @@ Sistem akan otomatis mengaktifkan status **Restriksi Likuiditas** pada akun ters
               </button>
             </div>
 
-            <NextLink
-              href="/login"
-              className="text-xs font-bold uppercase tracking-wider text-[#333333] hover:text-black transition-colors hidden sm:inline-block px-3 py-2"
+            <button
+              onClick={() => {
+                const el = document.getElementById("search-input");
+                el?.focus();
+              }}
+              className="p-2 text-[#444444] hover:text-black transition-colors"
+              title="Search"
             >
-              {lang === "en" ? "Sign In" : "Masuk"}
-            </NextLink>
-
-            <NextLink
-              href="/register"
-              className="bg-[#111111] hover:bg-black text-white text-xs font-bold uppercase tracking-wider px-5 py-2.5 rounded-sm shadow-sm transition-all duration-200 hover:shadow-md"
-            >
-              {lang === "en" ? "Open Account" : "Buka Rekening"}
-            </NextLink>
+              <Search className="w-4 h-4" />
+            </button>
           </div>
         </div>
 

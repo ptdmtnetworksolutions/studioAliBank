@@ -316,9 +316,8 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
             </a>
           </nav>
 
-          {/* Actions & Language Switcher */}
+          {/* Actions: Minimalist Lang Toggle & Search Icon (Clean Zcash Standard, No Sign In / Open Account) */}
           <div className="flex items-center gap-4">
-            {/* Minimalist Lang Toggle */}
             <div className="flex items-center text-[10px] font-bold tracking-widest border border-[#DFDAD0] rounded-sm p-0.5 bg-[#F4F1EA]">
               <button
                 onClick={() => setLang("en")}
@@ -345,17 +344,11 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
             </div>
 
             <NextLink
-              href="/login"
-              className="text-xs font-bold uppercase tracking-wider text-[#333333] hover:text-black transition-colors hidden sm:inline-block px-3 py-2"
+              href="/learn"
+              className="p-2 text-[#444444] hover:text-black transition-colors"
+              title="Search Knowledge Hub"
             >
-              {content.navSignIn}
-            </NextLink>
-
-            <NextLink
-              href="/register"
-              className="bg-[#111111] hover:bg-black text-white text-xs font-bold uppercase tracking-wider px-5 py-2.5 rounded-sm shadow-sm transition-all duration-200 hover:shadow-md"
-            >
-              {content.navUseAlibank}
+              <Search className="w-4 h-4" />
             </NextLink>
           </div>
         </div>
@@ -892,20 +885,20 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                 {content.heroSubtitle}
               </p>
 
-              {/* CTAs */}
+              {/* CTAs: Use AliBank directs to /use-alibank */}
               <div className="flex flex-wrap items-center gap-4 pt-4">
                 <NextLink
-                  href="/register"
+                  href="/use-alibank"
                   className="bg-[#111111] hover:bg-black text-white text-xs font-bold uppercase tracking-[0.16em] px-8 py-4 rounded-sm transition-all duration-200 shadow-md hover:shadow-lg inline-flex items-center gap-2"
                 >
                   {content.heroCta1}
                 </NextLink>
-                <a
-                  href="#learn"
+                <NextLink
+                  href="/learn"
                   className="border border-[#111111] hover:bg-[#111111]/5 text-[#111111] text-xs font-bold uppercase tracking-[0.16em] px-8 py-4 rounded-sm transition-colors"
                 >
                   {content.heroCta2}
-                </a>
+                </NextLink>
               </div>
             </div>
 

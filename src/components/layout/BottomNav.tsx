@@ -59,6 +59,7 @@ export function BottomNav() {
     "/learn",
     "/ecosystem",
     "/network",
+    "/use-alibank",
     "/overview",
     "/login",
     "/register",
