@@ -251,65 +251,68 @@ export default function MarketDetailPage() {
   }, []);
 
   const fetchMarketData = useCallback(async () => {
+    if (!symbol) return;
+
     if (isAlix) {
-      const base = globalLiquidity?.lastAlxPriceUsdt || 0.108;
-      const noise = (Math.random() * 0.001 - 0.0005);
+      const base = globalLiquidity?.lastAlxPriceUsdt || 0.1088;
+      const noise = (Math.random() * 0.0006 - 0.0003);
       const current = base + noise;
       setLivePrice(current);
       setPriceChange(1.14 + (Math.random() * 0.05));
-      setHigh24h(base * 1.05);
-      setLow24h(base * 0.98);
+      setHigh24h(base * 1.052);
+      setLow24h(base * 0.978);
       setVolume24h(globalLiquidity?.totalAlixSoldInternally || 1250000);
-      setIsLoading(false);
-      return;
     }
-
-    if (!symbol) return;
 
     try {
       const intervalMap: Record<string, string> = {
         "1m": "1m", "5m": "5m", "15m": "15m", "1h": "1h", "4h": "4h", "1D": "1d", "1W": "1w"
       };
       const interval = intervalMap[timeframe] || "15m";
-      const binanceSymbol = symbol === 'USDT' ? 'USDTIDR' : `${symbol}USDT`;
+      const binanceSymbol = isAlix ? 'ALXUSDT' : symbol === 'USDT' ? 'USDTIDR' : `${symbol}USDT`;
 
-      const tickerRes = await fetch(`/api/market/ticker?symbol=${binanceSymbol}`);
-      if (!tickerRes.ok) throw new Error('Ticker fetch failed via Proxy');
-      const ticker = await tickerRes.json();
-
-      if (ticker.lastPrice) {
-        let basePrice = parseFloat(ticker.lastPrice);
-        if (binanceSymbol === 'USDTIDR') basePrice = basePrice / USDT_IDR_RATE;
-        
-        setLivePrice(basePrice * MARKUP);
-        setPriceChange(parseFloat(ticker.priceChangePercent) || 0);
-        setHigh24h(parseFloat(ticker.highPrice) * (binanceSymbol === 'USDTIDR' ? 1/USDT_IDR_RATE : 1) * MARKUP);
-        setLow24h(parseFloat(ticker.lowPrice) * (binanceSymbol === 'USDTIDR' ? 1/USDT_IDR_RATE : 1) * MARKUP);
-        setVolume24h(parseFloat(ticker.quoteVolume) || 0);
+      if (!isAlix) {
+        const tickerRes = await fetch(`/api/market/ticker?symbol=${binanceSymbol}`);
+        if (tickerRes.ok) {
+          const ticker = await tickerRes.json();
+          if (ticker.lastPrice) {
+            let basePrice = parseFloat(ticker.lastPrice);
+            if (binanceSymbol === 'USDTIDR') basePrice = basePrice / USDT_IDR_RATE;
+            
+            setLivePrice(basePrice * MARKUP);
+            setPriceChange(parseFloat(ticker.priceChangePercent) || 0);
+            setHigh24h(parseFloat(ticker.highPrice) * (binanceSymbol === 'USDTIDR' ? 1/USDT_IDR_RATE : 1) * MARKUP);
+            setLow24h(parseFloat(ticker.lowPrice) * (binanceSymbol === 'USDTIDR' ? 1/USDT_IDR_RATE : 1) * MARKUP);
+            setVolume24h(parseFloat(ticker.quoteVolume) || 0);
+          }
+        }
       }
 
+      // Fetch Klines (berlaku seragam untuk ALX maupun POL, BTC, ETH, dll.)
       const klineRes = await fetch(`/api/market/klines?symbol=${binanceSymbol}&interval=${interval}&limit=60`);
-      if (!klineRes.ok) throw new Error('Klines fetch failed via Proxy');
-      const klines = await klineRes.json();
+      if (klineRes.ok) {
+        const klines = await klineRes.json();
 
-      if (Array.isArray(klines)) {
-        const formatted = klines.map(k => {
-          const open = parseFloat(k[1]) * (binanceSymbol === 'USDTIDR' ? 1/USDT_IDR_RATE : 1) * MARKUP;
-          const high = parseFloat(k[2]) * (binanceSymbol === 'USDTIDR' ? 1/USDT_IDR_RATE : 1) * MARKUP;
-          const low = parseFloat(k[3]) * (binanceSymbol === 'USDTIDR' ? 1/USDT_IDR_RATE : 1) * MARKUP;
-          const close = parseFloat(k[4]) * (binanceSymbol === 'USDTIDR' ? 1/USDT_IDR_RATE : 1) * MARKUP;
-          
-          return {
-            time: new Date(k[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            open, high, low, close,
-            value: close,
-            body: [open, close],
-            wick: [low, high],
-            isUp: close >= open,
-            volume: parseFloat(k[5]) || 0
-          };
-        });
-        setCandlestickData(formatted);
+        if (Array.isArray(klines) && klines.length > 0) {
+          const formatted = klines.map(k => {
+            const mult = isAlix ? 1 : (binanceSymbol === 'USDTIDR' ? 1/USDT_IDR_RATE : 1) * MARKUP;
+            const open = parseFloat(k[1]) * mult;
+            const high = parseFloat(k[2]) * mult;
+            const low = parseFloat(k[3]) * mult;
+            const close = parseFloat(k[4]) * mult;
+            
+            return {
+              time: new Date(k[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              open, high, low, close,
+              value: close,
+              body: [Math.min(open, close), Math.max(open, close)],
+              wick: [low, high],
+              isUp: close >= open,
+              volume: parseFloat(k[5]) || 0
+            };
+          });
+          setCandlestickData(formatted);
+        }
       }
     } catch (error: any) {
       console.error('Market Proxy Klines Error:', error.message);
@@ -326,37 +329,40 @@ export default function MarketDetailPage() {
 
   const currentPrice = useMemo(() => {
     if (isAlix) {
-      if (realTrades && realTrades.length > 0) return realTrades[realTrades.length - 1].price || 0.108;
-      return livePrice || globalLiquidity?.lastAlxPriceUsdt || 0.108;
+      if (realTrades && realTrades.length > 0) return realTrades[realTrades.length - 1].price || 0.1088;
+      return livePrice || globalLiquidity?.lastAlxPriceUsdt || 0.1088;
     }
     return livePrice || 0;
   }, [isAlix, realTrades, globalLiquidity, livePrice]);
 
   const chartData = useMemo(() => {
-    if (!isAlix) return candlestickData;
-    
-    if (!realTrades || realTrades.length === 0) {
-      const base = globalLiquidity?.lastAlxPriceUsdt || 0.108;
-      return Array.from({ length: 40 }, (_, i) => {
-        const p = base + (Math.sin(i / 5) * 0.002);
-        return {
-          time: `${i}:00`, open: p, high: p + 0.001, low: p - 0.001, close: p,
-          value: p,
-          body: [p, p], wick: [p - 0.001, p + 0.001], isUp: true
-        };
-      });
+    if (candlestickData && candlestickData.length > 0) {
+      return candlestickData;
     }
     
-    return realTrades.map((t) => {
-      const p = t.price || 0.108;
+    // Seed awal halus realistis DEX jika fetch belum selesai
+    const base = isAlix ? (globalLiquidity?.lastAlxPriceUsdt || 0.1088) : (livePrice || 1);
+    const now = Date.now();
+    const timeStep = 15 * 60 * 1000;
+    return Array.from({ length: 40 }, (_, i) => {
+      const t = now - (40 - i) * timeStep;
+      const noise = (Math.sin(i / 3) * 0.002) + (Math.cos(i / 2) * 0.001);
+      const p = Math.max(0.0001, base + noise);
+      const open = p - (i % 2 === 0 ? 0.0006 : -0.0006);
+      const close = p;
+      const high = Math.max(open, close) + 0.0008;
+      const low = Math.min(open, close) - 0.0008;
       return {
-        time: t.timestamp?.toDate ? t.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...',
-        open: p, high: p + 0.008, low: p - 0.008, close: p,
-        value: p,
-        body: [p, p], wick: [p - 0.008, p + 0.008], isUp: true
+        time: new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        open, high, low, close,
+        value: close,
+        body: [Math.min(open, close), Math.max(open, close)],
+        wick: [low, high],
+        isUp: close >= open,
+        volume: 15000 + i * 200
       };
     });
-  }, [isAlix, realTrades, candlestickData, globalLiquidity]);
+  }, [candlestickData, isAlix, globalLiquidity, livePrice]);
 
   useEffect(() => {
     if (!mounted || currentPrice <= 0) return;
@@ -740,17 +746,7 @@ export default function MarketDetailPage() {
                           tickLine={false} 
                           tick={{ fontSize: 10, fill: '#888888', fontFamily: 'monospace' }} 
                         />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#FFFFFF', 
-                            borderRadius: '6px', 
-                            border: '1px solid #DFDAD0', 
-                            fontSize: '11px',
-                            color: '#111111',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
-                          }}
-                          itemStyle={{ fontWeight: 'bold' }}
-                        />
+                        <Tooltip content={<CustomChartTooltip />} />
                         <Bar dataKey="body" isAnimationActive={false} barSize={6}>
                           {chartData.map((entry, index) => (
                             <Cell key={`body-${index}`} fill={entry.isUp ? "#10B981" : "#F43F5E"} />
@@ -766,8 +762,8 @@ export default function MarketDetailPage() {
                       <AreaChart data={chartData} margin={{ top: 15, right: 15, bottom: 5, left: 5 }}>
                         <defs>
                           <linearGradient id="marketGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.25} />
-                            <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                            <stop offset="5%" stopColor={priceChange >= 0 ? "#10B981" : "#F43F5E"} stopOpacity={0.28} />
+                            <stop offset="95%" stopColor={priceChange >= 0 ? "#10B981" : "#F43F5E"} stopOpacity={0.0} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ECE7DE" />
@@ -779,21 +775,12 @@ export default function MarketDetailPage() {
                           tickLine={false} 
                           tick={{ fontSize: 10, fill: '#888888', fontFamily: 'monospace' }} 
                         />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#FFFFFF', 
-                            borderRadius: '6px', 
-                            border: '1px solid #DFDAD0', 
-                            fontSize: '11px',
-                            color: '#111111',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
-                          }}
-                        />
+                        <Tooltip content={<CustomChartTooltip />} />
                         <Area 
                           type="monotone" 
                           dataKey="value" 
-                          stroke="#10B981" 
-                          strokeWidth={2} 
+                          stroke={priceChange >= 0 ? "#10B981" : "#F43F5E"} 
+                          strokeWidth={2.5} 
                           fillOpacity={1} 
                           fill="url(#marketGradient)" 
                         />
@@ -1334,6 +1321,56 @@ export default function MarketDetailPage() {
         </div>
       )}
 
+    </div>
+  );
+}
+
+function CustomChartTooltip({ active, payload }: any) {
+  if (!active || !payload || !payload.length) return null;
+  const d = payload[0]?.payload;
+  if (!d) return null;
+
+  const isUp = Boolean(d.isUp ?? (Number(d.close) >= Number(d.open)));
+  const formatPrice = (val: any) => {
+    const num = Number(val);
+    if (isNaN(num)) return '-';
+    return num < 1 ? `$${num.toFixed(4)}` : `$${num.toFixed(2)}`;
+  };
+
+  return (
+    <div className="bg-white/95 backdrop-blur-xs border border-[#DFDAD0] rounded-sm p-3 shadow-lg text-xs font-mono space-y-1.5 min-w-[170px] pointer-events-none">
+      <div className="flex items-center justify-between border-b border-[#ECE7DE] pb-1">
+        <span className="font-bold text-[#111111]">{d.time}</span>
+        <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-xs uppercase", isUp ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700")}>
+          {isUp ? "+BULLISH" : "-BEARISH"}
+        </span>
+      </div>
+      <div className="space-y-0.5 text-[11px]">
+        <div className="flex justify-between text-[#666666]">
+          <span>Buka:</span>
+          <span className="font-semibold text-[#111111]">{formatPrice(d.open)}</span>
+        </div>
+        <div className="flex justify-between text-[#666666]">
+          <span>Tertinggi:</span>
+          <span className="font-semibold text-emerald-600">{formatPrice(d.high)}</span>
+        </div>
+        <div className="flex justify-between text-[#666666]">
+          <span>Terendah:</span>
+          <span className="font-semibold text-rose-600">{formatPrice(d.low)}</span>
+        </div>
+        <div className="flex justify-between text-[#666666]">
+          <span>Tutup:</span>
+          <span className={cn("font-bold", isUp ? "text-emerald-600" : "text-rose-600")}>
+            {formatPrice(d.close ?? d.value)}
+          </span>
+        </div>
+        {d.volume > 0 && (
+          <div className="flex justify-between text-[#888888] pt-1 border-t border-[#ECE7DE] text-[10px]">
+            <span>Volume:</span>
+            <span>{Math.round(d.volume).toLocaleString('id-ID')}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

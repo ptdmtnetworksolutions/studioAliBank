@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 const FALLBACKS: Record<string, { price: number; change: number }> = {
+  "ALX": { price: 0.1088, change: 1.14 },
+  "POL": { price: 0.0906, change: -8.58 },
   "BTC": { price: 73500, change: -0.45 },
   "ETH": { price: 2000, change: 3.73 },
   "BNB": { price: 575.2, change: -1.2 },
@@ -66,38 +68,81 @@ function getIntervalMapping(interval: string) {
   return { endpoint, aggregate };
 }
 
-function generateSimulatedKlines(basePrice: number, limit: number = 60) {
-  const klines = [];
-  let currentPrice = basePrice;
-  const now = Date.now();
-  const timeStep = 60 * 1000; 
-  
-  for (let i = limit - 1; i >= 0; i--) {
-    const time = now - i * timeStep;
-    const changePercent = (Math.random() * 0.015 - 0.0075); 
-    const open = currentPrice;
-    const close = currentPrice * (1 + changePercent);
-    const high = Math.max(open, close) * (1 + Math.random() * 0.004);
-    const low = Math.min(open, close) * (1 - Math.random() * 0.004);
-    const volume = Math.random() * 500 + 50;
-    
-    klines.push([
-      time,
-      open.toString(),
-      high.toString(),
-      low.toString(),
-      close.toString(),
-      volume.toString(),
-      time + timeStep - 1,
-      (volume * currentPrice).toString(),
-      Math.floor(volume / 5),
-      (volume * 0.6).toString(),
-      (volume * currentPrice * 0.6).toString(),
-      "0"
-    ]);
-    currentPrice = close;
+function getTimeStepMs(interval: string): number {
+  switch (interval) {
+    case "1m": return 60 * 1000;
+    case "5m": return 5 * 60 * 1000;
+    case "15m": return 15 * 60 * 1000;
+    case "1h":
+    case "1j": return 60 * 60 * 1000;
+    case "4h":
+    case "4j": return 4 * 60 * 60 * 1000;
+    case "1d":
+    case "1D":
+    case "1H": return 24 * 60 * 60 * 1000;
+    case "1w":
+    case "1W": return 7 * 24 * 60 * 60 * 1000;
+    default: return 15 * 60 * 1000;
   }
-  return klines;
+}
+
+function generateSimulatedKlines(basePrice: number, limit: number = 60, interval: string = "15m") {
+  const timeStep = getTimeStepMs(interval);
+  const now = Date.now();
+  
+  // Realistis DEX stochastic random walk dengan mean reversion ke basePrice
+  const path: { open: number; high: number; low: number; close: number; volume: number; time: number }[] = [];
+  let currentClose = basePrice;
+  
+  // Skala volatilitas candle disesuaikan dengan timeframe
+  const volScale = interval === "1m" ? 0.0025 : interval === "5m" ? 0.004 : interval === "15m" ? 0.007 : 0.012;
+
+  for (let i = 0; i < limit; i++) {
+    const time = now - i * timeStep;
+    
+    // Perubahan harga natural (kombinasi momentum dan fluktuasi acak yang halus)
+    const cycle = Math.sin((limit - i) / 5) * 0.003;
+    const noise = (Math.random() - 0.495) * volScale;
+    const change = cycle + noise;
+    const open = currentClose / (1 + change);
+    
+    // Sumbu atas (high) dan sumbu bawah (low) natural khas DEX / Uniswap
+    const bodyMax = Math.max(open, currentClose);
+    const bodyMin = Math.min(open, currentClose);
+    const wickHighOffset = bodyMax * (Math.random() * volScale * 0.7);
+    const wickLowOffset = bodyMin * (Math.random() * volScale * 0.7);
+    
+    const high = bodyMax + wickHighOffset;
+    const low = Math.max(0.0001, bodyMin - wickLowOffset);
+    const volume = Math.floor(basePrice < 1 ? (8000 + Math.random() * 42000) : (50 + Math.random() * 450));
+
+    path.unshift({
+      time,
+      open,
+      high,
+      low,
+      close: currentClose,
+      volume
+    });
+
+    currentClose = open;
+  }
+
+  // Format array Binance-style standard
+  return path.map(p => [
+    p.time,
+    p.open.toFixed(basePrice < 1 ? 6 : 2),
+    p.high.toFixed(basePrice < 1 ? 6 : 2),
+    p.low.toFixed(basePrice < 1 ? 6 : 2),
+    p.close.toFixed(basePrice < 1 ? 6 : 2),
+    p.volume.toString(),
+    p.time + timeStep - 1,
+    (p.volume * p.close).toFixed(2),
+    Math.floor(p.volume / 8),
+    (p.volume * 0.55).toFixed(2),
+    (p.volume * p.close * 0.55).toFixed(2),
+    "0"
+  ]);
 }
 
 async function fetchCryptoCompareKlines(fsym: string, tsym: string, endpoint: string, aggregate: number, limit: number) {
@@ -198,7 +243,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.warn('[Klines CryptoCompare Failure, using Simulated Mock Klines]');
-    const simulated = generateSimulatedKlines(fallbackVal.price, limit);
+    const simulated = generateSimulatedKlines(fallbackVal.price, limit, interval);
     return NextResponse.json(simulated, {
       headers: { 'Cache-Control': 'no-store' }
     });
