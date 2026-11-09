@@ -35,7 +35,7 @@ const HERO_GUILLOCHE_RAYS = Array.from({ length: 72 }, (_, i) => {
 export function LandingPage({ onEnterApp }: LandingPageProps) {
   // English is the default language as requested
   const [lang, setLang] = useState<"en" | "id">("en");
-  const [activeMegaMenu, setActiveMegaMenu] = useState<"learn" | "ecosystem" | "network" | "features" | null>(null);
+  const [activeMegaMenu, setActiveMegaMenu] = useState<"learn" | "ecosystem" | "network" | "features" | "faq" | null>(null);
   const [isDiffModalOpen, setIsDiffModalOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [copiedContract, setCopiedContract] = useState<string | null>(null);
@@ -340,9 +340,23 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
               )}
             </div>
 
-            <a href="#faq" onClick={() => setActiveMegaMenu(null)} className="hover:text-black transition-colors">
-              {content.navFaq}
-            </a>
+            {/* FAQ with Mega Menu Trigger */}
+            <div className="relative h-full flex items-center">
+              <button
+                onClick={() => setActiveMegaMenu(activeMegaMenu === "faq" ? null : "faq")}
+                className={cn(
+                  "relative h-full flex items-center text-[11px] font-bold tracking-[0.18em] transition-colors uppercase",
+                  activeMegaMenu === "faq"
+                    ? "text-[#111111]"
+                    : "text-[#444444] hover:text-[#111111]"
+                )}
+              >
+                <span>{content.navFaq}</span>
+              </button>
+              {activeMegaMenu === "faq" && (
+                <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#F4B728] z-50 pointer-events-none" />
+              )}
+            </div>
           </nav>
 
           {/* Actions: Minimalist Lang Toggle & Search Icon (Clean Zcash Standard, No Sign In / Open Account) */}
@@ -1098,6 +1112,132 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
             </div>
           </>
         )}
+
+        {/* =========================================================================
+            1.E MEGA MENU: FAQ
+            ========================================================================= */}
+        {activeMegaMenu === "faq" && (
+          <>
+            <div
+              onClick={() => setActiveMegaMenu(null)}
+              className="fixed inset-0 top-20 z-40 bg-black/5 backdrop-blur-[1px]"
+            />
+            <div className="absolute top-20 left-0 w-full bg-white border-b border-[#DFDAD0] shadow-xl z-50 animate-in fade-in duration-150">
+              <div className="max-w-[1280px] mx-auto px-6 py-10 pb-12 grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12 text-left">
+                {/* Col 1: Overview */}
+                <div className="space-y-3 pr-4 border-r border-[#ECE7DE]">
+                  <h3 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "FREQUENTLY ASKED" : "PERTANYAAN UMUM"}
+                  </h3>
+                  <p className="text-xs text-[#666666] font-light leading-relaxed">
+                    {lang === "en"
+                      ? "Essential answers regarding platform legitimacy, 100% full-reserve banking, AML anti-fraud policies, tokenomics, and self-custodial account management."
+                      : "Jawaban mendasar seputar legalitas protokol, kepastian cadangan 100% tanpa risiko fraksional, kebijakan anti-fraud AML, dan kustodi mandiri."}
+                  </p>
+                  <div className="pt-2">
+                    <NextLink
+                      href="/faq"
+                      onClick={() => setActiveMegaMenu(null)}
+                      className="text-[11px] font-bold tracking-wider text-[#F4B728] hover:underline"
+                    >
+                      {lang === "en" ? "Explore FAQ Knowledge Hub →" : "Buka Pusat Tanya Jawab →"}
+                    </NextLink>
+                  </div>
+                </div>
+
+                {/* Col 2: Legitimacy & Reserves */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "LEGITIMACY & SOLVENCY" : "LEGALITAS & CADANGAN"}
+                  </h4>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <NextLink href="/faq#legitimacy" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "Is AliBank legitimate or a scam?" : "Apakah AliBank resmi atau penipuan?"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/faq#full-reserve" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "How are deposits backed 1:1?" : "Bagaimana simpanan dijamin 1:1?"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/faq#withdrawals" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "Can I withdraw funds at any time?" : "Bisakah tarik uang kapan saja?"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/faq?category=solvency" onClick={() => setActiveMegaMenu(null)} className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block">
+                        {lang === "en" ? "See all solvency answers →" : "Lihat jawaban solvensi →"}
+                      </NextLink>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Col 3: AliBank vs ALX & Web3 */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "ALIBANK VS ALX & WEB3" : "ALIBANK VS ALX & WEB3"}
+                  </h4>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <NextLink href="/faq#diff-alibank-alx" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "What is the difference with ALX?" : "Apa perbedaan dengan koin ALX?"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/faq#trustwallet-integration" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "TrustWallet Core & MetaMask guide" : "Panduan TrustWallet & MetaMask"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/faq#eth-yield-origin" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "Ethereum 12% APY Yield Vault origin" : "Asal dividen 12% APY Ethereum"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/faq?category=tokenomics" onClick={() => setActiveMegaMenu(null)} className="text-[11px] font-bold text-[#F4B728] hover:underline pt-1 block">
+                        {lang === "en" ? "See all tokenomics →" : "Lihat semua tokenomics →"}
+                      </NextLink>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Col 4: Security & Merchants */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#E11D48] animate-pulse" />
+                    <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#E11D48]">
+                      {lang === "en" ? "SECURITY & COMPLIANCE" : "KEAMANAN & KEPATUHAN"}
+                    </h4>
+                  </div>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <NextLink href="/faq#aml-mandate" onClick={() => setActiveMegaMenu(null)} className="hover:text-black font-medium text-[#111111] block">
+                        {lang === "en" ? "Zero-Tolerance AML Policy" : "Kebijakan Nol-Toleransi AML"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/faq#double-entry" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "What is a 'Phantom Balance'?" : "Apa itu 'Saldo Hantu'?"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/faq#merchant-fees" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "0% QRIS & SoftPOS merchant terms" : "Ketentuan QRIS 0% & SoftPOS"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/faq?category=security" onClick={() => setActiveMegaMenu(null)} className="text-[11px] font-bold text-[#E11D48] hover:underline pt-1 block">
+                        {lang === "en" ? "Explore Security FAQ →" : "Lihat FAQ Keamanan →"}
+                      </NextLink>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </header>
 
       {/* =========================================================================
@@ -1704,6 +1844,17 @@ contract AliBankProtocol is ERC20, Ownable {
                 )}
               </div>
             ))}
+          </div>
+
+          {/* View Full FAQ Hub CTA */}
+          <div className="pt-8 text-center">
+            <NextLink
+              href="/faq"
+              className="inline-flex items-center gap-2.5 px-8 py-3.5 border border-[#DFDAD0] hover:border-[#111111] bg-white hover:bg-[#FAF9F6] text-[#111111] text-xs font-bold tracking-[0.16em] uppercase rounded-sm transition-all duration-200 shadow-sm"
+            >
+              <span>{lang === "en" ? "Explore All Frequently Asked Questions & Answers" : "Jelajahi Seluruh Pertanyaan & Jawaban Resmi"}</span>
+              <ArrowRight className="w-4 h-4" />
+            </NextLink>
           </div>
         </div>
       </section>
