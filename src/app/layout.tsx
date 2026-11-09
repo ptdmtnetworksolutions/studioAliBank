@@ -75,6 +75,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
     title: 'AliBank',
   },
+  verification: {
+    google: '8n-RD5m9NztlY5QqLtsJ6WjN2_8tUCRuweDzBS10qa0',
+  },
 };
 
 export const viewport: Viewport = {
@@ -98,6 +101,9 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
         
+        {/* Google Search Console Verification */}
+        <meta name="google-site-verification" content="8n-RD5m9NztlY5QqLtsJ6WjN2_8tUCRuweDzBS10qa0" />
+
         {/* Apple Standalone Optimization */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
