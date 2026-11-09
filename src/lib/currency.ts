@@ -14,8 +14,8 @@ export const IDR_RATE_FALLBACK = 18157;
 /** AliBank platform markup (2%) applied to crypto prices */
 export const MARKUP = 1.02;
 
-/** Harga anchor ALX dalam USD (dipakai sebagai fallback bila likuiditas belum termuat) */
-export const ALX_PRICE_USD_FALLBACK = 12.24;
+/** Harga pasar riil ALX dalam USD di Uniswap V4 Mainnet ($0.108 USD ≈ Rp 1.700) */
+export const ALX_PRICE_USD_FALLBACK = 0.108;
 
 /**
  * Kurs cadangan mata uang asing: jumlah mata uang per 1 USD.

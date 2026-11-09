@@ -275,7 +275,7 @@ export async function POST(request: NextRequest) {
       console.warn('[Claim API]: Gagal memuat harga live ETH, menggunakan fallback $2420.');
     }
 
-    const alxPrice = Number(liqData?.lastAlxPriceUsdt || 12.24);
+    const alxPrice = Number(liqData?.lastAlxPriceUsdt || 0.108);
 
     // 4. Kueri data deposit on-chain di Ethereum Mainnet
     const ethRpcs = [];

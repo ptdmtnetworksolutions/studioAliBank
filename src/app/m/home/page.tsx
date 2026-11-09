@@ -92,7 +92,7 @@ function MobileHomePageContent() {
   
   // Real-time market state
   const [marketCoins, setMarketCoins] = useState<any[]>(() => {
-    const alxPrice = 12.24;
+    const alxPrice = 0.108;
     const rate = 17690; // Updated fallback rate (was 17690)
     const alxData = { symbol: "ALX", price: alxPrice, baseIdr: alxPrice * rate, change: 1.14, isUp: true, isNative: true, icon: null };
     const formattedFallback = FALLBACK_COINS.map(c => ({
@@ -209,7 +209,7 @@ function MobileHomePageContent() {
   // Market Ticker fetcher
   const fetchMarketData = useCallback(async () => {
     const rate = currentUsdtRate;
-    const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
+    const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 0.108;
     const alxData = {
       symbol: "ALX",
       price: alxPrice,
@@ -308,7 +308,7 @@ function MobileHomePageContent() {
     const btcMarket = marketCoins.find(c => c.symbol === "BTC");
     const ethMarket = marketCoins.find(c => c.symbol === "ETH");
     
-    const alxPriceIdr = (alxMarket?.price ?? 12.24) * currentUsdtRate;
+    const alxPriceIdr = (alxMarket?.price ?? 0.108) * currentUsdtRate;
     const btcPriceIdr = (btcMarket?.price ?? 66000) * currentUsdtRate;
     const ethPriceIdr = (ethMarket?.price ?? 2000) * currentUsdtRate;
     
@@ -331,7 +331,7 @@ function MobileHomePageContent() {
     const ethMarket = marketCoins.find(c => c.symbol === "ETH");
     const usdtMarket = marketCoins.find(c => c.symbol === "USDT") || { change: 0.01 };
 
-    const alxPriceIdr = (alxMarket?.price ?? 12.24) * currentUsdtRate;
+    const alxPriceIdr = (alxMarket?.price ?? 0.108) * currentUsdtRate;
     const btcPriceIdr = (btcMarket?.price ?? 66000) * currentUsdtRate;
     const ethPriceIdr = (ethMarket?.price ?? 2000) * currentUsdtRate;
 
@@ -422,7 +422,7 @@ function MobileHomePageContent() {
       const cryptoActual = userData.cryptoBalances?.[asset] || 0;
       const diff = Math.max(0, cryptoActual - cryptoLedger);
       if (diff > 0.000001) {
-        const dynamicAlxPriceUsdt = globalLiquidity?.lastAlxPriceUsdt || 12.24;
+        const dynamicAlxPriceUsdt = globalLiquidity?.lastAlxPriceUsdt || 0.108;
         const dynamicAlxPriceIdr = Math.round(dynamicAlxPriceUsdt * currentUsdtRate);
         const priceMap: any = { ALX: dynamicAlxPriceIdr, BTC: 1100000000, ETH: 35000000, USDT: 17690 };
         totalCryptoDebtValIdr += diff * (priceMap[asset] || 0);
@@ -654,7 +654,7 @@ function MobileHomePageContent() {
                   name="Alix Coin" 
                   symbol="ALX" 
                   amount={userData?.cryptoBalances?.ALX ?? 0} 
-                  usdValue={(userData?.cryptoBalances?.ALX ?? 0) * (marketCoins.find(c => c.symbol === "ALX")?.price ?? 12.24)} 
+                  usdValue={(userData?.cryptoBalances?.ALX ?? 0) * (marketCoins.find(c => c.symbol === "ALX")?.price ?? 0.108)} 
                   change="+1.14%"
                   isUp={true}
                   icon={LogoIcon} 

@@ -1068,13 +1068,13 @@ export default function AssetsPage() {
                         <div className="flex gap-2">
                           <div className="flex-1 h-11 px-3 bg-[#FAF9F6] border border-[#DFDAD0] rounded-sm font-mono text-sm font-bold text-emerald-700 flex items-center">
                             {swapFrom === 'IDR' && swapTo === 'ALX' && (
-                              (parseFloat(swapAmount || "0") / (PRICE_IDR.ALX || 195000)).toFixed(4)
+                              (parseFloat(swapAmount || "0") / (PRICE_IDR.ALX || 1728)).toFixed(4)
                             )}
                             {swapFrom === 'IDR' && swapTo === 'USDT' && (
                               (parseFloat(swapAmount || "0") / (idrPerUsd || 16000)).toFixed(2)
                             )}
                             {swapFrom === 'USDT' && swapTo === 'ALX' && (
-                              (parseFloat(swapAmount || "0") / (priceUsd.ALX || 12.24)).toFixed(4)
+                              (parseFloat(swapAmount || "0") / (priceUsd.ALX || 0.108)).toFixed(4)
                             )}
                           </div>
                           <select 

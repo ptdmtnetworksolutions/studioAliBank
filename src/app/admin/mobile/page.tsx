@@ -534,8 +534,8 @@ function DashboardView({ liquidity, candleData, auditLogs, onTabChange, onSync, 
             <p className="text-xl font-black italic">{(liquidity?.alixVaultBalance || 0).toLocaleString()} ALX</p>
           </div>
           <div className="text-right">
-            <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Anchor Price</p>
-            <p className="text-xl font-black italic text-primary">$ 12.24</p>
+            <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">DEX Market Price</p>
+            <p className="text-xl font-black italic text-primary">$ {(liquidity?.lastAlxPriceUsdt || 0.108).toFixed(4)}</p>
           </div>
         </div>
       </Card>
@@ -732,8 +732,8 @@ function MoreView({ products, liquidity }: any) {
               <p className="text-[8px] font-bold text-muted-foreground uppercase">Maximum Cap</p>
             </div>
             <div className="text-right">
-              <p className="text-xl font-black italic text-primary">$ 12.24</p>
-              <p className="text-[8px] font-bold text-muted-foreground uppercase">Anchor Price</p>
+              <p className="text-xl font-black italic text-primary">$ {(liquidity?.lastAlxPriceUsdt || 0.108).toFixed(4)}</p>
+              <p className="text-[8px] font-bold text-muted-foreground uppercase">DEX Market Price</p>
             </div>
           </div>
         </Card>

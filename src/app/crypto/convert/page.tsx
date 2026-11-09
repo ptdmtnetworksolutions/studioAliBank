@@ -76,7 +76,7 @@ export default function ConvertPage() {
   const [liveUsdtRate, setLiveUsdtRate] = useState(USDT_IDR_RATE);
 
   const [prices, setPrices] = useState<Record<AssetKey, number>>({
-    ALX: 12.24,
+    ALX: 0.108,
     BTC: 66450,
     ETH: 2350,
     USDT: 1,

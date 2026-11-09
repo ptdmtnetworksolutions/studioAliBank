@@ -72,8 +72,8 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
           heroBadgeSub: "What's the difference?",
 
           // Key Stats Bar
-          stat1Val: "$12.24",
-          stat1Label: "CURRENT ANCHOR PRICE (USDT)",
+          stat1Val: "$0.108",
+          stat1Label: "CURRENT DEX MARKET PRICE (USDT)",
           stat2Val: "1,000,000,000",
           stat2Label: "OUTSTANDING ALX SUPPLY",
           stat3Val: "100% VERIFIED",
@@ -170,8 +170,8 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
           heroBadgeSub: "Apa perbedaannya?",
 
           // Key Stats Bar
-          stat1Val: "$12.24",
-          stat1Label: "HARGA JANGKAR SAAT INI (USDT)",
+          stat1Val: "$0.108",
+          stat1Label: "HARGA PASAR DEX TERKINI (USDT)",
           stat2Val: "1.000.000.000",
           stat2Label: "TOTAL PASOKAN ALX ON-CHAIN",
           stat3Val: "100% TERVERIFIKASI",

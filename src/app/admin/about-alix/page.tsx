@@ -147,7 +147,7 @@ export default function AboutAlixPage() {
               <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 shadow-xl">
                 <Badge variant="outline" className="border-accent/20 text-accent">PHASE 2</Badge>
                 <h4 className="text-lg font-black uppercase italic">Global Listing</h4>
-                <p className="text-[10px] text-muted-foreground uppercase leading-relaxed italic">Peluncuran di Uniswap V3 dengan harga awal $12.24 per ALX menggunakan modal dari Phase 1.</p>
+                <p className="text-[10px] text-muted-foreground uppercase leading-relaxed italic">Peluncuran resmi di Uniswap V4 Polygon Mainnet (pasangan ALX/POL) dengan harga pasar aktif ~$0.108 per ALX.</p>
               </Card>
               <Card className="liquid-glass border-none rounded-[2.5rem] p-8 space-y-4 shadow-xl">
                 <Badge variant="outline" className="border-green-600/20 text-green-600">PHASE 3</Badge>

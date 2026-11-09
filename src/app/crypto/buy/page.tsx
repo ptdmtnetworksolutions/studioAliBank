@@ -176,7 +176,7 @@ const PAYMENT_METHODS = [
 ];
 
 const ASSETS = [
-  { symbol: "ALX", name: "Alix Coin", priceUsd: 12.24, isNative: true },
+  { symbol: "ALX", name: "Alix Coin", priceUsd: 0.108, isNative: true },
   { symbol: "USDT", name: "TetherUS", priceUsd: 1.00, isNative: false },
   { symbol: "BTC", name: "Bitcoin", priceUsd: 66450.00, isNative: false },
   { symbol: "ETH", name: "Ethereum", priceUsd: 2420.00, isNative: false },
@@ -332,7 +332,7 @@ function CryptoBuyPageInner() {
             return prev.map(coin => {
               if (coin.symbol === 'USDT') return { ...coin, priceUsd: 1.00 };
               if (coin.symbol === 'ALX') {
-                return { ...coin, priceUsd: globalLiquidity?.lastAlxPriceUsdt || 12.24 };
+                return { ...coin, priceUsd: globalLiquidity?.lastAlxPriceUsdt || 0.108 };
               }
               const pair = `${coin.symbol}USDT`;
               const marketData = data.find((d: any) => d.symbol === pair);

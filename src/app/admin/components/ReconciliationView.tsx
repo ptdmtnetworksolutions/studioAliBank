@@ -66,7 +66,7 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
   const [autoSuspend, setAutoSuspend] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [livePrices, setLivePrices] = useState<Record<string, number>>({
-    ALX: 216526,
+    ALX: 1728,
     USDT: 17690,
     ETH: 45000000,
     BTC: 1350000000,
@@ -93,7 +93,7 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
             const ethUsd = parseFloat(tickers.find((d: any) => d.symbol === 'ETHUSDT')?.lastPrice) || 2800;
             const usdtIdr = parseFloat(tickers.find((d: any) => d.symbol === 'USDTIDRT')?.lastPrice) || idrRate;
             setLivePrices({
-              ALX: 12.24 * usdtIdr,
+              ALX: 0.108 * usdtIdr,
               USDT: usdtIdr,
               ETH: ethUsd * usdtIdr,
               BTC: btcUsd * usdtIdr,

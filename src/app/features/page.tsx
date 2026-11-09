@@ -165,7 +165,7 @@ function FeaturesContent() {
         excerptId:
           "Tampilan perbendaharaan kelas institusi yang menampilkan saldo fiat rupiah berdampingan dengan aset digital on-chain tanpa biaya tersembunyi.",
         specs: [
-          { labelEn: "Base Anchor Price", labelId: "Harga Jangkar Dasar", value: "1 ALX = $12.24 USDT" },
+          { labelEn: "Base Market Price", labelId: "Harga Pasar Terkini", value: "1 ALX = $0.108 USDT (~Rp 1.700)" },
           { labelEn: "Oracle Feed", labelId: "Frekuensi Oracle", value: "Real-time automated sync" },
           { labelEn: "Internal Slippage", labelId: "Slippage Internal", value: "0.00% Guaranteed" },
           { labelEn: "Reporting Standard", labelId: "Standar Pelaporan", value: "Dual Fiat / Crypto View" },

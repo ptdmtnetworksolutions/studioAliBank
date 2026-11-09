@@ -186,7 +186,7 @@ export default function MarketDetailPage() {
 
   const fetchMarketData = useCallback(async () => {
     if (isAlix) {
-      const base = globalLiquidity?.lastAlxPriceUsdt || 12.24;
+      const base = globalLiquidity?.lastAlxPriceUsdt || 0.108;
       const noise = (Math.random() * 0.002 - 0.001);
       setLivePrice(base + noise);
       setPriceChange(1.14 + (Math.random() * 0.1));
@@ -258,8 +258,8 @@ export default function MarketDetailPage() {
 
   const currentPrice = useMemo(() => {
     if (isAlix) {
-      if (realTrades && realTrades.length > 0) return realTrades[realTrades.length - 1].price || 12.24;
-      return livePrice || globalLiquidity?.lastAlxPriceUsdt || 12.24;
+      if (realTrades && realTrades.length > 0) return realTrades[realTrades.length - 1].price || 0.108;
+      return livePrice || globalLiquidity?.lastAlxPriceUsdt || 0.108;
     }
     return livePrice || 0;
   }, [isAlix, realTrades, globalLiquidity, livePrice]);
@@ -268,18 +268,18 @@ export default function MarketDetailPage() {
     if (!isAlix) return candlestickData;
     
     if (!realTrades || realTrades.length === 0) {
-      const base = globalLiquidity?.lastAlxPriceUsdt || 12.24;
+      const base = globalLiquidity?.lastAlxPriceUsdt || 0.108;
       return Array.from({ length: 40 }, (_, i) => {
-        const p = base + (Math.sin(i/5) * 0.05);
+        const p = base + (Math.sin(i/5) * 0.002);
         return {
-          time: `${i}:00`, open: p, high: p+0.01, low: p-0.01, close: p,
-          body: [p, p], wick: [p-0.01, p+0.01], isUp: true
+          time: `${i}:00`, open: p, high: p+0.001, low: p-0.001, close: p,
+          body: [p, p], wick: [p-0.001, p+0.001], isUp: true
         };
       });
     }
     
     return realTrades.map((t) => {
-      const p = t.price || 12.24;
+      const p = t.price || 0.108;
       return {
         time: t.timestamp?.toDate ? t.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...',
         open: p, high: p + 0.01, low: p - 0.01, close: p,
@@ -403,6 +403,19 @@ export default function MarketDetailPage() {
                     <Clock className="w-2.5 h-2.5" /> {currentTime}
                   </span>
                 </div>
+                {isAlix && (
+                  <div className="pt-2">
+                    <a
+                      href="https://app.uniswap.org/explore/tokens/polygon/0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 text-[9px] font-black uppercase tracking-wider transition-colors border border-purple-500/30"
+                    >
+                      <span>Trade on Uniswap V4 (DEX)</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                )}
               </div>
               
               <div className="grid grid-cols-2 gap-y-2 text-[10px] font-bold text-muted-foreground text-right italic">
@@ -545,7 +558,7 @@ export default function MarketDetailPage() {
                     {(realTrades || []).slice(-10).reverse().map((t, i) => (
                       <div key={i} className="grid grid-cols-3 text-[10px] font-bold italic">
                         <span className="text-muted-foreground">{t.timestamp?.toDate ? t.timestamp.toDate().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'}) : '---'}</span>
-                        <span className={cn("text-center font-black", Math.random() > 0.5 ? "text-green-500" : "text-rose-500")}>{t.price?.toFixed(4) || '12.2400'}</span>
+                        <span className={cn("text-center font-black", Math.random() > 0.5 ? "text-green-500" : "text-rose-500")}>{t.price?.toFixed(4) || '0.1080'}</span>
                         <span className="text-right text-foreground">{t.amount?.toFixed(2) || '100.00'}</span>
                       </div>
                     ))}
@@ -621,7 +634,7 @@ export default function MarketDetailPage() {
               <div className="grid grid-cols-1 gap-3">
                 <InfoRow label="Nama Aset" value={isAlix ? "Alix Token" : (FUNDAMENTALS[symbol]?.name || `${symbol} Token`)} />
                 <InfoRow label="Simbol" value={symbol} />
-                <InfoRow label={isAlix ? "Harga Anchor" : "Harga Terkini"} value={`$ ${(isAlix ? (globalLiquidity?.lastAlxPriceUsdt || 12.24) : (currentPrice || 0)).toFixed(isAlix ? 2 : 4)}`} />
+                <InfoRow label={isAlix ? "Harga Pasar Riil (DEX)" : "Harga Terkini"} value={`$ ${(isAlix ? (globalLiquidity?.lastAlxPriceUsdt || 0.108) : (currentPrice || 0)).toFixed(isAlix ? 4 : 4)}`} />
                 <InfoRow label="Market Cap" value={isAlix ? `Rp ${(globalLiquidity?.totalInternalAumIdr * 1.5 || 25000000000).toLocaleString()}` : (FUNDAMENTALS[symbol]?.cap || "TBD")} />
                 <InfoRow label="Total Suplai" value={isAlix ? "1,000,000,000 ALX" : (FUNDAMENTALS[symbol]?.supply || "TBD")} />
                 {isAlix && <InfoRow label="Sirkulasi Riil" value={`${(globalLiquidity?.totalAlixSoldInternally || 1250000).toLocaleString()} ALX`} />}

@@ -21,7 +21,7 @@ export function useVaultStaking(walletAddress: string | null, userId: string | n
   const [stakedEth, setStakedEth] = useState<number>(0);
   const [depositTimestamp, setDepositTimestamp] = useState<number>(0);
   const [lastClaimedTimestamp, setLastClaimedTimestamp] = useState<number>(0);
-  const [alxPrice, setAlxPrice] = useState<number>(12.24);
+  const [alxPrice, setAlxPrice] = useState<number>(0.108);
   const [ethPrice, setEthPrice] = useState<number>(2420);
   const [accruedRewards, setAccruedRewards] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -34,7 +34,7 @@ export function useVaultStaking(walletAddress: string | null, userId: string | n
   const depositTimestampRef = useRef(0);
   const lastClaimedTimestampRef = useRef(0);
   const ethPriceRef = useRef(2420);
-  const alxPriceRef = useRef(12.24);
+  const alxPriceRef = useRef(0.108);
 
   useEffect(() => { stakedEthRef.current = stakedEth; }, [stakedEth]);
   useEffect(() => { depositTimestampRef.current = depositTimestamp; }, [depositTimestamp]);
@@ -82,7 +82,7 @@ export function useVaultStaking(walletAddress: string | null, userId: string | n
     let dynamicRpc = "";
     let infuraId = "";
     let dynamicAddress = VAULT_ADDRESS_DEFAULT;
-    let currentAlxPrice = 12.24;
+    let currentAlxPrice = 0.108;
 
     // Ambil konfigurasi API & RPC dari Firestore
     try {

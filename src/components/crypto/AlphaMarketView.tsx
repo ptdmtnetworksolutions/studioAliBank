@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 
 const ALPHA_SIGNALS = [
-  { id: 1, pair: "ALX/USDT", type: "Long", entry: "12.24", target: "15.50", sl: "11.20", confidence: "94%", trend: "Strong Bullish" },
+  { id: 1, pair: "ALX/USDT", type: "Long", entry: "0.108", target: "0.250", sl: "0.085", confidence: "94%", trend: "Strong Bullish" },
   { id: 2, pair: "BTC/USDT", type: "Long", entry: "66,410", target: "69,200", sl: "65,000", confidence: "88%", trend: "Accumulation" },
   { id: 3, pair: "ETH/USDT", type: "Long", entry: "2,286", target: "2,450", sl: "2,150", confidence: "82%", trend: "Breakout" },
   { id: 4, pair: "SOL/USDT", type: "Short", entry: "85.72", target: "78.00", sl: "89.50", confidence: "76%", trend: "Rejection" },

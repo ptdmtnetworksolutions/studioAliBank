@@ -91,7 +91,7 @@ export default function MobileMarketPage() {
   const { data: globalLiquidity } = useDoc(liquidityRef);
 
   const fetchMarketData = useCallback(async () => {
-    const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
+    const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 0.108;
     const alxData = { symbol: "ALX", price: alxPrice, change: 1.14, isUp: true, isNative: true, icon: null };
 
     try {

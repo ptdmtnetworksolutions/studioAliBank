@@ -83,7 +83,7 @@ export default function TradeProPage() {
   const isAlix = symbol === 'ALX';
 
   const [mounted, setMounted] = useState(false);
-  const [price, setPrice] = useState(isAlix ? 12.24 : 66450.00);
+  const [price, setPrice] = useState(isAlix ? 0.108 : 66450.00);
   const [candles, setCandles] = useState<any[]>([]);
   const [zoomLevel, setZoomLevel] = useState(40);
   const [stakeCurrency, setStakeCurrency] = useState<'IDR' | 'ALX' | 'USDT' | 'ETH' | 'BTC'>('IDR');

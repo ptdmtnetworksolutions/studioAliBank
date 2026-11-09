@@ -35,7 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const ALPHA_SIGNALS = [
   { id: 1, pair: "BTC/USDT", type: "Long", entry: "66,240", target: "68,500", sl: "65,100", confidence: "92%", time: "2m ago" },
-  { id: 2, pair: "ALX/USDT", type: "Long", entry: "12.24", target: "15.00", sl: "11.50", confidence: "88%", time: "15m ago" },
+  { id: 2, pair: "ALX/USDT", type: "Long", entry: "0.108", target: "0.250", sl: "0.085", confidence: "88%", time: "15m ago" },
   { id: 3, pair: "SOL/USDT", type: "Short", entry: "142.50", target: "135.00", sl: "146.00", confidence: "75%", time: "1h ago" },
 ];
 

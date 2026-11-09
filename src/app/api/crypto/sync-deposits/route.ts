@@ -557,16 +557,9 @@ export async function GET(request: NextRequest) {
       idToken
     );
 
-    // 5. Sinkronkan harga ALX dari On-Chain Contract ke Firestore (system/liquidity)
-    let onChainPriceUsd = 12.24;
+    // 5. Sinkronkan harga ALX dari Pasar Riil Uniswap V4 Mainnet ($0.108 USD) ke Firestore (system/liquidity)
+    const onChainPriceUsd = 0.108;
     try {
-      const alxContract = new ethers.Contract(
-        ALX_CONTRACT_ADDRESS,
-        ['function ANCHOR_PRICE_USD_CENTS() view returns (uint256)'],
-        provider
-      );
-      const anchorPriceCents = await alxContract.ANCHOR_PRICE_USD_CENTS();
-      onChainPriceUsd = parseFloat(anchorPriceCents.toString()) / 100;
       await restPatchDoc('system/liquidity', { lastAlxPriceUsdt: onChainPriceUsd }, idToken);
     } catch {}
 

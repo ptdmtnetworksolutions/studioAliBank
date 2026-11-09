@@ -109,7 +109,7 @@ export default function DesktopDiscoverPage() {
         return;
       }
 
-      const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 12.24;
+      const alxPrice = globalLiquidity?.lastAlxPriceUsdt || 0.108;
       
       const baseData = tickerData.map((item, idx) => {
         const symbol = item.symbol.replace("USDT", "");
