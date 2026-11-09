@@ -29,7 +29,7 @@ Dokumen ini memuat seluruh data teknis, spesifikasi tokenomics, tautan aset lega
 * **Nama Perusahaan / Organisasi**: PT DMT Network Solutions (AliBank Financial Network)
 * **Situs Web Resmi**: [https://alibank.tarroz.com](https://alibank.tarroz.com)
 * **Halaman Spesifikasi Token**: [https://alibank.tarroz.com/alx](https://alibank.tarroz.com/alx)
-* **Email Resmi Pengembang**: `alidzulfikar075@gmail.com` / `support@alibank.tarroz.com`
+* **Email Resmi Organisasi**: `support@alibank.tarroz.com` / `compliance@alibank.tarroz.com`
 * **Dokumentasi & Audit**: [https://alibank.tarroz.com/about](https://alibank.tarroz.com/about)
 * **URL Logo Resmi (512x512 PNG)**: `https://alibank.tarroz.com/alx-logo.png`
 * **URL Logo Vektor (SVG)**: `https://alibank.tarroz.com/alx-logo.svg`
@@ -59,7 +59,7 @@ Dokumen ini memuat seluruh data teknis, spesifikasi tokenomics, tautan aset lega
    * Token Name: `Alix Coin`
    * Symbol: `ALX`
    * Official Website: `https://alibank.tarroz.com`
-   * Official Email: `alidzulfikar075@gmail.com`
+   * Official Email: `support@alibank.tarroz.com`
    * Whitepaper / Documentation: `https://alibank.tarroz.com/about`
    * Icon / Logo: Masukkan URL `https://alibank.tarroz.com/alx-logo.png` atau unggah berkas PNG 512x512.
    * Deskripsi: Salin deskripsi Bahasa Inggris dari bagian 3A di atas.
@@ -95,3 +95,4 @@ Dokumen ini memuat seluruh data teknis, spesifikasi tokenomics, tautan aset lega
    }
    ```
 4. Buat Pull Request (PR). Setelah di-merge, logo dan harga koin ALX akan langsung otomatis muncul di dompet Trust Wallet mobile di seluruh dunia.
+

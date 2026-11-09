@@ -52,6 +52,7 @@ Max Supply: 1,000,000,000 ALX
 Website: https://alibank.tarroz.com
 Token Hub: https://alibank.tarroz.com/alx
 Logo URL: https://alibank.tarroz.com/alx-logo.png
+Official Contact: support@alibank.tarroz.com
 Explorer: https://polygonscan.com/token/0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd
 Uniswap: https://app.uniswap.org/explore/tokens/polygon/0x8bafca0a5a5f288dcc0af6da6951dd3d59e0d1dd
 Description: Alix Coin (ALX) is the sovereign utility and settlement token of the AliBank V3 hybrid neobank ecosystem on Polygon Mainnet. Featuring zero-fee P2P clearing, SoftPOS merchant acquiring, and a 20% deflationary buyback-and-burn engine backed by 100% verified Proof-of-Reserves.`;
@@ -290,10 +291,14 @@ Description: Alix Coin (ALX) is the sovereign utility and settlement token of th
         <div className="max-w-[1280px] mx-auto px-6 text-center space-y-3">
           <p className="font-serif text-lg font-bold text-[#111111]">AliBank V3 Financial Network</p>
           <p className="text-xs text-[#666666]">
-            PT DMT Network Solutions · Alix Coin (ALX) Contract: {CONTRACT_ADDRESS}
+            PT DMT Network Solutions · Official Support: support@alibank.tarroz.com
+          </p>
+          <p className="text-xs text-[#888888]">
+            Alix Coin (ALX) Contract: {CONTRACT_ADDRESS}
           </p>
         </div>
       </footer>
     </div>
   );
 }
+
