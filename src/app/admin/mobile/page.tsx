@@ -154,10 +154,22 @@ function AdminMobileContent() {
     });
 
     auditLogs.forEach(log => {
-      if (log.timestamp && log.amountIdr) {
-        const date = log.timestamp.toDate();
-        const hour = date.getHours();
-        hours[hour].close += log.amountIdr;
+      const amount = Number(log?.amountIdr || log?.amount || 0);
+      if (amount > 0 && (log.timestamp || log.date)) {
+        try {
+          let date: Date;
+          if (typeof log.timestamp?.toDate === 'function') {
+            date = log.timestamp.toDate();
+          } else if (typeof log.timestamp?.seconds === 'number') {
+            date = new Date(log.timestamp.seconds * 1000);
+          } else {
+            date = new Date(log.timestamp || log.date);
+          }
+          const hour = date.getHours();
+          if (hour >= 0 && hour < 24) {
+            hours[hour].close += amount;
+          }
+        } catch {}
       }
     });
 

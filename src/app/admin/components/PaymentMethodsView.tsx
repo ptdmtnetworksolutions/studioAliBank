@@ -357,7 +357,9 @@ export function PaymentMethodsView() {
         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest text-center">
           Terakhir diperbarui oleh: {storedConfig?.updatedBy || "—"} ·{" "}
           {storedConfig?.updatedAt
-            ? new Date(storedConfig.updatedAt.seconds * 1000).toLocaleString("id-ID")
+            ? (storedConfig.updatedAt.seconds
+                ? new Date(storedConfig.updatedAt.seconds * 1000).toLocaleString("id-ID")
+                : new Date(storedConfig.updatedAt).toLocaleString("id-ID"))
             : "Belum ada perubahan"}
         </p>
       </Card>

@@ -167,3 +167,4 @@ export function validateRecipientAddress(
 
   return { isValid: true };
 }
+

@@ -210,3 +210,4 @@ export function verifyDeviceAttestation(token: string | null | undefined): {
     };
   }
 }
+

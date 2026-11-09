@@ -68,6 +68,28 @@ const VAULT_CONTRACT = "0x56268032A3B3E64CFeF1916d591087CF8dF40945";
 const OWNER_EMAIL = "alidzulfikar075@gmail.com";
 const OWNER_UID = "IJOuQpjEOMgvlYfzvQ1yfp976Oa2";
 
+function parseTimestampSafe(ts: any): Date {
+  if (!ts) return new Date();
+  if (typeof ts.toDate === 'function') {
+    try {
+      return ts.toDate();
+    } catch {}
+  }
+  if (typeof ts.seconds === 'number') {
+    return new Date(ts.seconds * 1000);
+  }
+  if (typeof ts === 'string' || typeof ts === 'number') {
+    const d = new Date(ts);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (ts instanceof Date) return ts;
+  return new Date();
+}
+
+function getTimestampMsSafe(ts: any): number {
+  return parseTimestampSafe(ts).getTime();
+}
+
 function AdminContent() {
   const { user, loading: userLoading } = useUser();
   const auth = useAuth();
@@ -75,6 +97,9 @@ function AdminContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { theme, setTheme } = useTheme();
+
+  const userDocRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
+  const { data: currentUserDoc } = useDoc(userDocRef);
   
   const {
     totalSupply,
@@ -98,11 +123,16 @@ function AdminContent() {
   const [globalSearch, setGlobalSearch] = useState<string>("");
 
   // DATA FETCHING STRATEGY V3.5 - RECONCILIATION MODE
-  const userEmailClean = String(user?.email || '').toLowerCase();
-  const isPrivileged = user && (
-    userEmailClean === OWNER_EMAIL.toLowerCase() ||
-    userEmailClean === 'aldzulfikar075@gmail.com' ||
-    user.uid === OWNER_UID
+  const userEmailClean = String(user?.email || '').trim().toLowerCase();
+  const isPrivileged = !!(
+    user && (
+      userEmailClean === OWNER_EMAIL.toLowerCase() ||
+      userEmailClean === 'aldzulfikar075@gmail.com' ||
+      user.uid === OWNER_UID ||
+      currentUserDoc?.role === 'admin' ||
+      currentUserDoc?.role === 'owner' ||
+      currentUserDoc?.isSuperAdmin === true
+    )
   );
 
   const liquidityRef = useMemoFirebase(() => (db && isPrivileged ? doc(db, "system", "liquidity") : null), [db, isPrivileged]);
@@ -132,14 +162,9 @@ function AdminContent() {
   const topupRequests = useMemo(() => {
     if (!rawTopupRequests) return [];
     return [...rawTopupRequests].sort((a: any, b: any) => {
-      const parseTime = (item: any) => {
-        if (item.timestamp?.seconds) return item.timestamp.seconds;
-        if (typeof item.timestamp === 'string') return new Date(item.timestamp).getTime() / 1000;
-        if (item.createdAt?.seconds) return item.createdAt.seconds;
-        if (typeof item.createdAt === 'string') return new Date(item.createdAt).getTime() / 1000;
-        return 0;
-      };
-      return parseTime(b) - parseTime(a);
+      const timeA = getTimestampMsSafe(a.timestamp || a.createdAt);
+      const timeB = getTimestampMsSafe(b.timestamp || b.createdAt);
+      return timeB - timeA;
     });
   }, [rawTopupRequests]);
 
@@ -152,7 +177,7 @@ function AdminContent() {
       const isMatched = globalTxDocIds.has(l.id) || global.some(g => 
         g.category === l.category && 
         Math.abs((g.amountIdr || g.amount || 0) - (l.amount || l.amountIdr || 0)) < 1 &&
-        Math.abs((g.timestamp?.seconds || 0) - (l.timestamp?.seconds || 0)) < 120
+        Math.abs(getTimestampMsSafe(g.timestamp) - getTimestampMsSafe(l.timestamp)) < 120000
       );
 
       return { 
@@ -169,23 +194,39 @@ function AdminContent() {
     const filteredClient = clientSide.filter(l => !seenIds.has(l.id));
 
     return [...global, ...filteredClient].sort((a, b) => {
-      const timeA = a.timestamp?.seconds || 0;
-      const timeB = b.timestamp?.seconds || 0;
+      const timeA = getTimestampMsSafe(a.timestamp || a.date);
+      const timeB = getTimestampMsSafe(b.timestamp || b.date);
       return timeB - timeA;
     });
   }, [auditLogs, userTransactions]);
 
   const candleData = useMemo(() => {
     const logs = combinedAuditLogs;
-    if (!logs) return Array.from({ length: 24 }, (_, i) => ({ time: `${i.toString().padStart(2, '0')}:00`, close: 0, isUp: true }));
-    const hours = Array.from({ length: 24 }, (_, i) => ({ time: `${i.toString().padStart(2, '0')}:00`, close: 0, isUp: true }));
+    const hours = Array.from({ length: 24 }, (_, i) => ({
+      time: `${i.toString().padStart(2, '0')}:00`,
+      close: 0,
+      isUp: true,
+    }));
+    if (!logs || !Array.isArray(logs)) return hours;
+
     logs.forEach((log: any) => {
-      if (log.timestamp && log.amountIdr) {
-        const hour = log.timestamp.toDate().getHours();
-        hours[hour].close += log.amountIdr;
+      const amount = Number(log?.amountIdr || log?.amount || 0);
+      if (log && amount > 0 && (log.timestamp || log.date || log.createdAt)) {
+        try {
+          const date = parseTimestampSafe(log.timestamp || log.date || log.createdAt);
+          const hour = date.getHours();
+          if (hour >= 0 && hour < 24) {
+            hours[hour].close += amount;
+          }
+        } catch (e) {
+          console.warn('[Admin Candle Parse Error]:', e);
+        }
       }
     });
-    for (let i = 1; i < hours.length; i++) hours[i].isUp = hours[i].close >= hours[i-1].close;
+
+    for (let i = 1; i < hours.length; i++) {
+      hours[i].isUp = hours[i].close >= hours[i - 1].close;
+    }
     return hours;
   }, [combinedAuditLogs]);
 
@@ -206,14 +247,23 @@ function AdminContent() {
 
   useEffect(() => {
     if (userLoading) return;
-    if (user && (user.email === OWNER_EMAIL || user.email === 'aldzulfikar075@gmail.com' || user.uid === OWNER_UID)) {
+    if (isPrivileged) {
       setIsAuthorized(true);
       syncOnChainData();
+    } else if (user) {
+      // Tunggu verifikasi currentUserDoc jika email bukan hardcoded owner
+      if (currentUserDoc?.role === 'admin' || currentUserDoc?.isSuperAdmin === true) {
+        setIsAuthorized(true);
+        syncOnChainData();
+      } else if (currentUserDoc !== undefined) {
+        setIsAuthorized(false);
+        router.replace('/login');
+      }
     } else {
       setIsAuthorized(false);
       router.replace('/login');
     }
-  }, [user, userLoading, router, syncOnChainData]);
+  }, [user, userLoading, isPrivileged, currentUserDoc, router, syncOnChainData]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
