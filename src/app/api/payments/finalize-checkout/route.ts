@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
+import { firebaseConfig } from '@/firebase/config';
 import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
 
 export const dynamic = 'force-dynamic';
 
 function getAdminApp(): App {
   if (getApps().length > 0) return getApps()[0];
-  return initializeApp({ projectId: 'darmedia-pos' });
+  return initializeApp({ projectId: firebaseConfig.projectId || 'darmedia-pos' });
 }
 
 const INVOICE_PATH_REGEX = /^merchants\/[a-zA-Z0-9_-]+\/invoices\/[a-zA-Z0-9_-]+$/;

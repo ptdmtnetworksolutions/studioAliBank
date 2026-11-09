@@ -154,9 +154,13 @@ declare global {
     snap: any;
     AndroidBridge?: {
       startNfcScan: (amount: string) => void;
+      getDeviceAttestation?: (nonce: string) => string;
+      isDeviceRooted?: () => boolean;
+      checkIntegrity?: () => string;
     };
-    onAndroidNfcRead?: (number: string, expiry: string, cvv: string, holder: string, bank?: string, type?: string, network?: string) => void;
-    onNfcCardTapped?: (number: string, expiry: string, cvv: string, holder: string, bank?: string, type?: string, network?: string) => void;
+    onAndroidNfcRead?: (number: string, expiry: string, cvv: string, holder: string, bank?: string, type?: string, network?: string, attestationToken?: string) => void;
+    onNfcCardTapped?: (number: string, expiry: string, cvv: string, holder: string, bank?: string, type?: string, network?: string, attestationToken?: string) => void;
+    setDeviceAttestationToken?: (token: string) => void;
     setNfcStatus?: (status: string) => void;
     setNfcError?: (error: string | null) => void;
   }
@@ -243,6 +247,7 @@ function CryptoBuyPageInner() {
   const [nfcCardHolder, setNfcCardHolder] = useState("");
   const [showNfcCvv, setShowNfcCvv] = useState(false);
   const [softPosReceipt, setSoftPosReceipt] = useState<SoftPosTransactionReceipt | null>(null);
+  const [deviceAttestationToken, setDeviceAttestationToken] = useState<string | null>(null);
   
   // Real-time BIN detector untuk mendeteksi Bank (BCA, Mandiri, BRI, BNI, Nobu), Tipe Kartu (Debit/Kredit), & Jaringan (GPN/Visa/Mastercard)
   const detectedCardBin = useMemo(() => {
@@ -426,11 +431,14 @@ function CryptoBuyPageInner() {
   // Register Native WebView JavaScript Bridge callbacks
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.onAndroidNfcRead = (number: string, expiry: string, cvv: string, holder: string, bank?: string, type?: string, network?: string) => {
+      window.onAndroidNfcRead = (number: string, expiry: string, cvv: string, holder: string, bank?: string, type?: string, network?: string, attestationToken?: string) => {
         setNfcCardNumber(number);
         setNfcCardExpiry(expiry);
         setNfcCardCvv(cvv);
         setNfcCardHolder(holder);
+        if (attestationToken) {
+          setDeviceAttestationToken(attestationToken);
+        }
         
         const detected = detectCardBin(number);
         const bankTitle = bank || detected.bank.shortName;
@@ -449,7 +457,11 @@ function CryptoBuyPageInner() {
           expiry,
           cvv,
           holder
-        });
+        }, attestationToken);
+      };
+
+      window.setDeviceAttestationToken = (token: string) => {
+        setDeviceAttestationToken(token);
       };
 
       window.setNfcStatus = (status: any) => {
@@ -464,6 +476,7 @@ function CryptoBuyPageInner() {
     return () => {
       if (typeof window !== 'undefined') {
         window.onAndroidNfcRead = undefined;
+        window.setDeviceAttestationToken = undefined;
         window.setNfcStatus = undefined;
         window.setNfcError = undefined;
       }
@@ -876,7 +889,10 @@ function CryptoBuyPageInner() {
     }
   };
 
-  const handleNfcPayment = async (customCardDetails?: { number: string; expiry: string; cvv: string; holder: string }) => {
+  const handleNfcPayment = async (
+    customCardDetails?: { number: string; expiry: string; cvv: string; holder: string },
+    customAttestation?: string
+  ) => {
     if (!user || !db || !userData) {
       toast({ variant: "destructive", title: "Sesi Tidak Valid", description: "Silakan login ulang." });
       return;
@@ -897,12 +913,21 @@ function CryptoBuyPageInner() {
     setIsProcessing(true);
 
     try {
+      // Ambil token integritas perangkat (Play Integrity Attestation Token)
+      const effectiveAttestation =
+        customAttestation ||
+        deviceAttestationToken ||
+        (typeof window !== 'undefined' ? (window as any).AndroidBridge?.getDeviceAttestation?.(cardNumber) : null);
+
       // 1. Eksekusi transaksi melalui Endpoint SoftPOS Acquirer Resmi (Nobu Bank / Asterlink)
       let resData: any = null;
       try {
         const response = await fetch('/api/payments/softpos', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(effectiveAttestation ? { 'x-device-attestation': effectiveAttestation } : {}),
+          },
           body: JSON.stringify({
             userId: user.uid,
             userEmail: user.email,
@@ -913,13 +938,22 @@ function CryptoBuyPageInner() {
             amountIdr: totalAmountIdr,
             cryptoAmount: parseFloat(estimatedCrypto),
             cryptoCurrency: selectedAsset.symbol,
-            usdValue: usdValue
+            usdValue: usdValue,
+            attestationToken: effectiveAttestation,
           })
         });
         if (response.ok) {
           resData = await response.json();
+        } else {
+          const errData = await response.json().catch(() => null);
+          if (errData?.error) {
+            throw new Error(errData.error);
+          }
         }
-      } catch (softPosErr) {
+      } catch (softPosErr: any) {
+        if (softPosErr?.message && !softPosErr.message.includes('fetch')) {
+          throw softPosErr;
+        }
         console.warn("SoftPOS API route fallback:", softPosErr);
       }
 

@@ -476,7 +476,7 @@ export async function POST(request: NextRequest) {
         txResponse.wait(1).catch((e: any) => console.error('[USDT Tx Wait Error]:', e));
       } else if (asset === 'ETH') {
         const rpcUrl = config?.ethereumRpcUrl || 'https://ethereum-rpc.publicnode.com';
-        const provider = new ethers.JsonRpcProvider(rpcUrl);
+        const provider = new ethers.JsonRpcProvider(rpcUrl, 1, { staticNetwork: true });
         const wallet = new ethers.Wallet(privateKey, provider);
         const contractAddress = config?.vaultContractAddress || '0x56268032A3B3E64CFeF1916d591087CF8dF40945';
         const vaultContract = new ethers.Contract(contractAddress, AliBankVaultABI, wallet);

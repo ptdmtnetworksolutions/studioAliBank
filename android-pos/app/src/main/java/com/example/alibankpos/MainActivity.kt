@@ -602,6 +602,17 @@ class MainActivity : FragmentActivity() {
     // ======================================================================
 
     fun startScanning(amount: String) {
+        // 0. PCI MPoC Security Check: Verifikasi Integritas Perangkat & Anti-Root
+        val integrity = com.example.alibankpos.security.DeviceIntegrityManager.checkDeviceIntegrity(this)
+        if (integrity.isCompromised) {
+            Toast.makeText(this, "PERINGATAN KEAMANAN: Perangkat terdeteksi di-root atau tidak aman. SoftPOS dinonaktifkan.", Toast.LENGTH_LONG).show()
+            webView?.evaluateJavascript(
+                "javascript:if(window.setNfcError) window.setNfcError('Perangkat tidak aman (Root/Debugger terdeteksi). Transaksi SoftPOS dibatalkan demi keamanan.');" +
+                "if(window.setNfcStatus) window.setNfcStatus('security_compromised');", null
+            )
+            return
+        }
+
         if (nfcAdapter == null) {
             Toast.makeText(this, getString(R.string.nfc_not_supported), Toast.LENGTH_LONG).show()
             webView?.evaluateJavascript(
@@ -721,6 +732,20 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun handleNfcTag(tag: Tag) {
+        // Validasi integritas perangkat sebelum memproses transaksi
+        val integrity = com.example.alibankpos.security.DeviceIntegrityManager.checkDeviceIntegrity(this)
+        if (integrity.isCompromised) {
+            runOnUiThread {
+                Toast.makeText(this, "Transaksi Ditolak: Perangkat Terkompromi!", Toast.LENGTH_LONG).show()
+                webView?.evaluateJavascript(
+                    "javascript:if(window.setNfcError) window.setNfcError('Integritas perangkat gagal. Transaksi dibatalkan.');" +
+                    "if(window.setNfcStatus) window.setNfcStatus('security_compromised');",
+                    null
+                )
+            }
+            return
+        }
+
         playBeepSound()
         vibrateDevice()
 
@@ -744,16 +769,20 @@ class MainActivity : FragmentActivity() {
                 val (bankName, cardType, cardNetwork) = detectCardBankAndType(number)
                 Toast.makeText(this, "Kartu $bankName ($cardType $cardNetwork) Terbaca!", Toast.LENGTH_SHORT).show()
 
+                val attestationToken = com.example.alibankpos.security.DeviceIntegrityManager.generateAttestationToken(this, number)
+
                 val safeNumber = escapeJsString(number)
                 val safeExpiry = escapeJsString(expiry)
                 val safeName = escapeJsString(name)
                 val safeBank = escapeJsString(bankName)
                 val safeType = escapeJsString(cardType)
                 val safeNetwork = escapeJsString(cardNetwork)
+                val safeAttestation = escapeJsString(attestationToken)
 
                 webView?.evaluateJavascript(
-                    "javascript:if(window.onAndroidNfcRead) window.onAndroidNfcRead('$safeNumber', '$safeExpiry', '123', '$safeName', '$safeBank', '$safeType', '$safeNetwork');" +
-                    "if(window.onNfcCardTapped) window.onNfcCardTapped('$safeNumber', '$safeExpiry', '123', '$safeName', '$safeBank', '$safeType', '$safeNetwork');",
+                    "javascript:if(window.onAndroidNfcRead) window.onAndroidNfcRead('$safeNumber', '$safeExpiry', '123', '$safeName', '$safeBank', '$safeType', '$safeNetwork', '$safeAttestation');" +
+                    "if(window.onNfcCardTapped) window.onNfcCardTapped('$safeNumber', '$safeExpiry', '123', '$safeName', '$safeBank', '$safeType', '$safeNetwork', '$safeAttestation');" +
+                    "if(window.setDeviceAttestationToken) window.setDeviceAttestationToken('$safeAttestation');",
                     null
                 )
             } else {
@@ -1402,6 +1431,22 @@ class MainActivity : FragmentActivity() {
                     Toast.makeText(this@MainActivity, "Disalin ke clipboard", Toast.LENGTH_SHORT).show()
                 }
             } catch (_: Exception) {}
+        }
+
+        @JavascriptInterface
+        fun getDeviceAttestation(nonce: String): String {
+            return com.example.alibankpos.security.DeviceIntegrityManager.generateAttestationToken(this@MainActivity, nonce)
+        }
+
+        @JavascriptInterface
+        fun isDeviceRooted(): Boolean {
+            return com.example.alibankpos.security.DeviceIntegrityManager.checkDeviceIntegrity(this@MainActivity).isRooted
+        }
+
+        @JavascriptInterface
+        fun checkIntegrity(): String {
+            val check = com.example.alibankpos.security.DeviceIntegrityManager.checkDeviceIntegrity(this@MainActivity)
+            return check.verdict
         }
     }
 }

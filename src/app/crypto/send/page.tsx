@@ -31,6 +31,7 @@ import { proxyUpdateDoc, proxyAddDoc, triggerFirestoreSync } from "@/lib/firesto
 import { useToast } from "@/hooks/use-toast";
 import { ethers, JsonRpcProvider, BrowserProvider } from "ethers";
 import { cn } from "@/lib/utils";
+import { ensureCorrectWeb3Chain, validateRecipientAddress } from "@/lib/web3-chain-guard";
 
 const GLOBAL_RPC = "https://ethereum-rpc.publicnode.com";
 
@@ -192,10 +193,10 @@ export default function CryptoSendPage() {
           throw new Error(`Saldo ${assetType} Anda tidak mencukupi.`);
         }
 
-        // Pencegah salah transfer: Validasi agar user tidak memasukkan Contract Address ALX
-        const ALX_CONTRACT = "0x8bafca0a5a5f288dcc0af6da6951dd3d59e0d1dd";
-        if (recipientAddress.trim().toLowerCase() === ALX_CONTRACT) {
-          throw new Error("Alamat yang Anda masukkan adalah Alamat Kontrak Token ALX, bukan Alamat Dompet Pribadi Anda. Silakan salin Alamat Akun MetaMask Anda (di bagian atas tampilan utama MetaMask).");
+        // Validasi Alamat Tujuan Multi-Chain & Anti-Burn Trap
+        const valCheck = validateRecipientAddress(recipientAddress, assetType);
+        if (!valCheck.isValid) {
+          throw new Error(valCheck.error || "Alamat tujuan tidak valid.");
         }
 
         // Force refresh ID token to prevent expired session errors
@@ -264,28 +265,10 @@ export default function CryptoSendPage() {
           const ethWin = typeof window !== 'undefined' ? (window as any).ethereum : null;
           if (ethWin && (assetType === 'ALX' || assetType === 'USDT')) {
             toast({
-              title: "Konfirmasi Dompet Web3",
-              description: `Silakan setujui tanda tangan pengiriman ${numAmount} ${assetType} di MetaMask Anda.`,
+              title: "Sinkronisasi Jaringan Polygon",
+              description: `Memverifikasi rantai Polygon Mainnet sebelum penandatanganan transaksi ${assetType}...`,
             });
-            try {
-              await ethWin.request({
-                method: 'wallet_switchEthereumChain',
-                params: [{ chainId: '0x89' }],
-              });
-            } catch (switchErr: any) {
-              if (switchErr?.code === 4902) {
-                await ethWin.request({
-                  method: 'wallet_addEthereumChain',
-                  params: [{
-                    chainId: '0x89',
-                    chainName: 'Polygon Mainnet',
-                    nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 },
-                    rpcUrls: ['https://polygon-bor-rpc.publicnode.com'],
-                    blockExplorerUrls: ['https://polygonscan.com'],
-                  }],
-                });
-              }
-            }
+            await ensureCorrectWeb3Chain(ethWin, 'POLYGON');
             const browserProvider = new BrowserProvider(ethWin);
             const signer = await browserProvider.getSigner();
             const signerAddr = await signer.getAddress();
