@@ -39,7 +39,7 @@ interface AIPItem {
 export default function NetworkPage() {
   const [lang, setLang] = useState<"en" | "id">("en");
   const [activeTab, setActiveTab] = useState<"price" | "liquidity" | "volume" | "reserves" | "health">("price");
-  const [activeMegaMenu, setActiveMegaMenu] = useState<"learn" | "ecosystem" | "network" | null>(null);
+  const [activeMegaMenu, setActiveMegaMenu] = useState<"learn" | "ecosystem" | "network" | "features" | null>(null);
   const [selectedAIP, setSelectedAIP] = useState<AIPItem | null>(null);
 
   const ALX_POLYGON_CONTRACT = "0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd";
@@ -206,9 +206,22 @@ AIP-002 menerapkan standar Hierarchical Deterministic (HD) wallet yang sepenuhny
               <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#F4B728] z-50 pointer-events-none" />
             </div>
 
-            <NextLink href="/#features" className="hover:text-black transition-colors">
-              {lang === "en" ? "FEATURES" : "FITUR"}
-            </NextLink>
+            {/* FEATURES with Mega Menu Trigger */}
+            <div className="relative h-full flex items-center">
+              <button
+                onClick={() => setActiveMegaMenu(activeMegaMenu === "features" ? null : "features")}
+                className={cn(
+                  "relative h-full flex items-center text-[11px] font-bold tracking-[0.18em] transition-colors uppercase",
+                  activeMegaMenu === "features" ? "text-[#111111]" : "text-[#444444] hover:text-[#111111]"
+                )}
+              >
+                <span>{lang === "en" ? "FEATURES" : "FITUR"}</span>
+              </button>
+              {activeMegaMenu === "features" && (
+                <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#F4B728] z-50 pointer-events-none" />
+              )}
+            </div>
+
             <NextLink href="/#faq" className="hover:text-black transition-colors">
               FAQ
             </NextLink>
@@ -634,6 +647,127 @@ AIP-002 menerapkan standar Hierarchical Deterministic (HD) wallet yang sepenuhny
                     <li>
                       <NextLink href="/learn?category=aml" onClick={() => setActiveMegaMenu(null)} className="text-[11px] font-bold text-[#E11D48] hover:underline pt-1 block">
                         {lang === "en" ? "Learn AML Engine →" : "Pelajari Mesin AML →"}
+                      </NextLink>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* 4. FEATURES MEGA MENU */}
+        {activeMegaMenu === "features" && (
+          <>
+            <div onClick={() => setActiveMegaMenu(null)} className="fixed inset-0 top-20 z-40 bg-black/5 backdrop-blur-[1px]" />
+            <div className="absolute top-20 left-0 w-full bg-white border-b border-[#DFDAD0] shadow-xl z-50 animate-in fade-in duration-150">
+              <div className="max-w-[1280px] mx-auto px-6 py-10 pb-12 grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12 text-left">
+                {/* Col 1: Overview */}
+                <div className="space-y-3 pr-4 border-r border-[#ECE7DE]">
+                  <h3 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "FEATURES" : "FITUR UNGGULAN"}
+                  </h3>
+                  <p className="text-xs text-[#666666] font-light leading-relaxed">
+                    {lang === "en"
+                      ? "Engineered for mathematical certainty: hybrid instant banking settlement, cryptographic proof of reserves, self-custody Web3 derivation, and real-time AML surveillance."
+                      : "Dirancang untuk kepastian matematis: kliring perbankan instan hibrida, bukti cadangan kriptografis (PoR), kustodi mandiri Web3, dan pengawasan AML real-time."}
+                  </p>
+                  <div className="pt-2">
+                    <NextLink
+                      href="/features"
+                      onClick={() => setActiveMegaMenu(null)}
+                      className="text-[11px] font-bold tracking-wider text-[#F4B728] hover:underline"
+                    >
+                      {lang === "en" ? "Explore All Features →" : "Jelajahi Semua Fitur →"}
+                    </NextLink>
+                  </div>
+                </div>
+
+                {/* Col 2: BANKING & SETTLEMENT */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "BANKING & SETTLEMENT" : "PERBANKAN & KLIRING"}
+                  </h4>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <NextLink href="/features#instant-transfers" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "Instant P2P Transfers (<200ms, 0% Fee)" : "Transfer P2P Instan (<200ms, Bebas Biaya)"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/features#dual-currency" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "Dual-Currency IDR & Crypto Ledger" : "Buku Besar Ganda IDR & Kripto"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/features#qris-pos" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "0% National QRIS & EDC Gateway" : "Gerbang QRIS & EDC 0% Biaya"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/features#softpos-nfc" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "SoftPOS Contactless Smartphone NFC" : "SoftPOS Contactless Tap NFC Smartphone"}
+                      </NextLink>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Col 3: SOVEREIGNTY & MULTI-CHAIN */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#111111]">
+                    {lang === "en" ? "SOVEREIGNTY & WEB3" : "KEDAULATAN & WEB3"}
+                  </h4>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <NextLink href="/features#trustwallet-core" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "TrustWallet Core BIP-39/44/84 Derivation" : "Derivasi Kunci BIP-39/44/84 TrustWallet Core"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/features#metamask-bridge" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "MetaMask Native Web3 Bridge & Signing" : "Jembatan & Penandatanganan Native MetaMask"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/features#yield-vault" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "Ethereum 12.00% APY Smart Yield Vault" : "Brankas Hasil Cerdas Ethereum 12,00% APY"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/features#polygon-alx" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "Polygon Mainnet ALX Settlement Rail" : "Jalur Penyelesaian Token ALX Polygon"}
+                      </NextLink>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Col 4: SECURITY & SOLVENCY */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#E11D48] animate-pulse" />
+                    <h4 className="font-bold text-xs uppercase tracking-[0.2em] text-[#E11D48]">
+                      {lang === "en" ? "SECURITY & SOLVENCY" : "KEAMANAN & SOLVENSI"}
+                    </h4>
+                  </div>
+                  <ul className="space-y-2.5 text-xs text-[#555555]">
+                    <li>
+                      <NextLink href="/features#proof-of-reserves" onClick={() => setActiveMegaMenu(null)} className="hover:text-black font-medium text-[#111111] block">
+                        {lang === "en" ? "1:1 Mathematical Proof of Reserves (PoR)" : "1:1 Bukti Cadangan Matematis (PoR)"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/features#double-entry" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "Double-Entry Constraint Equation Engine" : "Buku Besar Persamaan Akuntansi Ganda"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/features#phantom-detection" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "Real-Time Phantom Balance Tamper Freeze" : "Pembekuan Otomatis Saldo Hantu & Anomali"}
+                      </NextLink>
+                    </li>
+                    <li>
+                      <NextLink href="/features#military-vault" onClick={() => setActiveMegaMenu(null)} className="hover:text-black block">
+                        {lang === "en" ? "AES-256 Military Encrypted Biometric Vault" : "Enkripsi Brankas Biometrik Militer AES-256"}
                       </NextLink>
                     </li>
                   </ul>
