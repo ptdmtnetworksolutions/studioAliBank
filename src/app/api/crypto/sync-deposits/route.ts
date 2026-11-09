@@ -137,11 +137,28 @@ async function restGetDoc(docPath: string, token: string): Promise<Record<string
     const json = await res.json().catch(() => null);
     const remote = json ? parseRestDoc(json) : null;
     if (!remote) return local.exists ? local.data : null;
-    if (local.exists && local.updatedAt > Date.now() - 15 * 60 * 1000) {
-      return { ...remote, ...local.data };
+    const localCrypto = (local.exists && local.data?.cryptoBalances) || {};
+    const remoteCrypto = remote.cryptoBalances || {};
+    const mergedCrypto: Record<string, number> = { ...localCrypto, ...remoteCrypto };
+    const allCoins = new Set([...Object.keys(localCrypto), ...Object.keys(remoteCrypto)]);
+    for (const coin of allCoins) {
+      mergedCrypto[coin] = Math.max(Number(localCrypto[coin] ?? 0), Number(remoteCrypto[coin] ?? 0));
     }
-    setLocalDoc(docPath, remote, true);
-    return remote;
+
+    const mergedData = {
+      ...(local.exists ? local.data : {}),
+      ...remote,
+      cryptoBalances: mergedCrypto,
+    };
+
+    setLocalDoc(docPath, mergedData, true);
+
+    // If remote was missing confirmed balances (e.g. 40,000 ALX from transfer), auto-heal remote Firestore!
+    if (token && Number(mergedCrypto.ALX || 0) > Number(remoteCrypto.ALX || 0)) {
+      restPatchDoc(docPath, { cryptoBalances: mergedCrypto }, token).catch(() => {});
+    }
+
+    return mergedData;
   } catch {
     return local.exists ? local.data : null;
   }

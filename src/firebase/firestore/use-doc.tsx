@@ -58,14 +58,36 @@ export function useDoc<T = any>(
     setError(null);
     snapshotActiveRef.current = false;
 
+    const applySafeData = (incoming: WithId<T> | null) => {
+      if (!incoming) {
+        if (!hasDataRef.current) setData(null);
+        return;
+      }
+      hasDataRef.current = true;
+      setData((prev) => {
+        if (!prev) return incoming;
+        const prevCrypto = (prev as any).cryptoBalances;
+        const incCrypto = (incoming as any).cryptoBalances;
+        if (prevCrypto && incCrypto && typeof prevCrypto === 'object' && typeof incCrypto === 'object') {
+          const mergedCrypto = { ...prevCrypto, ...incCrypto };
+          for (const [k, v] of Object.entries(prevCrypto)) {
+            const pVal = Number(v || 0);
+            const iVal = Number(incCrypto[k] || 0);
+            mergedCrypto[k] = Math.max(pVal, iVal);
+          }
+          return { ...prev, ...incoming, cryptoBalances: mergedCrypto };
+        }
+        return { ...prev, ...incoming };
+      });
+    };
+
     const fetchFromProxy = async () => {
       if (cancelled) return;
       const res = await proxyGetDoc<T>(docPath);
       if (cancelled) return;
       if (res.ok) {
         if (res.exists && res.data) {
-          hasDataRef.current = true;
-          setData(res.data);
+          applySafeData(res.data);
         } else if (!hasDataRef.current) {
           setData(null);
         }
@@ -83,18 +105,15 @@ export function useDoc<T = any>(
         if (cancelled) return;
         snapshotActiveRef.current = true;
         if (snapshot.exists()) {
-          hasDataRef.current = true;
           const snapData = { ...(snapshot.data() as T), id: snapshot.id };
           setCachedClientDoc(docPath, snapData, false);
           const merged = getCachedClientDoc(docPath) || snapData;
-          setData(merged);
+          applySafeData(merged);
         } else {
           const cached = getCachedClientDoc(docPath);
           if (cached) {
-            hasDataRef.current = true;
-            setData(cached);
-          } else {
-            hasDataRef.current = false;
+            applySafeData(cached);
+          } else if (!hasDataRef.current) {
             setData(null);
           }
         }
@@ -119,8 +138,7 @@ export function useDoc<T = any>(
     const handleSyncEvent = () => {
       const cached = getCachedClientDoc(docPath);
       if (cached) {
-        hasDataRef.current = true;
-        setData({ ...cached });
+        applySafeData(cached);
       }
       fetchFromProxy();
     };

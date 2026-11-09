@@ -175,7 +175,7 @@ function DashboardContent() {
       const symbols = [
         "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", 
         "ADAUSDT", "DOGEUSDT", "TRXUSDT", "DOTUSDT", "LINKUSDT",
-        "MATICUSDT", "LTCUSDT", "SHIBUSDT", "AVAXUSDT", "UNIUSDT", 
+        "MATICUSDT", "POLUSDT", "LTCUSDT", "SHIBUSDT", "AVAXUSDT", "UNIUSDT", 
         "ATOMUSDT", "XLMUSDT", "XMRUSDT", "NEARUSDT", "ARBUSDT",
         "USDTIDRT"
       ];
@@ -433,21 +433,37 @@ function DashboardContent() {
     }
   };
 
-  // During SSR and initial client hydration, guarantee 100% deterministic output matching server render
-  if (!mounted) {
-    return <LandingPage />;
-  }
-
+  // 1. Explicit request for landing page via query parameter (?view=landing)
   const isExplicitLanding = searchParams.get('view') === 'landing';
-  const hasCookie = typeof document !== 'undefined' && document.cookie.includes('alibank_session=1');
-  const hasStored = typeof window !== 'undefined' && !!localStorage.getItem('alibank_user');
-  const isUnauthenticated = (!user && !userLoading) || (!hasCookie && !hasStored);
-
-  if (isExplicitLanding || isUnauthenticated) {
+  if (isExplicitLanding) {
     return <LandingPage />;
   }
 
-  if (userLoading || !user || isMobileViewport) return (
+  // 2. Smooth branded loader during SSR, initial mount, or auth resolution
+  // This completely eliminates the glitch where LandingPage flashed briefly on hard refresh (Ctrl+Shift+R)
+  if (!mounted || userLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF9F6]">
+        <div className="w-12 h-12 rounded-full bg-[#F4B728] flex items-center justify-center text-black font-bold text-lg animate-pulse shadow-sm">
+          A
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Authenticated session check after client has mounted
+  const hasCookie = typeof document !== 'undefined' && (
+    document.cookie.includes('alibank_session=1') || 
+    document.cookie.includes('alibank_token=')
+  );
+  const hasStored = typeof window !== 'undefined' && !!localStorage.getItem('alibank_user');
+  const isAuthenticated = Boolean(user || hasCookie || hasStored);
+
+  if (!isAuthenticated) {
+    return <LandingPage />;
+  }
+
+  if (isMobileViewport) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF9F6]">
       <div className="w-12 h-12 rounded-full bg-[#F4B728] flex items-center justify-center text-black font-bold text-lg animate-pulse shadow-sm">
         A

@@ -338,32 +338,50 @@ export async function POST(request: NextRequest) {
       const parsed = parseFirestoreDoc(docJson);
       const localEntry = getLocalDoc(cleanPath);
 
-      let dataToSave = parsed;
-      if (localEntry.exists && localEntry.updatedAt > Date.now() - 10 * 60 * 1000 && localEntry.data) {
-        // Deep merge cryptoBalances ensuring valid balances from remote Firestore are never overwritten by stale cache
-        const mergedBalances: Record<string, number> = {
-          ...(localEntry.data.cryptoBalances || {}),
-          ...(parsed.cryptoBalances || {}),
-        };
-        if (parsed.cryptoBalances || localEntry.data.cryptoBalances) {
-          const allCoins = new Set([
-            ...Object.keys(parsed.cryptoBalances || {}),
-            ...Object.keys(localEntry.data.cryptoBalances || {}),
-          ]);
-          for (const coin of allCoins) {
-            const rVal = Number(parsed.cryptoBalances?.[coin] ?? 0);
-            const lVal = Number(localEntry.data.cryptoBalances?.[coin] ?? 0);
-            mergedBalances[coin] = Math.max(rVal, lVal);
-          }
+      // Deep merge cryptoBalances ensuring valid balances are never wiped out
+      const localCrypto = (localEntry.exists && localEntry.data?.cryptoBalances) || {};
+      const remoteCrypto = parsed?.cryptoBalances || {};
+      const mergedBalances: Record<string, number> = {
+        ...localCrypto,
+        ...remoteCrypto,
+      };
+
+      if (cleanPath.startsWith('users/')) {
+        const allCoins = new Set([
+          ...Object.keys(localCrypto),
+          ...Object.keys(remoteCrypto),
+        ]);
+        for (const coin of allCoins) {
+          const rVal = Number(remoteCrypto[coin] ?? 0);
+          const lVal = Number(localCrypto[coin] ?? 0);
+          mergedBalances[coin] = Math.max(rVal, lVal);
         }
-        dataToSave = {
-          ...localEntry.data,
-          ...parsed, // Remote Firestore is authoritative over stale local cache
-          ...(Object.keys(mergedBalances).length > 0 ? { cryptoBalances: mergedBalances } : {}),
-        };
       }
 
+      const dataToSave = {
+        ...(localEntry.exists ? localEntry.data : {}),
+        ...parsed, // Remote Firestore is authoritative over stale local cache
+        ...(cleanPath.startsWith('users/') && Object.keys(mergedBalances).length > 0 ? { cryptoBalances: mergedBalances } : {}),
+      };
+
       const finalData = setLocalDoc(cleanPath, dataToSave, true);
+
+      // Auto-heal remote Firestore if remote was missing confirmed balances:
+      if (cleanPath.startsWith('users/') && Number(mergedBalances.ALX || 0) > Number(remoteCrypto.ALX || 0) && newIdToken) {
+        fetch(`${FIRESTORE_BASE}/${cleanPath}?updateMask.fieldPaths=cryptoBalances`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${newIdToken}`,
+          },
+          body: JSON.stringify({
+            fields: {
+              cryptoBalances: toFirestoreValue(mergedBalances),
+            },
+          }),
+          cache: 'no-store',
+        }).catch(() => {});
+      }
 
       const response = NextResponse.json({
         exists: true,
