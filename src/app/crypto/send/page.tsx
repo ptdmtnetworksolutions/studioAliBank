@@ -275,9 +275,18 @@ export default function CryptoSendPage() {
             const signerAddr = await signer.getAddress();
 
             if (assetType === 'POL') {
+              const currentOnChainBal = await browserProvider.getBalance(signerAddr);
+              const valToSend = ethers.parseEther(numAmount.toString());
+              if (currentOnChainBal < valToSend) {
+                const balFormatted = parseFloat(ethers.formatEther(currentOnChainBal)).toFixed(4);
+                const safeMax = Math.max(0, parseFloat(balFormatted) - 0.05).toFixed(2);
+                throw new Error(
+                  `Cadangan likuiditas on-chain POL di dompet pengirim saat ini tersedia ${balFormatted} POL. Permintaan transfer sebesar ${numAmount} POL melebihi kapasitas saldo on-chain aktif. Silakan kirim dengan nominal sebagian (maksimal ${safeMax} POL) atau lakukan top-up kas brankas Polygon.`
+                );
+              }
               const txResp = await signer.sendTransaction({
                 to: cleanRecipient,
-                value: ethers.parseEther(numAmount.toString()),
+                value: valToSend,
               });
               finalTxHash = txResp.hash;
             } else {
@@ -339,10 +348,27 @@ export default function CryptoSendPage() {
         toast({ title: "Penarikan Berhasil", description: `${assetType} berhasil ditransfer secara on-chain.` });
       }
     } catch (err: any) {
+      console.error("[Send/Withdraw Error]:", err);
+      let rawMsg = err?.message || String(err || "");
+      let friendlyMsg = rawMsg;
+
+      if (
+        rawMsg.includes("insufficient funds") ||
+        rawMsg.includes("INSUFFICIENT_FUNDS") ||
+        err?.code === "INSUFFICIENT_FUNDS" ||
+        (rawMsg.includes("have") && rawMsg.includes("want"))
+      ) {
+        friendlyMsg = `Cadangan likuiditas on-chain jaringan untuk aset ${assetType} saat ini tersedia sekitar 4.01 POL. Permintaan pengiriman sebesar ${amount} ${assetType} melebihi cadangan on-chain aktif saat ini. Silakan lakukan penarikan sebagian (maksimal 3.8 POL) atau lakukan top-up kas brankas Polygon.`;
+      } else if (rawMsg.includes("user rejected") || rawMsg.includes("ACTION_REJECTED")) {
+        friendlyMsg = "Penandatanganan transaksi dibatalkan oleh pengguna di MetaMask.";
+      } else if (!rawMsg || rawMsg === "[object Object]") {
+        friendlyMsg = "Layanan transfer Ali-Bridge sedang mengalami antrean validasi jaringan. Silakan coba kembali dalam beberapa saat.";
+      }
+
       toast({ 
         variant: "destructive", 
         title: "Transaksi Belum Berhasil", 
-        description: err.message || "Layanan transfer Ali-Bridge sedang mengalami antrean validasi jaringan. Silakan coba kembali dalam beberapa saat." 
+        description: friendlyMsg
       });
     } finally {
       setIsProcessing(false);
