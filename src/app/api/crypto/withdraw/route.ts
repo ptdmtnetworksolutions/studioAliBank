@@ -392,7 +392,7 @@ export async function POST(request: NextRequest) {
     const userBalance = Number(currentCryptoBalances[asset] ?? 0);
     const userName = userData.name || 'Nasabah AliBank';
 
-    if (!['ETH', 'USDT', 'ALX', 'BTC', 'SOL'].includes(asset)) {
+    if (!['ETH', 'USDT', 'ALX', 'BTC', 'SOL', 'POL', 'MATIC'].includes(asset)) {
       return NextResponse.json({ error: `Aset ${asset} tidak didukung.` }, { status: 400 });
     }
 
@@ -503,6 +503,16 @@ export async function POST(request: NextRequest) {
       } else if (asset === 'SOL') {
         txHash = `SOL-CLR-${Date.now()}`;
         usedNetwork = 'Solana Mainnet (SPL)';
+      } else if (asset === 'POL' || asset === 'MATIC') {
+        const provider = await getWorkingPolygonProvider(config?.polygonRpcUrl);
+        const wallet = new ethers.Wallet(privateKey, provider);
+        const txResponse = await wallet.sendTransaction({
+          to: recipient,
+          value: ethers.parseEther(numAmount.toString()),
+        });
+        txHash = txResponse.hash;
+        usedNetwork = 'Polygon Mainnet (Native POL)';
+        txResponse.wait(1).catch((e: any) => console.error('[POL Tx Wait Error]:', e));
       }
     } catch (onChainError: any) {
       console.error('[On-Chain Transaction Error]:', onChainError.message);

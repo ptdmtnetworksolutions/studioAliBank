@@ -63,7 +63,8 @@ const INITIAL_COINS = [
   { symbol: "TRX", price: 0.12, baseIdr: 1902, change: 0.30, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 0.12 + Math.sin(i) * 0.002 })) },
   { symbol: "DOT", price: 6.50, baseIdr: 103025, change: -2.40, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 6.50 - Math.sin(i) * 0.1 })) },
   { symbol: "LINK", price: 15.20, baseIdr: 240920, change: 1.80, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 15.20 + Math.sin(i) * 0.2 })) },
-  { symbol: "MATIC", price: 0.68, baseIdr: 10778, change: -0.95, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 0.68 - Math.sin(i) * 0.01 })) },
+  { symbol: "POL", price: 0.0891, baseIdr: 1576, change: -0.53, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 0.0891 + Math.sin(i / 2) * 0.001 })) },
+  { symbol: "MATIC", price: 0.0891, baseIdr: 1576, change: -0.53, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 0.0891 - Math.cos(i) * 0.001 })) },
   { symbol: "LTC", price: 82.40, baseIdr: 1306040, change: 1.15, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 82.40 + Math.sin(i) * 1.5 })) },
   { symbol: "SHIB", price: 0.000022, baseIdr: 0.348, change: 5.40, isUp: true, trend: Array.from({ length: 12 }, (_, i) => ({ value: 0.000022 + Math.sin(i) * 0.000001 })) },
   { symbol: "AVAX", price: 34.80, baseIdr: 551580, change: -1.50, isUp: false, trend: Array.from({ length: 12 }, (_, i) => ({ value: 34.80 - Math.sin(i) * 0.5 })) },
@@ -754,6 +755,7 @@ function DashboardContent() {
                         "TRX": "TRON",
                         "DOT": "Polkadot",
                         "LINK": "Chainlink",
+                        "POL": "Polygon POL",
                         "MATIC": "Polygon",
                         "LTC": "Litecoin",
                         "SHIB": "Shiba Inu",
@@ -771,7 +773,7 @@ function DashboardContent() {
 
                       const ASSET_SYMBOLS_ORDER = [
                         "ALX", "BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "DOGE", "TRX", "DOT", 
-                        "LINK", "MATIC", "LTC", "SHIB", "AVAX", "UNI", "ATOM", "XLM", "XMR", "NEAR", "ARB",
+                        "LINK", "POL", "MATIC", "LTC", "SHIB", "AVAX", "UNI", "ATOM", "XLM", "XMR", "NEAR", "ARB",
                         "USDT", "IDR"
                       ];
                       

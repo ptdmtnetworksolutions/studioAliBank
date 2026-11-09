@@ -41,7 +41,7 @@ import {
 
 const USDT_IDR_RATE = IDR_RATE_FALLBACK; // Fallback rate (real-time fetched on mount)
 
-type AssetKey = 'ALX' | 'BTC' | 'ETH' | 'USDT' | 'IDR';
+type AssetKey = 'ALX' | 'BTC' | 'ETH' | 'USDT' | 'IDR' | 'POL';
 
 interface AssetConfig {
   symbol: AssetKey;
@@ -52,6 +52,16 @@ interface AssetConfig {
 
 const ASSETS: AssetConfig[] = [
   { symbol: 'ALX', name: 'Alix Coin', icon: LogoIcon, color: 'gold-gradient' },
+  { 
+    symbol: 'POL', 
+    name: 'Polygon POL', 
+    icon: () => (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full text-white">
+        <path d="M12 2L2 7.5v9L12 22l10-5.5v-9L12 2zm0 2.24l7.98 4.39v7.74L12 19.76l-7.98-4.39V8.63L12 4.24z"/>
+      </svg>
+    ), 
+    color: 'bg-[#7B3FE4]' 
+  },
   { symbol: 'BTC', name: 'Bitcoin', icon: Bitcoin, color: 'bg-orange-500' },
   { symbol: 'ETH', name: 'Ethereum', icon: Cpu, color: 'bg-blue-500' },
   { symbol: 'USDT', name: 'TetherUS', icon: Zap, color: 'bg-[#0D9488]' },
@@ -77,6 +87,7 @@ export default function ConvertPage() {
 
   const [prices, setPrices] = useState<Record<AssetKey, number>>({
     ALX: 0.108,
+    POL: 0.0891,
     BTC: 66450,
     ETH: 2350,
     USDT: 1,
@@ -95,7 +106,7 @@ export default function ConvertPage() {
 
   const fetchPrices = useCallback(async () => {
     try {
-      const symbols = ["BTCUSDT", "ETHUSDT", "USDTIDRT"];
+      const symbols = ["BTCUSDT", "ETHUSDT", "POLUSDT", "MATICUSDT", "USDTIDRT"];
       const res = await fetch(`/api/market/ticker?symbols=${encodeURIComponent(JSON.stringify(symbols))}`);
       if (res.ok) {
         const data = await res.json();
@@ -103,6 +114,7 @@ export default function ConvertPage() {
 
         const btcData = data.find((d: any) => d.symbol === 'BTCUSDT');
         const ethData = data.find((d: any) => d.symbol === 'ETHUSDT');
+        const polData = data.find((d: any) => d.symbol === 'POLUSDT' || d.symbol === 'MATICUSDT');
         const usdtIdrData = data.find((d: any) => d.symbol === 'USDTIDRT');
 
         // Functional update: jangan bergantung pada `prices` agar tidak memicu loop fetch tanpa henti
@@ -115,6 +127,10 @@ export default function ConvertPage() {
           if (ethData) {
             const p = parseFloat(ethData.lastPrice);
             if (p > 0) newPrices.ETH = p;
+          }
+          if (polData) {
+            const p = parseFloat(polData.lastPrice);
+            if (p > 0) newPrices.POL = p;
           }
           if (usdtIdrData) {
             const parsedIdrRate = parseFloat(usdtIdrData.lastPrice);

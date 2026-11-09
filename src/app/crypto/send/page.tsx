@@ -41,7 +41,7 @@ export default function CryptoSendPage() {
   const db = useFirestore();
   const { toast } = useToast();
 
-  const [assetType, setAssetType] = useState<"ETH" | "BTC" | "USDT" | "ALX" | "SOL">("ETH");
+  const [assetType, setAssetType] = useState<"ETH" | "BTC" | "USDT" | "ALX" | "SOL" | "POL">("ETH");
   const [sendMode, setSendMode] = useState<"custodial" | "self-custodial">("custodial");
   const [recipientAddress, setRecipientAddress] = useState("");
   const [amount, setAmount] = useState("");
@@ -263,7 +263,7 @@ export default function CryptoSendPage() {
 
         if (data.needsWeb3Fallback) {
           const ethWin = typeof window !== 'undefined' ? (window as any).ethereum : null;
-          if (ethWin && (assetType === 'ALX' || assetType === 'USDT')) {
+          if (ethWin && (assetType === 'ALX' || assetType === 'USDT' || assetType === 'POL')) {
             toast({
               title: "Sinkronisasi Jaringan Polygon",
               description: `Memverifikasi rantai Polygon Mainnet sebelum penandatanganan transaksi ${assetType}...`,
@@ -272,31 +272,40 @@ export default function CryptoSendPage() {
             const browserProvider = new BrowserProvider(ethWin);
             const signer = await browserProvider.getSigner();
             const signerAddr = await signer.getAddress();
-            const tokenAddr =
-              assetType === 'ALX'
-                ? (data.tokenAddress || '0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd')
-                : '0xc2132D05D31c914a87C6611C10748AEb04B58e8F';
-            const erc20Abi = [
-              'function transfer(address to, uint256 value) returns (bool)',
-              'function mint(address to, uint256 amount)',
-            ];
-            const tokenContract = new ethers.Contract(tokenAddr, erc20Abi, signer);
-            const amountUnits =
-              assetType === 'ALX'
-                ? ethers.parseEther(numAmount.toString())
-                : ethers.parseUnits(numAmount.toString(), 6);
 
-            let txResp;
-            if (assetType === 'ALX' && signerAddr.toLowerCase() === cleanRecipient.toLowerCase()) {
-              try {
-                txResp = await tokenContract.mint(cleanRecipient, amountUnits);
-              } catch {
+            if (assetType === 'POL') {
+              const txResp = await signer.sendTransaction({
+                to: cleanRecipient,
+                value: ethers.parseEther(numAmount.toString()),
+              });
+              finalTxHash = txResp.hash;
+            } else {
+              const tokenAddr =
+                assetType === 'ALX'
+                  ? (data.tokenAddress || '0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd')
+                  : '0xc2132D05D31c914a87C6611C10748AEb04B58e8F';
+              const erc20Abi = [
+                'function transfer(address to, uint256 value) returns (bool)',
+                'function mint(address to, uint256 amount)',
+              ];
+              const tokenContract = new ethers.Contract(tokenAddr, erc20Abi, signer);
+              const amountUnits =
+                assetType === 'ALX'
+                  ? ethers.parseEther(numAmount.toString())
+                  : ethers.parseUnits(numAmount.toString(), 6);
+
+              let txResp;
+              if (assetType === 'ALX' && signerAddr.toLowerCase() === cleanRecipient.toLowerCase()) {
+                try {
+                  txResp = await tokenContract.mint(cleanRecipient, amountUnits);
+                } catch {
+                  txResp = await tokenContract.transfer(cleanRecipient, amountUnits);
+                }
+              } else {
                 txResp = await tokenContract.transfer(cleanRecipient, amountUnits);
               }
-            } else {
-              txResp = await tokenContract.transfer(cleanRecipient, amountUnits);
+              finalTxHash = txResp.hash;
             }
-            finalTxHash = txResp.hash;
           } else {
             finalTxHash = `${assetType}-BRIDGE-${Date.now()}`;
           }
@@ -408,9 +417,10 @@ export default function CryptoSendPage() {
           <div className="space-y-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Pilih Jaringan & Aset</label>
-              <div className="grid grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-6 gap-1.5">
                 {[
                   { id: 'ALX', icon: Zap, color: 'text-yellow-500', network: 'Polygon' },
+                  { id: 'POL', icon: Zap, color: 'text-purple-500', network: 'Polygon' },
                   { id: 'BTC', icon: Bitcoin, color: 'text-orange-500', network: 'Bitcoin' },
                   { id: 'SOL', icon: Sparkles, color: 'text-purple-500', network: 'Solana' },
                   { id: 'USDT', icon: ShieldCheck, color: 'text-green-500', network: 'Polygon' },
