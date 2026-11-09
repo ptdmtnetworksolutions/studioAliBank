@@ -113,6 +113,15 @@ export function setLocalDoc(docPath: string, data: Record<string, any>, merge = 
   ) {
     nextData.status = existing.status;
   }
+  if (merge && clean.startsWith('users/') && (existing.cryptoBalances || data.cryptoBalances)) {
+    nextData.cryptoBalances = {
+      ...(existing.cryptoBalances || {}),
+      ...(data.cryptoBalances || {}),
+    };
+    if (existing.cryptoBalances?.ALX && (!data.cryptoBalances || data.cryptoBalances.ALX === undefined)) {
+      nextData.cryptoBalances.ALX = existing.cryptoBalances.ALX;
+    }
+  }
   store.docs[clean] = {
     data: nextData,
     updatedAt: Date.now(),

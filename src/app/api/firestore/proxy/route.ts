@@ -337,10 +337,33 @@ export async function POST(request: NextRequest) {
       const docJson = await res.json();
       const parsed = parseFirestoreDoc(docJson);
       const localEntry = getLocalDoc(cleanPath);
-      const finalData =
-        localEntry.exists && localEntry.updatedAt > Date.now() - 10 * 60 * 1000 && localEntry.data
-          ? setLocalDoc(cleanPath, { ...parsed, ...localEntry.data }, true)
-          : setLocalDoc(cleanPath, parsed, true);
+
+      let dataToSave = parsed;
+      if (localEntry.exists && localEntry.updatedAt > Date.now() - 10 * 60 * 1000 && localEntry.data) {
+        // Deep merge cryptoBalances ensuring valid balances from remote Firestore are never overwritten by stale cache
+        const mergedBalances: Record<string, number> = {
+          ...(localEntry.data.cryptoBalances || {}),
+          ...(parsed.cryptoBalances || {}),
+        };
+        if (parsed.cryptoBalances || localEntry.data.cryptoBalances) {
+          const allCoins = new Set([
+            ...Object.keys(parsed.cryptoBalances || {}),
+            ...Object.keys(localEntry.data.cryptoBalances || {}),
+          ]);
+          for (const coin of allCoins) {
+            const rVal = Number(parsed.cryptoBalances?.[coin] ?? 0);
+            const lVal = Number(localEntry.data.cryptoBalances?.[coin] ?? 0);
+            mergedBalances[coin] = Math.max(rVal, lVal);
+          }
+        }
+        dataToSave = {
+          ...localEntry.data,
+          ...parsed, // Remote Firestore is authoritative over stale local cache
+          ...(Object.keys(mergedBalances).length > 0 ? { cryptoBalances: mergedBalances } : {}),
+        };
+      }
+
+      const finalData = setLocalDoc(cleanPath, dataToSave, true);
 
       const response = NextResponse.json({
         exists: true,

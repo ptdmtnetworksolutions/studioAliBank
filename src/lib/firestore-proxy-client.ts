@@ -248,6 +248,17 @@ export function setCachedClientDoc(path: string, data: any, fromLocalWrite = fal
   if (!fromLocalWrite && existing?.fromLocalWrite && Date.now() - existing.updatedAt < 10 * 60 * 1000) {
     // Keep local write changes on top of older snapshot data
     const merged = { ...data, ...existing.data };
+    if (data.cryptoBalances && typeof data.cryptoBalances === 'object') {
+      merged.cryptoBalances = {
+        ...(existing.data?.cryptoBalances || {}),
+        ...data.cryptoBalances,
+      };
+      for (const [coin, val] of Object.entries(data.cryptoBalances)) {
+        if (Number(val) > 0) {
+          merged.cryptoBalances[coin] = Number(val);
+        }
+      }
+    }
     clientDocCache.set(clean, { data: merged, updatedAt: existing.updatedAt, fromLocalWrite: true });
     return;
   }
