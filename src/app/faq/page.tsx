@@ -387,8 +387,29 @@ function FaqContent() {
     });
   }, [faqList, activeCategory, searchQuery]);
 
+  const faqJsonLd = useMemo(
+    () => ({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: faqList.map((item) => ({
+        "@type": "Question",
+        name: lang === "en" ? item.questionEn : item.questionId,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: (lang === "en" ? item.answerEn : item.answerId).join(" "),
+        },
+      })),
+    }),
+    [faqList, lang]
+  );
+
   return (
     <div className="min-h-screen bg-[#FAF9F6] text-[#111111] font-sans selection:bg-[#F4B728]/30 selection:text-black">
+      {/* Schema.org FAQPage Structured Data for Google Rich Snippets */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       {/* =========================================================================
           1. STICKY INSTITUTIONAL HEADER (Clean Zcash Standard, No Sign In / Open Account)
           ========================================================================= */}
@@ -1394,3 +1415,4 @@ export default function FaqPage() {
     </Suspense>
   );
 }
+

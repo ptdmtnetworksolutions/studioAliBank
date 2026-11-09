@@ -51,12 +51,21 @@ export const metadata: Metadata = {
     siteName: 'AliBank',
     locale: 'id_ID',
     type: 'website',
+    images: [
+      {
+        url: 'https://alibank.tarroz.com/icons/icon-512x512.png',
+        width: 512,
+        height: 512,
+        alt: 'AliBank V3 Official Emblem',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'AliBank V3 - Hybrid Neobank & Web3 Platform',
     description:
       'Institutional-grade hybrid digital banking. Verified 1:1 Proof-of-Reserves, TrustWallet Core multi-chain standard, and zero-fee instant P2P payments.',
+    images: ['https://alibank.tarroz.com/icons/icon-512x512.png'],
   },
   robots: {
     index: true,
@@ -103,6 +112,54 @@ export default function RootLayout({
         
         {/* Google Search Console Verification */}
         <meta name="google-site-verification" content="8n-RD5m9NztlY5QqLtsJ6WjN2_8tUCRuweDzBS10qa0" />
+
+        {/* Structured Data (JSON-LD) - Schema.org */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@graph': [
+                {
+                  '@type': 'Organization',
+                  '@id': 'https://alibank.tarroz.com/#organization',
+                  name: 'AliBank V3',
+                  url: 'https://alibank.tarroz.com',
+                  logo: 'https://alibank.tarroz.com/icons/icon-512x512.png',
+                  sameAs: [
+                    'https://polygonscan.com/token/0x0d720b001a1c312fb1a525287f3950efefc82f93',
+                  ],
+                  description:
+                    'Hybrid Neobank & Web3 Multi-Chain Financial Network dengan 100% Bukti Cadangan Terbuka (Proof-of-Reserves).',
+                },
+                {
+                  '@type': 'WebSite',
+                  '@id': 'https://alibank.tarroz.com/#website',
+                  url: 'https://alibank.tarroz.com',
+                  name: 'AliBank',
+                  publisher: {
+                    '@id': 'https://alibank.tarroz.com/#organization',
+                  },
+                  inLanguage: ['id-ID', 'en-US'],
+                },
+                {
+                  '@type': 'FinancialService',
+                  '@id': 'https://alibank.tarroz.com/#financialService',
+                  name: 'AliBank Financial Network',
+                  url: 'https://alibank.tarroz.com',
+                  logo: 'https://alibank.tarroz.com/icons/icon-512x512.png',
+                  description:
+                    'Layanan perbankan digital institusional hibrida dengan cadangan 1:1 terverifikasi on-chain, transfer P2P instan bebas biaya, dan dompet terdesentralisasi multi-chain.',
+                  parentOrganization: {
+                    '@id': 'https://alibank.tarroz.com/#organization',
+                  },
+                  areaServed: 'Worldwide',
+                  currenciesAccepted: 'IDR, USD, EUR, ETH, BTC, MATIC, ALX',
+                },
+              ],
+            }),
+          }}
+        />
 
         {/* Apple Standalone Optimization */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
