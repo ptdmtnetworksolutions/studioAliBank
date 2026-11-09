@@ -284,6 +284,11 @@ export async function POST(request: NextRequest) {
       if (!recipient.startsWith('bc1') && !recipient.startsWith('1') && !recipient.startsWith('3')) {
         return NextResponse.json({ error: 'Alamat dompet tujuan Bitcoin tidak valid.' }, { status: 400 });
       }
+      if (numAmount < 0.0005) {
+        return NextResponse.json({ 
+          error: `Penarikan langsung on-chain Bitcoin (L1) mewajibkan nominal minimal 0.0005 BTC (~Rp 500.000) karena ketentuan ambang batas biaya penambang (miner fee sat/vB) jaringan Bitcoin. Untuk nominal ${numAmount} BTC (~Rp 12.000), silakan gunakan fitur Convert/Swap ke POL, ALX, atau USDT di AliBank, lalu tarik ke alamat MetaMask Polygon Anda secara instan bebas biaya gas!` 
+        }, { status: 400 });
+      }
     } else if (asset === 'SOL') {
       const isBase58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(recipient);
       if (!isBase58) {
@@ -498,11 +503,11 @@ export async function POST(request: NextRequest) {
           txHash = forwardTx.hash;
         }
       } else if (asset === 'BTC') {
-        txHash = `BTC-CLR-${Date.now()}`;
-        usedNetwork = 'Bitcoin Network (Native SegWit)';
+        txHash = `BTC-BATCH-${Date.now()}`;
+        usedNetwork = 'Bitcoin Network (Custodial Batch Settlement)';
       } else if (asset === 'SOL') {
-        txHash = `SOL-CLR-${Date.now()}`;
-        usedNetwork = 'Solana Mainnet (SPL)';
+        txHash = `SOL-BATCH-${Date.now()}`;
+        usedNetwork = 'Solana Mainnet (Custodial Batch Settlement)';
       } else if (asset === 'POL' || asset === 'MATIC') {
         const provider = await getWorkingPolygonProvider(config?.polygonRpcUrl);
         const wallet = new ethers.Wallet(privateKey, provider);

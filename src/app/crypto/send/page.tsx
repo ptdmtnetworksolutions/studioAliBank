@@ -17,7 +17,8 @@ import {
   Info,
   ArrowRightLeft,
   Flame,
-  Sparkles
+  Sparkles,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -364,25 +365,48 @@ export default function CryptoSendPage() {
         <div className="pt-4 border-t border-primary/5 space-y-2">
           <p className="text-[8px] font-bold text-muted-foreground uppercase break-all">Alamat Tujuan: {recipientAddress}</p>
           {txHash && (
-            <div className="p-2 rounded bg-muted/50 border border-border/40">
-              <p className="text-[8px] font-bold text-muted-foreground uppercase">TRANSACTION HASH:</p>
-              <p className="text-[8px] font-black text-slate-800 dark:text-primary break-all font-mono mt-1 select-all">{txHash}</p>
-              <a 
-                href={
-                  assetType === 'ALX' || assetType === 'USDT' 
-                    ? `https://polygonscan.com/tx/${txHash}` 
-                    : assetType === 'SOL'
-                    ? `https://solscan.io/tx/${txHash}`
-                    : assetType === 'BTC'
-                    ? `https://mempool.space/tx/${txHash}`
-                    : `https://etherscan.io/tx/${txHash}`
-                } 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-[8px] font-black text-blue-500 uppercase underline mt-2 block"
-              >
-                Lihat di Penjelajah Blok ↗
-              </a>
+            <div className="p-3 rounded-2xl bg-muted/50 border border-border/40 text-left space-y-1">
+              <p className="text-[8px] font-bold text-muted-foreground uppercase">
+                {txHash.startsWith('0x') && txHash.length === 66
+                  ? "TRANSACTION HASH (ON-CHAIN):"
+                  : "ID REFERENSI KLIRING INTERNAL:"}
+              </p>
+              <p className="text-[9px] font-black text-slate-800 dark:text-primary break-all font-mono select-all">{txHash}</p>
+              
+              {/* On-chain Polygon / Ethereum verification */}
+              {txHash.startsWith('0x') && txHash.length === 66 && (
+                <a 
+                  href={
+                    assetType === 'ALX' || assetType === 'USDT' || assetType === 'POL'
+                      ? `https://polygonscan.com/tx/${txHash}` 
+                      : `https://etherscan.io/tx/${txHash}`
+                  } 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="text-[9px] font-black text-blue-500 uppercase underline mt-2 block"
+                >
+                  Lihat di Penjelajah Blok (On-Chain) ↗
+                </a>
+              )}
+              
+              {/* Only show mempool.space if it is a real 64-char hex hash */}
+              {assetType === 'BTC' && Boolean(txHash.match(/^[a-fA-F0-9]{64}$/)) && (
+                <a 
+                  href={`https://mempool.space/tx/${txHash}`} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="text-[9px] font-black text-blue-500 uppercase underline mt-2 block"
+                >
+                  Lihat di Mempool.space (On-Chain) ↗
+                </a>
+              )}
+              
+              {/* If internal clearing ticket */}
+              {(!txHash.startsWith('0x') || txHash.length !== 66) && !txHash.match(/^[a-fA-F0-9]{64}$/) && (
+                <p className="text-[8px] font-bold text-amber-600 dark:text-amber-400 mt-1">
+                  Transaksi tercatat dalam buku besar kliring internal AliBank.
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -445,6 +469,30 @@ export default function CryptoSendPage() {
                 ))}
               </div>
             </div>
+
+            {/* BITCOIN NETWORK NOTICE */}
+            {assetType === 'BTC' && (
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400">Informasi Jaringan Bitcoin (L1)</span>
+                </div>
+                <p className="text-[9px] font-bold text-muted-foreground leading-relaxed">
+                  Penarikan langsung on-chain ke alamat Bitcoin Mainnet (SegWit <code className="font-mono text-foreground">bc1q...</code>) memerlukan minimal <strong>0.0005 BTC</strong> (~Rp 500.000) karena ketentuan biaya penambang (miner fee sat/vB) jaringan Bitcoin.
+                </p>
+                <div className="flex items-center justify-between pt-1 border-t border-amber-500/15">
+                  <span className="text-[9px] font-bold text-muted-foreground">Ingin kirim ke MetaMask?</span>
+                  <button 
+                    type="button"
+                    onClick={() => router.push('/crypto/convert?from=BTC&to=POL')}
+                    className="text-[9px] font-black uppercase text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+                  >
+                    <span>Swap BTC ke POL (Bebas Gas)</span>
+                    <ArrowRightLeft className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* SEND MODE SWITCHER (ONLY FOR ETH) */}
             {assetType === 'ETH' && (
