@@ -387,6 +387,16 @@ export default function MarketDetailPage() {
     });
   }, [mounted, currentPrice, globalLiquidity]);
 
+  const estimatedReceived = useMemo(() => {
+    const num = parseFloat(tradeAmount);
+    if (isNaN(num) || num <= 0 || currentPrice <= 0) return "0.00";
+    if (tradeSide === 'buy') {
+      return (num / currentPrice).toFixed(symbol === 'ALX' ? 0 : 4);
+    } else {
+      return (num * currentPrice).toFixed(2);
+    }
+  }, [tradeAmount, tradeSide, currentPrice, symbol]);
+
   const copySmartContract = (contractAddress: string) => {
     navigator.clipboard.writeText(contractAddress);
     setCopiedContract(true);
@@ -396,16 +406,6 @@ export default function MarketDetailPage() {
     });
     setTimeout(() => setCopiedContract(false), 2000);
   };
-
-  if (!mounted) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF9F6]">
-        <div className="w-12 h-12 rounded-full bg-[#F4B728] flex items-center justify-center text-black font-bold text-lg animate-pulse shadow-sm">
-          A
-        </div>
-      </div>
-    );
-  }
 
   const idrPrice = (currentPrice * USDT_IDR_RATE).toLocaleString('id-ID', { minimumFractionDigits: 2 });
   const fundamentalInfo = FUNDAMENTALS[symbol] || {
@@ -434,15 +434,15 @@ export default function MarketDetailPage() {
     }
   };
 
-  const estimatedReceived = useMemo(() => {
-    const num = parseFloat(tradeAmount);
-    if (isNaN(num) || num <= 0 || currentPrice <= 0) return "0.00";
-    if (tradeSide === 'buy') {
-      return (num / currentPrice).toFixed(symbol === 'ALX' ? 0 : 4);
-    } else {
-      return (num * currentPrice).toFixed(2);
-    }
-  }, [tradeAmount, tradeSide, currentPrice, symbol]);
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF9F6]">
+        <div className="w-12 h-12 rounded-full bg-[#F4B728] flex items-center justify-center text-black font-bold text-lg animate-pulse shadow-sm">
+          A
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] text-[#111111] flex font-sans selection:bg-[#F4B728] selection:text-black">
