@@ -238,6 +238,64 @@ function savePersistedOverride(cleanPath: string, data: any) {
   } catch {}
 }
 
+export function markCachedClientDocDeleted(path: string) {
+  const clean = String(path || '').replace(/^\/+|\/+$/g, '');
+  if (!clean) return;
+  clientDocCache.set(clean, { data: { __deleted: true }, updatedAt: Date.now(), fromLocalWrite: true });
+  savePersistedOverride(clean, { __deleted: true });
+}
+
+export function mergeCollectionDocsWithLocalCache<T = any>(
+  collectionPath: string | null,
+  snapshotDocs: Array<T & { id: string }>,
+  extraProxyDocs: Array<T & { id: string }> = []
+): Array<T & { id: string }> {
+  const cleanColPath = collectionPath ? String(collectionPath).replace(/^\/+|\/+$/g, '') : null;
+  const overrides = loadPersistedOverrides();
+  const now = Date.now();
+  const seenIds = new Set<string>();
+  const out: Array<T & { id: string }> = [];
+
+  const applyDoc = (rawDoc: any): (T & { id: string }) | null => {
+    if (!rawDoc?.id) return null;
+    if (cleanColPath) {
+      const docKey = `${cleanColPath}/${rawDoc.id}`;
+      const persisted = overrides[docKey];
+      const inMem = clientDocCache.get(docKey);
+      const localEntry =
+        persisted && persisted.updatedAt > now - 15 * 60 * 1000
+          ? persisted
+          : inMem && inMem.fromLocalWrite && inMem.updatedAt > now - 15 * 60 * 1000
+          ? inMem
+          : null;
+
+      if (localEntry?.data?.__deleted) {
+        return null;
+      }
+      if (localEntry?.data) {
+        return { ...rawDoc, ...reviveFirestoreData(localEntry.data), id: rawDoc.id };
+      }
+    }
+    return rawDoc;
+  };
+
+  for (const docItem of snapshotDocs) {
+    if (!docItem?.id || seenIds.has(docItem.id)) continue;
+    seenIds.add(docItem.id);
+    const merged = applyDoc(docItem);
+    if (merged) out.push(merged);
+  }
+
+  for (const extra of extraProxyDocs) {
+    if (!extra?.id || seenIds.has(extra.id)) continue;
+    seenIds.add(extra.id);
+    const merged = applyDoc(extra);
+    if (merged) out.unshift(merged);
+  }
+
+  return out;
+}
+
 export function setCachedClientDoc(path: string, data: any, fromLocalWrite = false) {
   const clean = String(path || '').replace(/^\/+|\/+$/g, '');
   if (!clean || !data || typeof data !== 'object') return;
@@ -523,17 +581,20 @@ export async function proxyGetCollection<T = any>(refOrQuery: any): Promise<{
     const overrides = loadPersistedOverrides();
     const cleanColPath = descriptor.path ? String(descriptor.path).replace(/^\/+|\/+$/g, '') : null;
 
-    let docs = json.docs.map((d: any) => {
-      const revived = reviveFirestoreData(d);
-      if (cleanColPath && revived?.id) {
-        const docKey = `${cleanColPath}/${revived.id}`;
-        const localOverride = overrides[docKey]?.data || clientDocCache.get(docKey)?.data;
-        if (localOverride) {
-          return { ...revived, ...reviveFirestoreData(localOverride), id: revived.id };
+    let docs = json.docs
+      .map((d: any) => {
+        const revived = reviveFirestoreData(d);
+        if (cleanColPath && revived?.id) {
+          const docKey = `${cleanColPath}/${revived.id}`;
+          const localOverride = overrides[docKey]?.data || clientDocCache.get(docKey)?.data;
+          if (localOverride?.__deleted) return null;
+          if (localOverride) {
+            return { ...revived, ...reviveFirestoreData(localOverride), id: revived.id };
+          }
         }
-      }
-      return revived;
-    });
+        return revived;
+      })
+      .filter(Boolean);
 
     if (Array.isArray(descriptor.filters) && descriptor.filters.length > 0) {
       docs = docs.filter((doc: any) =>
@@ -679,18 +740,23 @@ export async function proxyAddDoc(
   if (!res.ok) {
     throw new Error(json?.error || `Firestore addDoc failed (${res.status})`);
   }
-  triggerFirestoreSync();
   const id = json.id || '';
+  const revived = json.data ? reviveFirestoreData(json.data) : null;
+  if (id && revived) {
+    setCachedClientDoc(`${path}/${id}`, revived, true);
+  }
+  triggerFirestoreSync();
   return {
     id,
     path: `${path}/${id}`,
-    data: json.data ? reviveFirestoreData(json.data) : null,
+    data: revived,
   };
 }
 
 export async function proxyDeleteDoc(pathOrRef: any): Promise<void> {
   const path = extractRefPath(pathOrRef);
   if (!path) throw new Error('Invalid document reference or path for proxyDeleteDoc');
+  markCachedClientDocDeleted(path);
   const { idToken, refreshToken } = getStoredAuthTokens();
   const res = await fetch('/api/firestore/proxy', {
     method: 'POST',

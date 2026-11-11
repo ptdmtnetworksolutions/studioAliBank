@@ -78,6 +78,8 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
         title: "KYC Berhasil",
         message: "Selamat! Identitas Anda telah diverifikasi. Akses likuiditas penuh sekarang terbuka.",
         type: "success",
+        category: "akun",
+        actionUrl: "/settings/kyc",
         read: false,
         createdAt: new Date().toISOString()
       });
@@ -103,6 +105,8 @@ export function KycVerificationView({ allUsers }: { allUsers: any[] | null }) {
         title: "KYC Ditolak",
         message: "Maaf, dokumen identitas Anda tidak terbaca atau tidak sesuai. Silakan kirim ulang KYC Anda.",
         type: "alert",
+        category: "akun",
+        actionUrl: "/settings/kyc",
         read: false,
         createdAt: new Date().toISOString()
       });

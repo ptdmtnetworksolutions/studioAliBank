@@ -13,7 +13,7 @@ const CACHE_FILE = path.join('/tmp', 'alibank-local-firestore-cache-v2.json');
 export const RECONCILIATION_BASELINE_MS = 1794135600000;
 
 interface LocalStoreSchema {
-  docs: Record<string, { data: Record<string, any>; updatedAt: number }>;
+  docs: Record<string, { data: Record<string, any>; updatedAt: number; deleted?: boolean }>;
 }
 
 let memoryStore: LocalStoreSchema | null = null;
@@ -83,12 +83,19 @@ export function normalizeDocPath(docPath: string): string {
   return String(docPath || '').replace(/^\/+|\/+$/g, '');
 }
 
+export function isLocalDocDeleted(docPath: string): boolean {
+  const clean = normalizeDocPath(docPath);
+  const store = loadStore();
+  const entry = store.docs[clean];
+  return Boolean(entry?.deleted && entry.updatedAt > Date.now() - 15 * 60 * 1000);
+}
+
 export function getLocalDoc(docPath: string): { exists: boolean; id: string; data: Record<string, any> | null; updatedAt: number } {
   const clean = normalizeDocPath(docPath);
   const store = loadStore();
   const entry = store.docs[clean];
   const id = clean.split('/').pop() || '';
-  if (!entry || !entry.data) {
+  if (!entry || entry.deleted || !entry.data) {
     return { exists: false, id, data: null, updatedAt: 0 };
   }
   return {
@@ -103,7 +110,7 @@ export function setLocalDoc(docPath: string, data: Record<string, any>, merge = 
   const clean = normalizeDocPath(docPath);
   const id = clean.split('/').pop() || '';
   const store = loadStore();
-  const existing: Record<string, any> = store.docs[clean]?.data || {};
+  const existing: Record<string, any> = (!store.docs[clean]?.deleted && store.docs[clean]?.data) || {};
   const terminalStatuses = ['rejected', 'approved', 'verified', 'completed'];
   const nextData: Record<string, any> = merge ? { ...existing, ...data, id } : { ...data, id };
   if (
@@ -125,6 +132,7 @@ export function setLocalDoc(docPath: string, data: Record<string, any>, merge = 
   store.docs[clean] = {
     data: nextData,
     updatedAt: Date.now(),
+    deleted: false,
   };
   saveStore(store);
   return nextData;
@@ -138,8 +146,12 @@ export function setLocalDocsBatch(entries: Array<{ path: string; data: Record<st
   for (const item of entries) {
     const clean = normalizeDocPath(item.path);
     if (!clean || !item.data) continue;
+    const prevEntry = store.docs[clean];
+    if (prevEntry?.deleted && prevEntry.updatedAt > now - 15 * 60 * 1000) {
+      continue;
+    }
     const id = clean.split('/').pop() || '';
-    const existing: Record<string, any> = store.docs[clean]?.data || {};
+    const existing: Record<string, any> = (!prevEntry?.deleted && prevEntry?.data) || {};
     const nextData: Record<string, any> = merge ? { ...existing, ...item.data, id } : { ...item.data, id };
     if (
       existing.status &&
@@ -151,6 +163,7 @@ export function setLocalDocsBatch(entries: Array<{ path: string; data: Record<st
     store.docs[clean] = {
       data: nextData,
       updatedAt: now,
+      deleted: false,
     };
   }
   saveStore(store);
@@ -159,10 +172,12 @@ export function setLocalDocsBatch(entries: Array<{ path: string; data: Record<st
 export function deleteLocalDoc(docPath: string): void {
   const clean = normalizeDocPath(docPath);
   const store = loadStore();
-  if (clean in store.docs) {
-    delete store.docs[clean];
-    saveStore(store);
-  }
+  store.docs[clean] = {
+    data: {},
+    updatedAt: Date.now(),
+    deleted: true,
+  };
+  saveStore(store);
 }
 
 function extractIncrementOperand(incomingVal: any): number {
@@ -305,7 +320,7 @@ export function queryLocalCollection(
   let results: Record<string, any>[] = [];
 
   for (const [docPath, entry] of Object.entries(store.docs)) {
-    if (!entry?.data) continue;
+    if (!entry?.data || entry.deleted) continue;
     const segs = docPath.split('/');
     if (collectionGroup) {
       if (segs.length >= 2 && segs[segs.length - 2] === collectionGroup) {
@@ -350,8 +365,10 @@ export function queryLocalCollection(
           const t = new Date(v).getTime();
           if (!isNaN(t)) return t;
         }
-        const fb = item?.date || item?.createdAt;
+        const fb = item?.timestamp || item?.date || item?.createdAt;
         if (fb) {
+          if (typeof fb === 'number') return fb;
+          if (typeof fb === 'object' && typeof fb.seconds === 'number') return fb.seconds * 1000;
           const t = new Date(fb).getTime();
           if (!isNaN(t)) return t;
         }

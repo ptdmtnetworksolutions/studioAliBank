@@ -3,6 +3,7 @@ import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
+import { dispatchUserNotification } from '@/lib/notifications-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -182,14 +183,6 @@ export async function POST(request: NextRequest) {
       status: "success",
       timestamp: nowIso
     });
-    addLocalCollectionDoc(`users/${userId}/notifications`, {
-      title: `⚡ Pembayaran iPaymu Sukses`,
-      message: `Pembayaran Rp ${parseFloat(amountIdr).toLocaleString('id-ID')} via iPaymu berhasil. ${cryptoAmount} ${cryptoCurrency} telah ditambahkan ke dompet Anda.`,
-      type: 'success',
-      read: false,
-      createdAt: nowIso,
-      timestamp: nowIso
-    });
     setLocalDoc(`ipaymu_pending_transactions/${reference_id}`, {
       status: 'success',
       trxId: trx_id,
@@ -216,6 +209,17 @@ export async function POST(request: NextRequest) {
         });
       });
     } catch {}
+
+    await dispatchUserNotification(userId, {
+      title: `⚡ Pembayaran iPaymu Sukses`,
+      message: `Pembayaran Rp ${parseFloat(amountIdr).toLocaleString('id-ID')} via iPaymu berhasil. ${cryptoAmount} ${cryptoCurrency} telah ditambahkan ke dompet Anda.`,
+      type: 'success',
+      category: 'transaksi',
+      amount: parseFloat(amountIdr),
+      cryptoAmount: parseFloat(cryptoAmount),
+      cryptoCurrency: cryptoCurrency,
+      actionUrl: '/crypto',
+    });
 
     return NextResponse.json({
       success: true,

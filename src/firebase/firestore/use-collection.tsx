@@ -9,7 +9,7 @@ import {
   QuerySnapshot,
   CollectionReference,
 } from 'firebase/firestore';
-import { proxyGetCollection } from '@/lib/firestore-proxy-client';
+import { proxyGetCollection, mergeCollectionDocsWithLocalCache, extractQueryDescriptor } from '@/lib/firestore-proxy-client';
 
 export type WithId<T> = T & { id: string };
 
@@ -120,16 +120,31 @@ export function useCollection<T = any>(
     setIsLoading(true);
     setError(null);
     snapshotActiveRef.current = false;
+    let proxyDocsCache: ResultItemType[] = [];
+    const descriptor = extractQueryDescriptor(memoizedTargetRefOrQuery);
+    const collectionPathForMerge = rawPath.startsWith('__group__/') ? null : rawPath;
+
+    const applyDescriptorFilters = (list: ResultItemType[]) => {
+      if (!descriptor?.filters || descriptor.filters.length === 0) return list;
+      return list.filter((item: any) =>
+        descriptor.filters.every((f) => {
+          const actual = item?.[f.field];
+          const expected = f.value;
+          if (f.op === '==' || f.op === 'EQUAL') return actual === expected;
+          if (f.op === '!=' || f.op === 'NOT_EQUAL') return actual !== expected;
+          return true;
+        })
+      );
+    };
 
     const fetchFromProxy = async () => {
       if (cancelled) return;
       const res = await proxyGetCollection<T>(memoizedTargetRefOrQuery);
       if (cancelled) return;
       if (res.ok) {
-        if (res.docs.length > 0 || !hasDataRef.current) {
-          if (res.docs.length > 0) hasDataRef.current = true;
-          setData(res.docs);
-        }
+        proxyDocsCache = res.docs;
+        if (res.docs.length > 0) hasDataRef.current = true;
+        setData(res.docs);
         setError(null);
         setIsLoading(false);
       }
@@ -143,13 +158,26 @@ export function useCollection<T = any>(
       (snapshot: QuerySnapshot<DocumentData>) => {
         if (cancelled) return;
         snapshotActiveRef.current = true;
-        const results: ResultItemType[] = snapshot.docs.map(doc => ({
+        const remoteResults: ResultItemType[] = snapshot.docs.map(doc => ({
           ...(doc.data() as T),
           id: doc.id,
         }));
-        if (results.length > 0 || !hasDataRef.current) {
-          if (results.length > 0) hasDataRef.current = true;
-          setData(results);
+        const remoteIds = new Set(remoteResults.map(r => r.id));
+        const localOnlyFromProxy = proxyDocsCache.filter(
+          (pd) => pd.id && !remoteIds.has(pd.id) && pd.id.startsWith('loc_')
+        );
+        const mergedRaw = mergeCollectionDocsWithLocalCache<T>(
+          collectionPathForMerge,
+          remoteResults,
+          localOnlyFromProxy
+        );
+        const merged = applyDescriptorFilters(mergedRaw);
+        if (merged.length > 0) {
+          hasDataRef.current = true;
+          setData(merged);
+        } else if (!snapshot.metadata?.fromCache || !hasDataRef.current || remoteResults.length > 0) {
+          // Izinkan pengosongan data bila memang hasil filter/penghapusan valid dari server/cache
+          setData([]);
         }
         setError(null);
         setIsLoading(false);
@@ -163,18 +191,28 @@ export function useCollection<T = any>(
     );
 
     const pollInterval = setInterval(() => {
-      if (!snapshotActiveRef.current) {
-        fetchFromProxy();
+      if (!snapshotActiveRef.current || (typeof document !== 'undefined' && document.visibilityState === 'visible')) {
+        // Poll faster when snapshot is down; gentle sync when notifications/active view is open
+        if (!snapshotActiveRef.current || rawPath.includes('notifications')) {
+          fetchFromProxy();
+        }
       }
-    }, 60000);
+    }, rawPath.includes('notifications') ? 10000 : 30000);
 
     const handleSyncEvent = () => {
       fetchFromProxy();
     };
 
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchFromProxy();
+      }
+    };
+
     if (typeof window !== 'undefined') {
       window.addEventListener('focus', handleSyncEvent);
       window.addEventListener('alibank-firestore-sync', handleSyncEvent);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
     }
 
     return () => {
@@ -184,6 +222,7 @@ export function useCollection<T = any>(
       if (typeof window !== 'undefined') {
         window.removeEventListener('focus', handleSyncEvent);
         window.removeEventListener('alibank-firestore-sync', handleSyncEvent);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
       }
     };
   }, [memoizedTargetRefOrQuery]);

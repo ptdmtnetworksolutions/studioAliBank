@@ -4,6 +4,7 @@ import { AliBankVaultABI } from '@/lib/abi/AliBankVault';
 import { AlixCoinABI } from '@/lib/abi/AlixCoin';
 import { firebaseConfig } from '@/firebase/config';
 import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
+import { dispatchUserNotification } from '@/lib/notifications-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -419,18 +420,8 @@ export async function POST(request: NextRequest) {
       timestamp: nowIso,
       userEmail: userData.email || '',
     };
-    const notifPayload = {
-      title: '🎁 Klaim Yield ALX Berhasil',
-      message: `Klaim yield staking sebesar ${yieldAmount.toFixed(6)} ALX berhasil diproses dan dikirim ke dompet Anda. Hash: ${receipt.hash.slice(0, 10)}...`,
-      type: 'success',
-      read: false,
-      createdAt: nowIso,
-      timestamp: nowIso,
-    };
-
     addLocalCollectionDoc(`users/${userId}/transactions`, txPayload);
     addLocalCollectionDoc('system/audit/global_transactions', auditPayload);
-    addLocalCollectionDoc(`users/${userId}/notifications`, notifPayload);
 
     await restPatchDoc(
       `users/${userId}`,
@@ -444,7 +435,20 @@ export async function POST(request: NextRequest) {
     await Promise.all([
       restCreateDoc(`users/${userId}/transactions`, { ...txPayload, timestamp: nowDate }, idToken),
       restCreateDoc('system/audit/global_transactions', { ...auditPayload, timestamp: nowDate }, idToken),
-      restCreateDoc(`users/${userId}/notifications`, { ...notifPayload, timestamp: nowDate }, idToken),
+      dispatchUserNotification(
+        userId,
+        {
+          title: '🎁 Klaim Yield ALX Berhasil',
+          message: `Klaim yield staking sebesar ${yieldAmount.toFixed(6)} ALX berhasil diproses dan dikirim ke dompet Anda. Hash: ${receipt.hash.slice(0, 10)}...`,
+          type: 'success',
+          category: 'marketing',
+          txHash: receipt.hash,
+          cryptoAmount: yieldAmount,
+          cryptoCurrency: 'ALX',
+          actionUrl: '/crypto',
+        },
+        { idToken }
+      ),
     ]);
 
     return NextResponse.json({

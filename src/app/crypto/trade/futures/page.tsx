@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { doc, addDoc, updateDoc, increment, collection, serverTimestamp, query, orderBy, limit, deleteDoc, getDocs, where } from "firebase/firestore";
+import { sendClientNotification } from "@/lib/notifications-client";
 import { proxyUpdateDoc, proxyAddDoc } from "@/lib/firestore-proxy-client";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -219,6 +220,15 @@ export default function FuturesPage() {
 
       setAmountUsdt("");
       toast({ title: "Posisi Berhasil Dibuka", description: `Margin dikomit & biaya layanan 0.1% telah dibayarkan.` });
+      sendClientNotification(user.uid, {
+        title: `⚡ Posisi Futures ${tradeSide.toUpperCase()} ${leverage}x Dibuka`,
+        message: `Posisi ${tradeSide.toUpperCase()} BTCUSDT ($${livePrice.toLocaleString('en-US')}) dengan margin ${totalDeduction.toFixed(2)} USDT kini aktif.`,
+        type: "success",
+        category: "transaksi",
+        cryptoAmount: totalDeduction,
+        cryptoCurrency: "USDT",
+        actionUrl: "/crypto/trade/futures",
+      });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal Eksekusi", description: err.message });
     } finally {
@@ -286,6 +296,15 @@ export default function FuturesPage() {
         title: realizedPnl >= 0 ? "Profit Terealisasi" : "Kerugian Ditanggung", 
         description: `${Math.abs(realizedPnl).toFixed(2)} USDT telah diselesaikan.`,
         variant: realizedPnl >= 0 ? "default" : "destructive"
+      });
+      sendClientNotification(user.uid, {
+        title: realizedPnl >= 0 ? `🎯 Settlement Futures Profit (+${realizedPnl.toFixed(2)} USDT)` : `📊 Settlement Futures Selesai (${realizedPnl.toFixed(2)} USDT)`,
+        message: `Posisi ${pos.side?.toUpperCase() || 'LONG'} BTCUSDT ditutup pada $${livePrice.toLocaleString('en-US')}. Total dikembalikan ke saldo: ${settledReturn.toFixed(2)} USDT.`,
+        type: realizedPnl >= 0 ? "success" : "warning",
+        category: "transaksi",
+        cryptoAmount: settledReturn,
+        cryptoCurrency: "USDT",
+        actionUrl: "/crypto/trade/futures",
       });
     } catch (e) {
       toast({ variant: "destructive", title: "Settlement Gagal" });

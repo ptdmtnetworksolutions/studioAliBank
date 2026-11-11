@@ -53,6 +53,7 @@ import { BankCardBadge } from "@/components/cards/bank-card-badge";
 import { EdcSalesDraft } from "@/components/cards/edc-sales-draft";
 import { SoftPosTransactionReceipt } from "@/lib/softpos-acquirer";
 import { MARKUP, fiatToIdrRate, floorCrypto, ceilCrypto, formatCryptoAmount, IDR_RATE_FALLBACK } from "@/lib/currency";
+import { sendClientNotification } from "@/lib/notifications-client";
 
 function PaymentIcon({ icon: Icon, className = "w-5 h-5" }: { icon: any; className?: string }) {
   const Comp = Icon || Zap;
@@ -603,8 +604,8 @@ function CryptoBuyPageInner() {
         settlementDestination: receipt?.settlementDestination || (isSoftPos ? "Bank Syariah Indonesia (BSI) - No: 7216683913 (PT DMT Network Solutions)" : null)
       });
 
-      // 3. Notifikasi resmi dan detail ke inbox nasabah
-      await addDoc(collection(db, "users", user.uid, "notifications"), {
+      // 3. Notifikasi resmi dan detail ke inbox nasabah (via proxy fallback-safe)
+      await sendClientNotification(user.uid, {
         title: isSoftPos 
           ? `Pembayaran EDC SoftPOS Berhasil (${cardBin?.bank?.shortName || 'Bank Partner'})` 
           : `Pembelian ${selectedAsset.symbol} Berhasil`,
@@ -613,20 +614,18 @@ function CryptoBuyPageInner() {
           : `Pembelian ${cryptoAmount} ${selectedAsset.symbol} senilai Rp ${fiatAmountIdr.toLocaleString('id-ID')} melalui ${paymentDetails.gateway || selectedPayment?.name || "Payment"} berhasil diselesaikan.`,
         type: "success",
         category: "transaksi",
-        read: false,
-        createdAt: new Date().toISOString(),
+        actionUrl: "/transactions/history",
         amount: fiatAmountIdr,
         cryptoAmount: cryptoAmount,
         cryptoCurrency: selectedAsset.symbol,
-        terminalId: receipt?.terminalId || (isSoftPos ? "ALX-SOFTPOS-01" : null),
-        merchantName: receipt?.merchantName || (isSoftPos ? "PT DMT NETWORK SOLUTIONS (ALIBANK)" : null),
-        approvalCode: receipt?.approvalCode || null,
-        rrn: receipt?.retrievalRefNumber || null,
-        bankName: cardBin?.bank?.name || receipt?.bankName || null,
-        cardType: cardBin?.cardType || receipt?.cardType || null,
-        maskedPan: cardBin?.maskedPan || receipt?.maskedPan || null,
-        settlementDestination: receipt?.settlementDestination || (isSoftPos ? "Bank Syariah Indonesia (BSI) - No: 7216683913 (PT DMT Network Solutions)" : null),
-        timestamp: serverTimestamp()
+        terminalId: receipt?.terminalId || (isSoftPos ? "ALX-SOFTPOS-01" : undefined),
+        merchantName: receipt?.merchantName || (isSoftPos ? "PT DMT NETWORK SOLUTIONS (ALIBANK)" : undefined),
+        approvalCode: receipt?.approvalCode || undefined,
+        rrn: receipt?.retrievalRefNumber || undefined,
+        bankName: cardBin?.bank?.name || receipt?.bankName || undefined,
+        cardType: cardBin?.cardType || receipt?.cardType || undefined,
+        maskedPan: cardBin?.maskedPan || receipt?.maskedPan || undefined,
+        settlementDestination: receipt?.settlementDestination || (isSoftPos ? "Bank Syariah Indonesia (BSI) - No: 7216683913 (PT DMT Network Solutions)" : undefined),
       });
 
       if (!keepDialogOpen) {

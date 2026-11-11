@@ -9,6 +9,7 @@ import {
   setLocalDoc,
   addLocalCollectionDoc,
 } from '@/lib/local-firestore-store';
+import { dispatchUserNotification } from '@/lib/notifications-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -545,6 +546,20 @@ export async function POST(request: NextRequest) {
         friendlyErrorMessage = `Jaringan blockchain saat ini sedang mengalami kepadatan lalu lintas transaksi. Silakan coba beberapa saat lagi.`;
       }
 
+      dispatchUserNotification(
+        userId,
+        {
+          title: `⚠️ Penarikan ${asset} Dibatalkan (Saldo Utuh)`,
+          message: `Permintaan penarikan ${numAmount} ${asset} ke ${recipient.slice(0, 10)}... gagal dieksekusi on-chain dan saldo Anda telah dikembalikan utuh. ${friendlyErrorMessage}`,
+          type: 'alert',
+          category: 'transaksi',
+          cryptoAmount: numAmount,
+          cryptoCurrency: asset,
+          actionUrl: '/crypto',
+        },
+        { idToken }
+      ).catch(() => {});
+
       return NextResponse.json(
         { error: friendlyErrorMessage },
         { status: 500 }
@@ -580,23 +595,27 @@ export async function POST(request: NextRequest) {
       recipient,
       timestamp: nowIso,
     };
-    const notifData = {
-      title: '📤 Penarikan Berhasil',
-      message: `${displayAmount} berhasil dikirim ke ${recipient.slice(0, 10)}... Hash: ${txHash.slice(0, 10)}...`,
-      type: 'success',
-      read: false,
-      createdAt: nowIso,
-      timestamp: nowIso,
-    };
 
     addLocalCollectionDoc(`users/${userId}/transactions`, txData);
     addLocalCollectionDoc('system/audit/global_transactions', auditData);
-    addLocalCollectionDoc(`users/${userId}/notifications`, notifData);
 
     await Promise.all([
       restCreateDoc(`users/${userId}/transactions`, { ...txData, timestamp: now }, idToken),
       restCreateDoc('system/audit/global_transactions', { ...auditData, timestamp: now }, idToken),
-      restCreateDoc(`users/${userId}/notifications`, { ...notifData, timestamp: now }, idToken),
+      dispatchUserNotification(
+        userId,
+        {
+          title: '📤 Penarikan Kripto Berhasil',
+          message: `${displayAmount} berhasil dikirim ke ${recipient.slice(0, 10)}... (${usedNetwork}). Hash: ${txHash.slice(0, 12)}...`,
+          type: 'success',
+          category: 'transaksi',
+          txHash,
+          cryptoAmount: numAmount,
+          cryptoCurrency: asset,
+          actionUrl: '/transactions/history',
+        },
+        { idToken }
+      ),
     ]);
 
     return NextResponse.json({

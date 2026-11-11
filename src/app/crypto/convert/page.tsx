@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, increment, collection, serverTimestamp } from "firebase/firestore";
 import { proxyUpdateDoc, proxyAddDoc } from "@/lib/firestore-proxy-client";
+import { sendClientNotification } from "@/lib/notifications-client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { MARKUP, floorCrypto, formatCryptoAmount, IDR_RATE_FALLBACK } from "@/lib/currency";
@@ -259,6 +260,15 @@ export default function ConvertPage() {
 
       setStep('success');
       toast({ title: "Swap Berhasil" });
+      sendClientNotification(user.uid, {
+        title: `🔄 Swap ${fromAsset} → ${toAsset} Berhasil`,
+        message: `Anda berhasil menukar ${numAmount} ${fromAsset} menjadi ${convertedDisplay} ${toAsset} secara instan tanpa biaya jaringan.`,
+        type: "success",
+        category: "transaksi",
+        actionUrl: "/transactions/history",
+        cryptoAmount: toAsset !== 'IDR' ? convertedRaw : numAmount,
+        cryptoCurrency: toAsset !== 'IDR' ? toAsset : fromAsset,
+      });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Gagal", description: err.message });
     } finally {

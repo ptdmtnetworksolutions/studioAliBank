@@ -7,6 +7,7 @@ import {
   addLocalCollectionDoc,
   queryLocalCollection,
 } from '@/lib/local-firestore-store';
+import { dispatchUserNotification } from '@/lib/notifications-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -415,6 +416,39 @@ export async function GET(request: NextRequest) {
       const now = new Date();
       const nowIso = now.toISOString();
 
+      setLocalDoc(`users/${userId}`, { cryptoBalances: currentCryptoBalances }, true);
+
+      const depositTxDoc = {
+        date: nowIso,
+        description: `Terima ${symbol} dari Wallet Eksternal (MetaMask)`,
+        category: 'Crypto Deposit',
+        asset: symbol,
+        cryptoAmount: amount,
+        cryptoCurrency: symbol,
+        senderAddress,
+        type: 'income',
+        status: 'success',
+        txHash,
+        network: 'Polygon Mainnet',
+        timestamp: nowIso,
+      };
+      const depositAuditDoc = {
+        id: `DEP-AUTO-${Date.now()}`,
+        category: 'External Inflow',
+        gateway: 'Auto-Node Sync',
+        amountIdr: 0,
+        cryptoAmount: amount,
+        cryptoCurrency: symbol,
+        txHash,
+        description: `Auto-credited deposit ${amount} ${symbol} ke ${userData.name || 'Nasabah'}. Hash: ${txHash.slice(0, 12)}...`,
+        status: 'berhasil',
+        timestamp: nowIso,
+        userEmail: userData.email || '',
+      };
+
+      addLocalCollectionDoc(`users/${userId}/transactions`, depositTxDoc);
+      addLocalCollectionDoc('system/audit/global_transactions', depositAuditDoc);
+
       await restPatchDoc(
         `users/${userId}`,
         { cryptoBalances: currentCryptoBalances },
@@ -424,50 +458,27 @@ export async function GET(request: NextRequest) {
       await Promise.all([
         restCreateDoc(
           `users/${userId}/transactions`,
-          {
-            date: nowIso,
-            description: `Terima ${symbol} dari Wallet Eksternal (MetaMask)`,
-            category: 'Crypto Deposit',
-            asset: symbol,
-            cryptoAmount: amount,
-            cryptoCurrency: symbol,
-            senderAddress,
-            type: 'income',
-            status: 'success',
-            txHash,
-            network: 'Polygon Mainnet',
-            timestamp: now,
-          },
+          { ...depositTxDoc, timestamp: now },
           idToken
         ),
         restCreateDoc(
           `system/audit/global_transactions`,
-          {
-            id: `DEP-AUTO-${Date.now()}`,
-            category: 'External Inflow',
-            gateway: 'Auto-Node Sync',
-            amountIdr: 0,
-            cryptoAmount: amount,
-            cryptoCurrency: symbol,
-            txHash,
-            description: `Auto-credited deposit ${amount} ${symbol} ke ${userData.name || 'Nasabah'}. Hash: ${txHash.slice(0, 12)}...`,
-            status: 'berhasil',
-            timestamp: now,
-            userEmail: userData.email || '',
-          },
+          { ...depositAuditDoc, timestamp: now },
           idToken
         ),
-        restCreateDoc(
-          `users/${userId}/notifications`,
+        dispatchUserNotification(
+          userId,
           {
             title: `📥 Deposit ${symbol} Masuk`,
             message: `Setoran ${amount} ${symbol} dari dompet eksternal telah diterima dan dikreditkan ke saldo AliBank Anda. Hash: ${txHash.slice(0, 10)}...`,
             type: 'success',
-            read: false,
-            createdAt: nowIso,
-            timestamp: now,
+            category: 'transaksi',
+            txHash,
+            cryptoAmount: amount,
+            cryptoCurrency: symbol,
+            actionUrl: '/crypto',
           },
-          idToken
+          { idToken }
         ),
       ]);
 

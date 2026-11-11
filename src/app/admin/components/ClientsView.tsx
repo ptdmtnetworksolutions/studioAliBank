@@ -273,6 +273,8 @@ export function ClientsView({ allUsers, globalSearch = "" }: any) {
         title: "KYC Berhasil (Manual)",
         message: "Selamat! Identitas Anda telah diverifikasi secara manual oleh Admin. Akses likuiditas penuh sekarang terbuka.",
         type: "success",
+        category: "akun",
+        actionUrl: "/settings/kyc",
         read: false,
         createdAt: new Date().toISOString()
       });

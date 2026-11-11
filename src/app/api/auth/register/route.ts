@@ -3,6 +3,7 @@ import { firebaseConfig } from '@/firebase/config';
 import { ethers } from 'ethers';
 import { deriveMultiChainAddresses } from '@/lib/crypto/multi-chain-engine';
 import { setLocalDoc } from '@/lib/local-firestore-store';
+import { dispatchUserNotification } from '@/lib/notifications-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -145,6 +146,18 @@ export async function POST(request: NextRequest) {
     } catch (fsErr) {
       console.warn('Firestore write warning:', fsErr);
     }
+
+    await dispatchUserNotification(
+      uid,
+      {
+        title: '🎉 Selamat Datang di AliBank V3.1 Institutional',
+        message: `Akun Anda (${accountNumber}) beserta dompet multi-chain Web3 (Polygon, Ethereum, Bitcoin, Solana) telah aktif. Selesaikan verifikasi KYC untuk membuka batas transaksi penuh.`,
+        type: 'success',
+        category: 'akun',
+        actionUrl: '/settings/kyc',
+      },
+      { idToken }
+    );
 
     const response = NextResponse.json({
       success: true,

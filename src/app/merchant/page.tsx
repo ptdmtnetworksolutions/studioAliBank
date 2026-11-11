@@ -23,6 +23,8 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, doc, setDoc, increment } from "firebase/firestore";
+import { proxySetDoc } from "@/lib/firestore-proxy-client";
+import { sendClientNotification } from "@/lib/notifications-client";
 import { useRouter } from "next/navigation";
 import {
   Tooltip,
@@ -63,15 +65,16 @@ export default function MerchantDashboard() {
       const userRef = doc(db, "users", user.uid);
       const notifRef = collection(db, "users", user.uid, "notifications");
       
-      await setDoc(userRef, { totalBalance: increment(amount) }, { merge: true });
-      await setDoc(merchantDocRef, { pendingSettlement: 0 }, { merge: true });
+      await proxySetDoc(userRef, { totalBalance: increment(amount) }, { merge: true });
+      await proxySetDoc(merchantDocRef, { pendingSettlement: 0 }, { merge: true });
       
-      addDoc(notifRef, {
-        title: "Settlement Berhasil",
+      await sendClientNotification(user.uid, {
+        title: "💼 Settlement Merchant Berhasil",
         message: `Dana sebesar Rp ${amount.toLocaleString('id-ID')} telah dicairkan ke rekening utama Anda.`,
         type: "success",
-        read: false,
-        createdAt: new Date().toISOString()
+        category: "transaksi",
+        amount,
+        actionUrl: "/merchant",
       });
 
       toast({ title: "Settlement Success", description: `Rp ${amount.toLocaleString()} ditransfer ke saldo utama.` });

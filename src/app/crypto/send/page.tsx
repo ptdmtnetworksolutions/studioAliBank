@@ -29,6 +29,7 @@ import { useRouter } from "next/navigation";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { proxyUpdateDoc, proxyAddDoc, triggerFirestoreSync } from "@/lib/firestore-proxy-client";
+import { sendClientNotification } from "@/lib/notifications-client";
 import { useToast } from "@/hooks/use-toast";
 import { ethers, JsonRpcProvider, BrowserProvider } from "ethers";
 import { cn } from "@/lib/utils";
@@ -187,6 +188,16 @@ export default function CryptoSendPage() {
         setTxHash(tx.hash);
         setStep('success');
         toast({ title: "Instruksi Berhasil", description: "Transaksi ETH telah berhasil disiarkan ke Mainnet." });
+        sendClientNotification(user.uid, {
+          title: `📤 Pengiriman ETH On-Chain Berhasil`,
+          message: `${numAmount} ETH telah disiarkan dari dompet Native Signature Anda ke ${recipientAddress.slice(0, 10)}...`,
+          type: "success",
+          category: "transaksi",
+          txHash: tx.hash,
+          cryptoAmount: numAmount,
+          cryptoCurrency: "ETH",
+          actionUrl: "/transactions/history",
+        });
       } else {
         // Custodial withdrawal using our new server endpoint `/api/crypto/withdraw`
         const currentBal = userData.cryptoBalances?.[assetType] || 0;
@@ -339,6 +350,16 @@ export default function CryptoSendPage() {
             txHash: finalTxHash,
             timestamp: serverTimestamp(),
           }).catch(() => {});
+          await sendClientNotification(user.uid, {
+            title: `📤 Penarikan ${assetType} Berhasil`,
+            message: `${numAmount} ${assetType} berhasil dikirim ke ${cleanRecipient.slice(0, 10)}... Hash: ${finalTxHash.slice(0, 12)}...`,
+            type: "success",
+            category: "transaksi",
+            txHash: finalTxHash,
+            cryptoAmount: numAmount,
+            cryptoCurrency: assetType,
+            actionUrl: "/transactions/history",
+          });
         } else {
           triggerFirestoreSync();
         }

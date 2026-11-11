@@ -4,6 +4,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { verifyDokuWebhookSignature, DOKU_CONFIG_DEFAULT } from '@/lib/doku';
 import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
+import { dispatchUserNotification } from '@/lib/notifications-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -192,6 +193,17 @@ export async function POST(request: NextRequest) {
     } catch {}
 
     console.log(`[DOKU Webhook] Sukses mengkreditkan ${cryptoAmount} ${cryptoCurrency} ke user ${userId} untuk order ${orderId}`);
+
+    await dispatchUserNotification(userId, {
+      title: `⚡ Pembayaran DOKU Sukses (${channelId})`,
+      message: `Pembayaran Rp ${fiatAmount.toLocaleString('id-ID')} via DOKU berhasil diproses. ${cryptoAmount} ${cryptoCurrency} telah ditambahkan ke portofolio Anda.`,
+      type: 'success',
+      category: 'transaksi',
+      amount: fiatAmount,
+      cryptoAmount,
+      cryptoCurrency,
+      actionUrl: '/crypto',
+    });
 
     return NextResponse.json({
       status: 'OK',

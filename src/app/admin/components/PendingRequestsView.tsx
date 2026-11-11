@@ -179,6 +179,8 @@ export function PendingRequestsView({ topupRequests }: any) {
           title: "Penarikan Tunai Berhasil Dicairkan",
           message: `Dana sebesar Rp ${withdrawIdr.toLocaleString("id-ID")} telah berhasil dicairkan ke rekening ${bankLabel} (${accNum} a.n. ${accName}).`,
           type: "success",
+          category: "transaksi",
+          actionUrl: "/transactions/history",
           read: false,
           createdAt: new Date().toISOString()
         });
@@ -235,6 +237,8 @@ export function PendingRequestsView({ topupRequests }: any) {
           title: "Setoran Berhasil Diverifikasi",
           message: `Saldo ${req.asset === 'IDR' ? `Rp ${amount.toLocaleString('id-ID')}` : `${amount} ${req.asset}`} Anda telah ditambahkan ke akun. Terima kasih telah menggunakan AliBank V3.`,
           type: "success",
+          category: "transaksi",
+          actionUrl: "/transactions/history",
           read: false,
           createdAt: new Date().toISOString()
         });
@@ -307,7 +311,9 @@ export function PendingRequestsView({ topupRequests }: any) {
         await proxyAddDoc(collection(db, "users", req.userId, "notifications"), {
           title: "Penarikan Ditolak & Saldo Direfund",
           message: notifMessage,
-          type: "error",
+          type: "alert",
+          category: "transaksi",
+          actionUrl: "/transactions/history",
           read: false,
           rejectionReason: finalReason,
           createdAt: new Date().toISOString()
@@ -327,7 +333,9 @@ export function PendingRequestsView({ topupRequests }: any) {
         await proxyAddDoc(collection(db, "users", req.userId, "notifications"), {
           title: "Setoran Ditolak",
           message: `Permintaan setoran Anda ditolak oleh kliring. Alasan: "${finalReason}".`,
-          type: "error",
+          type: "alert",
+          category: "transaksi",
+          actionUrl: "/transactions/history",
           read: false,
           rejectionReason: finalReason,
           createdAt: new Date().toISOString()

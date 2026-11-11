@@ -3,6 +3,7 @@ import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 import { getLocalDoc, setLocalDoc, addLocalCollectionDoc, queryLocalCollection } from '@/lib/local-firestore-store';
+import { dispatchUserNotification } from '@/lib/notifications-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -167,18 +168,6 @@ export async function POST(request: NextRequest) {
       transactionId: transaction_id,
       timestamp: nowIso
     });
-    addLocalCollectionDoc(`users/${userId}/notifications`, {
-      title: `⚡ Pembayaran Midtrans Sukses`,
-      message: `Pembayaran Rp ${parseFloat(amountIdr).toLocaleString('id-ID')} via Midtrans Snap berhasil. ${cryptoAmount} ${cryptoCurrency} telah ditambahkan ke dompet Anda.`,
-      type: 'success',
-      category: 'transaksi',
-      read: false,
-      createdAt: nowIso,
-      amount: parseFloat(amountIdr),
-      cryptoAmount: parseFloat(cryptoAmount),
-      cryptoCurrency: cryptoCurrency,
-      timestamp: nowIso
-    });
     setLocalDoc(`midtrans_pending_transactions/${order_id}`, {
       status: 'success',
       transactionId: transaction_id || '',
@@ -207,6 +196,17 @@ export async function POST(request: NextRequest) {
         });
       });
     } catch {}
+
+    await dispatchUserNotification(userId, {
+      title: `⚡ Pembayaran Midtrans Sukses`,
+      message: `Pembayaran Rp ${parseFloat(amountIdr).toLocaleString('id-ID')} via Midtrans Snap berhasil. ${cryptoAmount} ${cryptoCurrency} telah ditambahkan ke dompet Anda.`,
+      type: 'success',
+      category: 'transaksi',
+      amount: parseFloat(amountIdr),
+      cryptoAmount: parseFloat(cryptoAmount),
+      cryptoCurrency: cryptoCurrency,
+      actionUrl: '/crypto',
+    });
 
     return NextResponse.json({
       success: true,

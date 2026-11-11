@@ -9,6 +9,7 @@ import {
   addLocalCollectionDoc,
   queryLocalCollection,
 } from '@/lib/local-firestore-store';
+import { dispatchUserNotification } from '@/lib/notifications-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -356,29 +357,25 @@ export async function POST(request: NextRequest) {
     await Promise.all([
       bestEffortCreateDoc(`users/${senderId}/transactions`, senderTxData, token),
       bestEffortCreateDoc(`users/${recipientId}/transactions`, recipientTxData, token),
-      bestEffortCreateDoc(
-        `users/${recipientId}/notifications`,
-        {
-          title: '💸 Dana Masuk',
-          message: `Anda menerima ${displayAmount} dari ${effectiveSenderName}.`,
-          type: 'success',
-          read: false,
-          createdAt: nowIso,
-          timestamp: nowIso,
-        },
-        token
-      ),
-      bestEffortCreateDoc(
-        `users/${senderId}/notifications`,
+      dispatchUserNotification(recipientId, {
+        title: '💸 Dana Masuk',
+        message: `Anda menerima ${displayAmount} dari ${effectiveSenderName}${note ? ` (${note})` : ''}.`,
+        type: 'success',
+        category: 'transaksi',
+        actionUrl: '/transactions/history',
+        ...(isIdr ? { amount: numAmount } : { cryptoAmount: numAmount, cryptoCurrency: asset }),
+      }),
+      dispatchUserNotification(
+        senderId,
         {
           title: '✅ Transfer Berhasil',
           message: `${displayAmount} berhasil dikirim ke ${recipientName}.`,
           type: 'success',
-          read: false,
-          createdAt: nowIso,
-          timestamp: nowIso,
+          category: 'transaksi',
+          actionUrl: '/transactions/history',
+          ...(isIdr ? { amount: numAmount } : { cryptoAmount: numAmount, cryptoCurrency: asset }),
         },
-        token
+        { idToken: token }
       ),
       bestEffortCreateDoc(
         `system/audit/global_transactions`,

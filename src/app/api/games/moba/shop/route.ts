@@ -4,6 +4,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { firebaseConfig } from '@/firebase/config';
 import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
+import { dispatchUserNotification } from '@/lib/notifications-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -165,6 +166,16 @@ export async function POST(req: NextRequest) {
         });
       });
     } catch {}
+
+    await dispatchUserNotification(userId, {
+      title: `🛡️ Pembelian Item MOBA Berhasil`,
+      message: `Anda berhasil membuka ${itemType === 'hero' ? 'Hero' : 'Skin'} "${itemName}" senilai ${priceAlx} ALX di AliBank Arena Shop.`,
+      type: 'success',
+      category: 'transaksi',
+      cryptoAmount: Math.abs(priceAlx),
+      cryptoCurrency: 'ALX',
+      actionUrl: '/games/moba',
+    });
 
     return NextResponse.json({
       success: true,

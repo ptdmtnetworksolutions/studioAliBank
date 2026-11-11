@@ -30,6 +30,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, increment, collection, serverTimestamp } from "firebase/firestore";
 import { proxyUpdateDoc, proxyAddDoc } from "@/lib/firestore-proxy-client";
+import { sendClientNotification } from "@/lib/notifications-client";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
 import { Badge } from "@/components/ui/badge";
@@ -196,6 +197,16 @@ export default function TradePage() {
         });
 
         toast({ title: "Pembelian Berhasil", description: `${formatCryptoAmount(cryptoAmount)} ${symbol} telah ditambahkan.` });
+        sendClientNotification(user.uid, {
+          title: `📈 Pembelian ${symbol} Berhasil`,
+          message: `Anda berhasil membeli ${formatCryptoAmount(cryptoAmount)} ${symbol} senilai Rp ${totalIdr.toLocaleString('id-ID')} di Bursa Spot AliBank.`,
+          type: "success",
+          category: "transaksi",
+          amount: totalIdr,
+          cryptoAmount,
+          cryptoCurrency: symbol,
+          actionUrl: "/crypto",
+        });
       } else if (tradeType === 'jual') {
         const held = Number(userData.cryptoBalances?.[symbol] ?? 0);
         if (held < cryptoAmount) {
@@ -245,6 +256,16 @@ export default function TradePage() {
         });
 
         toast({ title: "Penjualan Berhasil", description: `Rp ${totalIdr.toLocaleString('id-ID')} masuk ke saldo dompet Anda.` });
+        sendClientNotification(user.uid, {
+          title: `📉 Penjualan ${symbol} Berhasil`,
+          message: `Penjualan ${formatCryptoAmount(cryptoAmount)} ${symbol} berhasil dikonversi menjadi Rp ${totalIdr.toLocaleString('id-ID')} ke saldo utama Anda.`,
+          type: "success",
+          category: "transaksi",
+          amount: totalIdr,
+          cryptoAmount,
+          cryptoCurrency: symbol,
+          actionUrl: "/transactions/history",
+        });
       }
       setAmount("0");
     } catch (err: any) {

@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { useUser, useDoc, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { doc, collection, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
 import { proxyAddDoc, proxyUpdateDoc } from "@/lib/firestore-proxy-client";
+import { sendClientNotification } from "@/lib/notifications-client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/ui/logo";
@@ -178,6 +179,14 @@ export default function DebtRepaymentPage() {
         status: "success",
         timestamp: serverTimestamp(),
         userEmail: user.email
+      });
+
+      await sendClientNotification(user.uid, {
+        title: "📜 Program Restrukturisasi Cicilan Aktif",
+        message: `Kontrak cicilan 12 bulan (Rp ${schedule.monthlyInstallment.toLocaleString('id-ID')}/bulan) telah disetujui dan berstatus aktif.`,
+        type: "info",
+        category: "akun",
+        actionUrl: "/debt-repayment",
       });
 
       toast({ title: "Kontrak Disetujui", description: "Program cicilan Anda telah aktif. Bayar cicilan pertama bulan depan." });

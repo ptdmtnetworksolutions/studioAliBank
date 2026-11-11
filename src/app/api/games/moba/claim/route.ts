@@ -4,6 +4,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { firebaseConfig } from '@/firebase/config';
 import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
+import { dispatchUserNotification } from '@/lib/notifications-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,15 +116,6 @@ export async function POST(req: NextRequest) {
       userEmail,
       description: `User won MOBA match. Credited ${rewardAmount} ALX. ID: ${txId}`,
     });
-    addLocalCollectionDoc(`users/${userId}/notifications`, {
-      title: '🏆 Kemenangan MOBA!',
-      message: `Selamat! Anda memenangkan pertempuran dan memperoleh hadiah ${rewardAmount} ALX.`,
-      type: 'success',
-      read: false,
-      createdAt: now,
-      timestamp: now,
-    });
-
     try {
       const db = getFirestore(getAdminApp());
       const userRef = db.collection('users').doc(userId);
@@ -144,6 +136,16 @@ export async function POST(req: NextRequest) {
         });
       });
     } catch {}
+
+    await dispatchUserNotification(userId, {
+      title: '🏆 Kemenangan MOBA!',
+      message: `Selamat! Anda memenangkan pertempuran di AliBank Arena dan memperoleh hadiah ${rewardAmount} ALX.`,
+      type: 'success',
+      category: 'marketing',
+      cryptoAmount: rewardAmount,
+      cryptoCurrency: 'ALX',
+      actionUrl: '/games/moba',
+    });
 
     return NextResponse.json({
       success: true,

@@ -354,6 +354,8 @@ export default function CashDeliveryPage() {
         title: "Pengiriman Tunai Diproses",
         message: `Penukaran ${currentBayar} USDT menjadi Rp ${Math.round(currentMenerima).toLocaleString("id-ID")} ke ${selectedChannelName} (${cleanAcc}) sedang diproses oleh Pusat Kliring.`,
         type: "info",
+        category: "transaksi",
+        actionUrl: "/transactions/history",
         read: false,
         createdAt: new Date().toISOString(),
       });

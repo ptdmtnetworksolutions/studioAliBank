@@ -223,6 +223,8 @@ export function ReconciliationView({ setActiveTab }: { setActiveTab: (tab: strin
           ? "Akun Anda telah ditangguhkan secara manual oleh administrator untuk pemeriksaan keamanan."
           : "Akun Anda telah diaktifkan kembali. Anda dapat bertransaksi kembali.",
         type: newStatus ? "warning" : "success",
+        category: "akun",
+        actionUrl: newStatus ? "/debt-repayment" : "/",
         read: false,
         createdAt: new Date().toISOString()
       });

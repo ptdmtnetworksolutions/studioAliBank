@@ -118,6 +118,8 @@ export default function DepositsPage() {
         title: "Penempatan Deposito Aktif",
         message: `Berhasil menempatkan Rp ${product.min.toLocaleString('id-ID')} pada ${product.name}.`,
         type: "success",
+        category: "transaksi",
+        actionUrl: "/deposits",
         read: false,
         createdAt: new Date().toISOString()
       });

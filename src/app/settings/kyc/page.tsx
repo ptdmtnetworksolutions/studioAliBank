@@ -55,6 +55,7 @@ import { cn } from "@/lib/utils";
 import { extractKtpData } from "@/ai/flows/ocr-ktp-flow";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { sendClientNotification } from "@/lib/notifications-client";
 
 export default function KycPage() {
   const router = useRouter();
@@ -451,12 +452,12 @@ export default function KycPage() {
 
       // Kirim notifikasi konfirmasi ke user
       try {
-        await addDoc(collection(db, "users", user.uid, "notifications"), {
-          title: "Pengajuan KYC Berhasil Diterima",
+        await sendClientNotification(user.uid, {
+          title: "🪪 Pengajuan KYC Berhasil Diterima",
           message: `Pengajuan verifikasi e-KTP (NIK: ${kycForm.nik} - ${kycForm.nama}) telah berhasil diterima. Tim kepatuhan kami akan meninjau dalam 1x24 jam.`,
           type: "info",
-          read: false,
-          createdAt: submittedAt
+          category: "akun",
+          actionUrl: "/settings/kyc",
         });
       } catch (notifErr) {
         // Notification is non-blocking

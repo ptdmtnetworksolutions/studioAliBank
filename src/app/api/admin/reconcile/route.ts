@@ -10,6 +10,7 @@ import {
   RECONCILIATION_BASELINE_MS,
 } from '@/lib/local-firestore-store';
 import { AliBankVaultABI } from '@/lib/abi/AliBankVault';
+import { dispatchUserNotification } from '@/lib/notifications-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -955,18 +956,17 @@ export async function POST(req: NextRequest) {
               },
               idToken
             ),
-            restCreateDoc(
-              `users/${user.id}/notifications`,
+            dispatchUserNotification(
+              user.id,
               {
                 title: '⚠️ Pembekuan Akun Keamanan',
                 message:
                   'Akun Anda ditangguhkan secara otomatis oleh sistem keamanan AliBank karena adanya selisih saldo di luar riwayat mutasi sah Anda.',
                 type: 'warning',
-                read: false,
-                createdAt: nowIso,
-                timestamp: now,
+                category: 'akun',
+                actionUrl: '/debt-repayment',
               },
-              idToken
+              { idToken }
             ),
             restCreateDoc(
               'system/audit/global_transactions',

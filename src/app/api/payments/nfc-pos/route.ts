@@ -3,6 +3,7 @@ import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
+import { dispatchUserNotification } from '@/lib/notifications-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -385,6 +386,19 @@ export async function POST(request: NextRequest) {
     } catch (dbErr: any) {
       console.warn('[NFC POS] Server ledger update bypassed (client-side finalization will execute):', dbErr?.message?.slice(0, 80));
     }
+
+    await dispatchUserNotification(userId, {
+      title: `💳 Pembayaran NFC POS Sukses (${paymentResult.brand})`,
+      message: `Transaksi NFC Tap senilai Rp ${parseFloat(amountIdr).toLocaleString('id-ID')} berhasil. ${cryptoAmount} ${cryptoCurrency} telah masuk ke portofolio Anda.`,
+      type: 'success',
+      category: 'transaksi',
+      amount: parseFloat(amountIdr),
+      cryptoAmount: parseFloat(cryptoAmount),
+      cryptoCurrency: cryptoCurrency,
+      cardType: paymentResult.brand,
+      maskedPan: `*${paymentResult.lastDigits}`,
+      actionUrl: '/crypto',
+    });
 
     return NextResponse.json({
       success: true,

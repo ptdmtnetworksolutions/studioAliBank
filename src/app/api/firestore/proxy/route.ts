@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { firebaseConfig } from '@/firebase/config';
 import {
   getLocalDoc,
+  isLocalDocDeleted,
   setLocalDoc,
   setLocalDocsBatch,
   deleteLocalDoc,
@@ -150,9 +151,11 @@ function getSortableTime(item: any, field: string): number {
       if (!isNaN(t)) return t;
     }
   }
-  if (field === 'timestamp') {
-    const fallback = item?.date || item?.createdAt;
+  if (field === 'timestamp' || field === 'createdAt') {
+    const fallback = item?.createdAt || item?.timestamp || item?.date;
     if (fallback) {
+      if (typeof fallback === 'number') return fallback;
+      if (typeof fallback === 'object' && typeof fallback.seconds === 'number') return fallback.seconds * 1000;
       const t = new Date(fallback).getTime();
       if (!isNaN(t)) return t;
     }
@@ -529,6 +532,10 @@ export async function POST(request: NextRequest) {
             let parsedDoc = parseFirestoreDoc(row.document);
             if (cleanColPath && parsedDoc.id) {
               const docFullPath = `${cleanColPath}/${parsedDoc.id}`;
+              if (isLocalDocDeleted(docFullPath)) {
+                fetchWithAuth(`${FIRESTORE_BASE}/${docFullPath}`, { method: 'DELETE' }).catch(() => {});
+                continue;
+              }
               const localEntry = getLocalDoc(docFullPath);
               if (localEntry.exists && localEntry.data) {
                 const localStatus = String(localEntry.data.status || '').toLowerCase();
@@ -586,6 +593,7 @@ export async function POST(request: NextRequest) {
         setLocalDocsBatch(batchEntries, true);
       }
 
+      let mergedLocalCount = 0;
       // Merge any locally created docs that are not yet in remote docs
       if (cleanColPath || collectionGroup) {
         const localDocs = queryLocalCollection(
@@ -599,6 +607,7 @@ export async function POST(request: NextRequest) {
         for (const ld of localDocs) {
           if (ld.id && !existingIds.has(ld.id)) {
             docs.unshift(ld);
+            mergedLocalCount++;
           }
         }
       }
@@ -616,19 +625,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // If we had to fallback or if in-memory sorting/limiting is needed
-      if (usedInMemorySort) {
-        if (Array.isArray(filters) && filters.length > 0) {
-          docs = docs.filter((d) =>
-            filters.every((f: any) => {
-              const actual = d[f.field];
-              const expected = f.value;
-              if (f.op === '==' || f.op === 'EQUAL') return actual === expected;
-              if (f.op === '!=' || f.op === 'NOT_EQUAL') return actual !== expected;
-              return true;
-            })
-          );
-        }
+      // If we had to fallback or merged locally-created docs, sort & limit accurately
+      if (usedInMemorySort || mergedLocalCount > 0) {
         if (Array.isArray(orders) && orders.length > 0) {
           const primaryOrder = orders[0];
           const isAsc = String(primaryOrder.dir || 'desc').toLowerCase() === 'asc';

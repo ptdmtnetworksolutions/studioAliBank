@@ -40,6 +40,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { proxyUpdateDoc, proxyAddDoc } from "@/lib/firestore-proxy-client";
+import { sendClientNotification } from "@/lib/notifications-client";
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 
@@ -193,9 +195,9 @@ export default function AliSpinPage() {
       const winAmountInIdr = amountInIdr * multiplier;
       const winAmountInAlx = winAmountInIdr / alxPriceIdr;
 
-      await updateDoc(userDocRef!, { "cryptoBalances.ALX": increment(winAmountInAlx) });
+      await proxyUpdateDoc(userDocRef!, { "cryptoBalances.ALX": increment(winAmountInAlx) });
       const systemRef = doc(db!, "system", "liquidity");
-      await updateDoc(systemRef, { 
+      await proxyUpdateDoc(systemRef, { 
         alixVaultBalance: increment(-winAmountInAlx),
         totalAlixSoldInternally: increment(winAmountInAlx)
       });
@@ -204,7 +206,7 @@ export default function AliSpinPage() {
       if (earnedFreeSpins > 0) setFreeSpins(prev => prev + earnedFreeSpins);
 
       // Audit Log for Admin
-      await addDoc(globalAuditRef, {
+      await proxyAddDoc(globalAuditRef, {
         id: `SPIN-WIN-${Date.now()}`,
         category: "Ali-Spin Win",
         amountIdr: amountInIdr,
@@ -214,7 +216,7 @@ export default function AliSpinPage() {
         userEmail: user?.email
       });
 
-      await addDoc(collection(db!, "users", user!.uid, "transactions"), {
+      await proxyAddDoc(collection(db!, "users", user!.uid, "transactions"), {
         date: new Date().toISOString(),
         description: `Ali-Spin Win: ${winDescription} (${multiplier}x)`,
         category: "Game",
@@ -223,6 +225,16 @@ export default function AliSpinPage() {
         type: "income",
         status: "WIN",
         timestamp: serverTimestamp()
+      });
+
+      sendClientNotification(user!.uid, {
+        title: `🎰 Hadiah Ali-Spin: ${winDescription}`,
+        message: `Selamat! Anda memenangkan ${multiplier}x dan memperoleh hadiah ${winAmountInAlx.toFixed(6)} ALX di Ali-Spin Wheel.`,
+        type: "success",
+        category: "marketing",
+        cryptoAmount: winAmountInAlx,
+        cryptoCurrency: "ALX",
+        actionUrl: "/games/spin",
       });
 
       toast({ title: winDescription, description: `Dapatkan +${winAmountInAlx.toFixed(6)} ALX` });

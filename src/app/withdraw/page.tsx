@@ -263,6 +263,8 @@ export default function WithdrawPage() {
         title: "Permintaan Penarikan Diterima",
         message: `Penarikan Rp ${numAmount.toLocaleString('id-ID')} ke ${selectedBankName} (${cleanAccountNumber}) sedang diverifikasi oleh Pusat Kliring AliBank Node.`,
         type: "info",
+        category: "transaksi",
+        actionUrl: "/transactions/history",
         read: false,
         createdAt: new Date().toISOString()
       });
@@ -330,6 +332,8 @@ export default function WithdrawPage() {
         title: "Penarikan Dibatalkan & Saldo Dikembalikan",
         message: `Permintaan penarikan Rp ${refundAmount.toLocaleString("id-ID")} telah dibatalkan dan dana dikembalikan utuh ke saldo utama Anda.`,
         type: "info",
+        category: "transaksi",
+        actionUrl: "/transactions/history",
         read: false,
         createdAt: new Date().toISOString()
       });

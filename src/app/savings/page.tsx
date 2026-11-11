@@ -111,6 +111,8 @@ export default function SavingsPage() {
           ? `Dana sebesar Rp ${numAmount.toLocaleString('id-ID')} telah dipindahkan ke Tabungan.`
           : `Dana sebesar Rp ${numAmount.toLocaleString('id-ID')} telah dicairkan ke Saldo Utama.`,
         type: "success",
+        category: "transaksi",
+        actionUrl: "/savings",
         read: false,
         createdAt: new Date().toISOString()
       });

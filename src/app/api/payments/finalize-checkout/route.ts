@@ -4,6 +4,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { firebaseConfig } from '@/firebase/config';
 import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
+import { dispatchUserNotification } from '@/lib/notifications-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -142,6 +143,20 @@ export async function POST(req: NextRequest) {
       });
     } catch (fsErr: any) {
       console.warn('[Finalize Checkout] Firestore transaction skipped (saved in local store):', fsErr?.message?.slice(0, 80));
+    }
+
+    if (path) {
+      const merchantUid = path.split('/')[1];
+      if (merchantUid) {
+        await dispatchUserNotification(merchantUid, {
+          title: `💰 Pembayaran Invoice ${invoiceId} Lunas`,
+          message: `Dana sebesar Rp ${finalAmountIdr.toLocaleString('id-ID')} (${gatewayName}) telah masuk untuk ${productName || `Invoice ${invoiceId}`}.`,
+          type: 'success',
+          category: 'transaksi',
+          amount: finalAmountIdr,
+          actionUrl: '/merchant',
+        });
+      }
     }
 
     return NextResponse.json({

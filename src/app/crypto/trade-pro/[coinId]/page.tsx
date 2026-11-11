@@ -58,6 +58,7 @@ import { doc, updateDoc, increment, addDoc, collection, serverTimestamp } from "
 import { useToast } from "@/hooks/use-toast";
 import { LogoIcon } from "@/components/ui/logo";
 import { ALX_PRICE_USD_FALLBACK, IDR_RATE_FALLBACK } from "@/lib/currency";
+import { sendClientNotification } from "@/lib/notifications-client";
 
 const ALX_PRICE_USD = ALX_PRICE_USD_FALLBACK;
 const USDT_IDR_RATE = IDR_RATE_FALLBACK;
@@ -270,12 +271,14 @@ export default function TradeProPage() {
         userEmail: user.email
       });
 
-      addDoc(collection(db, "users", user.uid, "notifications"), {
-        title: "Trade-X Profit!",
-        message: `Kemenangan Trade-X: +${rewardInAlx.toFixed(6)} ALX`,
+      sendClientNotification(user.uid, {
+        title: "🏆 Trade-X Profit!",
+        message: `Kemenangan Trade-X ${symbol}: +${rewardInAlx.toFixed(6)} ALX telah dikreditkan ke dompet Anda.`,
         type: "success",
-        read: false,
-        createdAt: new Date().toISOString()
+        category: "marketing",
+        cryptoAmount: rewardInAlx,
+        cryptoCurrency: "ALX",
+        actionUrl: `/crypto/trade-pro/${symbol}`,
       });
     } else {
       // LOG KEKALAHAN KE AUDIT GLOBAL (BANK PROFIT)
