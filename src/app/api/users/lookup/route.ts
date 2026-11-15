@@ -1,53 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps, App } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
 import { firebaseConfig } from '@/firebase/config';
 import { getLocalDoc, queryLocalCollection, setLocalDoc } from '@/lib/local-firestore-store';
+import {
+  extractRequestTokens,
+  verifyFirebaseToken,
+  attachAuthCookies,
+} from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents`;
-
-function getAdminApp(): App {
-  if (getApps().length > 0) return getApps()[0];
-  return initializeApp({ projectId: firebaseConfig.projectId });
-}
-
-function decodeJwtUidUnsafe(token: string): string | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
-    return payload.user_id || payload.sub || null;
-  } catch {
-    return null;
-  }
-}
-
-async function verifyCallerToken(token: string): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseConfig.apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken: token }),
-        cache: 'no-store',
-      }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      const u = data?.users?.[0];
-      if (u?.localId) return u.localId;
-    }
-  } catch {}
-  try {
-    const auth = getAuth(getAdminApp());
-    const decoded = await auth.verifyIdToken(token);
-    if (decoded?.uid) return decoded.uid;
-  } catch {}
-  return decodeJwtUidUnsafe(token);
-}
 
 function parseRestDoc(docObj: any): Record<string, any> {
   const nameParts = (docObj?.name || '').split('/');
@@ -134,19 +96,17 @@ function findUserInLocalStore(q: string): Record<string, any> | null {
 export async function GET(request: NextRequest) {
   try {
     // 1. Verifikasi Token Otentikasi
-    const authHeader = request.headers.get('Authorization');
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7).trim() : '';
-    const cookieToken = request.cookies.get('alibank_token')?.value || '';
-    const token = bearerToken || cookieToken;
-
-    if (!token) {
+    const { idToken: rawIdToken, refreshToken: rawRefreshToken } = extractRequestTokens(request);
+    if (!rawIdToken && !rawRefreshToken) {
       return NextResponse.json({ error: 'Akses ditolak. Token otentikasi diperlukan.' }, { status: 401 });
     }
 
-    const callerUid = await verifyCallerToken(token);
-    if (!callerUid) {
+    const caller = await verifyFirebaseToken(rawIdToken, rawRefreshToken);
+    if (!caller) {
       return NextResponse.json({ error: 'Sesi kedaluwarsa atau tidak valid.' }, { status: 401 });
     }
+
+    const token = caller.idToken;
 
     const { searchParams } = new URL(request.url);
     const q = (searchParams.get('q') || searchParams.get('query') || '').trim();
@@ -176,7 +136,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Kembalikan HANYA data publik non-sensitif (tanpa saldo, KYC, atau private key)
-    return NextResponse.json({
+    const res = NextResponse.json({
       user: {
         id: found.id || found.uid,
         name: found.name || 'Nasabah AliBank',
@@ -185,6 +145,8 @@ export async function GET(request: NextRequest) {
         avatarUrl: found.avatarUrl || null,
       }
     });
+    attachAuthCookies(res, caller.newIdToken, caller.newRefreshToken);
+    return res;
 
   } catch (error: any) {
     console.error('[User Lookup Route Error]:', error);

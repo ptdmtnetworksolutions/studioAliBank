@@ -73,20 +73,23 @@ export async function POST(request: NextRequest) {
       } catch (e) {}
     }
 
-    // Verifikasi Signature jika header Signature dikirim
-    if (signature) {
-      const isValid = verifyDokuWebhookSignature({
-        clientId: clientId || DOKU_CONFIG_DEFAULT.clientId,
-        requestId,
-        requestTimestamp,
-        requestTarget,
-        rawBody,
-        incomingSignature: signature,
-        secretKey
-      });
+    // Verifikasi Signature Wajib: tolak request tanpa signature atau dengan signature yang tidak valid
+    if (secretKey) {
+      const isValid =
+        Boolean(signature) &&
+        verifyDokuWebhookSignature({
+          clientId: clientId || DOKU_CONFIG_DEFAULT.clientId,
+          requestId,
+          requestTimestamp,
+          requestTarget,
+          rawBody,
+          incomingSignature: signature,
+          secretKey
+        });
 
       if (!isValid) {
-        console.warn(`[DOKU Webhook] Signature mismatch untuk order: ${orderId}`);
+        console.warn(`[DOKU Webhook] Invalid or missing signature untuk order: ${orderId}`);
+        return NextResponse.json({ error: 'Invalid webhook signature.' }, { status: 403 });
       }
     }
 

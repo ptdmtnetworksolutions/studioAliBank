@@ -10,46 +10,83 @@ import {
   addLocalCollectionDoc,
   queryLocalCollection,
 } from '@/lib/local-firestore-store';
+import {
+  VerifiedCaller,
+  isAdminIdentity,
+  extractRequestTokens,
+  verifyFirebaseToken,
+  attachAuthCookies,
+} from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
 const PROJECT_ID = firebaseConfig.projectId;
-const API_KEY = firebaseConfig.apiKey;
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
-function isJwtExpired(token: string): boolean {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return true;
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-    if (!payload.exp) return false;
-    // Consider expired if less than 60s remaining
-    return Date.now() >= (payload.exp - 60) * 1000;
-  } catch {
-    return true;
+const PUBLIC_COLLECTION_IDS = new Set(['marketplace', 'alix_trades', 'global_spin_history']);
+const PUBLIC_SYSTEM_DOCS = new Set(['system/liquidity', 'system/config', 'system/AUM', 'system/public_keys']);
+const ALLOWED_USER_LOOKUP_FIELDS = new Set([
+  'accountNumber',
+  'walletAddress',
+  'btcAddress',
+  'solanaAddress',
+  'email',
+  'uid',
+]);
+const PUBLIC_USER_SAFE_FIELDS = new Set([
+  'id',
+  'uid',
+  'name',
+  'accountNumber',
+  'walletAddress',
+  'btcAddress',
+  'solanaAddress',
+  'avatarUrl',
+  'tier',
+  'kycStatus',
+]);
+
+function stripSensitiveUserPii(doc: Record<string, any>): Record<string, any> {
+  const safe: Record<string, any> = {};
+  for (const [k, v] of Object.entries(doc)) {
+    if (PUBLIC_USER_SAFE_FIELDS.has(k)) {
+      safe[k] = v;
+    }
   }
+  return safe;
 }
 
-async function refreshFirebaseToken(refreshToken: string): Promise<{ idToken: string; refreshToken: string } | null> {
-  try {
-    const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (data?.id_token) {
-      return {
-        idToken: data.id_token,
-        refreshToken: data.refresh_token || refreshToken,
-      };
+function sanitizeNonAdminUserWrite(payload: Record<string, any>): {
+  error?: string;
+  sanitized: Record<string, any>;
+} {
+  const forbiddenKeys = ['role', 'admin', 'isSuspended', 'accountNumber'];
+  for (const fk of forbiddenKeys) {
+    if (fk in payload) {
+      return { error: `Forbidden field modification: ${fk}`, sanitized: {} };
     }
-    return null;
-  } catch {
-    return null;
   }
+  if ('kycStatus' in payload) {
+    const ks = String(payload.kycStatus || '').toLowerCase();
+    if (ks && ks !== 'pending' && ks !== 'unverified') {
+      return { error: 'Forbidden kycStatus modification.', sanitized: {} };
+    }
+  }
+  return { sanitized: payload };
+}
+
+function isIncrementOnlyLiquidityPayload(payload: Record<string, any>): boolean {
+  const entries = Object.entries(payload || {});
+  if (entries.length === 0) return false;
+  return entries.every(([, val]) => {
+    if (!val || typeof val !== 'object') return false;
+    return val._methodName === 'increment' || val.__op === 'increment' || val._methodName === 'serverTimestamp' || val.__sentinel === 'serverTimestamp';
+  });
+}
+
+function isValidDocOrColPath(p: string): boolean {
+  if (!p || p.includes('..') || p.includes('//')) return false;
+  return /^[\w\-/]+$/.test(p);
 }
 
 function fromFirestoreValue(val: any): any {
@@ -163,27 +200,249 @@ function getSortableTime(item: any, field: string): number {
   return 0;
 }
 
-function attachTokenCookies(res: NextResponse, newIdToken: string | null, newRefreshToken: string | null) {
-  if (newIdToken) {
-    res.cookies.set({
-      name: 'alibank_token',
-      value: newIdToken,
-      path: '/',
-      maxAge: 2592000,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-    });
+interface ProxyAuthResult {
+  allowed: boolean;
+  status?: number;
+  error?: string;
+  stripOtherUserPii?: boolean;
+  stripGuestInvoiceFields?: boolean;
+}
+
+const GUEST_SAFE_INVOICE_FIELDS = new Set([
+  'id',
+  'invoiceId',
+  'invoiceNumber',
+  'title',
+  'description',
+  'amount',
+  'amountIdr',
+  'amountUsd',
+  'currency',
+  'status',
+  'merchantId',
+  'merchantName',
+  'items',
+  'createdAt',
+  'updatedAt',
+  'paidAt',
+  'expiresAt',
+  'paymentMethod',
+  'gatewayOrderId',
+]);
+
+function stripGuestInvoiceDoc(doc: Record<string, any>): Record<string, any> {
+  const safe: Record<string, any> = {};
+  for (const [k, v] of Object.entries(doc)) {
+    if (GUEST_SAFE_INVOICE_FIELDS.has(k)) {
+      safe[k] = v;
+    }
   }
-  if (newRefreshToken) {
-    res.cookies.set({
-      name: 'alibank_refresh',
-      value: newRefreshToken,
-      path: '/',
-      maxAge: 2592000,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-    });
+  return safe;
+}
+
+function authorizeProxyOperation(params: {
+  op: string;
+  cleanPath: string;
+  collectionGroup: string | null;
+  filters: any;
+  caller: VerifiedCaller | null;
+  payloadData?: Record<string, any> | null;
+}): ProxyAuthResult {
+  const { op, cleanPath, collectionGroup, filters, caller, payloadData } = params;
+  const admin = isAdminIdentity(caller);
+
+  if (cleanPath && !isValidDocOrColPath(cleanPath)) {
+    return { allowed: false, status: 400, error: 'Invalid path format.' };
   }
+
+  // Strictly protect system/api_keys on every op
+  if (cleanPath === 'system/api_keys' || cleanPath.startsWith('system/api_keys/')) {
+    if (!caller) return { allowed: false, status: 401, error: 'Authentication required.' };
+    if (!admin) return { allowed: false, status: 403, error: 'Admin privileges required.' };
+    return { allowed: true };
+  }
+
+  if (op === 'getDoc') {
+    if (!cleanPath) return { allowed: false, status: 400, error: 'Invalid document path.' };
+    const topCol = cleanPath.split('/')[0];
+    const isPublicInvoiceDoc = /^merchants\/[^/]+\/invoices\/[^/]+$/.test(cleanPath);
+    if (PUBLIC_SYSTEM_DOCS.has(cleanPath) || PUBLIC_COLLECTION_IDS.has(topCol) || isPublicInvoiceDoc) {
+      return { allowed: true };
+    }
+    if (!caller) return { allowed: false, status: 401, error: 'Authentication required.' };
+    if (admin) return { allowed: true };
+
+    if (cleanPath === `users/${caller.uid}` || cleanPath.startsWith(`users/${caller.uid}/`)) {
+      return { allowed: true };
+    }
+    if (cleanPath === `merchants/${caller.uid}` || cleanPath.startsWith(`merchants/${caller.uid}/`)) {
+      return { allowed: true };
+    }
+    if (cleanPath.startsWith('topup_requests/')) {
+      const existing = getLocalDoc(cleanPath);
+      if (!existing.exists || existing.data?.userId === caller.uid) {
+        return { allowed: true };
+      }
+      return { allowed: false, status: 403, error: 'Access denied to another user request.' };
+    }
+    return { allowed: false, status: 403, error: 'Insufficient permissions to read this document.' };
+  }
+
+  if (op === 'getCollection') {
+    if (!collectionGroup && !cleanPath) {
+      return { allowed: false, status: 400, error: 'Invalid collection path.' };
+    }
+    if (!collectionGroup && PUBLIC_COLLECTION_IDS.has(cleanPath)) {
+      return { allowed: true };
+    }
+    if (collectionGroup === 'invoices') {
+      return { allowed: true, stripGuestInvoiceFields: !caller };
+    }
+    if (!caller) return { allowed: false, status: 401, error: 'Authentication required.' };
+    if (admin) return { allowed: true };
+
+    if (collectionGroup) {
+      const hasOwnerFilter =
+        Array.isArray(filters) &&
+        filters.some((f: any) => f?.field === 'userId' && f?.value === caller.uid && (f.op === '==' || f.op === 'EQUAL'));
+      if (hasOwnerFilter) {
+        return { allowed: true };
+      }
+      return { allowed: false, status: 403, error: 'CollectionGroup queries require admin or userId filter.' };
+    }
+
+    if (cleanPath.startsWith(`users/${caller.uid}/`) || cleanPath.startsWith(`merchants/${caller.uid}/`)) {
+      return { allowed: true };
+    }
+
+    if (cleanPath === 'users') {
+      const hasSafeEqualityFilter =
+        Array.isArray(filters) &&
+        filters.some(
+          (f: any) =>
+            ALLOWED_USER_LOOKUP_FIELDS.has(String(f?.field || '')) &&
+            (f?.op === '==' || f?.op === 'EQUAL') &&
+            typeof f?.value === 'string' &&
+            f.value.trim().length > 0
+        );
+      if (hasSafeEqualityFilter) {
+        return { allowed: true, stripOtherUserPii: true };
+      }
+      return { allowed: false, status: 403, error: 'Full users directory listing requires admin privileges.' };
+    }
+
+    if (cleanPath === 'topup_requests') {
+      const hasOwnerFilter =
+        Array.isArray(filters) &&
+        filters.some((f: any) => f?.field === 'userId' && f?.value === caller.uid && (f.op === '==' || f.op === 'EQUAL'));
+      if (hasOwnerFilter) {
+        return { allowed: true };
+      }
+      return { allowed: false, status: 403, error: 'topup_requests query requires userId filter or admin.' };
+    }
+
+    return { allowed: false, status: 403, error: 'Insufficient permissions to query this collection.' };
+  }
+
+  // All write operations require an authenticated caller
+  if (!caller) {
+    return { allowed: false, status: 401, error: 'Authentication required for write operations.' };
+  }
+  if (admin) {
+    return { allowed: true };
+  }
+
+  const data = payloadData || {};
+
+  if (op === 'syncLocal') {
+    if (cleanPath === `users/${caller.uid}` || cleanPath.startsWith(`users/${caller.uid}/`)) {
+      const check = sanitizeNonAdminUserWrite(data);
+      if (check.error) return { allowed: false, status: 403, error: check.error };
+      return { allowed: true };
+    }
+    return { allowed: false, status: 403, error: 'syncLocal restricted to your own user path.' };
+  }
+
+  if (op === 'setDoc' || op === 'updateDoc' || op === 'addDoc' || op === 'deleteDoc') {
+    if (cleanPath === `users/${caller.uid}`) {
+      if (op === 'deleteDoc') {
+        return { allowed: false, status: 403, error: 'Deleting user account requires admin.' };
+      }
+      const check = sanitizeNonAdminUserWrite(data);
+      if (check.error) return { allowed: false, status: 403, error: check.error };
+      return { allowed: true };
+    }
+
+    if (cleanPath.startsWith(`users/${caller.uid}/`)) {
+      return { allowed: true };
+    }
+
+    // Allow authenticated users to dispatch notifications to another user
+    if (op === 'addDoc' && /^users\/[^/]+\/notifications$/.test(cleanPath)) {
+      return { allowed: true };
+    }
+
+    if (cleanPath === 'topup_requests' || cleanPath.startsWith('topup_requests/')) {
+      if (op === 'deleteDoc') {
+        return { allowed: false, status: 403, error: 'Deleting topup requests requires admin.' };
+      }
+      if (op === 'addDoc') {
+        if (data.userId !== caller.uid || String(data.status || '').toLowerCase() === 'approved') {
+          return { allowed: false, status: 403, error: 'Invalid topup request ownership or status.' };
+        }
+        return { allowed: true };
+      }
+      const existing = getLocalDoc(cleanPath);
+      if (existing.exists && existing.data?.userId && existing.data.userId !== caller.uid) {
+        return { allowed: false, status: 403, error: 'Cannot modify another user request.' };
+      }
+      if (String(data.status || '').toLowerCase() === 'approved') {
+        return { allowed: false, status: 403, error: 'Only admin can approve topup/withdrawal requests.' };
+      }
+      return { allowed: true };
+    }
+
+    if (cleanPath === 'system/liquidity') {
+      if (op === 'deleteDoc') return { allowed: false, status: 403, error: 'Forbidden.' };
+      if (!isIncrementOnlyLiquidityPayload(data)) {
+        return { allowed: false, status: 403, error: 'Direct overwrite of system/liquidity requires admin.' };
+      }
+      return { allowed: true };
+    }
+
+    if (
+      cleanPath === 'system/audit/global_transactions' ||
+      cleanPath === 'alix_trades' ||
+      cleanPath.startsWith('alix_trades/') ||
+      cleanPath === 'global_spin_history' ||
+      cleanPath.startsWith('global_spin_history/')
+    ) {
+      if (op === 'deleteDoc') {
+        return { allowed: false, status: 403, error: 'Deleting audit/trade records requires admin.' };
+      }
+      if (cleanPath === 'system/audit/global_transactions' && op !== 'addDoc') {
+        return { allowed: false, status: 403, error: 'Audit logs are append-only.' };
+      }
+      return { allowed: true };
+    }
+
+    if (cleanPath === `merchants/${caller.uid}` || cleanPath.startsWith(`merchants/${caller.uid}/`)) {
+      if (op === 'deleteDoc' && cleanPath === `merchants/${caller.uid}`) {
+        return { allowed: false, status: 403, error: 'Forbidden.' };
+      }
+      return { allowed: true };
+    }
+
+    if (/^merchants\/[^/]+\/invoices\/[^/]+$/.test(cleanPath) && (op === 'setDoc' || op === 'updateDoc')) {
+      const keys = Object.keys(data);
+      const allowedPaidKeys = new Set(['status', 'paidAt', 'paymentMethod', 'gatewayOrderId']);
+      if (data.status === 'paid' && keys.every((k) => allowedPaidKeys.has(k))) {
+        return { allowed: true };
+      }
+    }
+  }
+
+  return { allowed: false, status: 403, error: 'Forbidden Firestore proxy operation.' };
 }
 
 export async function POST(request: NextRequest) {
@@ -198,75 +457,68 @@ export async function POST(request: NextRequest) {
       limitCount,
     } = body;
 
-    const authHeader = request.headers.get('Authorization');
-    const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-    let idToken: string = (body.idToken || headerToken || request.cookies.get('alibank_token')?.value || '').trim();
-    let refreshToken: string = (body.refreshToken || request.cookies.get('alibank_refresh')?.value || '').trim();
+    const cleanPath = String(path || '').replace(/^\/+|\/+$/g, '');
+    const cleanGroup = collectionGroup ? String(collectionGroup).trim() : null;
 
-    let newIdToken: string | null = null;
-    let newRefreshToken: string | null = null;
+    const { idToken: rawIdToken, refreshToken: rawRefreshToken } = extractRequestTokens(request, body);
+    const verifiedCaller =
+      rawIdToken || rawRefreshToken ? await verifyFirebaseToken(rawIdToken, rawRefreshToken) : null;
 
-    if ((!idToken || isJwtExpired(idToken)) && refreshToken) {
-      const refreshed = await refreshFirebaseToken(refreshToken);
-      if (refreshed) {
-        idToken = refreshed.idToken;
-        refreshToken = refreshed.refreshToken;
-        newIdToken = refreshed.idToken;
-        newRefreshToken = refreshed.refreshToken;
-      }
+    const authCheck = authorizeProxyOperation({
+      op: String(op || ''),
+      cleanPath,
+      collectionGroup: cleanGroup,
+      filters,
+      caller: verifiedCaller,
+      payloadData: body.data && typeof body.data === 'object' ? body.data : null,
+    });
+
+    if (!authCheck.allowed) {
+      return NextResponse.json(
+        { error: authCheck.error || 'Unauthorized', status: authCheck.status || 403 },
+        { status: authCheck.status || 403 }
+      );
     }
 
-    const fetchWithAuth = async (url: string, init: RequestInit = {}): Promise<Response> => {
-      const makeHeaders = (token: string) => {
-        const h: Record<string, string> = {
-          'Content-Type': 'application/json',
-          ...(init.headers as Record<string, string> || {}),
-        };
-        if (token) {
-          h['Authorization'] = `Bearer ${token}`;
-        }
-        return h;
-      };
+    const idToken = verifiedCaller?.idToken || '';
+    const newIdToken = verifiedCaller?.newIdToken || null;
+    const newRefreshToken = verifiedCaller?.newRefreshToken || null;
 
-      let res = await fetch(url, {
+    const fetchWithAuth = async (url: string, init: RequestInit = {}): Promise<Response> => {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...((init.headers as Record<string, string>) || {}),
+      };
+      if (idToken) {
+        headers['Authorization'] = `Bearer ${idToken}`;
+      }
+      return fetch(url, {
         ...init,
-        headers: makeHeaders(idToken),
+        headers,
         cache: 'no-store',
       });
-
-      if ((res.status === 401 || res.status === 403) && refreshToken && !newIdToken) {
-        const refreshed = await refreshFirebaseToken(refreshToken);
-        if (refreshed) {
-          idToken = refreshed.idToken;
-          refreshToken = refreshed.refreshToken;
-          newIdToken = refreshed.idToken;
-          newRefreshToken = refreshed.refreshToken;
-          res = await fetch(url, {
-            ...init,
-            headers: makeHeaders(idToken),
-            cache: 'no-store',
-          });
-        }
-      }
-
-      return res;
     };
 
     if (op === 'syncLocal') {
-      const cleanPath = String(path || '').replace(/^\/+|\/+$/g, '');
       if (!cleanPath || !body.data || typeof body.data !== 'object') {
         return NextResponse.json({ error: 'Invalid syncLocal payload' }, { status: 400 });
       }
       const existingLocal = getLocalDoc(cleanPath);
+      const safeBodyData = { ...body.data };
+      if (!isAdminIdentity(verifiedCaller)) {
+        delete safeBodyData.role;
+        delete safeBodyData.admin;
+        delete safeBodyData.isSuspended;
+        delete safeBodyData.accountNumber;
+      }
       // Merge client snapshot under any newer local server updates
       const merged = existingLocal.exists && existingLocal.data
-        ? setLocalDoc(cleanPath, { ...body.data, ...existingLocal.data }, true)
-        : setLocalDoc(cleanPath, body.data, true);
+        ? setLocalDoc(cleanPath, { ...safeBodyData, ...existingLocal.data }, true)
+        : setLocalDoc(cleanPath, safeBodyData, true);
       return NextResponse.json({ ok: true, data: merged });
     }
 
     if (op === 'getDoc') {
-      const cleanPath = String(path || '').replace(/^\/+|\/+$/g, '');
       if (!cleanPath) {
         return NextResponse.json({ error: 'Invalid document path' }, { status: 400 });
       }
@@ -274,8 +526,8 @@ export async function POST(request: NextRequest) {
       const url = `${FIRESTORE_BASE}/${cleanPath}`;
       let res = await fetchWithAuth(url, { method: 'GET' });
 
-      // Fallback unauthenticated read for public docs if token was invalid
-      if (!res.ok && cleanPath === 'system/public_keys') {
+      // Fallback unauthenticated read for explicitly public docs if client token wasn't attached
+      if (!res.ok && PUBLIC_SYSTEM_DOCS.has(cleanPath)) {
         res = await fetch(url, { method: 'GET', cache: 'no-store' });
       }
 
@@ -290,7 +542,7 @@ export async function POST(request: NextRequest) {
             newIdToken,
             newRefreshToken,
           });
-          attachTokenCookies(response, newIdToken, newRefreshToken);
+          attachAuthCookies(response, newIdToken, newRefreshToken);
           return response;
         }
         const response = NextResponse.json({
@@ -300,22 +552,38 @@ export async function POST(request: NextRequest) {
           newIdToken,
           newRefreshToken,
         });
-        attachTokenCookies(response, newIdToken, newRefreshToken);
+        attachAuthCookies(response, newIdToken, newRefreshToken);
         return response;
       }
 
       if (!res.ok) {
+        const topCol = cleanPath.split('/')[0];
+        const isPublicInvoiceDoc = /^merchants\/[^/]+\/invoices\/[^/]+$/.test(cleanPath);
+        const isPublicGetDoc =
+          PUBLIC_SYSTEM_DOCS.has(cleanPath) || PUBLIC_COLLECTION_IDS.has(topCol) || isPublicInvoiceDoc;
+
+        if ((res.status === 401 || res.status === 403) && !verifiedCaller && !isPublicGetDoc) {
+          const errData = await res.json().catch(() => ({}));
+          return NextResponse.json(
+            { error: errData?.error?.message || `Firestore GET forbidden (${res.status})`, status: res.status },
+            { status: res.status }
+          );
+        }
         const localEntry = getLocalDoc(cleanPath);
         if (localEntry.exists && localEntry.data) {
+          const safeLocalData =
+            isPublicInvoiceDoc && !verifiedCaller
+              ? stripGuestInvoiceDoc(localEntry.data)
+              : localEntry.data;
           const response = NextResponse.json({
             exists: true,
-            id: localEntry.id,
-            data: localEntry.data,
+            id: safeLocalData.id || localEntry.id,
+            data: safeLocalData,
             fallbackLocal: true,
             newIdToken,
             newRefreshToken,
           });
-          attachTokenCookies(response, newIdToken, newRefreshToken);
+          attachAuthCookies(response, newIdToken, newRefreshToken);
           return response;
         }
         if (res.status === 429 || res.status >= 500) {
@@ -327,7 +595,7 @@ export async function POST(request: NextRequest) {
             newIdToken,
             newRefreshToken,
           });
-          attachTokenCookies(response, newIdToken, newRefreshToken);
+          attachAuthCookies(response, newIdToken, newRefreshToken);
           return response;
         }
         const errData = await res.json().catch(() => ({}));
@@ -370,12 +638,19 @@ export async function POST(request: NextRequest) {
       const finalData = setLocalDoc(cleanPath, dataToSave, true);
 
       // Auto-heal remote Firestore if remote was missing confirmed balances:
-      if (cleanPath.startsWith('users/') && Number(mergedBalances.ALX || 0) > Number(remoteCrypto.ALX || 0) && newIdToken) {
+      const authTokenForHeal = idToken || newIdToken;
+      if (
+        cleanPath.startsWith('users/') &&
+        verifiedCaller &&
+        (cleanPath === `users/${verifiedCaller.uid}` || isAdminIdentity(verifiedCaller)) &&
+        Number(mergedBalances.ALX || 0) > Number(remoteCrypto.ALX || 0) &&
+        authTokenForHeal
+      ) {
         fetch(`${FIRESTORE_BASE}/${cleanPath}?updateMask.fieldPaths=cryptoBalances`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${newIdToken}`,
+            'Authorization': `Bearer ${authTokenForHeal}`,
           },
           body: JSON.stringify({
             fields: {
@@ -386,14 +661,19 @@ export async function POST(request: NextRequest) {
         }).catch(() => {});
       }
 
+      const safeGetData =
+        cleanPath.startsWith('merchants/') && cleanPath.includes('/invoices/') && !verifiedCaller
+          ? stripGuestInvoiceDoc(finalData)
+          : finalData;
+
       const response = NextResponse.json({
         exists: true,
-        id: finalData.id || parsed.id,
-        data: finalData,
+        id: safeGetData.id || parsed.id,
+        data: safeGetData,
         newIdToken,
         newRefreshToken,
       });
-      attachTokenCookies(response, newIdToken, newRefreshToken);
+      attachAuthCookies(response, newIdToken, newRefreshToken);
       return response;
     }
 
@@ -485,14 +765,42 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      const sanitizeReturnedDocs = (items: Record<string, any>[], colPath: string | null): Record<string, any>[] => {
+        let out = items;
+        if (colPath === 'topup_requests' && !isAdminIdentity(verifiedCaller)) {
+          out = out.filter((d) => d.userId === verifiedCaller?.uid);
+        }
+        if (authCheck.stripOtherUserPii) {
+          out = out.map((d) => (d.id && d.id !== verifiedCaller?.uid ? stripSensitiveUserPii(d) : d));
+        }
+        if (authCheck.stripGuestInvoiceFields) {
+          out = out.map((d) => stripGuestInvoiceDoc(d)).slice(0, 10);
+        }
+        return out;
+      };
+
       if (!res.ok) {
         const cleanColPath = path ? String(path).replace(/^\/+|\/+$/g, '') : null;
-        const localDocs = queryLocalCollection(
-          cleanColPath,
-          collectionGroup ? String(collectionGroup) : null,
-          filters,
-          orders,
-          limitCount
+        const isPublicGetCol =
+          (!collectionGroup && cleanColPath !== null && PUBLIC_COLLECTION_IDS.has(cleanColPath)) ||
+          collectionGroup === 'invoices';
+
+        if ((res.status === 401 || res.status === 403) && !verifiedCaller && !isPublicGetCol) {
+          const errData = await res.json().catch(() => ({}));
+          return NextResponse.json(
+            { error: errData?.error?.message || `Firestore Query forbidden (${res.status})`, status: res.status },
+            { status: res.status }
+          );
+        }
+        const localDocs = sanitizeReturnedDocs(
+          queryLocalCollection(
+            cleanColPath,
+            collectionGroup ? String(collectionGroup) : null,
+            filters,
+            orders,
+            limitCount
+          ),
+          cleanColPath
         );
         if (localDocs.length > 0) {
           const response = NextResponse.json({
@@ -501,7 +809,7 @@ export async function POST(request: NextRequest) {
             newIdToken,
             newRefreshToken,
           });
-          attachTokenCookies(response, newIdToken, newRefreshToken);
+          attachAuthCookies(response, newIdToken, newRefreshToken);
           return response;
         }
         if (res.status === 429 || res.status >= 500) {
@@ -511,7 +819,7 @@ export async function POST(request: NextRequest) {
             newIdToken,
             newRefreshToken,
           });
-          attachTokenCookies(response, newIdToken, newRefreshToken);
+          attachAuthCookies(response, newIdToken, newRefreshToken);
           return response;
         }
         const errData = await res.json().catch(() => ({}));
@@ -641,12 +949,14 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      docs = sanitizeReturnedDocs(docs, cleanColPath);
+
       const response = NextResponse.json({
         docs,
         newIdToken,
         newRefreshToken,
       });
-      attachTokenCookies(response, newIdToken, newRefreshToken);
+      attachAuthCookies(response, newIdToken, newRefreshToken);
       return response;
     }
 
@@ -786,9 +1096,6 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Always apply to local store first so state is immediately consistent even if Firestore quota is exceeded
-      const localUpdated = applyLocalDocUpdate(cleanPath, payloadData, existingData, merge);
-
       const fields: Record<string, any> = {};
       const maskParams: string[] = [];
 
@@ -808,6 +1115,7 @@ export async function POST(request: NextRequest) {
 
       if (!res.ok) {
         if (res.status === 429 || res.status >= 500) {
+          const localUpdated = applyLocalDocUpdate(cleanPath, payloadData, existingData, merge);
           const response = NextResponse.json({
             success: true,
             data: localUpdated,
@@ -815,7 +1123,7 @@ export async function POST(request: NextRequest) {
             newIdToken,
             newRefreshToken,
           });
-          attachTokenCookies(response, newIdToken, newRefreshToken);
+          attachAuthCookies(response, newIdToken, newRefreshToken);
           return response;
         }
         const errData = await res.json().catch(() => ({}));
@@ -834,7 +1142,7 @@ export async function POST(request: NextRequest) {
         newIdToken,
         newRefreshToken,
       });
-      attachTokenCookies(response, newIdToken, newRefreshToken);
+      attachAuthCookies(response, newIdToken, newRefreshToken);
       return response;
     }
 
@@ -865,7 +1173,7 @@ export async function POST(request: NextRequest) {
             newIdToken,
             newRefreshToken,
           });
-          attachTokenCookies(response, newIdToken, newRefreshToken);
+          attachAuthCookies(response, newIdToken, newRefreshToken);
           return response;
         }
         const errData = await res.json().catch(() => ({}));
@@ -887,13 +1195,12 @@ export async function POST(request: NextRequest) {
         newIdToken,
         newRefreshToken,
       });
-      attachTokenCookies(response, newIdToken, newRefreshToken);
+      attachAuthCookies(response, newIdToken, newRefreshToken);
       return response;
     }
 
     if (op === 'deleteDoc') {
       const cleanPath = String(path || '').replace(/^\/+|\/+$/g, '');
-      deleteLocalDoc(cleanPath);
       const url = `${FIRESTORE_BASE}/${cleanPath}`;
       const res = await fetchWithAuth(url, { method: 'DELETE' });
 
@@ -905,12 +1212,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      deleteLocalDoc(cleanPath);
       const response = NextResponse.json({
         success: true,
         newIdToken,
         newRefreshToken,
       });
-      attachTokenCookies(response, newIdToken, newRefreshToken);
+      attachAuthCookies(response, newIdToken, newRefreshToken);
       return response;
     }
 

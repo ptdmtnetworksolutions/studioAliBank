@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
 import { firebaseConfig } from '@/firebase/config';
 import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
 import { dispatchUserNotification } from '@/lib/notifications-server';
+import { checkIdempotency, saveIdempotencyResult } from '@/lib/payment-anomaly-detector';
+import { extractRequestTokens, verifyFirebaseToken } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,21 +20,14 @@ export async function POST(req: NextRequest) {
   try {
     const adminApp = getAdminApp();
     const db = getFirestore(adminApp);
-
-    // Get authorization if present (guest checkouts are supported for public POS payment)
-    let userEmail = 'external_client@alibank.com';
-    const authHeader = req.headers.get('Authorization');
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      try {
-        const token = authHeader.substring(7);
-        const decodedToken = await getAuth(adminApp).verifyIdToken(token);
-        userEmail = decodedToken.email || userEmail;
-      } catch (e) {
-        console.warn('[Finalize Checkout Auth Warning]: invalid token provided, proceeding as guest');
-      }
-    }
-
     const body = await req.json();
+
+    // Get authorization if present (guest checkouts are supported for public POS invoice payment)
+    const { idToken: rawIdToken, refreshToken: rawRefreshToken } = extractRequestTokens(req, body);
+    const verifiedCaller =
+      rawIdToken || rawRefreshToken ? await verifyFirebaseToken(rawIdToken, rawRefreshToken) : null;
+    const userEmail = verifiedCaller?.email || 'external_client@alibank.com';
+
     const { invoiceId, isMarketplaceItem, path, amountIdr, amountUsd, productName, details } = body;
 
     if (!invoiceId || amountIdr == null || amountUsd == null) {
@@ -41,8 +35,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Validasi format path invoice untuk mencegah manipulasi dokumen sembarang
-    if (!isMarketplaceItem && path) {
-      if (!INVOICE_PATH_REGEX.test(path)) {
+    if (!isMarketplaceItem) {
+      if (!path || !INVOICE_PATH_REGEX.test(path)) {
         return NextResponse.json({ error: 'Format jalur invoice tidak valid.' }, { status: 400 });
       }
     }
@@ -55,6 +49,20 @@ export async function POST(req: NextRequest) {
     let finalAmountIdr = parseFloat(amountIdr);
     let finalAmountUsd = parseFloat(amountUsd);
 
+    if (isNaN(finalAmountIdr) || finalAmountIdr <= 0 || finalAmountIdr > 5_000_000_000 || isNaN(finalAmountUsd) || finalAmountUsd < 0 || finalAmountUsd > 500_000) {
+      return NextResponse.json({ error: 'Nominal penyelesaian checkout tidak valid.' }, { status: 400 });
+    }
+
+    if (isMarketplaceItem && !verifiedCaller && !details?.id) {
+      return NextResponse.json({ error: 'Autentikasi atau referensi pembayaran gateway diperlukan untuk item marketplace.' }, { status: 401 });
+    }
+
+    const idempotencyKey = !isMarketplaceItem && path ? `finalize:${path}` : `finalize_market:${gatewayId}`;
+    const idemCheck = checkIdempotency(idempotencyKey);
+    if (idemCheck.isDuplicate) {
+      return NextResponse.json({ error: 'Invoice ini sudah pernah diselesaikan sebelumnya.' }, { status: 409 });
+    }
+
     if (!isMarketplaceItem && path) {
       const localInvoice = getLocalDoc(path);
       if (localInvoice.exists && localInvoice.data) {
@@ -64,34 +72,10 @@ export async function POST(req: NextRequest) {
         if (localInvoice.data.amountIdr != null) finalAmountIdr = parseFloat(localInvoice.data.amountIdr);
         if (localInvoice.data.amountUsd != null) finalAmountUsd = parseFloat(localInvoice.data.amountUsd);
       }
-      setLocalDoc(path, {
-        status: "paid",
-        paidAt: timestamp,
-        paymentMethod: gatewayName,
-        gatewayOrderId: gatewayId,
-      }, true);
     }
 
-    const localLiq = getLocalDoc('system/liquidity');
-    setLocalDoc('system/liquidity', {
-      totalFiatInjected: Number(localLiq.data?.totalFiatInjected || 0) + finalAmountIdr,
-      totalUsdInjected: Number(localLiq.data?.totalUsdInjected || 0) + finalAmountUsd,
-    }, true);
-
-    addLocalCollectionDoc('system/audit/global_transactions', {
-      id: `CHECKOUT-${gatewayId}`,
-      category: "External Settlement",
-      gateway: gatewayName,
-      bankName: bankName,
-      amountIdr: finalAmountIdr,
-      amountUsd: finalAmountUsd,
-      description: `Settlement for Invoice ${invoiceId} (${productName || 'Marketplace Item'}).`,
-      status: "success",
-      timestamp,
-      userEmail: userEmail
-    });
-
-    // Perform atomic transaction in Firestore (best-effort if ADC/quota available)
+    // Perform atomic transaction in Firestore BEFORE mutating local liquidity cache
+    let alreadyPaidError = false;
     try {
       await db.runTransaction(async (transaction) => {
         // 1. Verifikasi integritas invoice dari database jika bukan marketplace item
@@ -102,7 +86,7 @@ export async function POST(req: NextRequest) {
           if (invoiceSnap.exists) {
             const invoiceData = invoiceSnap.data()!;
             if (invoiceData.status === 'paid') {
-              return;
+              throw new Error('ALREADY_PAID');
             }
             if (invoiceData.amountIdr != null) {
               finalAmountIdr = parseFloat(invoiceData.amountIdr);
@@ -142,8 +126,46 @@ export async function POST(req: NextRequest) {
         });
       });
     } catch (fsErr: any) {
-      console.warn('[Finalize Checkout] Firestore transaction skipped (saved in local store):', fsErr?.message?.slice(0, 80));
+      if (fsErr?.message === 'ALREADY_PAID') {
+        alreadyPaidError = true;
+      } else {
+        console.warn('[Finalize Checkout] Firestore transaction skipped (saved in local store):', fsErr?.message?.slice(0, 80));
+      }
     }
+
+    if (alreadyPaidError) {
+      return NextResponse.json({ error: 'Invoice ini sudah pernah diselesaikan sebelumnya.' }, { status: 400 });
+    }
+
+    if (!isMarketplaceItem && path) {
+      setLocalDoc(path, {
+        status: "paid",
+        paidAt: timestamp,
+        paymentMethod: gatewayName,
+        gatewayOrderId: gatewayId,
+      }, true);
+    }
+
+    const localLiq = getLocalDoc('system/liquidity');
+    setLocalDoc('system/liquidity', {
+      totalFiatInjected: Number(localLiq.data?.totalFiatInjected || 0) + finalAmountIdr,
+      totalUsdInjected: Number(localLiq.data?.totalUsdInjected || 0) + finalAmountUsd,
+    }, true);
+
+    addLocalCollectionDoc('system/audit/global_transactions', {
+      id: `CHECKOUT-${gatewayId}`,
+      category: "External Settlement",
+      gateway: gatewayName,
+      bankName: bankName,
+      amountIdr: finalAmountIdr,
+      amountUsd: finalAmountUsd,
+      description: `Settlement for Invoice ${invoiceId} (${productName || 'Marketplace Item'}).`,
+      status: "success",
+      timestamp,
+      userEmail: userEmail
+    });
+
+    saveIdempotencyResult(idempotencyKey, { success: true });
 
     if (path) {
       const merchantUid = path.split('/')[1];

@@ -1,68 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
-import { firebaseConfig } from '@/firebase/config';
 import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
 import { dispatchUserNotification } from '@/lib/notifications-server';
+import {
+  extractRequestTokens,
+  verifyFirebaseToken,
+  attachAuthCookies,
+} from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
+
+const MOBA_CLAIM_COOLDOWN_MS = 60_000;
+const mobaClaimCooldowns = new Map<string, number>();
 
 function getAdminApp(): App {
   if (getApps().length > 0) return getApps()[0];
   return initializeApp({ projectId: 'darmedia-pos' });
 }
 
-async function verifyCaller(token: string): Promise<{ uid: string; email: string } | null> {
-  try {
-    const res = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseConfig.apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken: token }),
-        cache: 'no-store',
-      }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      const u = data?.users?.[0];
-      if (u?.localId) return { uid: u.localId, email: u.email || 'user_moba@alibank.com' };
-    }
-  } catch {}
-  try {
-    const decoded = await getAuth(getAdminApp()).verifyIdToken(token);
-    if (decoded?.uid) return { uid: decoded.uid, email: decoded.email || 'user_moba@alibank.com' };
-  } catch {}
-  try {
-    const parts = token.split('.');
-    if (parts.length === 3) {
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-      const uid = payload.user_id || payload.sub;
-      if (uid) return { uid, email: payload.email || 'user_moba@alibank.com' };
-    }
-  } catch {}
-  return null;
-}
-
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7).trim() : '';
-    const cookieToken = req.cookies.get('alibank_token')?.value || '';
-    const token = bearerToken || cookieToken;
-
-    if (!token) {
+    const { idToken: rawIdToken, refreshToken: rawRefreshToken } = extractRequestTokens(req);
+    if (!rawIdToken && !rawRefreshToken) {
       return NextResponse.json({ error: 'Akses ditolak. Token autentikasi diperlukan.' }, { status: 401 });
     }
 
-    const caller = await verifyCaller(token);
+    const caller = await verifyFirebaseToken(rawIdToken, rawRefreshToken);
     if (!caller) {
       return NextResponse.json({ error: 'Sesi kedaluwarsa atau tidak valid.' }, { status: 401 });
     }
 
     const userId = caller.uid;
-    const userEmail = caller.email;
+    const userEmail = caller.email || 'user_moba@alibank.com';
+
+    const nowMs = Date.now();
+    const lastClaimAt = mobaClaimCooldowns.get(userId) || 0;
+    if (nowMs - lastClaimAt < MOBA_CLAIM_COOLDOWN_MS) {
+      const waitSec = Math.ceil((MOBA_CLAIM_COOLDOWN_MS - (nowMs - lastClaimAt)) / 1000);
+      return NextResponse.json(
+        { error: `Cooldown klaim MOBA aktif. Silakan tunggu ${waitSec} detik sebelum klaim berikutnya.` },
+        { status: 429 }
+      );
+    }
 
     const localUser = getLocalDoc(`users/${userId}`);
     let userData: Record<string, any> | null = localUser.exists ? localUser.data : null;
@@ -81,6 +61,13 @@ export async function POST(req: NextRequest) {
 
     if (userData.isSuspended) {
       return NextResponse.json({ error: 'Akun Anda dibekukan sementara karena alasan keamanan.' }, { status: 403 });
+    }
+
+    mobaClaimCooldowns.set(userId, nowMs);
+    if (mobaClaimCooldowns.size > 5000) {
+      for (const [k, ts] of mobaClaimCooldowns.entries()) {
+        if (nowMs - ts > MOBA_CLAIM_COOLDOWN_MS) mobaClaimCooldowns.delete(k);
+      }
     }
 
     const rewardAmount = 0.1;
@@ -147,12 +134,14 @@ export async function POST(req: NextRequest) {
       actionUrl: '/games/moba',
     });
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       rewardAmount,
       txId,
       message: `Hadiah ${rewardAmount} ALX berhasil dikreditkan ke saldo Anda!`,
     });
+    attachAuthCookies(res, caller.newIdToken, caller.newRefreshToken);
+    return res;
   } catch (err: any) {
     console.error('[MOBA Reward Claim Error]:', err.message);
     return NextResponse.json(

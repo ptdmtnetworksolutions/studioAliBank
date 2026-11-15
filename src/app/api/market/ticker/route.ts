@@ -195,24 +195,38 @@ export async function GET(request: NextRequest) {
   const symbols = searchParams.get('symbols');
   const symbol = searchParams.get('symbol');
 
+  const VALID_SYMBOL_REGEX = /^[A-Za-z0-9]{2,20}$/;
+
   let symbolList: string[] = [];
   if (symbols) {
     try {
-      symbolList = JSON.parse(symbols);
-    } catch (e) {
-      symbolList = [];
+      const parsed = JSON.parse(symbols);
+      if (
+        !Array.isArray(parsed) ||
+        parsed.length === 0 ||
+        parsed.length > 50 ||
+        !parsed.every((s) => typeof s === 'string' && VALID_SYMBOL_REGEX.test(s))
+      ) {
+        return NextResponse.json({ error: 'Invalid symbols parameter' }, { status: 400 });
+      }
+      symbolList = parsed;
+    } catch {
+      return NextResponse.json({ error: 'Malformed symbols parameter' }, { status: 400 });
     }
   } else if (symbol) {
+    if (!VALID_SYMBOL_REGEX.test(symbol)) {
+      return NextResponse.json({ error: 'Invalid symbol parameter' }, { status: 400 });
+    }
     symbolList = [symbol];
   }
 
   let url = 'https://api.binance.com/api/v3/ticker/24hr';
   
   if (symbols) {
-    url += `?symbols=${symbols}`;
+    url += `?symbols=${encodeURIComponent(JSON.stringify(symbolList))}`;
   } else if (symbol) {
     const sanitizedSymbol = symbol === 'USDT' ? 'USDTIDRT' : (symbol.includes('USDT') ? symbol : `${symbol}USDT`);
-    url += `?symbol=${sanitizedSymbol}`;
+    url += `?symbol=${encodeURIComponent(sanitizedSymbol)}`;
   }
 
   const controller = new AbortController();

@@ -10,6 +10,16 @@ import {
   addLocalCollectionDoc,
 } from '@/lib/local-firestore-store';
 import { dispatchUserNotification } from '@/lib/notifications-server';
+import {
+  extractRequestTokens,
+  verifyFirebaseToken,
+  attachAuthCookies,
+} from '@/lib/server-auth';
+import {
+  checkPaymentVelocity,
+  checkIdempotency,
+  saveIdempotencyResult,
+} from '@/lib/payment-anomaly-detector';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +29,6 @@ function getAdminApp(): AdminApp {
 }
 
 const PROJECT_ID = firebaseConfig.projectId;
-const API_KEY = firebaseConfig.apiKey;
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 const ERC20_ABI = [
@@ -36,71 +45,6 @@ const POLYGON_RPCS = [
   'https://rpc.ankr.com/polygon',
   'https://polygon-rpc.com',
 ];
-
-function isJwtExpired(token: string): boolean {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return true;
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-    if (!payload.exp) return false;
-    return Date.now() >= (payload.exp - 60) * 1000;
-  } catch {
-    return true;
-  }
-}
-
-async function refreshFirebaseToken(refreshToken: string): Promise<string | null> {
-  try {
-    const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.id_token || null;
-  } catch {
-    return null;
-  }
-}
-
-function decodeJwtLocally(token: string): { uid: string; email?: string } | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-    if (!payload.sub || !payload.exp) return null;
-    if (Date.now() >= payload.exp * 1000) return null;
-    return { uid: payload.sub, email: payload.email };
-  } catch {
-    return null;
-  }
-}
-
-async function verifyIdTokenViaRest(idToken: string): Promise<{ uid: string; email?: string } | null> {
-  try {
-    const res = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
-        cache: 'no-store',
-      }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      const user = data?.users?.[0];
-      if (user?.localId) {
-        return { uid: user.localId, email: user.email };
-      }
-    }
-  } catch (err) {
-    console.warn('[verifyIdTokenViaRest] REST lookup failed, using local token decode fallback');
-  }
-  return decodeJwtLocally(idToken);
-}
 
 function fromFirestoreValue(val: any): any {
   if (!val || typeof val !== 'object') return val;
@@ -245,31 +189,45 @@ async function getWorkingPolygonProvider(customRpc?: string): Promise<ethers.Jso
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('Authorization');
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-    const cookieToken = (request.cookies.get('alibank_token')?.value || '').trim();
-    const refreshToken = (request.cookies.get('alibank_refresh')?.value || '').trim();
+    const body = await request.json();
+    const { idToken: rawIdToken, refreshToken: rawRefreshToken } = extractRequestTokens(request, body);
 
-    let idToken = bearerToken || cookieToken;
-    if ((!idToken || isJwtExpired(idToken)) && refreshToken) {
-      const refreshed = await refreshFirebaseToken(refreshToken);
-      if (refreshed) idToken = refreshed;
-    }
-
-    if (!idToken) {
+    if (!rawIdToken && !rawRefreshToken) {
       return NextResponse.json({ error: 'Akses ditolak. Token otentikasi diperlukan.' }, { status: 401 });
     }
 
-    const decodedToken = await verifyIdTokenViaRest(idToken);
+    const decodedToken = await verifyFirebaseToken(rawIdToken, rawRefreshToken);
     if (!decodedToken) {
       return NextResponse.json({ error: 'Sesi kedaluwarsa atau tidak valid. Silakan login kembali.' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const idToken = decodedToken.idToken;
     const { userId, asset, amount, recipient } = body;
 
     if (!userId || decodedToken.uid !== userId) {
       return NextResponse.json({ error: 'Pelanggaran keamanan: Anda tidak diizinkan menarik dana dari akun lain.' }, { status: 403 });
+    }
+
+    const velocity = checkPaymentVelocity(`withdraw_${decodedToken.uid}`);
+    if (!velocity.allowed) {
+      return NextResponse.json(
+        { error: `Terlalu banyak permintaan penarikan. Coba lagi dalam ${velocity.retryAfterSeconds} detik.` },
+        { status: 429 }
+      );
+    }
+
+    const rawIdemKey =
+      request.headers.get('idempotency-key') ||
+      request.headers.get('x-idempotency-key') ||
+      body.idempotencyKey;
+    const idempotencyKey = rawIdemKey ? `withdraw:${decodedToken.uid}:${String(rawIdemKey)}` : '';
+    if (idempotencyKey) {
+      const idem = checkIdempotency(idempotencyKey);
+      if (idem.isDuplicate && idem.cachedResult) {
+        const dupRes = NextResponse.json({ ...idem.cachedResult, deduplicated: true });
+        attachAuthCookies(dupRes, decodedToken.newIdToken, decodedToken.newRefreshToken);
+        return dupRes;
+      }
     }
 
     if (!asset || !amount || !recipient) {
@@ -618,12 +576,19 @@ export async function POST(request: NextRequest) {
       ),
     ]);
 
-    return NextResponse.json({
+    const responsePayload = {
       success: true,
       txHash,
       network: usedNetwork,
       message: `${displayAmount} berhasil ditransfer secara on-chain.`,
-    });
+    };
+    if (idempotencyKey) {
+      saveIdempotencyResult(idempotencyKey, responsePayload);
+    }
+
+    const res = NextResponse.json(responsePayload);
+    attachAuthCookies(res, decodedToken.newIdToken, decodedToken.newRefreshToken);
+    return res;
   } catch (err: any) {
     console.error('[Crypto Withdrawal Route Error]:', err.message);
     return NextResponse.json(

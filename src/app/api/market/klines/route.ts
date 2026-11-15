@@ -190,9 +190,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
   }
 
-  const limit = parseInt(limitStr || '60');
+  if (!/^[A-Za-z0-9]{2,20}$/.test(symbol) || !/^[0-9]{1,2}[mhdwMHDWjJ]$/.test(interval)) {
+    return NextResponse.json({ error: 'Invalid symbol or interval parameter' }, { status: 400 });
+  }
+
+  const parsedLimit = parseInt(limitStr || '60', 10);
+  const limit = Math.min(Math.max(1, isNaN(parsedLimit) ? 60 : parsedLimit), 1000);
   const sanitizedSymbol = symbol === 'USDTIDR' ? 'USDTIDRT' : symbol;
-  const url = `https://api.binance.com/api/v3/klines?symbol=${sanitizedSymbol}&interval=${interval}&limit=${limit}`;
+  const url = `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(sanitizedSymbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}`;
 
   const { fsym, tsym } = getCoinNameAndQuote(symbol);
   let fallbackVal = FALLBACKS[fsym];

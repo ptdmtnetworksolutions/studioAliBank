@@ -4,6 +4,20 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
 import { dispatchUserNotification } from '@/lib/notifications-server';
+import {
+  extractRequestTokens,
+  verifyFirebaseToken,
+  isAdminIdentity,
+  attachAuthCookies,
+  validateCryptoAmountAgainstIdr,
+} from '@/lib/server-auth';
+import {
+  checkPaymentVelocity,
+  checkIdempotency,
+  saveIdempotencyResult,
+  validateLuhnChecksum,
+  PAYMENT_SECURITY_LIMITS,
+} from '@/lib/payment-anomaly-detector';
 
 export const dynamic = 'force-dynamic';
 
@@ -211,6 +225,17 @@ async function processDirectCardPayment(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
+    // Verifikasi autentikasi & kepemilikan akun
+    const { idToken: rawIdToken, refreshToken: rawRefreshToken } = extractRequestTokens(request, body);
+    if (!rawIdToken && !rawRefreshToken) {
+      return NextResponse.json({ error: 'Akses ditolak. Token otentikasi diperlukan.' }, { status: 401 });
+    }
+    const caller = await verifyFirebaseToken(rawIdToken, rawRefreshToken);
+    if (!caller) {
+      return NextResponse.json({ error: 'Sesi kedaluwarsa atau tidak valid. Silakan login kembali.' }, { status: 401 });
+    }
+
     const {
       userId,
       userEmail,
@@ -221,16 +246,63 @@ export async function POST(request: NextRequest) {
       amountIdr,
       cryptoAmount,
       cryptoCurrency,
-      usdValue
+      usdValue,
+      idempotencyKey,
     } = body;
 
-    // 1. Parameter Validation
+    if (!userId || (caller.uid !== userId && !isAdminIdentity(caller))) {
+      return NextResponse.json({ error: 'Pelanggaran keamanan: Anda tidak diizinkan memproses pembayaran untuk akun lain.' }, { status: 403 });
+    }
+
+    // 1. Parameter Validation & Luhn Checksum
     if (!userId || !userEmail || !cardNumber || !cardExpiry || !cardCvv || !cardHolderName || !amountIdr || !cryptoAmount || !cryptoCurrency || !usdValue) {
       return NextResponse.json({ error: 'Parameter pembayaran POS NFC tidak lengkap.' }, { status: 400 });
     }
 
-    const cleanCardNumber = cardNumber.replace(/\s+/g, '');
-    const cleanCardExpiry = cardExpiry.replace(/\s+/g, '');
+    const cleanCardNumber = String(cardNumber).replace(/\s+/g, '');
+    const cleanCardExpiry = String(cardExpiry).replace(/\s+/g, '');
+
+    if (!validateLuhnChecksum(cleanCardNumber)) {
+      return NextResponse.json(
+        { error: 'Nomor kartu debit/kredit tidak lolos verifikasi checksum Luhn Mod-10.' },
+        { status: 400 }
+      );
+    }
+
+    const parsedAmountIdr = Number(amountIdr);
+    if (isNaN(parsedAmountIdr) || parsedAmountIdr <= 0 || parsedAmountIdr > PAYMENT_SECURITY_LIMITS.MAX_SOFTPOS_SINGLE_TRANSACTION_IDR) {
+      return NextResponse.json(
+        { error: `Nominal transaksi tidak valid atau melebihi batas maksimal NFC POS (Rp ${PAYMENT_SECURITY_LIMITS.MAX_SOFTPOS_SINGLE_TRANSACTION_IDR.toLocaleString('id-ID')}).` },
+        { status: 400 }
+      );
+    }
+
+    if (!validateCryptoAmountAgainstIdr(String(cryptoCurrency), Number(cryptoAmount), parsedAmountIdr)) {
+      return NextResponse.json(
+        { error: 'Nominal konversi aset kripto tidak sesuai dengan nilai pembayaran IDR.' },
+        { status: 400 }
+      );
+    }
+
+    const velocity = checkPaymentVelocity(`nfcpos_${userId}_${cleanCardNumber.slice(0, 6)}`);
+    if (!velocity.allowed) {
+      return NextResponse.json(
+        { error: `Frekuensi transaksi melebihi batas aman. Harap tunggu ${velocity.retryAfterSeconds} detik.` },
+        { status: 429 }
+      );
+    }
+
+    const safeIdempotencyKey =
+      idempotencyKey ||
+      request.headers.get('idempotency-key') ||
+      request.headers.get('x-idempotency-key') ||
+      `nfcpos_${userId}_${cleanCardNumber.slice(-4)}_${parsedAmountIdr}_${Math.floor(Date.now() / 30000)}`;
+    const idempCheck = checkIdempotency(safeIdempotencyKey);
+    if (idempCheck.isDuplicate && idempCheck.cachedResult) {
+      const dupRes = NextResponse.json({ ...idempCheck.cachedResult, deduplicated: true });
+      attachAuthCookies(dupRes, caller.newIdToken, caller.newRefreshToken);
+      return dupRes;
+    }
 
     // 2. Fetch PayPal configuration safely
     const config = await getApiKeysFromFirestore();
@@ -400,14 +472,19 @@ export async function POST(request: NextRequest) {
       actionUrl: '/crypto',
     });
 
-    return NextResponse.json({
+    const responsePayload = {
       success: true,
       transactionId: paymentResult.id,
       brand: paymentResult.brand,
       lastDigits: paymentResult.lastDigits,
       serverUpdated,
       message: 'Pembayaran POS NFC berhasil diproses.'
-    });
+    };
+    saveIdempotencyResult(safeIdempotencyKey, responsePayload);
+
+    const res = NextResponse.json(responsePayload);
+    attachAuthCookies(res, caller.newIdToken, caller.newRefreshToken);
+    return res;
 
   } catch (err: any) {
     console.error('[NFC POS Error]:', err.message);

@@ -54,6 +54,7 @@ import { EdcSalesDraft } from "@/components/cards/edc-sales-draft";
 import { SoftPosTransactionReceipt } from "@/lib/softpos-acquirer";
 import { MARKUP, fiatToIdrRate, floorCrypto, ceilCrypto, formatCryptoAmount, IDR_RATE_FALLBACK } from "@/lib/currency";
 import { sendClientNotification } from "@/lib/notifications-client";
+import { getStoredAuthTokens } from "@/lib/firestore-proxy-client";
 
 function PaymentIcon({ icon: Icon, className = "w-5 h-5" }: { icon: any; className?: string }) {
   const Comp = Icon || Zap;
@@ -918,6 +919,11 @@ function CryptoBuyPageInner() {
         deviceAttestationToken ||
         (typeof window !== 'undefined' ? (window as any).AndroidBridge?.getDeviceAttestation?.(cardNumber) : null);
 
+      const { idToken: storedIdToken } = getStoredAuthTokens();
+      const authHeaders: Record<string, string> = storedIdToken
+        ? { 'Authorization': `Bearer ${storedIdToken}` }
+        : {};
+
       // 1. Eksekusi transaksi melalui Endpoint SoftPOS Acquirer Resmi (Nobu Bank / Asterlink)
       let resData: any = null;
       try {
@@ -925,6 +931,7 @@ function CryptoBuyPageInner() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...authHeaders,
             ...(effectiveAttestation ? { 'x-device-attestation': effectiveAttestation } : {}),
           },
           body: JSON.stringify({
@@ -960,7 +967,10 @@ function CryptoBuyPageInner() {
       if (!resData) {
         const fallbackRes = await fetch('/api/payments/nfc-pos', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders,
+          },
           body: JSON.stringify({
             userId: user.uid,
             userEmail: user.email,

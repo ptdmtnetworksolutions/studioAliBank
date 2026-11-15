@@ -5,11 +5,15 @@ import { AlixCoinABI } from '@/lib/abi/AlixCoin';
 import { firebaseConfig } from '@/firebase/config';
 import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
 import { dispatchUserNotification } from '@/lib/notifications-server';
+import {
+  extractRequestTokens,
+  verifyFirebaseToken,
+  attachAuthCookies,
+} from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
 const PROJECT_ID = firebaseConfig.projectId;
-const API_KEY = firebaseConfig.apiKey;
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 const ETH_RPC_DEFAULT = 'https://ethereum-rpc.publicnode.com';
@@ -34,34 +38,6 @@ const FALLBACK_POLYGON_RPCS = [
   'https://rpc.ankr.com/polygon',
   'https://polygon-rpc.com'
 ];
-
-function isJwtExpired(token: string): boolean {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return true;
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-    if (!payload.exp) return false;
-    return Date.now() >= (payload.exp - 60) * 1000;
-  } catch {
-    return true;
-  }
-}
-
-async function refreshFirebaseToken(refreshToken: string): Promise<string | null> {
-  try {
-    const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.id_token || null;
-  } catch {
-    return null;
-  }
-}
 
 function fromFirestoreValue(val: any): any {
   if (!val || typeof val !== 'object') return val;
@@ -190,33 +166,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Parameter userId diperlukan untuk klaim.' }, { status: 400 });
     }
 
-    const authHeader = request.headers.get('Authorization');
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-    const cookieToken = (request.cookies.get('alibank_token')?.value || '').trim();
-    const refreshToken = (request.cookies.get('alibank_refresh')?.value || '').trim();
-
-    let idToken = bearerToken || cookieToken;
-    if ((!idToken || isJwtExpired(idToken)) && refreshToken) {
-      const refreshed = await refreshFirebaseToken(refreshToken);
-      if (refreshed) idToken = refreshed;
-    }
-
-    if (!idToken) {
+    const { idToken: rawIdToken, refreshToken: rawRefreshToken } = extractRequestTokens(request, body);
+    if (!rawIdToken && !rawRefreshToken) {
       return NextResponse.json({ error: 'Akses ditolak. Token otentikasi diperlukan.' }, { status: 401 });
     }
 
+    const caller = await verifyFirebaseToken(rawIdToken, rawRefreshToken);
+    if (!caller) {
+      return NextResponse.json({ error: 'Sesi kedaluwarsa atau tidak valid. Silakan login kembali.' }, { status: 401 });
+    }
+
     // Verifikasi kepemilikan akun (Proteksi IDOR)
-    let callerUid: string | null = null;
-    try {
-      const parts = idToken.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-        callerUid = payload.user_id || payload.sub || null;
-      }
-    } catch {}
-    if (callerUid && callerUid !== userId) {
+    if (caller.uid !== userId) {
       return NextResponse.json({ error: 'Pelanggaran keamanan: Anda tidak diizinkan mengklaim dari akun lain.' }, { status: 403 });
     }
+
+    const idToken = caller.idToken;
 
     // 1. Ambil data user, api_keys, dan liquidity secara paralel via Local Store + Firestore REST API
     const [restUser, restKeys, restLiq] = await Promise.all([
@@ -451,13 +416,15 @@ export async function POST(request: NextRequest) {
       ),
     ]);
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       amountMinted: yieldAmount,
       txHash: receipt.hash,
       walletAddress,
       stakedBalance: stakedEth,
     });
+    attachAuthCookies(res, caller.newIdToken, caller.newRefreshToken);
+    return res;
   } catch (err: any) {
     console.error('[Claim API Route Error]:', err);
     return NextResponse.json(

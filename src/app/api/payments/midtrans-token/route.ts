@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getLocalDoc, setLocalDoc } from '@/lib/local-firestore-store';
+import { validateCryptoAmountAgainstIdr } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,6 +76,14 @@ export async function POST(request: NextRequest) {
 
     if (!orderId || !amount || !customerName) {
       return NextResponse.json({ error: 'Parameter tidak lengkap.' }, { status: 400 });
+    }
+
+    const parsedAmount = Number(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0 || parsedAmount > 5_000_000_000) {
+      return NextResponse.json({ error: 'Nominal pembayaran tidak valid.' }, { status: 400 });
+    }
+    if (cryptoAmount != null && cryptoCurrency && !validateCryptoAmountAgainstIdr(String(cryptoCurrency), Number(cryptoAmount), parsedAmount)) {
+      return NextResponse.json({ error: 'Nominal konversi aset kripto tidak sesuai dengan nilai IDR.' }, { status: 400 });
     }
 
     const { serverKey, isSandbox } = await getMidtransConfig();

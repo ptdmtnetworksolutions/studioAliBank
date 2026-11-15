@@ -18,6 +18,9 @@ function getAdminApp(): App {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const networkId = searchParams.get('networkId') || '1';
+  if (!/^\d{1,10}$/.test(networkId)) {
+    return NextResponse.json({ error: 'Invalid networkId parameter' }, { status: 400 });
+  }
 
   try {
     const adminApp = getAdminApp();

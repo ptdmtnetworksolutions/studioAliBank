@@ -13,6 +13,13 @@ import {
   verifyDeviceAttestation,
   PAYMENT_SECURITY_LIMITS,
 } from '@/lib/payment-anomaly-detector';
+import {
+  extractRequestTokens,
+  verifyFirebaseToken,
+  isAdminIdentity,
+  attachAuthCookies,
+  validateCryptoAmountAgainstIdr,
+} from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,6 +102,17 @@ async function restCreateDoc(colPath: string, payload: Record<string, any>): Pro
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
+    // Verifikasi autentikasi & kepemilikan akun
+    const { idToken: rawIdToken, refreshToken: rawRefreshToken } = extractRequestTokens(request, body);
+    if (!rawIdToken && !rawRefreshToken) {
+      return NextResponse.json({ error: 'Akses ditolak. Token otentikasi diperlukan.' }, { status: 401 });
+    }
+    const caller = await verifyFirebaseToken(rawIdToken, rawRefreshToken);
+    if (!caller) {
+      return NextResponse.json({ error: 'Sesi kedaluwarsa atau tidak valid. Silakan login kembali.' }, { status: 401 });
+    }
+
     const {
       userId,
       userEmail,
@@ -109,6 +127,10 @@ export async function POST(request: NextRequest) {
       idempotencyKey,
       attestationToken,
     } = body;
+
+    if (!userId || (caller.uid !== userId && !isAdminIdentity(caller))) {
+      return NextResponse.json({ error: 'Pelanggaran keamanan: Anda tidak diizinkan memproses pembayaran untuk akun lain.' }, { status: 403 });
+    }
 
     // Header Attestation fallback jika dikirim via header HTTP
     const deviceAttestationHeader = request.headers.get('x-device-attestation') || attestationToken;
@@ -164,6 +186,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!validateCryptoAmountAgainstIdr(cryptoCurrency, Number(cryptoAmount), parsedAmountIdr)) {
+      return NextResponse.json(
+        { error: 'Nominal konversi aset kripto tidak sesuai dengan nilai pembayaran IDR.' },
+        { status: 400 }
+      );
+    }
+
     // Velocity Limiter berdasarkan User ID dan BIN kartu
     const velocityKey = `softpos_${userId}_${cleanCard.slice(0, 6)}`;
     const velocity = checkPaymentVelocity(velocityKey);
@@ -182,7 +211,9 @@ export async function POST(request: NextRequest) {
     const safeIdempotencyKey = idempotencyKey || `${userId}_${cleanCard.slice(-4)}_${parsedAmountIdr}_${Math.floor(Date.now() / 30000)}`;
     const idempCheck = checkIdempotency(safeIdempotencyKey);
     if (idempCheck.isDuplicate && idempCheck.cachedResult) {
-      return NextResponse.json(idempCheck.cachedResult);
+      const dupRes = NextResponse.json(idempCheck.cachedResult);
+      attachAuthCookies(dupRes, caller.newIdToken, caller.newRefreshToken);
+      return dupRes;
     }
 
     const cardBin = detectCardBin(cleanCard);
@@ -424,7 +455,9 @@ export async function POST(request: NextRequest) {
 
     saveIdempotencyResult(safeIdempotencyKey, responsePayload);
 
-    return NextResponse.json(responsePayload);
+    const res = NextResponse.json(responsePayload);
+    attachAuthCookies(res, caller.newIdToken, caller.newRefreshToken);
+    return res;
   } catch (err: any) {
     console.error('[SoftPOS Error]:', err.message);
     return NextResponse.json(

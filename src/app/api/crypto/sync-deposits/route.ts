@@ -8,6 +8,12 @@ import {
   queryLocalCollection,
 } from '@/lib/local-firestore-store';
 import { dispatchUserNotification } from '@/lib/notifications-server';
+import {
+  extractRequestTokens,
+  verifyFirebaseToken,
+  isAdminIdentity,
+  attachAuthCookies,
+} from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +27,6 @@ const CENTRAL_VAULT_WALLETS = new Set([
 ]);
 
 const PROJECT_ID = firebaseConfig.projectId;
-const API_KEY = firebaseConfig.apiKey;
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 // ABI untuk mendeteksi event Transfer ERC-20 dan membaca balanceOf langsung
@@ -42,34 +47,6 @@ const POLYGON_RPCS = [
 
 const ALX_CONTRACT_ADDRESS = '0x8BAFCa0a5a5F288DCc0af6da6951dD3D59E0d1Dd';
 const USDT_CONTRACT_ADDRESS = '0xc2132D05D31c914a87C6611C10748AEb04B58e8F';
-
-function isJwtExpired(token: string): boolean {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return true;
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-    if (!payload.exp) return false;
-    return Date.now() >= (payload.exp - 60) * 1000;
-  } catch {
-    return true;
-  }
-}
-
-async function refreshFirebaseToken(refreshToken: string): Promise<string | null> {
-  try {
-    const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.id_token || null;
-  } catch {
-    return null;
-  }
-}
 
 function fromFirestoreValue(val: any): any {
   if (!val || typeof val !== 'object') return val;
@@ -141,23 +118,13 @@ async function restGetDoc(docPath: string, token: string): Promise<Record<string
     const localCrypto = (local.exists && local.data?.cryptoBalances) || {};
     const remoteCrypto = remote.cryptoBalances || {};
     const mergedCrypto: Record<string, number> = { ...localCrypto, ...remoteCrypto };
-    const allCoins = new Set([...Object.keys(localCrypto), ...Object.keys(remoteCrypto)]);
-    for (const coin of allCoins) {
-      mergedCrypto[coin] = Math.max(Number(localCrypto[coin] ?? 0), Number(remoteCrypto[coin] ?? 0));
-    }
-
     const mergedData = {
       ...(local.exists ? local.data : {}),
       ...remote,
-      cryptoBalances: mergedCrypto,
+      cryptoBalances: { ...localCrypto, ...remoteCrypto },
     };
 
     setLocalDoc(docPath, mergedData, true);
-
-    // If remote was missing confirmed balances (e.g. 40,000 ALX from transfer), auto-heal remote Firestore!
-    if (token && Number(mergedCrypto.ALX || 0) > Number(remoteCrypto.ALX || 0)) {
-      restPatchDoc(docPath, { cryptoBalances: mergedCrypto }, token).catch(() => {});
-    }
 
     return mergedData;
   } catch {
@@ -288,6 +255,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Parameter userId diperlukan' }, { status: 400 });
   }
 
+  const { idToken: extractedIdToken, refreshToken: rawRefreshToken } = extractRequestTokens(request);
+  const rawIdToken = extractedIdToken || (searchParams.get('idToken') || '').trim();
+  if (!rawIdToken && !rawRefreshToken) {
+    return NextResponse.json({ error: 'Akses ditolak. Token otentikasi diperlukan.' }, { status: 401 });
+  }
+
+  const caller = await verifyFirebaseToken(rawIdToken, rawRefreshToken);
+  if (!caller) {
+    return NextResponse.json({ error: 'Sesi kedaluwarsa atau tidak valid. Silakan login kembali.' }, { status: 401 });
+  }
+
+  if (caller.uid !== userId && !isAdminIdentity(caller)) {
+    return NextResponse.json({ error: 'Pelanggaran keamanan: Anda tidak diizinkan menyinkronkan akun lain.' }, { status: 403 });
+  }
+
+  const idToken = caller.idToken;
+
   if (activeSyncLocks.has(userId)) {
     return NextResponse.json({
       success: true,
@@ -298,18 +282,6 @@ export async function GET(request: NextRequest) {
 
   activeSyncLocks.add(userId);
   try {
-    const authHeader = request.headers.get('Authorization');
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-    const queryToken = (searchParams.get('idToken') || '').trim();
-    const cookieToken = (request.cookies.get('alibank_token')?.value || '').trim();
-    const refreshToken = (request.cookies.get('alibank_refresh')?.value || '').trim();
-
-    let idToken = bearerToken || queryToken || cookieToken;
-    if ((!idToken || isJwtExpired(idToken)) && refreshToken) {
-      const refreshed = await refreshFirebaseToken(refreshToken);
-      if (refreshed) idToken = refreshed;
-    }
-
     // 1. Ambil data user via Firestore REST API (+ fallback local store)
     const userData = await restGetDoc(`users/${userId}`, idToken);
     if (!userData) {
@@ -591,7 +563,7 @@ export async function GET(request: NextRequest) {
       await restPatchDoc('system/liquidity', { lastAlxPriceUsdt: onChainPriceUsd }, idToken);
     } catch {}
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       walletAddress,
       newDepositsCount,
@@ -602,6 +574,8 @@ export async function GET(request: NextRequest) {
       rangeScanned: `${startBlock} -> ${endBlock}`,
       lastAlxPriceUsdt: onChainPriceUsd,
     });
+    attachAuthCookies(res, caller.newIdToken, caller.newRefreshToken);
+    return res;
   } catch (err: any) {
     console.error('[Deposit Auto-Sync Route Error]:', err?.message || err);
     return NextResponse.json(

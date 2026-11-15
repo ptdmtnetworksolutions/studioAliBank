@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import {
@@ -10,6 +9,16 @@ import {
   queryLocalCollection,
 } from '@/lib/local-firestore-store';
 import { dispatchUserNotification } from '@/lib/notifications-server';
+import {
+  extractRequestTokens,
+  verifyFirebaseToken,
+  attachAuthCookies,
+} from '@/lib/server-auth';
+import {
+  checkPaymentVelocity,
+  checkIdempotency,
+  saveIdempotencyResult,
+} from '@/lib/payment-anomaly-detector';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,42 +30,6 @@ type Asset = typeof SUPPORTED_ASSETS[number];
 function getAdminApp(): App {
   if (getApps().length > 0) return getApps()[0];
   return initializeApp({ projectId: firebaseConfig.projectId });
-}
-
-function decodeJwtUidUnsafe(token: string): string | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
-    return payload.user_id || payload.sub || null;
-  } catch {
-    return null;
-  }
-}
-
-async function verifyCallerToken(token: string): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseConfig.apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken: token }),
-        cache: 'no-store',
-      }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      const u = data?.users?.[0];
-      if (u?.localId) return u.localId;
-    }
-  } catch {}
-  try {
-    const auth = getAuth(getAdminApp());
-    const decoded = await auth.verifyIdToken(token);
-    if (decoded?.uid) return decoded.uid;
-  } catch {}
-  return decodeJwtUidUnsafe(token);
 }
 
 function fromFirestoreValue(val: any): any {
@@ -230,27 +203,49 @@ async function resolveUserDoc(identifier: string, token: string): Promise<Record
 
 export async function POST(request: NextRequest) {
   try {
-    // --- 1. Verifikasi Token Otentikasi (Cegah IDOR / Akses Ilegal) ---
-    const authHeader = request.headers.get('Authorization');
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7).trim() : '';
-    const cookieToken = request.cookies.get('alibank_token')?.value || '';
-    const token = bearerToken || cookieToken;
+    const body = await request.json();
 
-    if (!token) {
+    // --- 1. Verifikasi Kriptografis Token Otentikasi (Tanpa unsafe decode fallback) ---
+    const { idToken: rawIdToken, refreshToken: rawRefreshToken } = extractRequestTokens(request, body);
+    if (!rawIdToken && !rawRefreshToken) {
       return NextResponse.json({ error: 'Akses ditolak. Token otentikasi diperlukan.' }, { status: 401 });
     }
 
-    const callerUid = await verifyCallerToken(token);
-    if (!callerUid) {
+    const caller = await verifyFirebaseToken(rawIdToken, rawRefreshToken);
+    if (!caller) {
       return NextResponse.json({ error: 'Sesi kedaluwarsa atau tidak valid. Silakan login kembali.' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const callerUid = caller.uid;
+    const token = caller.idToken;
     const { senderId, recipientId: rawRecipientId, asset, amount, note, senderName } = body;
 
     // --- 2. Proteksi IDOR: Pastikan pemanggil adalah pemilik sah akun pengirim ---
     if (!senderId || callerUid !== senderId) {
       return NextResponse.json({ error: 'Pelanggaran keamanan: Anda tidak diizinkan mentransfer dari akun lain.' }, { status: 403 });
+    }
+
+    // --- 3. Velocity & Idempotency Guard ---
+    const velocity = checkPaymentVelocity(`transfer_${callerUid}`);
+    if (!velocity.allowed) {
+      return NextResponse.json(
+        { error: `Terlalu banyak permintaan transfer. Coba lagi dalam ${velocity.retryAfterSeconds} detik.` },
+        { status: 429 }
+      );
+    }
+
+    const rawIdemKey =
+      request.headers.get('idempotency-key') ||
+      request.headers.get('x-idempotency-key') ||
+      body.idempotencyKey;
+    const idempotencyKey = rawIdemKey ? `transfer:${callerUid}:${String(rawIdemKey)}` : '';
+    if (idempotencyKey) {
+      const idem = checkIdempotency(idempotencyKey);
+      if (idem.isDuplicate && idem.cachedResult) {
+        const dupRes = NextResponse.json({ ...idem.cachedResult, deduplicated: true });
+        attachAuthCookies(dupRes, caller.newIdToken, caller.newRefreshToken);
+        return dupRes;
+      }
     }
 
     // --- Input validation ---
@@ -399,7 +394,7 @@ export async function POST(request: NextRequest) {
       ),
     ]);
 
-    return NextResponse.json({
+    const responsePayload = {
       success: true,
       transferId: txId,
       asset,
@@ -407,7 +402,14 @@ export async function POST(request: NextRequest) {
       recipientId,
       recipientName,
       message: `${displayAmount} berhasil dikirim ke ${recipientName}.`,
-    });
+    };
+    if (idempotencyKey) {
+      saveIdempotencyResult(idempotencyKey, responsePayload);
+    }
+
+    const res = NextResponse.json(responsePayload);
+    attachAuthCookies(res, caller.newIdToken, caller.newRefreshToken);
+    return res;
 
   } catch (error: any) {
     console.error('[Transfer API Error]:', error.message);
