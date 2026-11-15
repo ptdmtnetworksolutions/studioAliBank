@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import seedStore from './local-firestore-seed.json';
 
-const CACHE_FILE = path.join('/tmp', 'alibank-local-firestore-cache-v2.json');
+const CACHE_FILE = path.join('/tmp', 'alibank-local-firestore-cache-v3.json');
 
 /**
  * Timestamp baseline rekonsiliasi bersih (2026-11-08T11:00:00.000Z / 18:00 WIB).
@@ -20,6 +20,13 @@ let memoryStore: LocalStoreSchema | null = null;
 let lastCacheMtimeMs = 0;
 
 function loadStore(): LocalStoreSchema {
+  try {
+    const oldV2 = path.join('/tmp', 'alibank-local-firestore-cache-v2.json');
+    if (fs.existsSync(oldV2)) fs.unlinkSync(oldV2);
+    const oldV1 = path.join('/tmp', 'alibank-local-firestore-cache.json');
+    if (fs.existsSync(oldV1)) fs.unlinkSync(oldV1);
+  } catch {}
+
   try {
     if (fs.existsSync(CACHE_FILE)) {
       const stat = fs.statSync(CACHE_FILE);

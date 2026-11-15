@@ -117,11 +117,10 @@ async function restGetDoc(docPath: string, token: string): Promise<Record<string
     if (!remote) return local.exists ? local.data : null;
     const localCrypto = (local.exists && local.data?.cryptoBalances) || {};
     const remoteCrypto = remote.cryptoBalances || {};
-    const mergedCrypto: Record<string, number> = { ...localCrypto, ...remoteCrypto };
     const mergedData = {
       ...(local.exists ? local.data : {}),
       ...remote,
-      cryptoBalances: { ...localCrypto, ...remoteCrypto },
+      cryptoBalances: remote.cryptoBalances ? { ...remote.cryptoBalances } : localCrypto,
     };
 
     setLocalDoc(docPath, mergedData, true);

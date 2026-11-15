@@ -3664,6 +3664,23 @@
       },
       "updatedAt": 1794135600000
     },
+    "users/IJOuQpjEOMgvlYfzvQ1yfp976Oa2/transactions/WITHDRAW-ALX-40000": {
+      "data": {
+        "id": "WITHDRAW-ALX-40000",
+        "date": "2026-11-15T10:00:00.000Z",
+        "description": "Penarikan ALX ke Wallet Eksternal (MetaMask)",
+        "category": "Crypto Withdrawal",
+        "asset": "ALX",
+        "cryptoCurrency": "ALX",
+        "cryptoAmount": 40000,
+        "type": "expense",
+        "status": "success",
+        "network": "Polygon Mainnet",
+        "txHash": "0xd927fe3ef890250961819548483838482818",
+        "timestamp": "2026-11-15T10:00:00.000Z"
+      },
+      "updatedAt": 1794755000000
+    },
     "users/IJOuQpjEOMgvlYfzvQ1yfp976Oa2/notifications/NOTIF-XFER-DINI-TO-DZUL": {
       "data": {
         "id": "NOTIF-XFER-DINI-TO-DZUL",
