@@ -307,7 +307,6 @@ export default function CryptoSendPage() {
                   : '0xc2132D05D31c914a87C6611C10748AEb04B58e8F';
               const erc20Abi = [
                 'function transfer(address to, uint256 value) returns (bool)',
-                'function mint(address to, uint256 amount)',
               ];
               const tokenContract = new ethers.Contract(tokenAddr, erc20Abi, signer);
               const amountUnits =
@@ -315,21 +314,18 @@ export default function CryptoSendPage() {
                   ? ethers.parseEther(numAmount.toString())
                   : ethers.parseUnits(numAmount.toString(), 6);
 
-              let txResp;
-              if (assetType === 'ALX' && signerAddr.toLowerCase() === cleanRecipient.toLowerCase()) {
-                try {
-                  txResp = await tokenContract.mint(cleanRecipient, amountUnits);
-                } catch {
-                  txResp = await tokenContract.transfer(cleanRecipient, amountUnits);
-                }
-              } else {
-                txResp = await tokenContract.transfer(cleanRecipient, amountUnits);
-              }
+              const txResp = await tokenContract.transfer(cleanRecipient, amountUnits);
               finalTxHash = txResp.hash;
             }
           } else {
-            finalTxHash = `${assetType}-BRIDGE-${Date.now()}`;
+            throw new Error(
+              `Brankas server memerlukan otorisasi dompet Web3 aktif (MetaMask/TrustWallet), namun tidak terdeteksi dompet Web3 pada browser/perangkat Anda. Saldo ${assetType} Anda tetap aman dan transaksi dibatalkan demi keamanan.`
+            );
           }
+        }
+
+        if (!finalTxHash || !finalTxHash.startsWith('0x')) {
+          throw new Error("Transaksi on-chain gagal: tidak ada bukti hash transaksi valid yang diterima dari blockchain.");
         }
 
         const nextBal = Math.max(0, Number((currentBal - numAmount).toFixed(8)));

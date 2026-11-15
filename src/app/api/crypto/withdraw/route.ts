@@ -281,8 +281,8 @@ export async function POST(request: NextRequest) {
       (localConfig.exists ? localConfig.data : null) ||
       (body.clientConfig && typeof body.clientConfig === 'object' ? body.clientConfig : null);
 
-    // Fallback: Jika REST lookup terkendala izin atau jaringan dan bukan karena kuota penuh, gunakan Admin SDK
-    if ((!userData || !config?.vaultPrivateKey) && !userRes.isQuotaExceeded && !configRes.isQuotaExceeded) {
+    // Fallback: Jika REST lookup terkendala izin atau jaringan, gunakan Admin SDK
+    if (!userData || !config?.vaultPrivateKey) {
       try {
         const adminApp = getAdminApp();
         const adminDb = getAdminFirestore(adminApp);
@@ -381,7 +381,7 @@ export async function POST(request: NextRequest) {
     }
     const privateKey = pkey.startsWith('0x') ? pkey : '0x' + pkey;
 
-    // Potong saldo terlebih dahulu
+    // Potong saldo terlebih dahulu secara aman (REST API atau Admin SDK)
     currentCryptoBalances[asset] = Number((userBalance - numAmount).toFixed(8));
     setLocalDoc(`users/${userId}`, { ...userData, cryptoBalances: currentCryptoBalances }, true);
     let deducted = await restPatchDoc(
@@ -389,7 +389,7 @@ export async function POST(request: NextRequest) {
       { cryptoBalances: currentCryptoBalances },
       idToken
     );
-    if (!deducted && !userRes.isQuotaExceeded) {
+    if (!deducted) {
       try {
         const adminApp = getAdminApp();
         const adminDb = getAdminFirestore(adminApp);
@@ -401,7 +401,12 @@ export async function POST(request: NextRequest) {
         console.error('[Withdraw API] Admin balance update fallback failed:', patchErr);
       }
     }
-    deducted = true;
+
+    if (!deducted) {
+      return NextResponse.json({
+        error: 'Sistem database gagal memotong saldo penarikan secara aman. Transaksi on-chain dibatalkan demi integritas dana nasabah.'
+      }, { status: 500 });
+    }
 
     let txHash = '';
     let usedNetwork = '';
@@ -414,16 +419,22 @@ export async function POST(request: NextRequest) {
         const contract = new ethers.Contract(tokenAddress, ERC20_ABI, wallet);
         const amountWei = ethers.parseEther(numAmount.toString());
 
-        let txResponse;
-        if (wallet.address.toLowerCase() === recipient.toLowerCase()) {
+        if (wallet.address.toLowerCase() === recipient.toLowerCase() || recipient.toLowerCase() === '0xc7d06ca4a4b00b19ffa1a4efcb3cb3e12c24d777') {
+          // Kembalikan saldo karena penarikan ke alamat brankas sendiri dilarang
+          currentCryptoBalances[asset] = userBalance;
+          setLocalDoc(`users/${userId}`, { ...userData, cryptoBalances: currentCryptoBalances }, true);
+          await restPatchDoc(`users/${userId}`, { cryptoBalances: currentCryptoBalances }, idToken).catch(() => {});
           try {
-            txResponse = await contract.mint(recipient, amountWei);
-          } catch {
-            txResponse = await contract.transfer(recipient, amountWei);
-          }
-        } else {
-          txResponse = await contract.transfer(recipient, amountWei);
+            const adminApp = getAdminApp();
+            const adminDb = getAdminFirestore(adminApp);
+            await adminDb.doc(`users/${userId}`).update({ cryptoBalances: currentCryptoBalances });
+          } catch {}
+          return NextResponse.json({
+            error: 'Alamat tujuan penarikan tidak boleh sama dengan alamat brankas pusat AliBank.'
+          }, { status: 400 });
         }
+
+        const txResponse = await contract.transfer(recipient, amountWei);
         txHash = txResponse.hash;
         usedNetwork = 'Polygon Mainnet';
         txResponse.wait(1).catch((e: any) => console.error('[ALX Tx Wait Error]:', e));

@@ -356,6 +356,8 @@ export async function GET(request: NextRequest) {
           String(tx.recipientAddress || '').toLowerCase() === walletAddress.toLowerCase()
         ) {
           creditedOnChainBySymbol[sym] += Number(tx.cryptoAmount || tx.amount || 0);
+        } else if (tx.category === 'Crypto Withdrawal' && tx.status === 'success') {
+          creditedOnChainBySymbol[sym] -= Number(tx.cryptoAmount || tx.amount || 0);
         }
       }
     }

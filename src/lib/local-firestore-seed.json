@@ -55,7 +55,7 @@
         "isSuspended": false,
         "walletAddress": "0x582538E7700E24365c480F6d6e78a62E95378a49",
         "cryptoBalances": {
-          "ALX": 40000,
+          "ALX": 0.50986352,
           "USDT": 0,
           "ETH": 0.000339,
           "BTC": 0.00000757
