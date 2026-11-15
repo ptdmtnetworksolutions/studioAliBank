@@ -3687,11 +3687,11 @@
         "title": "💸 Dana Masuk",
         "message": "Anda menerima 30.000 ALX dari DINI RAHMAN (884323433203).",
         "type": "success",
-        "read": false,
+        "read": true,
         "createdAt": "2026-11-08T02:58:32.726Z",
         "timestamp": "2026-11-08T02:58:32.726Z"
       },
-      "updatedAt": 1794135600000
+      "updatedAt": 1794755000000
     },
     "users/dmAeXCdtFvfdyx4wUVj0wkH1jJh1/notifications/NOTIF-XFER-DINI-TO-DZUL-OUT": {
       "data": {
