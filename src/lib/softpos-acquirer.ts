@@ -1,8 +1,7 @@
 /**
- * AliBank SoftPOS / Tap-on-Phone Acquirer Engine
+ * AliBank SoftPOS / Tap-on-Phone Engine
  * Sesuai Standar PCI-CPOC / MPoC (Mobile Payments on Commercial Off-The-Shelf)
- * Mengintegrasikan Terminal Smartphone menjadi Mesin EDC Mandiri bekerja sama dengan
- * PT Bank Nationalnobu Tbk (Nobu SoftPOS) & Jaringan Switching Asterlink (GPN).
+ * Terhubung langsung dengan DOKU Payment Gateway (PJP Kategori 1 Bank Indonesia).
  */
 
 import { detectCardBin, CardBinResult } from "./bin-detector";

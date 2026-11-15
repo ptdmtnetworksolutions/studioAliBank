@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { firebaseConfig } from '@/firebase/config';
-import { executeSoftPosAcquirerTransaction, DEFAULT_SOFTPOS_PROFILE } from '@/lib/softpos-acquirer';
+import { DEFAULT_SOFTPOS_PROFILE } from '@/lib/softpos-acquirer';
 import { detectCardBin } from '@/lib/bin-detector';
-import { getLocalDoc, setLocalDoc, addLocalCollectionDoc } from '@/lib/local-firestore-store';
+import { getLocalDoc, setLocalDoc } from '@/lib/local-firestore-store';
+import { createDokuCheckout, DOKU_CONFIG_DEFAULT, DokuConfig } from '@/lib/doku';
 import {
   checkPaymentVelocity,
   checkIdempotency,
@@ -34,41 +35,6 @@ function getAdminApp(): App | null {
   }
 }
 
-// REST API Helper untuk update data tanpa ketergantungan ADC / Service Account
-async function restPatchDoc(docPath: string, fields: Record<string, any>): Promise<boolean> {
-  try {
-    const formattedFields: Record<string, any> = {};
-    const masks: string[] = [];
-    for (const [k, v] of Object.entries(fields)) {
-      if (typeof v === 'number') {
-        formattedFields[k] = Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
-      } else if (typeof v === 'string') {
-        formattedFields[k] = { stringValue: v };
-      } else if (typeof v === 'boolean') {
-        formattedFields[k] = { booleanValue: v };
-      } else if (typeof v === 'object' && v !== null) {
-        const sub: Record<string, any> = {};
-        for (const [sk, sv] of Object.entries(v)) {
-          sub[sk] = typeof sv === 'number' ? { doubleValue: sv } : { stringValue: String(sv) };
-        }
-        formattedFields[k] = { mapValue: { fields: sub } };
-      }
-      masks.push(`updateMask.fieldPaths=${encodeURIComponent(k)}`);
-    }
-
-    const queryStr = masks.length > 0 ? `?${masks.join('&')}` : '';
-    const res = await fetch(`${FIRESTORE_BASE}/${docPath}${queryStr}&key=${firebaseConfig.apiKey}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields: formattedFields }),
-      cache: 'no-store',
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
 async function restCreateDoc(colPath: string, payload: Record<string, any>): Promise<boolean> {
   try {
     const fields: Record<string, any> = {};
@@ -93,11 +59,42 @@ async function restCreateDoc(colPath: string, payload: Record<string, any>): Pro
   }
 }
 
+async function resolveDokuConfig(): Promise<DokuConfig> {
+  const config: DokuConfig = { ...DOKU_CONFIG_DEFAULT };
+  const localKeys = getLocalDoc('system/api_keys');
+  if (localKeys.exists && localKeys.data) {
+    const kData = localKeys.data;
+    if (kData.dokuClientId) config.clientId = kData.dokuClientId;
+    if (kData.dokuSecretKey) config.secretKey = kData.dokuSecretKey;
+    if (kData.dokuApiKey) config.apiKey = kData.dokuApiKey;
+    if (kData.dokuIsProduction !== undefined) config.isProduction = Boolean(kData.dokuIsProduction);
+  }
+
+  try {
+    const adminApp = getAdminApp();
+    if (adminApp) {
+      const db = getFirestore(adminApp);
+      const keysSnap = await db.collection('system').doc('api_keys').get();
+      if (keysSnap.exists) {
+        const kData = keysSnap.data();
+        if (kData?.dokuClientId) config.clientId = kData.dokuClientId;
+        if (kData?.dokuSecretKey) config.secretKey = kData.dokuSecretKey;
+        if (kData?.dokuApiKey) config.apiKey = kData.dokuApiKey;
+        if (kData?.dokuIsProduction !== undefined) config.isProduction = Boolean(kData.dokuIsProduction);
+      }
+    }
+  } catch (err) {
+    console.warn('[SoftPOS DOKU Config] Firestore Admin fallback to default:', err);
+  }
+
+  return config;
+}
+
 /**
  * POST /api/payments/softpos
- * Memproses transaksi SoftPOS / Tap-on-Phone menggunakan Terminal Smartphone berlisensi PCI MPoC.
- * Dana di-settle ke rekening penampungan perusahaan PT AliBank Digital Indonesia,
- * dan koin kripto langsung diterbitkan ke portofolio user.
+ * Memproses transaksi kartu debit/kredit & SoftPOS via DOKU Payment Gateway resmi PT DMT Network Solutions.
+ * Sesi pembayaran resmi dibuat di DOKU dan pemotongan dana riil dilakukan melalui DOKU Checkout / 3D-Secure.
+ * Koin kripto HANYA dikreditkan setelah DOKU memverifikasi status pembayaran SUCCESS.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -129,23 +126,20 @@ export async function POST(request: NextRequest) {
     } = body;
 
     if (!userId || (caller.uid !== userId && !isAdminIdentity(caller))) {
-      return NextResponse.json({ error: 'Pelanggaran keamanan: Anda tidak diizinkan memproses pembayaran untuk akun lain.' }, { status: 403 });
+      return NextResponse.json(
+        { error: 'Akses terlarang. Anda hanya dapat memproses pembayaran akun Anda sendiri.' },
+        { status: 403 }
+      );
     }
 
-    // Header Attestation fallback jika dikirim via header HTTP
-    const deviceAttestationHeader = request.headers.get('x-device-attestation') || attestationToken;
-
     // =========================================================================
-    // 1. ANOMALY DETECTION: VALIDASI INTEGRITAS PERANGKAT (ATTESTATION API)
+    // 1. DEVICE INTEGRITY & HARDWARE ATTESTATION
     // =========================================================================
-    const attestation = verifyDeviceAttestation(deviceAttestationHeader);
+    const headerAttestation = request.headers.get('x-device-attestation');
+    const attestation = verifyDeviceAttestation(headerAttestation || attestationToken);
     if (!attestation.isValid) {
-      console.warn('[SoftPOS Security Alert] Device compromised or untrusted:', attestation.error);
       return NextResponse.json(
-        {
-          error: attestation.error || 'Akses ditolak: Integritas perangkat atau terminal SoftPOS tidak terverifikasi.',
-          securityVerdict: attestation.verdict,
-        },
+        { error: 'Integritas perangkat tidak valid untuk transaksi perbankan. Silakan perbarui aplikasi.' },
         { status: 403 }
       );
     }
@@ -219,238 +213,97 @@ export async function POST(request: NextRequest) {
     const cardBin = detectCardBin(cleanCard);
 
     // =========================================================================
-    // 5. EKSEKUSI KERNEL SOFTPOS ACQUIRER (NOBU BANK / ASTERLINK GPN SWITCH)
+    // 5. REGISTRASI TRANSAKSI RESMI KE DOKU PAYMENT GATEWAY (REAL SETTLEMENT)
     // =========================================================================
-    const receipt = await executeSoftPosAcquirerTransaction({
-      cardNumber: cleanCard,
-      cardExpiry: cardExpiry || '2030-12',
-      cardHolderName: cardHolderName || 'NATIVE CONTACTLESS',
-      cardCvv: cardCvv || '123',
-      amountIdr: parsedAmountIdr,
-      cryptoAmount: Number(cryptoAmount),
-      cryptoCurrency,
-      usdValue: usdValue || '0',
-      userId,
-      userEmail: userEmail || '',
-    });
-
-    // =========================================================================
-    // 6. MULTI-TIER QUOTA / ADC FAILURE RESILIENT SETTLEMENT
-    //    Tier 1: Atomic In-Memory Local Store (Zero-fail, instant execution)
-    //    Tier 2: Firestore REST API (Works without ADC / Service Account)
-    //    Tier 3: Firebase Admin SDK (Standard server execution)
-    // =========================================================================
-    let serverUpdated = true;
+    const dokuConfig = await resolveDokuConfig();
+    const orderId = `DOKU-CARD-${Date.now()}`;
     const nowIso = new Date().toISOString();
 
-    // Tier 1: Local In-Memory Firestore Store
-    const localUser = getLocalDoc(`users/${userId}`);
-    let nextCryptoBalances: Record<string, number> = {};
-    if (localUser.exists && localUser.data) {
-      nextCryptoBalances = { ...(localUser.data.cryptoBalances || {}) };
-      nextCryptoBalances[cryptoCurrency] = Number(
-        ((Number(nextCryptoBalances[cryptoCurrency] || 0)) + parseFloat(String(cryptoAmount))).toFixed(8)
-      );
-      setLocalDoc(`users/${userId}`, { cryptoBalances: nextCryptoBalances }, true);
-    }
-
-    const localLiq = getLocalDoc('system/liquidity');
-    const prevFiat = Number(localLiq.data?.totalFiatInjected || 0);
-    const prevUsd = Number(localLiq.data?.totalUsdInjected || 0);
-    setLocalDoc(
-      'system/liquidity',
-      {
-        totalFiatInjected: prevFiat + parsedAmountIdr,
-        totalUsdInjected: prevUsd + parseFloat(String(usdValue || 0)),
-        lastSoftPosSettlement: nowIso,
-        lastAcquirer: DEFAULT_SOFTPOS_PROFILE.acquirerName,
-      },
-      true
-    );
-
-    addLocalCollectionDoc('system/audit/global_transactions', {
-      id: receipt.transactionId,
-      category: 'SoftPOS EDC Contactless',
-      gateway: `SoftPOS ${cardBin.bank.shortName} (${cardBin.cardType} ${cardBin.network})`,
-      acquirer: DEFAULT_SOFTPOS_PROFILE.acquirerName,
-      terminalId: DEFAULT_SOFTPOS_PROFILE.terminalId,
-      merchantId: DEFAULT_SOFTPOS_PROFILE.merchantId,
-      approvalCode: receipt.approvalCode,
-      rrn: receipt.retrievalRefNumber,
-      settlementAccount: DEFAULT_SOFTPOS_PROFILE.settlementAccount.accountNumber,
-      settlementHolder: DEFAULT_SOFTPOS_PROFILE.settlementAccount.accountHolder,
-      amountIdr: parsedAmountIdr,
-      cryptoAmount: parseFloat(String(cryptoAmount)),
-      cryptoCurrency: cryptoCurrency,
-      cardMasked: cardBin.maskedPan,
-      bankName: cardBin.bank.name,
-      cardType: cardBin.cardType,
-      status: 'success',
-      timestamp: nowIso,
-      userEmail: userEmail || '',
-    });
-
-    addLocalCollectionDoc(`users/${userId}/transactions`, {
-      date: nowIso,
-      description: `Beli ${cryptoCurrency} via EDC SoftPOS Tap (${cardBin.bank.shortName} ${cardBin.cardType})`,
-      category: 'Trading',
+    // Catat status pending di Local Store dan Firestore
+    const pendingPayload = {
+      orderId,
+      userId,
+      userEmail: userEmail || caller.email || '',
+      customerName: cardHolderName || cardBin.bank.shortName || 'Nasabah AliBank',
       amount: parsedAmountIdr,
       cryptoAmount: parseFloat(String(cryptoAmount)),
-      cryptoCurrency: cryptoCurrency,
-      type: 'income',
-      status: 'success',
-      approvalCode: receipt.approvalCode,
-      rrn: receipt.retrievalRefNumber,
-      terminalId: DEFAULT_SOFTPOS_PROFILE.terminalId,
-      merchantName: DEFAULT_SOFTPOS_PROFILE.merchantName,
-      settlementDestination: receipt.settlementDestination,
+      cryptoCurrency,
+      usdValue: usdValue || '0',
+      status: 'pending',
+      paymentMethod: 'CREDIT_CARD',
+      paymentChannel: 'CREDIT_CARD',
       bankName: cardBin.bank.name,
       cardType: cardBin.cardType,
+      network: cardBin.network,
       maskedPan: cardBin.maskedPan,
-      timestamp: nowIso,
-    });
-
-    addLocalCollectionDoc(`users/${userId}/notifications`, {
-      title: `Pembayaran EDC SoftPOS Berhasil (${cardBin.bank.shortName})`,
-      message: `Pembelian ${cryptoAmount} ${cryptoCurrency} senilai Rp ${parsedAmountIdr.toLocaleString('id-ID')} via SoftPOS Contactless (${cardBin.bank.shortName} ${cardBin.cardType} *${cardBin.cleanPan.slice(-4)}). Otorisasi: ${receipt.approvalCode}, RRN: ${receipt.retrievalRefNumber}. Dana disalurkan ke Rekening Penampungan PT DMT Network Solutions di Bank Syariah Indonesia (BSI - 7216683913).`,
-      type: 'success',
-      category: 'transaksi',
-      read: false,
+      cardHolder: cardHolderName || '',
+      source: 'SOFTPOS_EDC',
+      terminalId: DEFAULT_SOFTPOS_PROFILE.terminalId,
+      merchantName: DEFAULT_SOFTPOS_PROFILE.merchantName,
       createdAt: nowIso,
-      amount: parsedAmountIdr,
-      cryptoAmount: parseFloat(String(cryptoAmount)),
-      cryptoCurrency: cryptoCurrency,
-      terminalId: DEFAULT_SOFTPOS_PROFILE.terminalId,
-      merchantName: DEFAULT_SOFTPOS_PROFILE.merchantName,
-      approvalCode: receipt.approvalCode,
-      rrn: receipt.retrievalRefNumber,
-      bankName: cardBin.bank.name,
-      cardType: cardBin.cardType,
-      maskedPan: cardBin.maskedPan,
-      settlementDestination: receipt.settlementDestination,
-      timestamp: nowIso,
-    });
+    };
 
-    // Tier 2 & 3: Sinkronisasi ke Cloud Database (Admin SDK & REST API Fallback)
-    let cloudSynced = false;
+    setLocalDoc(`doku_pending_transactions/${orderId}`, pendingPayload, true);
+
     try {
       const adminApp = getAdminApp();
       if (adminApp) {
         const db = getFirestore(adminApp);
-        const userRef = db.collection('users').doc(userId);
-
-        await db.runTransaction(async (transaction) => {
-          const userSnap = await transaction.get(userRef);
-          if (!userSnap.exists) return;
-
-          const cryptoField = `cryptoBalances.${cryptoCurrency}`;
-          transaction.update(userRef, {
-            [cryptoField]: FieldValue.increment(parseFloat(String(cryptoAmount))),
-          });
-
-          const liquidityRef = db.collection('system').doc('liquidity');
-          transaction.update(liquidityRef, {
-            totalFiatInjected: FieldValue.increment(parsedAmountIdr),
-            totalUsdInjected: FieldValue.increment(parseFloat(String(usdValue || 0))),
-            lastSoftPosSettlement: FieldValue.serverTimestamp(),
-            lastAcquirer: DEFAULT_SOFTPOS_PROFILE.acquirerName,
-          });
-
-          const auditRef = db.collection('system').doc('audit').collection('global_transactions').doc();
-          transaction.set(auditRef, {
-            id: receipt.transactionId,
-            category: 'SoftPOS EDC Contactless',
-            gateway: `SoftPOS ${cardBin.bank.shortName} (${cardBin.cardType} ${cardBin.network})`,
-            acquirer: DEFAULT_SOFTPOS_PROFILE.acquirerName,
-            terminalId: DEFAULT_SOFTPOS_PROFILE.terminalId,
-            merchantId: DEFAULT_SOFTPOS_PROFILE.merchantId,
-            approvalCode: receipt.approvalCode,
-            rrn: receipt.retrievalRefNumber,
-            settlementAccount: DEFAULT_SOFTPOS_PROFILE.settlementAccount.accountNumber,
-            settlementHolder: DEFAULT_SOFTPOS_PROFILE.settlementAccount.accountHolder,
-            amountIdr: parsedAmountIdr,
-            cryptoAmount: parseFloat(String(cryptoAmount)),
-            cryptoCurrency: cryptoCurrency,
-            cardMasked: cardBin.maskedPan,
-            bankName: cardBin.bank.name,
-            cardType: cardBin.cardType,
-            status: 'success',
-            timestamp: FieldValue.serverTimestamp(),
-            userEmail: userEmail || '',
-          });
-
-          const userTxRef = userRef.collection('transactions').doc();
-          transaction.set(userTxRef, {
-            date: new Date().toISOString(),
-            description: `Beli ${cryptoCurrency} via EDC SoftPOS Tap (${cardBin.bank.shortName} ${cardBin.cardType})`,
-            category: 'Trading',
-            amount: parsedAmountIdr,
-            cryptoAmount: parseFloat(String(cryptoAmount)),
-            cryptoCurrency: cryptoCurrency,
-            type: 'income',
-            status: 'success',
-            approvalCode: receipt.approvalCode,
-            rrn: receipt.retrievalRefNumber,
-            terminalId: DEFAULT_SOFTPOS_PROFILE.terminalId,
-            merchantName: DEFAULT_SOFTPOS_PROFILE.merchantName,
-            settlementDestination: receipt.settlementDestination,
-            bankName: cardBin.bank.name,
-            cardType: cardBin.cardType,
-            maskedPan: cardBin.maskedPan,
-            timestamp: FieldValue.serverTimestamp(),
-          });
-
-          const userNotifRef = userRef.collection('notifications').doc();
-          transaction.set(userNotifRef, {
-            title: `Pembayaran EDC SoftPOS Berhasil (${cardBin.bank.shortName})`,
-            message: `Pembelian ${cryptoAmount} ${cryptoCurrency} senilai Rp ${parsedAmountIdr.toLocaleString('id-ID')} via SoftPOS Contactless (${cardBin.bank.shortName} ${cardBin.cardType} *${cardBin.cleanPan.slice(-4)}). Otorisasi: ${receipt.approvalCode}, RRN: ${receipt.retrievalRefNumber}. Dana disalurkan ke Rekening Penampungan PT DMT Network Solutions di Bank Syariah Indonesia (BSI - 7216683913).`,
-            type: 'success',
-            category: 'transaksi',
-            read: false,
-            createdAt: new Date().toISOString(),
-            amount: parsedAmountIdr,
-            cryptoAmount: parseFloat(String(cryptoAmount)),
-            cryptoCurrency: cryptoCurrency,
-            terminalId: DEFAULT_SOFTPOS_PROFILE.terminalId,
-            merchantName: DEFAULT_SOFTPOS_PROFILE.merchantName,
-            approvalCode: receipt.approvalCode,
-            rrn: receipt.retrievalRefNumber,
-            bankName: cardBin.bank.name,
-            cardType: cardBin.cardType,
-            maskedPan: cardBin.maskedPan,
-            settlementDestination: receipt.settlementDestination,
-            timestamp: FieldValue.serverTimestamp(),
-          });
+        await db.collection('doku_pending_transactions').doc(orderId).set({
+          ...pendingPayload,
+          createdAt: FieldValue.serverTimestamp(),
         });
-        cloudSynced = true;
+      } else {
+        await restCreateDoc(`doku_pending_transactions`, {
+          orderId,
+          userId,
+          amount: parsedAmountIdr,
+          status: 'pending',
+          createdAt: nowIso,
+        });
       }
-    } catch (adminErr: any) {
-      console.warn('[SoftPOS API] Admin SDK failed, activating Tier 2 Firestore REST API fallback:', adminErr?.message?.slice(0, 80));
+    } catch (saveErr) {
+      console.warn('[SoftPOS DOKU] Warning saving pending transaction:', saveErr);
     }
 
-    // Tier 2 Fallback: Jika Admin SDK terkendala kuota atau ADC, kirim via Firestore REST API
-    if (!cloudSynced && Object.keys(nextCryptoBalances).length > 0) {
-      await restPatchDoc(`users/${userId}`, {
-        cryptoBalances: nextCryptoBalances,
-      });
-      await restCreateDoc(`users/${userId}/transactions`, {
-        date: nowIso,
-        description: `Beli ${cryptoCurrency} via EDC SoftPOS Tap (${cardBin.bank.shortName})`,
+    // Panggil API resmi DOKU untuk pembuatan sesi checkout / otorisasi kartu
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://alibank.tarroz.com';
+    const callbackUrl = `${appUrl}/crypto/buy?status=success&orderId=${encodeURIComponent(orderId)}`;
+
+    const checkoutResult = await createDokuCheckout(
+      {
+        orderId,
         amount: parsedAmountIdr,
-        cryptoAmount: parseFloat(String(cryptoAmount)),
-        cryptoCurrency: cryptoCurrency,
-        status: 'success',
-        type: 'income',
-      });
+        customerName: cardHolderName || cardBin.bank.shortName || 'Nasabah AliBank',
+        customerEmail: userEmail || caller.email || 'nasabah@alibank.id',
+        callbackUrl,
+        paymentMethodTypes: ['CREDIT_CARD'],
+      },
+      dokuConfig
+    );
+
+    if (!checkoutResult.success || !checkoutResult.paymentUrl) {
+      console.error('[SoftPOS DOKU Checkout Failed]', checkoutResult.error);
+      return NextResponse.json(
+        {
+          error: checkoutResult.error || 'Gagal membuat sesi pembayaran kartu DOKU.',
+          orderId,
+        },
+        { status: 502 }
+      );
     }
 
     const responsePayload = {
       success: true,
-      receipt,
+      orderId,
+      paymentUrl: checkoutResult.paymentUrl,
+      requiresPayment: true,
       cardBin,
-      serverUpdated: true,
+      amountIdr: parsedAmountIdr,
+      cryptoAmount: parseFloat(String(cryptoAmount)),
+      cryptoCurrency,
       securityVerdict: attestation.verdict,
-      message: `Pembayaran EDC SoftPOS berhasil. Dana Rp ${parsedAmountIdr.toLocaleString('id-ID')} disalurkan ke Rekening Penampungan Perusahaan.`,
+      message: 'Sesi otorisasi pembayaran DOKU resmi berhasil dibuat. Silakan selesaikan pembayaran.',
     };
 
     saveIdempotencyResult(safeIdempotencyKey, responsePayload);
@@ -461,7 +314,7 @@ export async function POST(request: NextRequest) {
   } catch (err: any) {
     console.error('[SoftPOS Error]:', err.message);
     return NextResponse.json(
-      { error: err.message || 'Gagal memproses transaksi SoftPOS Acquirer.' },
+      { error: err.message || 'Gagal memproses transaksi SoftPOS DOKU.' },
       { status: 500 }
     );
   }

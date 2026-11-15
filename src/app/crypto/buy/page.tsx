@@ -976,76 +976,27 @@ function CryptoBuyPageInner() {
           resData = await response.json();
         } else {
           const errData = await response.json().catch(() => null);
-          if (errData?.error) {
-            throw new Error(errData.error);
-          }
+          throw new Error(errData?.error || 'Gagal membuat sesi otorisasi pembayaran DOKU.');
         }
       } catch (softPosErr: any) {
-        if (softPosErr?.message && !softPosErr.message.includes('fetch')) {
-          throw softPosErr;
-        }
-        console.warn("SoftPOS API route fallback:", softPosErr);
+        throw softPosErr;
       }
 
-      // 2. Fallback ke endpoint POS umum jika diperlukan
-      if (!resData) {
-        const fallbackRes = await fetch('/api/payments/nfc-pos', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...authHeaders,
-          },
-          body: JSON.stringify({
-            userId: user.uid,
-            userEmail: user.email,
-            cardNumber: cardNumber,
-            cardExpiry: cardExpiry,
-            cardCvv: cardCvv,
-            cardHolderName: cardHolder,
-            amountIdr: totalAmountIdr,
-            cryptoAmount: parseFloat(estimatedCrypto),
-            cryptoCurrency: selectedAsset.symbol,
-            usdValue: usdValue
-          })
+      if (resData?.paymentUrl) {
+        playNfcBeep();
+        toast({
+          title: "Mengarahkan ke DOKU",
+          description: "Membuka sesi otorisasi kartu & pemotongan dana resmi DOKU..."
         });
-        resData = await fallbackRes.json();
-        if (!fallbackRes.ok) {
-          throw new Error(resData.error || 'Gagal memproses pembayaran POS.');
-        }
+        window.location.href = resData.paymentUrl;
+        return;
       }
 
-      playNfcBeep();
-      setNfcStatus('success');
-      
-      if (resData.receipt) {
-        setSoftPosReceipt(resData.receipt);
-      }
-
-      if (!resData.serverUpdated) {
-        await finalizeTransaction({
-          id: resData.receipt?.transactionId || resData.transactionId || `SOFTPOS-${Date.now()}`,
-          gateway: `SoftPOS EDC (${resData.cardBin?.bank?.shortName || resData.brand || 'Contactless'} *${resData.cardBin?.cleanPan?.slice(-4) || resData.lastDigits || '****'})`,
-          receipt: resData.receipt,
-          cardBin: resData.cardBin
-        }, !!resData.receipt /* Keep dialog open so EDC receipt remains displayed */);
-      }
-      
-      toast({
-        title: "Transaksi EDC SoftPOS Berhasil!",
-        description: `Dana Rp ${totalAmountIdr.toLocaleString('id-ID')} disalurkan ke Rekening Penampungan Perusahaan.`
-      });
-
-      // Jika TIDAK ada struk resmi barulah dialog ditutup otomatis
-      if (!resData.receipt) {
-        setIsCheckoutDialogOpen(false);
-        setStep('success');
-        setNfcStatus('idle');
-      }
-
+      throw new Error(resData?.error || 'Gagal menghasilkan URL pembayaran resmi DOKU.');
     } catch (err: any) {
       setNfcStatus('failed');
-      setNfcError(err.message || 'Koneksi terputus dengan gerbang pembayaran.');
-      toast({ variant: "destructive", title: "Pembayaran Gagal", description: err.message });
+      setNfcError(err.message || 'Koneksi terputus dengan gerbang pembayaran DOKU.');
+      toast({ variant: "destructive", title: "Otorisasi Gagal", description: err.message });
     } finally {
       setIsProcessing(false);
     }
