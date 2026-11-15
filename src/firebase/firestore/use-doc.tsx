@@ -66,17 +66,6 @@ export function useDoc<T = any>(
       hasDataRef.current = true;
       setData((prev) => {
         if (!prev) return incoming;
-        const prevCrypto = (prev as any).cryptoBalances;
-        const incCrypto = (incoming as any).cryptoBalances;
-        if (prevCrypto && incCrypto && typeof prevCrypto === 'object' && typeof incCrypto === 'object') {
-          const mergedCrypto = { ...prevCrypto, ...incCrypto };
-          for (const [k, v] of Object.entries(prevCrypto)) {
-            const pVal = Number(v || 0);
-            const iVal = Number(incCrypto[k] || 0);
-            mergedCrypto[k] = Math.max(pVal, iVal);
-          }
-          return { ...prev, ...incoming, cryptoBalances: mergedCrypto };
-        }
         return { ...prev, ...incoming };
       });
     };

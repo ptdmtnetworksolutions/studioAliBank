@@ -215,12 +215,13 @@ export function reviveFirestoreData(val: any): any {
 }
 
 const clientDocCache = new Map<string, { data: any; updatedAt: number; fromLocalWrite?: boolean }>();
-const LOCAL_OVERRIDES_KEY = 'alibank_doc_overrides_v2';
+const LOCAL_OVERRIDES_KEY = 'alibank_doc_overrides_v3';
 
 function loadPersistedOverrides(): Record<string, { data: any; updatedAt: number }> {
   if (typeof window === 'undefined') return {};
   try {
     localStorage.removeItem('alibank_doc_overrides_v1');
+    localStorage.removeItem('alibank_doc_overrides_v2');
     const raw = localStorage.getItem(LOCAL_OVERRIDES_KEY);
     if (!raw) return {};
     return JSON.parse(raw) || {};
@@ -304,19 +305,8 @@ export function setCachedClientDoc(path: string, data: any, fromLocalWrite = fal
   }
   const existing = clientDocCache.get(clean);
   if (!fromLocalWrite && existing?.fromLocalWrite && Date.now() - existing.updatedAt < 10 * 60 * 1000) {
-    // Keep local write changes on top of older snapshot data
-    const merged = { ...data, ...existing.data };
-    if (data.cryptoBalances && typeof data.cryptoBalances === 'object') {
-      merged.cryptoBalances = {
-        ...(existing.data?.cryptoBalances || {}),
-        ...data.cryptoBalances,
-      };
-      for (const [coin, val] of Object.entries(data.cryptoBalances)) {
-        if (Number(val) > 0) {
-          merged.cryptoBalances[coin] = Number(val);
-        }
-      }
-    }
+    // Keep local write metadata on top of older snapshot data, but respect server cryptoBalances
+    const merged = { ...existing.data, ...data };
     clientDocCache.set(clean, { data: merged, updatedAt: existing.updatedAt, fromLocalWrite: true });
     return;
   }
