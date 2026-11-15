@@ -34,9 +34,9 @@ export const DEFAULT_SOFTPOS_PROFILE: SoftPosTerminalProfile = {
   acquirerName: "DOKU PJP KATEGORI 1 • PT. DMT NETWORK SOLUTIONS",
   acquirerBankCode: "451",
   settlementAccount: {
-    accountNumber: "7216683913",
+    accountNumber: "BRN-0209-1775738330323",
     accountHolder: "PT DMT Network Solutions",
-    bankName: "Bank Syariah Indonesia (BSI)"
+    bankName: "DOKU Payment Gateway Escrow"
   },
   pciComplianceLevel: "PCI MPoC / EMVCo Contactless L2 Approved",
   kernelVersion: "AliBank-SoftPOS-Kernel v2.4",
@@ -141,7 +141,7 @@ export async function executeSoftPosAcquirerTransaction(
     merchantId: profile.merchantId,
     merchantName: profile.merchantName,
     acquirer: profile.acquirerName,
-    settlementDestination: `${profile.settlementAccount.bankName} - No: ${profile.settlementAccount.accountNumber} (${profile.settlementAccount.accountHolder})`,
+    settlementDestination: `DOKU Payment Gateway Escrow (${profile.merchantName})`,
     bankName: cardBin.bank.name,
     cardType: cardBin.cardType,
     network: cardBin.network,

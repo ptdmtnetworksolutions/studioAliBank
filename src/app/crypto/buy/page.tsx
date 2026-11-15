@@ -601,7 +601,7 @@ function CryptoBuyPageInner() {
         bankName: cardBin?.bank?.name || receipt?.bankName || null,
         cardType: cardBin?.cardType || receipt?.cardType || null,
         maskedPan: cardBin?.maskedPan || receipt?.maskedPan || null,
-        settlementDestination: receipt?.settlementDestination || "Bank Syariah Indonesia (BSI) - No: 7216683913 (PT DMT Network Solutions)"
+        settlementDestination: receipt?.settlementDestination || "DOKU Payment Gateway Escrow (PT DMT Network Solutions)"
       });
 
       // 2. Riwayat transaksi pengguna lengkap dengan metadata EDC
@@ -626,7 +626,7 @@ function CryptoBuyPageInner() {
         bankName: cardBin?.bank?.name || receipt?.bankName || null,
         cardType: cardBin?.cardType || receipt?.cardType || null,
         maskedPan: cardBin?.maskedPan || receipt?.maskedPan || null,
-        settlementDestination: receipt?.settlementDestination || (isSoftPos ? "Bank Syariah Indonesia (BSI) - No: 7216683913 (PT DMT Network Solutions)" : null)
+        settlementDestination: receipt?.settlementDestination || (isSoftPos ? "DOKU Payment Gateway Escrow (PT DMT Network Solutions)" : null)
       });
 
       // 3. Notifikasi resmi dan detail ke inbox nasabah (via proxy fallback-safe)
@@ -635,7 +635,7 @@ function CryptoBuyPageInner() {
           ? `Pembayaran EDC SoftPOS Berhasil (${cardBin?.bank?.shortName || 'Bank Partner'})` 
           : `Pembelian ${selectedAsset.symbol} Berhasil`,
         message: isSoftPos
-          ? `Pembelian ${cryptoAmount} ${selectedAsset.symbol} senilai Rp ${fiatAmountIdr.toLocaleString('id-ID')} via SoftPOS Contactless (${cardBin?.bank?.shortName || 'Bank'} ${cardBin?.cardType || 'Kartu'} ${cardBin?.maskedPan || ''}). Otorisasi: ${receipt?.approvalCode || 'APPROVED'}, RRN: ${receipt?.retrievalRefNumber || '-'}. Dana disalurkan ke Rekening Penampungan PT DMT Network Solutions di Bank Syariah Indonesia (BSI - 7216683913).`
+          ? `Pembelian ${cryptoAmount} ${selectedAsset.symbol} senilai Rp ${fiatAmountIdr.toLocaleString('id-ID')} via SoftPOS Contactless (${cardBin?.bank?.shortName || 'Bank'} ${cardBin?.cardType || 'Kartu'} ${cardBin?.maskedPan || ''}). Otorisasi: ${receipt?.approvalCode || 'APPROVED'}, RRN: ${receipt?.retrievalRefNumber || '-'}. Dana disalurkan ke Payment Gateway DOKU (PT DMT Network Solutions).`
           : `Pembelian ${cryptoAmount} ${selectedAsset.symbol} senilai Rp ${fiatAmountIdr.toLocaleString('id-ID')} melalui ${paymentDetails.gateway || selectedPayment?.name || "Payment"} berhasil diselesaikan.`,
         type: "success",
         category: "transaksi",
@@ -650,7 +650,7 @@ function CryptoBuyPageInner() {
         bankName: cardBin?.bank?.name || receipt?.bankName || undefined,
         cardType: cardBin?.cardType || receipt?.cardType || undefined,
         maskedPan: cardBin?.maskedPan || receipt?.maskedPan || undefined,
-        settlementDestination: receipt?.settlementDestination || (isSoftPos ? "Bank Syariah Indonesia (BSI) - No: 7216683913 (PT DMT Network Solutions)" : undefined),
+        settlementDestination: receipt?.settlementDestination || (isSoftPos ? "DOKU Payment Gateway Escrow (PT DMT Network Solutions)" : undefined),
       });
 
       if (!keepDialogOpen) {

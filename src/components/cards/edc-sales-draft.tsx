@@ -131,7 +131,7 @@ SETTLE TO: ${receipt.settlementDestination}
           </div>
           
           <div className="mt-2 pt-1 border-t border-slate-200 text-[8px] text-slate-500 leading-tight">
-            <span className="font-bold text-slate-700 block">SETTLEMENT REKENING PERUSAHAAN:</span>
+            <span className="font-bold text-slate-700 block">GATEWAY PENAMPUNGAN:</span>
             <span>{receipt.settlementDestination}</span>
           </div>
         </div>

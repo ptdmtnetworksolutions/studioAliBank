@@ -154,7 +154,7 @@ export function BankCardBadge({
           <ShieldCheck className="w-2.5 h-2.5 text-emerald-400" />
           PCI-CPOC SoftPOS Certified
         </span>
-        <span>Settle to: PT DMT Network Solutions (BSI)</span>
+        <span className="text-emerald-400/80">DOKU Payment Gateway</span>
       </div>
     </div>
   );
