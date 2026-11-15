@@ -1981,10 +1981,10 @@ function CryptoBuyPageInner() {
                             <ShieldCheck className="w-3 h-3 text-emerald-500" />
                             SOFTPOS TERMINAL: ALX-SOFTPOS-01
                           </span>
-                          <span className="text-[7.5px] block">Mitra Acquirer: PT Bank Nationalnobu Tbk / Asterlink Switch</span>
+                          <span className="text-[7.5px] block">Mitra Acquirer: DOKU PJP Kategori 1 • PT. DMT NETWORK SOLUTIONS</span>
                         </div>
                         <Badge variant="outline" className="text-[7.5px] font-black uppercase text-emerald-500 border-emerald-500/30">
-                          PCI MPoC
+                          PCI MPoC LIVE
                         </Badge>
                       </div>
 
@@ -2023,7 +2023,7 @@ function CryptoBuyPageInner() {
                           <div>
                             <h4 className="text-sm font-black italic uppercase text-foreground">Otorisasi EMV Contactless...</h4>
                             <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">
-                              Menghubungi Host Acquirer Bank Nobu / Asterlink Switch
+                              Menghubungi Host Acquirer DOKU / Gateway Kliring EMV
                             </p>
                           </div>
                         </div>
@@ -2114,134 +2114,6 @@ function CryptoBuyPageInner() {
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          </div>
-
-                          {/* Quick Bank Card Selectors */}
-                          <div className="space-y-1.5">
-                            <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest px-1">
-                              Simulasi Kartu Perbankan Indonesia:
-                            </span>
-                            <div className="grid grid-cols-3 gap-1.5">
-                              <button 
-                                onClick={() => {
-                                  setNfcCardHolder("NANA NATIJATUL ULFAH");
-                                  setNfcCardNumber("6019 0012 3456 7890");
-                                  setNfcCardExpiry("2029-12");
-                                  setNfcCardCvv("123");
-                                  playNfcBeep();
-                                  toast({ title: "BCA Terdeteksi", description: "BCA Debit GPN siap diotorisasi." });
-                                }}
-                                className="p-2 rounded-xl border border-border bg-card text-left hover:border-[#003B70] transition-all"
-                              >
-                                <p className="text-[8.5px] font-black text-[#003B70] dark:text-blue-400">BCA GPN</p>
-                                <p className="text-[7px] font-bold text-muted-foreground mt-0.5">Debit • *7890</p>
-                              </button>
-
-                              <button 
-                                onClick={() => {
-                                  setNfcCardHolder("AHMAD FAUZI");
-                                  setNfcCardNumber("4137 1823 4567 8901");
-                                  setNfcCardExpiry("2028-10");
-                                  setNfcCardCvv("456");
-                                  playNfcBeep();
-                                  toast({ title: "Mandiri Terdeteksi", description: "Mandiri Debit Visa siap diotorisasi." });
-                                }}
-                                className="p-2 rounded-xl border border-border bg-card text-left hover:border-[#003D79] transition-all"
-                              >
-                                <p className="text-[8.5px] font-black text-[#003D79] dark:text-amber-400">MANDIRI</p>
-                                <p className="text-[7px] font-bold text-muted-foreground mt-0.5">Debit Visa • *8901</p>
-                              </button>
-
-                              <button 
-                                onClick={() => {
-                                  setNfcCardHolder("PEMEGANG E-MONEY");
-                                  setNfcCardNumber("6032 9812 3456 7890");
-                                  setNfcCardExpiry("2030-12");
-                                  setNfcCardCvv("000");
-                                  playNfcBeep();
-                                  toast({ title: "Mandiri e-Money Terdeteksi", description: "Kartu Prabayar Offline Mandiri terdeteksi." });
-                                }}
-                                className="p-2 rounded-xl border border-border bg-card text-left hover:border-[#F5A623] transition-all"
-                              >
-                                <p className="text-[8.5px] font-black text-[#F5A623]">E-MONEY</p>
-                                <p className="text-[7px] font-bold text-muted-foreground mt-0.5">Prabayar • *7890</p>
-                              </button>
-
-                              <button 
-                                onClick={() => {
-                                  setNfcCardHolder("BUDI SANTOSO");
-                                  setNfcCardNumber("5221 8434 5678 9012");
-                                  setNfcCardExpiry("2030-05");
-                                  setNfcCardCvv("789");
-                                  playNfcBeep();
-                                  toast({ title: "BRI Terdeteksi", description: "BRI Debit Mastercard siap diotorisasi." });
-                                }}
-                                className="p-2 rounded-xl border border-border bg-card text-left hover:border-[#00529C] transition-all"
-                              >
-                                <p className="text-[8.5px] font-black text-[#00529C] dark:text-cyan-400">BRI DEBIT</p>
-                                <p className="text-[7px] font-bold text-muted-foreground mt-0.5">Mastercard • *9012</p>
-                              </button>
-
-                              <button 
-                                onClick={() => {
-                                  setNfcCardHolder("RUDI HERMAWAN");
-                                  setNfcCardNumber("4056 5145 6789 0123");
-                                  setNfcCardExpiry("2027-11");
-                                  setNfcCardCvv("321");
-                                  playNfcBeep();
-                                  toast({ title: "BNI Terdeteksi", description: "BNI Kartu Kredit Visa siap diotorisasi." });
-                                }}
-                                className="p-2 rounded-xl border border-border bg-card text-left hover:border-[#005E6A] transition-all"
-                              >
-                                <p className="text-[8.5px] font-black text-[#005E6A] dark:text-orange-400">BNI VISA</p>
-                                <p className="text-[7px] font-bold text-muted-foreground mt-0.5">Kredit • *0123</p>
-                              </button>
-
-                              <button 
-                                onClick={() => {
-                                  setNfcCardHolder("ALIBANK MERCHANT");
-                                  setNfcCardNumber("5893 8856 7890 1234");
-                                  setNfcCardExpiry("2030-12");
-                                  setNfcCardCvv("111");
-                                  playNfcBeep();
-                                  toast({ title: "Nobu SoftPOS Terdeteksi", description: "Nobu Bank Contactless siap diotorisasi." });
-                                }}
-                                className="p-2 rounded-xl border border-border bg-card text-left hover:border-[#C41230] transition-all"
-                              >
-                                <p className="text-[8.5px] font-black text-[#C41230] dark:text-red-400">NOBU SOFTPOS</p>
-                                <p className="text-[7px] font-bold text-muted-foreground mt-0.5">Mitra Acquirer</p>
-                              </button>
-
-                              <button 
-                                onClick={() => {
-                                  setNfcCardHolder("SITI AISYAH");
-                                  setNfcCardNumber("4043 0567 8901 2345");
-                                  setNfcCardExpiry("2029-08");
-                                  setNfcCardCvv("555");
-                                  playNfcBeep();
-                                  toast({ title: "BSI Terdeteksi", description: "BSI Debit Visa Contactless siap diotorisasi." });
-                                }}
-                                className="p-2 rounded-xl border border-border bg-card text-left hover:border-[#00A39D] transition-all"
-                              >
-                                <p className="text-[8.5px] font-black text-[#00A39D] dark:text-teal-400">BSI DEBIT VISA</p>
-                                <p className="text-[7px] font-bold text-muted-foreground mt-0.5">Debit Contactless</p>
-                              </button>
-
-                              <button 
-                                onClick={() => {
-                                  setNfcCardHolder("AHMAD FAUZI");
-                                  setNfcCardNumber("5184 4612 3456 7890");
-                                  setNfcCardExpiry("2028-12");
-                                  setNfcCardCvv("888");
-                                  playNfcBeep();
-                                  toast({ title: "BSI Terdeteksi", description: "BSI Hasanah Card Platinum siap diotorisasi." });
-                                }}
-                                className="p-2 rounded-xl border border-border bg-card text-left hover:border-[#EB8C00] transition-all"
-                              >
-                                <p className="text-[8.5px] font-black text-[#EB8C00] dark:text-amber-400">BSI HASANAH</p>
-                                <p className="text-[7px] font-bold text-muted-foreground mt-0.5">Kredit Platinum</p>
-                              </button>
                             </div>
                           </div>
 

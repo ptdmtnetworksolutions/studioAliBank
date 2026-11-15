@@ -27,11 +27,11 @@ export interface SoftPosTerminalProfile {
 
 // Profil Terminal Resmi PT AliBank Digital Indonesia
 export const DEFAULT_SOFTPOS_PROFILE: SoftPosTerminalProfile = {
-  merchantId: "NOBU-ALIBANK-8829013",
+  merchantId: "DMT-ALIBANK-8829013",
   terminalId: "ALX-SOFTPOS-01",
   merchantName: "PT DMT NETWORK SOLUTIONS (ALIBANK)",
   merchantCategoryCode: "6051",
-  acquirerName: "DOKU PJP KATEGORI 1 / PT BANK NATIONALNOBU TBK (ASTERLINK GPN SWITCH)",
+  acquirerName: "DOKU PJP KATEGORI 1 • PT. DMT NETWORK SOLUTIONS",
   acquirerBankCode: "451",
   settlementAccount: {
     accountNumber: "7216683913",
