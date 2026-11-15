@@ -15,9 +15,9 @@ export async function createIpaymuPaymentAction(
   cryptoCurrency: string,
   usdValue: string
 ) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL
-    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')
-    || 'http://localhost:9005';
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? 'https://alibank.tarroz.com'
+    : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9005');
 
   try {
     const response = await fetch(`${baseUrl}/api/payments/ipaymu-token`, {

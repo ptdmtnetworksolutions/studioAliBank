@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       ? 'https://my.ipaymu.com/api/v2/payment'
       : 'https://sandbox.ipaymu.com/api/v2/payment';
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://alix.tarroz.com';
+    const appUrl = 'https://alibank.tarroz.com';
     
     // Create iPaymu request body
     const ipaymuBody = {

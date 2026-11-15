@@ -20,9 +20,9 @@ export async function createMidtransSnapTokenAction(
   // Determine the base URL for the internal API call
   // In production (Firebase App Hosting), NEXTAUTH_URL or NEXT_PUBLIC_APP_URL can be set.
   // For internal server-to-server calls, use localhost in dev and the internal host in prod.
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL
-    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')
-    || (process.env.NODE_ENV === 'production' ? 'https://alibank.tarroz.com' : 'http://localhost:3000');
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? 'https://alibank.tarroz.com'
+    : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
 
   try {
     const response = await fetch(`${baseUrl}/api/payments/midtrans-token`, {

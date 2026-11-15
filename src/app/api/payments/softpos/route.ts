@@ -267,7 +267,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Panggil API resmi DOKU untuk pembuatan sesi checkout / otorisasi kartu
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://alibank.tarroz.com';
+    const appUrl = 'https://alibank.tarroz.com';
     const callbackUrl = `${appUrl}/crypto/buy?status=success&orderId=${encodeURIComponent(orderId)}`;
 
     const checkoutResult = await createDokuCheckout(

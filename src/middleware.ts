@@ -84,7 +84,17 @@ function checkIpRateLimit(
 }
 
 export async function middleware(req: NextRequest) {
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
   const { pathname, search, searchParams } = req.nextUrl;
+
+  // 0. Enforce Canonical Domain: Alihkan alibank-alix.vercel.app ke alibank.tarroz.com
+  if (
+    host.includes("vercel.app") &&
+    !host.includes("localhost")
+  ) {
+    const canonicalUrl = new URL(pathname + search, "https://alibank.tarroz.com");
+    return NextResponse.redirect(canonicalUrl, 301);
+  }
 
   // 1. Block non-existent SAML/SSO & legacy CMS / sensitive file probes cleanly
   if (SAML_SSO_PATH_REGEX.test(pathname) || LEGACY_PROBE_PATH_REGEX.test(pathname)) {

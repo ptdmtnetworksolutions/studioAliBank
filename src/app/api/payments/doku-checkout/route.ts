@@ -122,11 +122,11 @@ export async function POST(request: NextRequest) {
       console.warn('[DOKU Checkout] Warning recording pending doc:', dbErr);
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://alibank.tarroz.com';
+    const appUrl = 'https://alibank.tarroz.com';
     let safeCallbackUrl = `${appUrl}/crypto/buy?status=success&orderId=${encodeURIComponent(orderId)}`;
     if (invoiceId) {
       safeCallbackUrl = `${appUrl}/checkout/${encodeURIComponent(String(invoiceId))}?status=success&orderId=${encodeURIComponent(orderId)}`;
-    } else if (typeof callbackUrl === 'string' && callbackUrl.startsWith(appUrl)) {
+    } else if (typeof callbackUrl === 'string' && (callbackUrl.startsWith(appUrl) || callbackUrl.startsWith('https://alibank.tarroz.com'))) {
       safeCallbackUrl = callbackUrl;
     }
 
