@@ -3706,6 +3706,34 @@
         "note": "Transfer ALX ke UID 885591370087"
       },
       "updatedAt": 1794135600000
+    },
+    "system/payment_config": {
+      "data": {
+        "methods": {
+          "doku": true,
+          "doku_va": true,
+          "doku_qris": true,
+          "doku_retail": true,
+          "nfc": true,
+          "midtrans": true,
+          "ipaymu": true,
+          "card": true,
+          "bank": true
+        },
+        "updatedBy": "dzulfikaraliridlo@gmail.com"
+      },
+      "updatedAt": 1794135600000
+    },
+    "system/public_keys": {
+      "data": {
+        "dokuClientId": "BRN-0209-1775738330323",
+        "dokuMerchantName": "PT. DMT NETWORK SOLUTIONS",
+        "dokuWebhookUrl": "https://alibank.tarroz.com/api/payments/doku-webhook",
+        "dokuIsProduction": true,
+        "softposMerchantId": "NOBU-ALIBANK-8829013",
+        "softposTerminalId": "ALX-SOFTPOS-01"
+      },
+      "updatedAt": 1794135600000
     }
   }
 }

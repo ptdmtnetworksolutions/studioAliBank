@@ -95,9 +95,42 @@ export default function CheckoutPage() {
   const [gatewayError, setGatewayError] = useState<string | null>(null);
   
   const [foundCustomer, setFoundCustomer] = useState<any>(null);
+  const [isDokuProcessing, setIsDokuProcessing] = useState(false);
   const paypalContainerRef = useRef<HTMLDivElement>(null);
   const renderInProgress = useRef(false);
   const retryCount = useRef(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status');
+    const orderId = params.get('orderId');
+
+    if (status === 'success' && orderId) {
+      fetch(`/api/payments/doku-checkout?orderId=${encodeURIComponent(orderId)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.settled || data?.transactionStatus === 'SUCCESS') {
+            setPaymentStep('success');
+            toast({
+              title: "Pembayaran DOKU Terverifikasi",
+              description: "Settlement invoice telah berhasil diproses melalui DOKU Production Gateway."
+            });
+          } else {
+            toast({
+              title: "Menunggu Settlement DOKU",
+              description: `Status order ${orderId}: ${data?.transactionStatus || 'PENDING'}.`
+            });
+          }
+        })
+        .catch(() => {
+          toast({
+            title: "Sinkronisasi DOKU",
+            description: "Memeriksa status pembayaran dengan gateway..."
+          });
+        });
+    }
+  }, [toast]);
 
   const apiKeysRef = useMemoFirebase(() => (db ? doc(db, "system", "public_keys") : null), [db]);
   const { data: systemKeys } = useDoc(apiKeysRef);
@@ -333,6 +366,39 @@ export default function CheckoutPage() {
     };
   }, [invoice]);
 
+  const handleDokuCheckout = async () => {
+    if (!invoice || isDokuProcessing) return;
+    setIsDokuProcessing(true);
+    try {
+      const orderId = `DOKU-INV-${invoice.invoiceId || Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+      const res = await fetch('/api/payments/doku-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          amount: Number(invoice.amountIdr),
+          customerName: userData?.name || user?.email?.split('@')[0] || 'Nasabah AliBank',
+          customerEmail: user?.email || 'customer@alibank.id',
+          userId: user?.uid || '',
+          invoiceId: invoice.invoiceId || String(invoiceId),
+          invoicePath: invoice.path || '',
+          isMarketplaceItem: Boolean(invoice.isMarketplaceItem),
+          usdValue: String(invoice.amountUsd || '0'),
+          paymentChannel: 'doku'
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.paymentUrl) {
+        throw new Error(data.error || 'Gagal membuat sesi pembayaran DOKU.');
+      }
+      toast({ title: "Mengarahkan ke DOKU", description: "Membuka halaman pembayaran resmi DOKU Checkout..." });
+      window.location.href = data.paymentUrl;
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "DOKU Checkout Error", description: err.message });
+      setIsDokuProcessing(false);
+    }
+  };
+
   const startNfcScanning = async () => {
     // 1. Dukungan Native Android POS Hardware Bridge
     if (typeof window !== 'undefined' && (window as any).AndroidBridge) {
@@ -454,6 +520,23 @@ export default function CheckoutPage() {
             <CardContent className="p-8 space-y-6">
               {paymentStep === 'selection' ? (
                 <div className="space-y-4">
+                  <button
+                    onClick={handleDokuCheckout}
+                    disabled={isDokuProcessing}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white p-6 rounded-[1.5rem] border border-emerald-400/30 hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-xl disabled:opacity-70"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-2xl bg-white/20 text-white">
+                        {isDokuProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : <ShieldCheck className="w-6 h-6" />}
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-white italic">DOKU Checkout (VA 14 Bank, e-Wallet & Retail)</p>
+                        <p className="text-[9px] font-medium text-white/80 uppercase italic">PJP Kategori 1 • BRI, BNI, BSI, Alfamart, Indomaret</p>
+                      </div>
+                    </div>
+                    <Badge className="bg-white text-emerald-700 text-[7px] font-black border-none px-2 py-0.5">PRODUCTION</Badge>
+                  </button>
+
                   <button onClick={() => setPaymentStep('pos_terminal')} className="w-full gold-gradient p-6 rounded-[1.5rem] border-none hover:scale-[1.02] transition-all text-left flex items-center justify-between group shadow-xl">
                     <div className="flex items-center gap-4">
                       <div className="p-3 rounded-2xl bg-white/20 text-white"><Nfc className="w-6 h-6" /></div>

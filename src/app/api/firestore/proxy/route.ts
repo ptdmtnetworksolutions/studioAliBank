@@ -24,7 +24,7 @@ const PROJECT_ID = firebaseConfig.projectId;
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 const PUBLIC_COLLECTION_IDS = new Set(['marketplace', 'alix_trades', 'global_spin_history']);
-const PUBLIC_SYSTEM_DOCS = new Set(['system/liquidity', 'system/config', 'system/AUM', 'system/public_keys']);
+const PUBLIC_SYSTEM_DOCS = new Set(['system/liquidity', 'system/config', 'system/AUM', 'system/public_keys', 'system/payment_config']);
 const ALLOWED_USER_LOOKUP_FIELDS = new Set([
   'accountNumber',
   'walletAddress',

@@ -10,7 +10,9 @@ import {
   CreditCard, 
   Check,
   Search,
-  Sparkles
+  Sparkles,
+  ShieldCheck,
+  Wifi
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, Suspense } from "react";
@@ -25,9 +27,9 @@ function DepositMethodsContent() {
   // Ambil state awal dari URL jika ada (misal dari dashboard bursa)
   const initialType = searchParams.get('type') === 'tarik' ? 'tarik' : 'setor';
   
-  const [activeMethod, setActiveMethod] = useState<string>('swift');
+  const [activeMethod, setActiveMethod] = useState<string>('doku');
   const [transactionType, setTransactionType] = useState<'setor' | 'tarik'>(initialType);
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState('IDR');
 
   useEffect(() => {
     setMounted(true);
@@ -106,8 +108,70 @@ function DepositMethodsContent() {
         {/* Dynamic Section based on type */}
         <div className="space-y-4">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-            {transactionType === 'setor' ? 'Direkomendasikan' : 'Metode Penerimaan'}
+            {transactionType === 'setor' ? 'Direkomendasikan (DOKU Full Aktif)' : 'Metode Penerimaan'}
           </p>
+
+          {transactionType === 'setor' && (
+            <>
+              <div 
+                onClick={() => setActiveMethod('doku')}
+                className={cn(
+                  "p-6 rounded-[1.5rem] border-2 transition-all cursor-pointer relative overflow-hidden",
+                  activeMethod === 'doku' ? "border-black bg-emerald-50/40" : "border-slate-100 bg-white"
+                )}
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-black italic uppercase">DOKU Checkout (VA 14 Bank, e-Wallet & Retail)</h3>
+                    <p className="text-[10px] font-bold text-slate-500">Didukung oleh DOKU PJP Kategori 1 • PT. DMT Network Solutions</p>
+                    <div className="flex gap-2 pt-2 flex-wrap">
+                      <span className="bg-emerald-500/10 text-emerald-700 text-[9px] font-black px-2.5 py-1 rounded-md">Instan Real-Time</span>
+                      <span className="bg-slate-100 text-slate-900 text-[9px] font-black px-2.5 py-1 rounded-md">BRI, BNI, BSI, Alfamart, Indomaret</span>
+                    </div>
+                  </div>
+                </div>
+                {activeMethod === 'doku' && (
+                  <div className="absolute top-4 right-4">
+                    <div className="w-5 h-5 rounded-full bg-black flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div 
+                onClick={() => setActiveMethod('nfc')}
+                className={cn(
+                  "p-6 rounded-[1.5rem] border-2 transition-all cursor-pointer relative overflow-hidden",
+                  activeMethod === 'nfc' ? "border-black bg-white" : "border-slate-100 bg-white"
+                )}
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0">
+                    <Wifi className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-black italic uppercase">Terminal EDC SoftPOS (NFC Tap-on-Phone)</h3>
+                    <p className="text-[10px] font-bold text-slate-500">Didukung oleh DOKU + Nobu / Asterlink GPN Switch</p>
+                    <div className="flex gap-2 pt-2">
+                      <span className="bg-slate-100 text-slate-900 text-[9px] font-black px-2.5 py-1 rounded-md">Tap Kartu Debit/Kredit</span>
+                      <span className="bg-slate-100 text-slate-900 text-[9px] font-black px-2.5 py-1 rounded-md">Settlement Instan</span>
+                    </div>
+                  </div>
+                </div>
+                {activeMethod === 'nfc' && (
+                  <div className="absolute top-4 right-4">
+                    <div className="w-5 h-5 rounded-full bg-black flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
           
           <div 
             onClick={() => setActiveMethod('swift')}
@@ -121,22 +185,19 @@ function DepositMethodsContent() {
                 <Building2 className="w-6 h-6 text-slate-900" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-sm font-black italic uppercase">Transfer Bank (SWIFT)</h3>
-                <p className="text-[10px] font-bold text-slate-400">Didukung oleh BPay</p>
+                <h3 className="text-sm font-black italic uppercase">Transfer Bank (Manual / SWIFT)</h3>
+                <p className="text-[10px] font-bold text-slate-400">Kliring Rekening Kustodian AliBank</p>
                 <div className="flex gap-2 pt-2">
                   <span className="bg-slate-50 text-[9px] font-black px-2.5 py-1 rounded-md">
-                    {transactionType === 'setor' ? '0-5 hari kerja' : '0-3 hari kerja'}
+                    {transactionType === 'setor' ? 'Verifikasi Kode Unik' : '0-3 hari kerja'}
                   </span>
-                  <span className={cn(
-                    "text-[9px] font-black px-2.5 py-1 rounded-md",
-                    transactionType === 'setor' ? "bg-slate-50 text-slate-900" : "bg-slate-50 text-slate-900"
-                  )}>
+                  <span className="bg-slate-50 text-slate-900 text-[9px] font-black px-2.5 py-1 rounded-md">
                     {transactionType === 'setor' ? 'Biaya 0' : 'Biaya 25 USD'}
                   </span>
                 </div>
               </div>
             </div>
-            {activeMethod === 'swift' && transactionType === 'setor' && (
+            {activeMethod === 'swift' && (
               <div className="absolute top-4 right-4">
                 <div className="w-5 h-5 rounded-full bg-black flex items-center justify-center">
                   <Check className="w-3 h-3 text-white" />
@@ -226,7 +287,24 @@ function DepositMethodsContent() {
 
       {/* Footer Action */}
       <div className="p-6 bg-white sticky bottom-0 border-t border-slate-50">
-        <Button className="w-full h-14 bg-[#FCD535] hover:bg-[#FCD535]/90 text-slate-900 font-black italic uppercase rounded-2xl border-none shadow-none text-base tracking-widest transition-all">
+        <Button
+          onClick={() => {
+            if (transactionType === 'tarik') {
+              router.push('/crypto/buy?tab=jual');
+              return;
+            }
+            const methodMap: Record<string, string> = {
+              doku: 'doku',
+              nfc: 'nfc',
+              card: 'card',
+              gpay: 'doku_qris',
+              swift: 'bank',
+            };
+            const mapped = methodMap[activeMethod] || 'doku';
+            router.push(`/crypto/buy?tab=beli&method=${encodeURIComponent(mapped)}`);
+          }}
+          className="w-full h-14 bg-[#FCD535] hover:bg-[#FCD535]/90 text-slate-900 font-black italic uppercase rounded-2xl border-none shadow-none text-base tracking-widest transition-all"
+        >
           Lanjutkan
         </Button>
       </div>

@@ -288,7 +288,8 @@ function AdminMobileContent() {
 
   useEffect(() => {
     if (userLoading) return;
-    if (!user || (user.email !== OWNER_EMAIL && user.email !== 'aldzulfikar075@gmail.com' && user.uid !== OWNER_UID)) {
+    const emailLower = String(user?.email || '').trim().toLowerCase();
+    if (!user || (emailLower !== OWNER_EMAIL && emailLower !== 'aldzulfikar075@gmail.com' && emailLower !== 'dzulfikaraliridlo@gmail.com' && user.uid !== OWNER_UID)) {
       router.replace('/login');
       return;
     }

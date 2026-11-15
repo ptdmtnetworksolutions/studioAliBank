@@ -21,6 +21,8 @@ export interface SoftPosTerminalProfile {
   };
   pciComplianceLevel: string;
   kernelVersion: string;
+  dokuClientId?: string;
+  dokuAcquirerCode?: string;
 }
 
 // Profil Terminal Resmi PT AliBank Digital Indonesia
@@ -29,7 +31,7 @@ export const DEFAULT_SOFTPOS_PROFILE: SoftPosTerminalProfile = {
   terminalId: "ALX-SOFTPOS-01",
   merchantName: "PT DMT NETWORK SOLUTIONS (ALIBANK)",
   merchantCategoryCode: "6051",
-  acquirerName: "PT BANK NATIONALNOBU TBK / ASTERLINK GPN SWITCH",
+  acquirerName: "DOKU PJP KATEGORI 1 / PT BANK NATIONALNOBU TBK (ASTERLINK GPN SWITCH)",
   acquirerBankCode: "451",
   settlementAccount: {
     accountNumber: "7216683913",
@@ -37,7 +39,9 @@ export const DEFAULT_SOFTPOS_PROFILE: SoftPosTerminalProfile = {
     bankName: "Bank Syariah Indonesia (BSI)"
   },
   pciComplianceLevel: "PCI MPoC / EMVCo Contactless L2 Approved",
-  kernelVersion: "AliBank-SoftPOS-Kernel v2.4"
+  kernelVersion: "AliBank-SoftPOS-Kernel v2.4",
+  dokuClientId: "BRN-0209-1775738330323",
+  dokuAcquirerCode: "DOKU-PJP1-SOFTPOS"
 };
 
 export interface SoftPosTransactionRequest {

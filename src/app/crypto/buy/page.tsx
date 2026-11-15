@@ -38,7 +38,8 @@ import {
   Settings,
   ArrowRightLeft,
   Eye,
-  EyeOff
+  EyeOff,
+  Store
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -168,12 +169,35 @@ declare global {
   }
 }
 
+const DOKU_CHANNEL_MAP: Record<string, string[]> = {
+  doku_va: [
+    'VIRTUAL_ACCOUNT_BRI',
+    'VIRTUAL_ACCOUNT_BNI',
+    'VIRTUAL_ACCOUNT_BANK_SYARIAH_MANDIRI',
+    'VIRTUAL_ACCOUNT_BANK_PERMATA',
+    'VIRTUAL_ACCOUNT_BANK_CIMB',
+    'VIRTUAL_ACCOUNT_BANK_DANAMON',
+    'VIRTUAL_ACCOUNT_DOKU',
+    'VIRTUAL_ACCOUNT_MAYBANK',
+    'VIRTUAL_ACCOUNT_BSS',
+    'VIRTUAL_ACCOUNT_SINARMAS',
+    'VIRTUAL_ACCOUNT_BNC',
+    'VIRTUAL_ACCOUNT_BANK_BJB',
+    'VIRTUAL_ACCOUNT_BTN',
+  ],
+  doku_qris: ['EMONEY_DOKU', 'PEER_TO_PEER_AKULAKU'],
+  doku_retail: ['ONLINE_TO_OFFLINE_ALFA', 'ONLINE_TO_OFFLINE_INDOMARET'],
+};
+
 const PAYMENT_METHODS = [
-  { id: 'doku', name: "DOKU Checkout (BSI, BCA, QRIS, Kartu)", icon: ShieldCheck, desc: "Virtual Account BSI, BCA, Mandiri, BRI, QRIS, Direct Debit, Kartu Kredit/Debit" },
-  { id: 'midtrans', name: "Instan Kliring (Virtual Account/QRIS)", icon: Zap, desc: "BCA, Mandiri, BRI, BNI, QRIS" },
-  { id: 'ipaymu', name: "Instan Kliring iPaymu", icon: Landmark, desc: "Virtual Account, QRIS, Retail Store" },
+  { id: 'doku', name: "DOKU Checkout Terpadu (Full Aktif)", icon: ShieldCheck, desc: "VA 14 Bank, DOKU e-Wallet, Alfamart, Indomaret & Akulaku (PT. DMT Network Solutions)" },
+  { id: 'doku_va', name: "DOKU Virtual Account (14 Bank)", icon: Building2, desc: "BRI, BNI, BSI, Permata, CIMB Niaga, Danamon, Maybank, BNC, Sinarmas, BTN, BJB" },
+  { id: 'doku_qris', name: "DOKU e-Wallet & Cicilan Instan", icon: QrCode, desc: "DOKU e-Money Instan & Akulaku PayLater" },
+  { id: 'doku_retail', name: "DOKU Gerai Retail (Alfamart / Indomaret)", icon: Store, desc: "Setor Tunai di Kasir Alfamart Group & Indomaret Seluruh Indonesia" },
+  { id: 'nfc', name: "TAP KARTU EDC (NFC SoftPOS)", icon: Wifi, desc: "Tap Kartu Debit/Kredit Contactless (Nobu/Asterlink GPN + DOKU PJP Acquirer) langsung di EDC Android" },
+  { id: 'midtrans', name: "Instan Kliring VA / QRIS (Auto DOKU Fallback)", icon: Zap, desc: "BCA, Mandiri, BRI, BNI, QRIS (Otomatis ke DOKU jika Snap nonaktif)" },
+  { id: 'ipaymu', name: "Instan Kliring iPaymu (Auto DOKU Fallback)", icon: Landmark, desc: "Virtual Account, QRIS, Retail Store" },
   { id: 'card', name: "Kartu Kredit/Debit Global", icon: CreditCard, desc: "Visa, Mastercard via PayPal" },
-  { id: 'nfc', name: "TAP KARTU EDC (NFC SoftPOS)", icon: Wifi, desc: "Tap Kartu Debit/Kredit Contactless (BCA, Mandiri, BRI, Visa, Mastercard) langsung di mesin EDC Android" },
   { id: 'bank', name: "Transfer Bank Manual", icon: Building2, desc: "Verifikasi Manual (Kode Unik)" },
 ];
 
@@ -704,20 +728,13 @@ function CryptoBuyPageInner() {
       return;
     }
 
-    // Check if Snap SDK is loaded
-    if (typeof window === 'undefined' || !window.snap) {
-      toast({ 
-        variant: "destructive", 
-        title: "Gateway Belum Siap", 
-        description: "SDK Midtrans Snap sedang dimuat. Tunggu beberapa detik lalu coba lagi." 
+    const activeClientKey = systemKeys?.midtransClientKey;
+    if (!activeClientKey || typeof window === 'undefined' || !window.snap) {
+      toast({
+        title: "Mengalihkan ke DOKU PJP",
+        description: "Node Snap belum aktif. Menggunakan Virtual Account / QRIS DOKU Production..."
       });
-      return;
-    }
-
-    const activeClientKey = systemKeys?.midtransClientKey || "Mid-client-wVGuw8PG4EoyNsuG";
-    if (!activeClientKey) {
-      toast({ variant: "destructive", title: "Konfigurasi Error", description: "Gateway Midtrans belum aktif di Vault. Hubungi admin." });
-      return;
+      return handleDokuPayment('doku_va');
     }
     
     setIsProcessing(true);
@@ -749,21 +766,26 @@ function CryptoBuyPageInner() {
       }
 
       if (!snapToken) {
-        const res = await createMidtransSnapTokenAction(
-          orderId,
-          totalAmountIdr,
-          userData?.name || user.email || "User",
-          user.email || "",
-          user.uid,
-          parseFloat(estimatedCrypto),
-          selectedAsset.symbol,
-          usdValue
-        );
-        snapToken = res.token;
+        try {
+          const res = await createMidtransSnapTokenAction(
+            orderId,
+            totalAmountIdr,
+            userData?.name || user.email || "User",
+            user.email || "",
+            user.uid,
+            parseFloat(estimatedCrypto),
+            selectedAsset.symbol,
+            usdValue
+          );
+          snapToken = res.token;
+        } catch {
+          snapToken = "";
+        }
       }
 
       if (!snapToken) {
-        throw new Error('Token pembayaran tidak diterima dari Midtrans.');
+        setIsProcessing(false);
+        return handleDokuPayment('doku_va');
       }
 
       window.snap.pay(snapToken, {
@@ -771,13 +793,13 @@ function CryptoBuyPageInner() {
           setIsProcessing(false);
           finalizeTransaction({ id: result.transaction_id, gateway: "Midtrans Snap" });
         },
-        onPending: (result: any) => {
+        onPending: (_result: any) => {
           setIsProcessing(false);
           setIsCheckoutDialogOpen(false);
           setStep('pending_verification');
           toast({ title: "Pembayaran Tertunda", description: "Selesaikan pembayaran sesuai instruksi Midtrans." });
         },
-        onError: (result: any) => {
+        onError: (_result: any) => {
           setIsProcessing(false);
           toast({ variant: "destructive", title: "Pembayaran Gagal", description: "Terjadi kesalahan di gateway Midtrans." });
         },
@@ -799,11 +821,10 @@ function CryptoBuyPageInner() {
 
     if (!systemKeys?.ipaymuVa) {
       toast({ 
-        variant: "destructive", 
-        title: "Konfigurasi Error", 
-        description: "iPaymu belum dikonfigurasi di panel admin." 
+        title: "Mengalihkan ke DOKU PJP", 
+        description: "Node iPaymu belum aktif. Melanjutkan pembayaran via DOKU Checkout..." 
       });
-      return;
+      return handleDokuPayment('doku');
     }
 
     setIsProcessing(true);
@@ -832,7 +853,7 @@ function CryptoBuyPageInner() {
     }
   };
 
-  const handleDokuPayment = async () => {
+  const handleDokuPayment = async (channelId: string = selectedPayment?.id || 'doku') => {
     if (!user || !db) {
       toast({ variant: "destructive", title: "Sesi Tidak Valid", description: "Silakan login ulang." });
       return;
@@ -841,6 +862,7 @@ function CryptoBuyPageInner() {
     setIsProcessing(true);
     try {
       const orderId = `DOKU-ALX-${Date.now()}`;
+      const paymentMethodTypes = DOKU_CHANNEL_MAP[channelId];
       const res = await fetch('/api/payments/doku-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -852,7 +874,9 @@ function CryptoBuyPageInner() {
           userId: user.uid,
           cryptoAmount: parseFloat(estimatedCrypto),
           cryptoCurrency: selectedAsset.symbol,
-          usdValue: usdValue
+          usdValue: usdValue,
+          paymentChannel: channelId,
+          paymentMethodTypes
         })
       });
 
@@ -1112,31 +1136,73 @@ function CryptoBuyPageInner() {
   }, [isCheckoutDialogOpen, selectedPayment?.id]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const status = params.get('status');
-      const method = params.get('method');
-      
-      if (method === 'nfc') {
-        const nfcPayment = PAYMENT_METHODS.find(p => p.id === 'nfc');
-        if (nfcPayment) setSelectedPayment(nfcPayment);
-      }
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status');
+    const method = params.get('method');
+    const tabParam = params.get('tab');
+    const orderId = params.get('orderId');
 
-      if (status === 'success') {
-        toast({ 
-          title: "Pembayaran iPaymu Sukses", 
-          description: "Pesanan Anda sedang diproses. Koin ALX akan segera ditambahkan." 
-        });
-        setStep('success');
-        router.replace('/crypto/buy');
-      } else if (status === 'cancel') {
-        toast({ 
-          variant: "destructive",
-          title: "Pembayaran Dibatalkan", 
-          description: "Anda membatalkan pembayaran iPaymu." 
-        });
-        router.replace('/crypto/buy');
+    if (tabParam === 'beli' || tabParam === 'jual' || tabParam === 'convert') {
+      setActiveTab(tabParam);
+    }
+
+    if (method) {
+      const matched = PAYMENT_METHODS.find((p) => p.id === method);
+      if (matched) {
+        setSelectedPayment(matched);
+        setActiveTab('beli');
       }
+    }
+
+    if (status === 'success' && orderId) {
+      toast({
+        title: "Memverifikasi Pembayaran DOKU",
+        description: `Mengecek status settlement order ${orderId}...`
+      });
+      fetch(`/api/payments/doku-checkout?orderId=${encodeURIComponent(orderId)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.settled || data?.transactionStatus === 'SUCCESS') {
+            toast({
+              title: "Pembayaran DOKU Berhasil",
+              description: data.cryptoAmount
+                ? `Settlement sukses! +${data.cryptoAmount} ${data.cryptoCurrency || 'ALX'} ditambahkan ke dompet Anda.`
+                : "Pembayaran DOKU telah terverifikasi dan aset Anda sedang dikreditkan."
+            });
+            setStep('success');
+          } else {
+            toast({
+              title: "Menunggu Konfirmasi DOKU",
+              description: `Status transaksi saat ini: ${data?.transactionStatus || 'PENDING'}. Saldo akan otomatis masuk setelah pembayaran lunas.`
+            });
+            setStep('pending_verification');
+          }
+        })
+        .catch(() => {
+          toast({
+            title: "Pembayaran Diterima",
+            description: "Pesanan DOKU sedang disinkronkan oleh node kliring."
+          });
+          setStep('pending_verification');
+        })
+        .finally(() => {
+          router.replace('/crypto/buy');
+        });
+    } else if (status === 'success') {
+      toast({
+        title: "Pembayaran Sukses",
+        description: "Pesanan Anda sedang diproses. Aset kripto akan segera ditambahkan."
+      });
+      setStep('success');
+      router.replace('/crypto/buy');
+    } else if (status === 'cancel') {
+      toast({
+        variant: "destructive",
+        title: "Pembayaran Dibatalkan",
+        description: "Anda membatalkan proses pembayaran."
+      });
+      router.replace('/crypto/buy');
     }
   }, [toast, router]);
   // Reset bank transfer state when dialog opens
@@ -1357,60 +1423,6 @@ function CryptoBuyPageInner() {
                 ))}
               </div>
 
-              {activeTab === 'beli' ? (
-                <Card className="rounded-[2rem] bg-card border border-primary/20 p-6 shadow-xl space-y-5 my-2">
-                  <div className="flex items-center justify-between">
-                    <Badge className="bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[8px] font-black uppercase px-2.5 py-1 italic tracking-wider">
-                      KALIBRASI NODE KLIRING PJP • BI-SNAP V3
-                    </Badge>
-                    <ShieldCheck className="w-5 h-5 text-primary shrink-0" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-black italic uppercase tracking-tight text-foreground leading-snug">
-                      Optimalisasi Jaringan Kliring & Likuiditas Pembayaran
-                    </h3>
-                    <p className="text-[11px] font-semibold text-muted-foreground leading-relaxed">
-                      Fasilitas akuisisi aset digital melalui gerbang pembayaran fiat terpadu (Virtual Account, QRIS Nasional, Kartu Kredit/Debit, serta Terminal SoftPOS) saat ini sedang dalam tahap penyelarasan enkripsi buku besar dan kalibrasi likuiditas berkala bersama mitra Penyelenggara Jasa Pembayaran (PJP Kategori 1).
-                    </p>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-primary/5 border border-primary/15 space-y-1.5">
-                    <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase italic">
-                      <CheckCircle2 className="w-4 h-4 shrink-0" />
-                      <span>Jaminan Keamanan Kustodian 24/7</span>
-                    </div>
-                    <p className="text-[10px] font-bold text-muted-foreground leading-relaxed">
-                      Seluruh portofolio aset digital dan saldo nasabah di dalam Brankas Kustodian AliBank tetap terlindungi sepenuhnya. Layanan <strong className="text-foreground">Konversi Aset Instan (Swap)</strong>, <strong className="text-foreground">Penjualan ke Saldo Dompet</strong>, serta <strong className="text-foreground">Pengiriman On-Chain (Ali-Bridge)</strong> tetap beroperasi normal.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2.5 pt-2">
-                    <Button
-                      onClick={() => router.push('/crypto/convert')}
-                      className="w-full h-13 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-lg text-xs tracking-wider flex items-center justify-center gap-2"
-                    >
-                      <ArrowRightLeft className="w-4 h-4" />
-                      Gunakan Konversi Instan (Swap Aset)
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setActiveTab('jual')}
-                      className="w-full h-11 rounded-xl font-black italic uppercase text-[11px] border-border"
-                    >
-                      Beralih ke Penjualan Aset
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => router.push('/')}
-                      className="w-full h-10 rounded-xl font-black italic uppercase text-[10px] text-muted-foreground"
-                    >
-                      Kembali ke Beranda Utama
-                    </Button>
-                  </div>
-                </Card>
-              ) : (
-                <>
                   <div className="flex flex-col items-center justify-center space-y-2">
                     <div className="flex items-center gap-2">
                       <span className={cn("text-6xl font-black tracking-tighter italic", amount === "0" ? "text-muted-foreground/20" : "text-foreground")}>{amount}</span>
@@ -1449,44 +1461,60 @@ function CryptoBuyPageInner() {
                             </>
                           )}
                         </div>
-                        <div><p className="text-xs font-black italic">Jual</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-600 text-[7px] font-black h-4 px-1.5 border-none uppercase">Live Node</Badge></div></div>
+                        <div><p className="text-xs font-black italic">{activeTab === 'beli' ? 'Beli' : 'Jual'}</p><div className="flex items-center gap-2"><span className="text-sm font-black text-foreground uppercase">{selectedAsset.symbol}</span><Badge className="bg-green-500/10 text-green-600 text-[7px] font-black h-4 px-1.5 border-none uppercase">Live Node</Badge></div></div>
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
                     </div>
                     
-                    <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border border-border/50">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 shadow-sm text-primary">
-                          <Landmark className="w-5 h-5" />
+                    {activeTab === 'beli' ? (
+                      <div
+                        onClick={() => setIsPaymentSheetOpen(true)}
+                        className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 rounded-2xl border border-border/50 cursor-pointer transition-all"
+                      >
+                        <div className="flex items-center gap-4 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 shadow-sm text-primary shrink-0">
+                            <PaymentIcon icon={activePayment?.icon} className="w-5 h-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-black italic">Metode Pembayaran</p>
+                            <p className="text-[10px] font-bold text-primary uppercase truncate">
+                              {activePayment?.name || 'DOKU Checkout Terpadu'}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-xs font-black italic">Penerima</p>
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase">
-                            Saldo Dompet AliBank (Instan)
-                          </p>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border border-border/50">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-2 shadow-sm text-primary">
+                            <Landmark className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black italic">Penerima</p>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase">
+                              Saldo Dompet AliBank (Instan)
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
-                </>
-              )}
             </div>
 
-            {activeTab !== 'beli' && (
-              <div className="pb-10 space-y-6">
-                <Button disabled={amount === "0" || totalAmountIdr <= 0 || cryptoQuote <= 0 || isProcessing} onClick={() => setIsCheckoutDialogOpen(true)} className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest">
-                  {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : 'LANJUTKAN'}
-                </Button>
-                <div className="grid grid-cols-3 gap-y-1">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                    <button key={n} onClick={() => handleKeyPress(n.toString())} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">{n}</button>
-                  ))}
-                  <button onClick={() => setAmount(prev => prev.includes(',') ? prev : prev + ',')} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">,</button>
-                  <button onClick={() => handleKeyPress("0")} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">0</button>
-                  <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-3 transition-colors" title="Hapus Karakter" aria-label="Hapus Karakter"><Delete className="w-7 h-7" /></button>
-                </div>
+            <div className="pb-10 space-y-6">
+              <Button disabled={amount === "0" || totalAmountIdr <= 0 || cryptoQuote <= 0 || isProcessing} onClick={() => setIsCheckoutDialogOpen(true)} className="w-full h-16 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-xl text-base tracking-widest">
+                {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : 'LANJUTKAN'}
+              </Button>
+              <div className="grid grid-cols-3 gap-y-1">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                  <button key={n} onClick={() => handleKeyPress(n.toString())} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">{n}</button>
+                ))}
+                <button onClick={() => setAmount(prev => prev.includes(',') ? prev : prev + ',')} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">,</button>
+                <button onClick={() => handleKeyPress("0")} className="text-3xl font-black italic active:bg-muted py-3 transition-colors">0</button>
+                <button onClick={handleDelete} className="flex items-center justify-center active:bg-muted py-3 transition-colors" title="Hapus Karakter" aria-label="Hapus Karakter"><Delete className="w-7 h-7" /></button>
               </div>
-            )}
+            </div>
           </main>
         </div>
       ) : (
@@ -1540,55 +1568,6 @@ function CryptoBuyPageInner() {
                       ))}
                     </div>
 
-                    {activeTab === 'beli' ? (
-                      <div className="rounded-[2rem] bg-muted/20 border border-primary/20 p-8 space-y-6">
-                        <div className="flex items-center justify-between">
-                          <Badge className="bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[9px] font-black uppercase px-3 py-1 italic tracking-wider">
-                            KALIBRASI NODE KLIRING PJP • BI-SNAP V3
-                          </Badge>
-                          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                            <ShieldCheck className="w-5 h-5" />
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground">
-                            Optimalisasi Jaringan Kliring & Likuiditas Pembayaran Terpadu
-                          </h3>
-                          <p className="text-xs font-semibold text-muted-foreground leading-relaxed">
-                            Fasilitas akuisisi aset digital melalui gerbang pembayaran fiat terpadu (Virtual Account Perbankan, QRIS Nasional, Kartu Kredit/Debit Global, serta Terminal SoftPOS) saat ini sedang dalam proses penyelarasan enkripsi buku besar dan kalibrasi likuiditas berkala bersama mitra Penyelenggara Jasa Pembayaran (PJP Kategori 1).
-                          </p>
-                        </div>
-
-                        <div className="p-5 rounded-2xl bg-primary/5 border border-primary/15 space-y-2">
-                          <div className="flex items-center gap-2 text-primary font-black text-xs uppercase italic">
-                            <CheckCircle2 className="w-4 h-4 shrink-0" />
-                            <span>Jaminan Keamanan Kustodian & Operasional 24/7</span>
-                          </div>
-                          <p className="text-[11px] font-bold text-muted-foreground leading-relaxed">
-                            Seluruh portofolio aset digital dan saldo nasabah di dalam Brankas Kustodian AliBank tetap terlindungi sepenuhnya dengan standar pengamanan kriptografi berlapis. Selama periode penyelarasan berlangsung, fasilitas <strong className="text-foreground">Konversi Aset Instan (Swap)</strong>, <strong className="text-foreground">Penjualan Aset ke Saldo Dompet</strong>, serta <strong className="text-foreground">Pengiriman On-Chain (Ali-Bridge)</strong> tetap beroperasi penuh 24/7.
-                          </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                          <Button
-                            onClick={() => router.push('/crypto/convert')}
-                            className="h-14 gold-gradient text-white font-black italic uppercase rounded-2xl shadow-lg text-xs tracking-wider flex items-center justify-center gap-2"
-                          >
-                            <ArrowRightLeft className="w-4 h-4" />
-                            Gunakan Konversi Instan (Swap)
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => setActiveTab('jual')}
-                            className="h-14 rounded-2xl font-black italic uppercase text-xs border-border hover:bg-muted"
-                          >
-                            Beralih ke Penjualan Aset
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
                         {/* Numeric Input & Selectors */}
                         <div className="space-y-6">
                           <div className="flex flex-col space-y-2">
@@ -1657,7 +1636,7 @@ function CryptoBuyPageInner() {
                                   )}
                                 </div>
                                 <div className="text-left">
-                                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-1">Koin Dijual</p>
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-1">{activeTab === 'beli' ? 'Koin Dibeli' : 'Koin Dijual'}</p>
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm font-black text-foreground uppercase leading-none">{selectedAsset.symbol}</span>
                                     <Badge className="bg-green-500/10 text-green-600 text-[6px] font-black h-3.5 px-1 border-none uppercase">Live Node</Badge>
@@ -1667,21 +1646,43 @@ function CryptoBuyPageInner() {
                               <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
                             </div>
 
-                            <div className="flex items-center justify-between p-5 bg-muted/20 rounded-2xl border border-border/50 opacity-80">
-                              <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center p-2.5 shadow-sm text-primary">
-                                  <Landmark className="w-5 h-5" />
+                            {activeTab === 'beli' ? (
+                              <div
+                                onClick={() => setIsPaymentSheetOpen(true)}
+                                className="flex items-center justify-between p-5 bg-muted/20 hover:bg-muted/40 rounded-2xl border border-border/50 cursor-pointer transition-all hover:border-primary/30"
+                              >
+                                <div className="flex items-center gap-4 min-w-0">
+                                  <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center p-2.5 shadow-sm text-primary shrink-0">
+                                    <PaymentIcon icon={activePayment?.icon} className="w-5 h-5" />
+                                  </div>
+                                  <div className="text-left min-w-0">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-1">
+                                      Metode Pembayaran
+                                    </p>
+                                    <p className="text-xs font-black text-primary truncate max-w-[170px]">
+                                      {activePayment?.name || 'DOKU Checkout Terpadu'}
+                                    </p>
+                                  </div>
                                 </div>
-                                <div className="text-left">
-                                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-1">
-                                    Penerima Hasil
-                                  </p>
-                                  <p className="text-xs font-black text-foreground truncate max-w-[150px]">
-                                    Saldo Dompet (Instan)
-                                  </p>
+                                <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0" />
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between p-5 bg-muted/20 rounded-2xl border border-border/50 opacity-80">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center p-2.5 shadow-sm text-primary">
+                                    <Landmark className="w-5 h-5" />
+                                  </div>
+                                  <div className="text-left">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-1">
+                                      Penerima Hasil
+                                    </p>
+                                    <p className="text-xs font-black text-foreground truncate max-w-[150px]">
+                                      Saldo Dompet (Instan)
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
+                            )}
                           </div>
                         </div>
 
@@ -1707,8 +1708,6 @@ function CryptoBuyPageInner() {
                             </div>
                           </div>
                         </div>
-                      </>
-                    )}
                   </Card>
                 </div>
 
@@ -1781,7 +1780,7 @@ function CryptoBuyPageInner() {
                 <SheetTitle className="text-xl font-black italic uppercase tracking-tight">Metode Pembayaran</SheetTitle>
                 <SheetDescription className="text-[10px] font-bold text-muted-foreground uppercase">Pilih gerbang kliring untuk penyelesaian dana.</SheetDescription>
               </SheetHeader>
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
                 {enabledPaymentMethods.length === 0 ? (
                   <div className="py-8 text-center">
                     <p className="text-sm font-black text-muted-foreground uppercase">Tidak Ada Metode Tersedia</p>
@@ -1819,7 +1818,7 @@ function CryptoBuyPageInner() {
               <DialogTitle className="text-xl font-black italic uppercase tracking-tight">Metode Pembayaran</DialogTitle>
               <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase">Pilih gerbang kliring untuk penyelesaian dana.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
               {enabledPaymentMethods.length === 0 ? (
                 <div className="py-8 text-center">
                   <p className="text-sm font-black text-muted-foreground uppercase">Tidak Ada Metode Tersedia</p>
@@ -1915,13 +1914,13 @@ function CryptoBuyPageInner() {
                     </>
                   )}
                 </div>
-              ) : selectedPayment?.id === 'doku' ? (
+              ) : ['doku', 'doku_va', 'doku_qris', 'doku_retail'].includes(selectedPayment?.id) ? (
                 <Button 
-                  onClick={handleDokuPayment} 
+                  onClick={() => handleDokuPayment(selectedPayment.id)} 
                   disabled={isProcessing}
                   className="w-full h-16 gold-gradient text-white rounded-2xl font-black italic uppercase shadow-xl flex items-center justify-center gap-3"
                 >
-                  {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : <><ShieldCheck className="w-5 h-5" /> BAYAR DENGAN DOKU CHECKOUT</>}
+                  {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : <><ShieldCheck className="w-5 h-5" /> BAYAR DENGAN DOKU PRODUCTION</>}
                 </Button>
               ) : selectedPayment?.id === 'midtrans' ? (
                 <Button 

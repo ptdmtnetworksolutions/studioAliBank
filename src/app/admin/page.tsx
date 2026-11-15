@@ -128,6 +128,7 @@ function AdminContent() {
     user && (
       userEmailClean === OWNER_EMAIL.toLowerCase() ||
       userEmailClean === 'aldzulfikar075@gmail.com' ||
+      userEmailClean === 'dzulfikaraliridlo@gmail.com' ||
       user.uid === OWNER_UID ||
       currentUserDoc?.role === 'admin' ||
       currentUserDoc?.role === 'owner' ||

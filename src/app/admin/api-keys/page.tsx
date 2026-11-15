@@ -68,11 +68,14 @@ function APIKeysContent() {
     midtransClientKey: "",
     midtransServerKey: "",
     midtransSandbox: true,
-    dokuClientId: "",
+    dokuClientId: "BRN-0209-1775738330323",
     dokuSecretKey: "",
     dokuApiKey: "",
     dokuPublicKey: "",
+    dokuWebhookUrl: "https://alibank.tarroz.com/api/payments/doku-webhook",
     dokuIsProduction: true,
+    softposMerchantId: "NOBU-ALIBANK-8829013",
+    softposTerminalId: "ALX-SOFTPOS-01",
     ipaymuVa: "",
     ipaymuApiKey: "",
     ipaymuSandbox: false,
@@ -101,11 +104,14 @@ function APIKeysContent() {
         midtransClientKey: storedKeys.midtransClientKey || "",
         midtransServerKey: storedKeys.midtransServerKey || "",
         midtransSandbox: storedKeys.midtransSandbox ?? true,
-        dokuClientId: storedKeys.dokuClientId || "",
+        dokuClientId: storedKeys.dokuClientId || "BRN-0209-1775738330323",
         dokuSecretKey: storedKeys.dokuSecretKey || "",
         dokuApiKey: storedKeys.dokuApiKey || "",
         dokuPublicKey: storedKeys.dokuPublicKey || "",
+        dokuWebhookUrl: storedKeys.dokuWebhookUrl || "https://alibank.tarroz.com/api/payments/doku-webhook",
         dokuIsProduction: storedKeys.dokuIsProduction ?? true,
+        softposMerchantId: storedKeys.softposMerchantId || "NOBU-ALIBANK-8829013",
+        softposTerminalId: storedKeys.softposTerminalId || "ALX-SOFTPOS-01",
         ipaymuVa: storedKeys.ipaymuVa || "",
         ipaymuApiKey: storedKeys.ipaymuApiKey || "",
         ipaymuSandbox: storedKeys.ipaymuSandbox ?? false,
@@ -122,7 +128,8 @@ function APIKeysContent() {
 
   useEffect(() => {
     if (userLoading) return;
-    if (!user || (user.email !== OWNER_EMAIL && user.email !== 'aldzulfikar075@gmail.com' && user.uid !== OWNER_UID)) {
+    const emailLower = String(user?.email || '').trim().toLowerCase();
+    if (!user || (emailLower !== OWNER_EMAIL && emailLower !== 'aldzulfikar075@gmail.com' && emailLower !== 'dzulfikaraliridlo@gmail.com' && user.uid !== OWNER_UID)) {
       router.push('/login');
       return;
     }
@@ -142,6 +149,11 @@ function APIKeysContent() {
       paypalClientId: keys.paypalClientId,
       midtransClientKey: keys.midtransClientKey,
       midtransSandbox: keys.midtransSandbox,
+      dokuClientId: keys.dokuClientId,
+      dokuIsProduction: keys.dokuIsProduction,
+      dokuWebhookUrl: keys.dokuWebhookUrl,
+      softposMerchantId: keys.softposMerchantId,
+      softposTerminalId: keys.softposTerminalId,
       ipaymuVa: keys.ipaymuVa,
       ipaymuSandbox: keys.ipaymuSandbox,
       polygonRpcUrl: keys.polygonRpcUrl,

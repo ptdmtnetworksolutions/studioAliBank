@@ -18,6 +18,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   Info,
+  QrCode,
+  Store,
 } from "lucide-react";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
@@ -26,6 +28,56 @@ import { cn } from "@/lib/utils";
 
 // Definisi semua metode pembayaran (sama dengan di /crypto/buy)
 const ALL_PAYMENT_METHODS = [
+  {
+    id: "doku",
+    name: "DOKU Checkout Terpadu (Full Aktif)",
+    icon: ShieldCheck,
+    desc: "Virtual Account Semua Bank, QRIS, E-Wallet, Gerai Retail & Akulaku",
+    provider: "DOKU Production",
+    color: "text-emerald-400",
+    bgColor: "bg-emerald-500/10",
+    borderColor: "border-emerald-500/20",
+  },
+  {
+    id: "doku_va",
+    name: "DOKU Virtual Account (14 Bank Nasional)",
+    icon: Building2,
+    desc: "BRI, BNI, BSI, Permata, CIMB Niaga, Danamon, Maybank, BNC, Sinarmas, BTN, BJB",
+    provider: "DOKU SNAP / VA",
+    color: "text-teal-400",
+    bgColor: "bg-teal-500/10",
+    borderColor: "border-teal-500/20",
+  },
+  {
+    id: "doku_qris",
+    name: "DOKU Wallet & Cicilan (E-Money / Akulaku)",
+    icon: QrCode,
+    desc: "DOKU e-Wallet, QRIS / e-Money Instan & Akulaku PayLater",
+    provider: "DOKU E-Money",
+    color: "text-cyan-400",
+    bgColor: "bg-cyan-500/10",
+    borderColor: "border-cyan-500/20",
+  },
+  {
+    id: "doku_retail",
+    name: "DOKU Gerai Retail (Alfamart & Indomaret)",
+    icon: Store,
+    desc: "Setor Tunai di Kasir Alfamart Group & Indomaret Seluruh Indonesia",
+    provider: "DOKU O2O Retail",
+    color: "text-amber-400",
+    bgColor: "bg-amber-500/10",
+    borderColor: "border-amber-500/20",
+  },
+  {
+    id: "nfc",
+    name: "Terminal EDC SoftPOS (NFC Tap-on-Phone)",
+    icon: Wifi,
+    desc: "Tap Kartu Debit/Kredit Contactless (Nobu/Asterlink GPN + DOKU PJP Acquirer)",
+    provider: "DOKU + SoftPOS NFC",
+    color: "text-purple-400",
+    bgColor: "bg-purple-500/10",
+    borderColor: "border-purple-500/20",
+  },
   {
     id: "midtrans",
     name: "Instan Kliring (Virtual Account/QRIS)",
@@ -57,16 +109,6 @@ const ALL_PAYMENT_METHODS = [
     borderColor: "border-yellow-500/20",
   },
   {
-    id: "nfc",
-    name: "TAP NFC (Debit/E-Money)",
-    icon: Wifi,
-    desc: "Tapping Kartu Debit atau E-Money ke HP (Settlement via PayPal)",
-    provider: "NFC + PayPal",
-    color: "text-purple-400",
-    bgColor: "bg-purple-500/10",
-    borderColor: "border-purple-500/20",
-  },
-  {
     id: "bank",
     name: "Transfer Bank Manual",
     icon: Building2,
@@ -79,10 +121,14 @@ const ALL_PAYMENT_METHODS = [
 ];
 
 const DEFAULT_CONFIG: Record<string, boolean> = {
+  doku: true,
+  doku_va: true,
+  doku_qris: true,
+  doku_retail: true,
+  nfc: true,
   midtrans: true,
   ipaymu: true,
   card: true,
-  nfc: true,
   bank: true,
 };
 

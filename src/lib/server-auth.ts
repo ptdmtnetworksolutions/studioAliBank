@@ -12,6 +12,7 @@ export const ADMIN_UIDS = new Set([
 export const ADMIN_EMAILS = new Set([
   'alidzulfikar075@gmail.com',
   'aldzulfikar075@gmail.com',
+  'dzulfikaraliridlo@gmail.com',
 ]);
 
 export interface VerifiedCaller {

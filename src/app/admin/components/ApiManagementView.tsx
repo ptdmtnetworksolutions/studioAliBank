@@ -22,7 +22,9 @@ import {
   Wallet,
   ShieldCheck,
   Bell,
-  Flame
+  Flame,
+  CreditCard,
+  Wifi
 } from "lucide-react";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useFirestore, useUser } from "@/firebase";
@@ -47,6 +49,15 @@ export function ApiManagementView({ storedKeys }: any) {
     midtransClientKey: "",
     midtransServerKey: "",
     midtransSandbox: true,
+    dokuClientId: "BRN-0209-1775738330323",
+    dokuSecretKey: "",
+    dokuApiKey: "",
+    dokuPublicKey: "",
+    dokuMerchantName: "PT. DMT NETWORK SOLUTIONS",
+    dokuWebhookUrl: "https://alibank.tarroz.com/api/payments/doku-webhook",
+    dokuIsProduction: true,
+    softposMerchantId: "NOBU-ALIBANK-8829013",
+    softposTerminalId: "ALX-SOFTPOS-01",
     ipaymuVa: "",
     ipaymuApiKey: "",
     ipaymuSandbox: false,
@@ -68,10 +79,19 @@ export function ApiManagementView({ storedKeys }: any) {
         paypalClientId: storedKeys.paypalClientId || "",
         paypalClientSecret: storedKeys.paypalClientSecret || "",
         paypalWebhookId: storedKeys.paypalWebhookId || "",
-        midtransMerchantId: storedKeys.midtransMerchantId || "" ,
+        midtransMerchantId: storedKeys.midtransMerchantId || "",
         midtransClientKey: storedKeys.midtransClientKey || "",
         midtransServerKey: storedKeys.midtransServerKey || "",
         midtransSandbox: storedKeys.midtransSandbox ?? true,
+        dokuClientId: storedKeys.dokuClientId || "BRN-0209-1775738330323",
+        dokuSecretKey: storedKeys.dokuSecretKey || "",
+        dokuApiKey: storedKeys.dokuApiKey || "",
+        dokuPublicKey: storedKeys.dokuPublicKey || "",
+        dokuMerchantName: storedKeys.dokuMerchantName || "PT. DMT NETWORK SOLUTIONS",
+        dokuWebhookUrl: storedKeys.dokuWebhookUrl || "https://alibank.tarroz.com/api/payments/doku-webhook",
+        dokuIsProduction: storedKeys.dokuIsProduction ?? true,
+        softposMerchantId: storedKeys.softposMerchantId || "NOBU-ALIBANK-8829013",
+        softposTerminalId: storedKeys.softposTerminalId || "ALX-SOFTPOS-01",
         ipaymuVa: storedKeys.ipaymuVa || "",
         ipaymuApiKey: storedKeys.ipaymuApiKey || "",
         ipaymuSandbox: storedKeys.ipaymuSandbox ?? false,
@@ -99,6 +119,12 @@ export function ApiManagementView({ storedKeys }: any) {
       paypalClientId: keys.paypalClientId,
       midtransClientKey: keys.midtransClientKey,
       midtransSandbox: keys.midtransSandbox,
+      dokuClientId: keys.dokuClientId,
+      dokuMerchantName: keys.dokuMerchantName,
+      dokuWebhookUrl: keys.dokuWebhookUrl,
+      dokuIsProduction: keys.dokuIsProduction,
+      softposMerchantId: keys.softposMerchantId,
+      softposTerminalId: keys.softposTerminalId,
       ipaymuVa: keys.ipaymuVa,
       ipaymuSandbox: keys.ipaymuSandbox,
       polygonRpcUrl: keys.polygonRpcUrl,
@@ -257,6 +283,113 @@ export function ApiManagementView({ storedKeys }: any) {
                   onToggle={() => toggleShow('pp_wh')} 
                   description="Gunakan ini untuk notifikasi penyelesaian pembayaran sisi server yang lebih aman."
                 />
+              </div>
+            </div>
+          </section>
+
+          <div className="h-px bg-border/50 w-full" />
+
+          {/* DOKU PAYMENT GATEWAY (FULL AKTIF PRODUCTION) */}
+          <section className="space-y-6 p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-black italic uppercase tracking-widest text-emerald-500 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4" /> DOKU Payment Gateway (PJP Kategori 1 • Full Aktif)
+              </h3>
+              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-black uppercase text-[9px] italic">
+                {keys.dokuIsProduction ? "PRODUCTION LIVE • PT. DMT NETWORK SOLUTIONS" : "SANDBOX MODE"}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <KeyField
+                label="DOKU Client ID"
+                icon={Building2}
+                value={keys.dokuClientId}
+                placeholder="BRN-0209-1775738330323"
+                onChange={(v: any) => setKeys({ ...keys, dokuClientId: v })}
+                show={true}
+                description="Client ID resmi dari DOKU Back Office (Settings -> API Keys)."
+              />
+              <KeyField
+                label="Nama Merchant DOKU"
+                icon={ShieldCheck}
+                value={keys.dokuMerchantName}
+                placeholder="PT. DMT NETWORK SOLUTIONS"
+                onChange={(v: any) => setKeys({ ...keys, dokuMerchantName: v })}
+                show={true}
+              />
+              <KeyField
+                label="DOKU Active Secret Key (HMAC-SHA256)"
+                icon={Lock}
+                value={keys.dokuSecretKey}
+                placeholder="SK-..."
+                onChange={(v: any) => setKeys({ ...keys, dokuSecretKey: v })}
+                show={showKeys['dk_sec']}
+                onToggle={() => toggleShow('dk_sec')}
+                description="Kunci rahasia untuk tanda tangan kriptografi Checkout & verifikasi Webhook."
+              />
+              <KeyField
+                label="DOKU API Key (Bearer Authorization)"
+                icon={Key}
+                value={keys.dokuApiKey}
+                placeholder="doku_key_..."
+                onChange={(v: any) => setKeys({ ...keys, dokuApiKey: v })}
+                show={showKeys['dk_api']}
+                onToggle={() => toggleShow('dk_api')}
+                description="API Key DOKU Checkout & SNAP BI untuk otorisasi endpoint Production."
+              />
+              <KeyField
+                label="DOKU Public Key (RSA / SNAP Verify)"
+                icon={ShieldCheck}
+                value={keys.dokuPublicKey}
+                placeholder="-----BEGIN PUBLIC KEY----- ..."
+                onChange={(v: any) => setKeys({ ...keys, dokuPublicKey: v })}
+                show={showKeys['dk_pub']}
+                onToggle={() => toggleShow('dk_pub')}
+                description="Public Key DOKU untuk validasi callback B2B/SNAP."
+              />
+              <KeyField
+                label="DOKU Webhook Notification URL"
+                icon={Globe}
+                value={keys.dokuWebhookUrl}
+                placeholder="https://alibank.tarroz.com/api/payments/doku-webhook"
+                onChange={(v: any) => setKeys({ ...keys, dokuWebhookUrl: v })}
+                show={true}
+              />
+              <KeyField
+                label="Terminal SoftPOS Merchant ID (MID)"
+                icon={CreditCard}
+                value={keys.softposMerchantId}
+                placeholder="NOBU-ALIBANK-8829013"
+                onChange={(v: any) => setKeys({ ...keys, softposMerchantId: v })}
+                show={true}
+                description="MID Terminal EDC Contactless SoftPOS / NFC Tap-on-Phone."
+              />
+              <KeyField
+                label="Terminal SoftPOS Device ID (TID)"
+                icon={Wifi}
+                value={keys.softposTerminalId}
+                placeholder="ALX-SOFTPOS-01"
+                onChange={(v: any) => setKeys({ ...keys, softposTerminalId: v })}
+                show={true}
+              />
+              <div className="md:col-span-2 flex flex-col space-y-3">
+                <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">DOKU Environment Mode</label>
+                <div className="flex bg-muted/50 p-1 rounded-xl w-full max-w-[300px] border border-border/10">
+                  <button
+                    type="button"
+                    onClick={() => setKeys({ ...keys, dokuIsProduction: true })}
+                    className={`flex-1 py-2 text-[10px] font-black uppercase italic rounded-lg transition-all ${keys.dokuIsProduction ? "bg-emerald-600 text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Production
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setKeys({ ...keys, dokuIsProduction: false })}
+                    className={`flex-1 py-2 text-[10px] font-black uppercase italic rounded-lg transition-all ${!keys.dokuIsProduction ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Sandbox
+                  </button>
+                </div>
               </div>
             </div>
           </section>
